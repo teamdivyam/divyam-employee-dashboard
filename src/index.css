@@ -1,0 +1,390 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* CTA BUTTONS */
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 214 95% 93%;
+    --accent-foreground: 221 83% 53%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+
+    --ring: 221 83% 53%;
+
+    --chart-1: 221 83% 53%;
+    --chart-2: 160 84% 39%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 280 85% 60%;
+    --chart-5: 350 89% 60%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 222 47% 7%;
+    --sidebar-foreground: 210 20% 98%;
+
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 221 83% 53%;
+  }
+
+  .dark {
+    --background: 222 47% 7%;
+    --foreground: 210 20% 98%;
+
+    --card: 222 47% 10%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 222 47% 10%;
+    --popover-foreground: 210 20% 98%;
+
+    /* CTA BUTTONS */
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 7%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 20% 98%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 17%;
+    --accent-foreground: 217 91% 60%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 217 33% 18%;
+    --input: 217 33% 18%;
+
+    --ring: 217 91% 60%;
+
+    --chart-1: 217 91% 60%;
+    --chart-2: 160 84% 45%;
+    --chart-3: 38 92% 55%;
+    --chart-4: 280 85% 65%;
+    --chart-5: 350 89% 65%;
+
+    --sidebar-background: 222 47% 7%;
+    --sidebar-foreground: 210 20% 98%;
+
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 222 47% 7%;
+
+    --sidebar-accent: 217 33% 15%;
+    --sidebar-accent-foreground: 210 20% 98%;
+
+    --sidebar-border: 217 33% 18%;
+    --sidebar-ring: 217 91% 60%;
+  }
+}
+
+/* @layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+} */
+
+.errMsgStyle {
+  animation: fadeIn 0.2s ease-in forwards;
+
+  /* transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out; */
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.-padding-4 {
+  padding: 4px;
+}
+
+/* THEME BG_COLOR */
+.bg-theme-color {
+  background-color: rgb(249 115 22) !important;
+}
+
+.text-theme-color {
+  color: rgb(249 115 22) !important;
+}
+
+.bg-theme-color:hover {
+  background-color: rgb(234 88 12) !important;
+}
+
+.bg-theme-color:active {
+  background-color: rgb(194 65 12) !important;
+}
+
+/* SHADCN_MODEL_PREVENT_POINTER_EVENTE_ONBODY */
+body {
+  pointer-events: auto !important;
+}
+
+@layer components {
+  .crm-page {
+    @apply bg-background text-foreground;
+  }
+
+  .crm-card {
+    @apply rounded-xl border border-border bg-card text-card-foreground shadow-sm;
+  }
+
+  .crm-surface {
+    @apply border-border bg-card text-card-foreground;
+  }
+
+  .crm-muted-surface {
+    @apply bg-muted/60 text-muted-foreground;
+  }
+
+  .crm-muted-text {
+    @apply text-muted-foreground;
+  }
+
+  .crm-title {
+    @apply text-foreground;
+  }
+
+  .crm-icon-soft {
+    @apply border border-border bg-accent text-accent-foreground dark:bg-accent dark:text-accent-foreground;
+  }
+
+  .crm-primary-button {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+  }
+
+  .crm-outline-button {
+    @apply border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground;
+  }
+
+  .crm-input {
+    @apply border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring/40;
+  }
+
+  .crm-timeline-active {
+    @apply border-primary bg-background ring-4 ring-primary/15;
+  }
+
+  .crm-timeline-done {
+    @apply border-primary bg-primary;
+  }
+
+  .crm-timeline-idle {
+    @apply border-border bg-background;
+  }
+
+  .crm-status-new,
+  .crm-status-default {
+    @apply border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-300;
+  }
+
+  .crm-status-contacted,
+  .crm-status-consultation,
+  .crm-status-follow-up {
+    @apply border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-300;
+  }
+
+  .crm-status-qualified,
+  .crm-status-booked,
+  .crm-status-completed {
+    @apply border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300;
+  }
+
+  .crm-status-proposal-pending,
+  .crm-status-pending,
+  .crm-status-upcoming {
+    @apply border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300;
+  }
+
+  .crm-status-proposal-sent {
+    @apply border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-400/30 dark:bg-violet-400/10 dark:text-violet-300;
+  }
+
+  .crm-status-negotiation,
+  .crm-status-in-progress {
+    @apply border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300;
+  }
+
+  .crm-status-lost {
+    @apply border-red-200 bg-red-50 text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300;
+  }
+
+  .atl-page {
+    @apply bg-background text-foreground;
+  }
+
+  .atl-card {
+    @apply rounded-lg border border-border bg-card text-card-foreground shadow-sm;
+  }
+
+  .atl-title {
+    @apply text-foreground;
+  }
+
+  .atl-muted {
+    @apply text-muted-foreground;
+  }
+
+  .atl-soft {
+    @apply border-border bg-muted/50 text-muted-foreground;
+  }
+
+  .atl-input {
+    @apply border-input bg-background text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none;
+  }
+
+  .atl-table-head {
+    @apply bg-muted/60 text-muted-foreground;
+  }
+
+  .atl-row-hover {
+    @apply hover:bg-muted/40;
+  }
+
+  .atl-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+  }
+
+  .atl-tab-active {
+    @apply border-primary text-primary;
+  }
+
+  .atl-tab-idle {
+    @apply border-transparent text-muted-foreground hover:text-primary;
+  }
+
+  .atl-status-present {
+    @apply border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300;
+  }
+
+  .atl-status-absent {
+    @apply border-red-200 bg-red-50 text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300;
+  }
+
+  .atl-status-late {
+    @apply border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300;
+  }
+
+  .atl-status-leave {
+    @apply border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-400/30 dark:bg-violet-400/10 dark:text-violet-300;
+  }
+
+  .atl-status-neutral {
+    @apply border-border bg-muted/50 text-muted-foreground;
+  }
+}
+
+/* SETTING_PAGE */
+
+.active>.bg-active-link {
+  transition: 0.1s ease-in;
+  background: #e2e2e2;
+  border: 0;
+  color: #333;
+}
+
+/* INPUT_HIDE_NUMBER */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+/* REACT_MODAL_STYLES */
+
+.ReactModal__Body--open {
+  overflow: hidden;
+}
+
+.ReactModal__Body--open,
+.ReactModal__Html--open {
+  overflow: hidden;
+}
+
+/* for -print */
+
+@media print {
+  .edit-order-icon {
+    display: none;
+  }
+
+  .orderIdBadge,
+  .orderStatusBadge {
+    background-color: #fff;
+    color: #000000;
+    border: none;
+    box-shadow: none;
+  }
+}
+
+/* animate-Orders inside user profile */
+@keyframes animate-orders-keyframe {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(10px);
+  }
+}
+
+.animate-order {
+  animation: animate-orders-keyframe 0.8s ease-in-out forwards;
+}
+
+.rotateImg {
+  animation: rotate 15s infinite linear;
+  transform-origin: center center;
+}
+
+@keyframes rotate {
+  0% {
+    rotate: 0deg;
+  }
+
+  100% {
+    rotate: 360deg;
+  }
+}
