@@ -117,21 +117,9 @@ const navMain: NavItem[] = [
     ],
   },
   {
-    title: "My Expenses",
-    url: "/dashboard/expenses",
-    icon: ReceiptText,
-    items: [],
-  },
-  {
     title: "My Request & Approvals",
     url: "/dashboard/requests-approvals",
     icon: ReceiptText,
-    items: [],
-  },
-  {
-    title: "Attendence & Leave",
-    url: "/dashboard/attendence-&-leave",
-    icon: ClipboardList,
     items: [],
   },
   {
@@ -141,13 +129,27 @@ const navMain: NavItem[] = [
     items: [],
   },
   {
+    title: "My Expenses",
+    url: "/dashboard/expenses",
+    icon: ReceiptText,
+    items: [],
+  },
+  
+  {
+    title: "My Attendence & Leave",
+    url: "/dashboard/attendence-&-leave",
+    icon: ClipboardList,
+    items: [],
+  },
+  
+  {
     title: "My Scorecard",
     url: "/dashboard/scorecard",
     icon: ShieldCheck,
     items: [],
   },
   {
-    title: "Profile",
+    title: "My Profile",
     url: "/dashboard/profile",
     icon: Settings,
   },

@@ -1,394 +1,382 @@
+/* eslint-disable react/prop-types, react-refresh/only-export-components */
 import React from "react";
-import { Button } from "@components/components/ui/button";
-import { Input } from "@components/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/components/ui/select";
-import { Textarea } from "@components/components/ui/textarea";
 import {
+  AlertTriangle,
+  Bell,
+  BriefcaseBusiness,
+  CalendarCheck,
   CalendarDays,
-  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
+  Download,
   Eye,
+  FilePenLine,
   FileText,
-  Loader2,
+  HeartPulse,
+  Info,
   LogIn,
   LogOut,
   MapPin,
+  MoreHorizontal,
   Send,
-  UserRound,
+  ShieldCheck,
+  Umbrella,
+  UserRoundCheck,
+  Zap,
 } from "lucide-react";
-import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
-import {
-  DataTable,
-  formatDate,
-  formatDateTime,
-  IconPill,
-  MetricCard,
-  SectionCard,
-  StatusBadge,
-} from "../../my-tasks/components/WorkPanelUI";
 
-export const emptyLeaveForm = {
-  leaveType: "",
-  fromDate: "",
-  toDate: "",
-  duration: "Full Day",
-  reason: "",
-  attachment: null,
-};
+export const tabs = [
+  { id: "today", label: "Today", icon: CalendarDays },
+  { id: "monthly", label: "Monthly Attendance", icon: CalendarCheck },
+  { id: "leaves", label: "Leave Requests", icon: Umbrella },
+  { id: "duty", label: "Event Duty", icon: BriefcaseBusiness },
+  { id: "corrections", label: "Correction Requests", icon: FilePenLine },
+  { id: "rules", label: "Attendance Rules", icon: FileText },
+];
 
-export const emptyCheckInForm = {
-  locationType: "Office",
-  locationName: "Head Office",
-  locationAddress: "Prayagraj",
-  latitude: "",
-  longitude: "",
-  attendanceSource: "Web Portal",
-  notes: "Starting work",
-};
-
-export function PageHeader() {
-  return (
-    <div>
-      <h1 className="text-xl font-semibold text-slate-950">Attendance / Leave</h1>
-      <div className="mt-2 flex items-center gap-2 text-xs font-medium text-slate-500">
-        <span>Home</span>
-        <span>/</span>
-        <span>Attendance / Leave</span>
-      </div>
-    </div>
-  );
+export function displayText(value, fallback = "--") {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (React.isValidElement(value)) return value;
+  if (Array.isArray(value)) return value.map((item) => displayText(item, "")).filter(Boolean).join(", ") || fallback;
+  if (typeof value === "object") {
+    return (
+      value.label ||
+      value.status ||
+      value.name ||
+      value.title ||
+      value.value ||
+      value.text ||
+      value.description ||
+      fallback
+    );
+  }
+  return value;
 }
 
-export function AttendanceMetrics({ dashboard }) {
-  const metrics = [
-    ["Today Status", dashboard.todayStatus || "Not Marked", dashboard.checkInTime ? `Since ${formatTime(dashboard.checkInTime)}` : "Today", CalendarDays, "blue"],
-    ["Check-in Time", dashboard.checkInTime ? formatTime(dashboard.checkInTime) : "--:--", dashboard.checkInTime ? formatDate(dashboard.checkInTime) : "Not Checked In", LogIn, "green"],
-    ["Check-out Time", dashboard.checkOutTime ? formatTime(dashboard.checkOutTime) : "--:-- --", dashboard.checkOutTime ? formatDate(dashboard.checkOutTime) : "Not Checked Out", LogOut, "orange"],
-    ["Working Hours", dashboard.workingHours || "00h 00m", "Till Now", Clock3, "violet"],
-    ["Leaves Taken", `${dashboard.leavesTakenThisMonth || 0} Days`, "This Month", UserRound, "orange"],
-    ["Pending Requests", dashboard.pendingRequests || 0, "Request(s)", FileText, "red"],
-  ];
+const text = displayText;
 
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-      {metrics.map(([label, value, subLabel, Icon, tone]) => (
-        <MetricCard key={label} label={label} value={value} subLabel={subLabel} icon={Icon} tone={tone} />
-      ))}
-    </div>
-  );
-}
-
-export function TodayAttendanceCard({
-  dashboard,
-  checkInForm,
-  setCheckInForm,
-  checkOutNotes,
-  setCheckOutNotes,
-  onCheckIn,
-  onCheckOut,
-  checkingIn,
-  checkingOut,
-}) {
-  const checkedIn = Boolean(dashboard.checkInTime);
-  const checkedOut = Boolean(dashboard.checkOutTime);
-
-  return (
-    <SectionCard
-      title="Today's Attendance"
-      icon={UserRound}
-      action={<StatusBadge>{dashboard.todayStatus || "Not Marked"}</StatusBadge>}
-    >
-      <p className="-mt-2 mb-4 text-xs font-medium text-slate-500">{formatLongDate(new Date())}</p>
-      <div className="grid gap-3 xl:grid-cols-[1.1fr_0.8fr]">
-        <div className="grid gap-4 rounded-lg border border-emerald-100 bg-emerald-50/40 p-4 sm:grid-cols-2">
-          <div className="border-slate-200 sm:border-r">
-            <p className="text-xs font-medium text-slate-700">Check In</p>
-            <p className="mt-2 text-2xl font-semibold text-emerald-600">{dashboard.checkInTime ? formatTime(dashboard.checkInTime) : "--:-- --"}</p>
-            <p className="mt-2 text-xs font-medium text-slate-600">{dashboard.checkInTime ? formatDate(dashboard.checkInTime) : "Today"}</p>
-            <Button
-              variant="outline"
-              className="mt-4 h-9 min-w-[150px] border-emerald-200 bg-white text-xs font-medium text-emerald-700 hover:bg-emerald-50"
-              disabled={checkedIn || checkingIn}
-              onClick={onCheckIn}
-            >
-              {checkingIn ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {checkedIn ? "Checked In ✓" : "Check In"}
-            </Button>
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-700">Check Out</p>
-            <p className="mt-2 text-2xl font-semibold text-orange-500">{dashboard.checkOutTime ? formatTime(dashboard.checkOutTime) : "--:-- --"}</p>
-            <p className="mt-2 text-xs font-medium text-slate-600">{dashboard.checkOutTime ? formatDate(dashboard.checkOutTime) : "Not checked out"}</p>
-            <Button
-              variant="outline"
-              className="mt-4 h-9 min-w-[150px] border-orange-200 bg-white text-xs font-medium text-orange-600 hover:bg-orange-50"
-              disabled={!checkedIn || checkedOut || checkingOut}
-              onClick={onCheckOut}
-            >
-              {checkingOut ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Check Out
-            </Button>
-          </div>
-        </div>
-        <div className="space-y-3">
-          <InfoRow label="Working Hours" value={dashboard.workingHours || "00h 00m"} />
-          <InfoRow label="Location" value={`${checkInForm.locationName}, ${checkInForm.locationAddress}`} />
-          <InfoRow label="Attendance Source" value={checkInForm.attendanceSource} />
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-slate-600">Note (Optional)</label>
-            <Textarea
-              value={checkedIn && !checkedOut ? checkOutNotes : checkInForm.notes}
-              onChange={(event) => checkedIn && !checkedOut ? setCheckOutNotes(event.target.value) : setCheckInForm((current) => ({ ...current, notes: event.target.value }))}
-              placeholder="Add note for today..."
-              className="min-h-14 resize-none border-slate-200 text-xs"
-            />
-          </div>
-        </div>
-      </div>
-    </SectionCard>
-  );
-}
-
-export function LeaveRequestForm({ form, setForm, meta, onSubmit, loading, onBalance }) {
-  const leaveTypes = meta.leaveTypes?.length ? meta.leaveTypes : ["Casual Leave", "Sick Leave", "Event Comp-off", "Emergency Leave", "Unpaid Leave"];
-  const durations = meta.leaveDurations?.length ? meta.leaveDurations : ["Full Day", "Half Day"];
-  const setField = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-
-  return (
-    <SectionCard
-      title="Request Leave"
-      icon={CalendarDays}
-      action={<button type="button" onClick={onBalance} className="text-xs font-medium text-blue-600">View Leave Balance</button>}
-    >
-      <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <SelectField label="Leave Type *" value={form.leaveType} values={leaveTypes} placeholder="Select Leave Type" onChange={(value) => setField("leaveType", value)} />
-          <SelectField label="Half / Full Day" value={form.duration} values={durations} onChange={(value) => setField("duration", value)} />
-        </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <FormInput label="From Date *" type="date" value={form.fromDate} onChange={(value) => setField("fromDate", value)} />
-          <FormInput label="To Date *" type="date" value={form.toDate} onChange={(value) => setField("toDate", value)} />
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-slate-600">Attachment <span className="text-slate-400">(Optional)</span></label>
-            <Input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={(event) => setField("attachment", event.target.files?.[0] || null)} className="h-9 border-slate-200 text-xs" />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-slate-600">Reason *</label>
-          <Textarea value={form.reason} onChange={(event) => setField("reason", event.target.value)} placeholder="Enter reason for leave..." className="h-9 min-h-9 resize-none border-slate-200 py-2 text-xs" />
-        </div>
-        <Button type="submit" className="h-10 w-full gap-2 bg-blue-600 text-xs font-medium text-white hover:bg-blue-700" disabled={loading}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          Submit Leave Request
-        </Button>
-      </form>
-    </SectionCard>
-  );
-}
-
-export function LeaveRequestsTable({ requests, loading, onView }) {
-  return (
-    <SectionCard title="My Leave Requests" icon={FileText} action={<span className="text-xs font-medium text-blue-600">View All</span>}>
-      {loading && !requests.length ? (
-        <LoadingLine label="Loading leave requests" />
-      ) : (
-        <DataTable
-          emptyText="No leave requests found."
-          headers={["#", "Leave Type", "From - To", "Days", "Reason", "Status", "Approved By", "Action"]}
-          rows={requests.slice(0, 4).map((leave, index) => [
-            index + 1,
-            <span className="font-medium text-slate-800">{leave.leaveType}</span>,
-            dateRange(leave.fromDate, leave.toDate),
-            `${leave.leaveDays || (leave.duration === "Half Day" ? 0.5 : 1)} Day${Number(leave.leaveDays) > 1 ? "s" : ""}`,
-            <span className="text-slate-700">{leave.reason || "-"}</span>,
-            <StatusBadge>{leave.leaveStatus}</StatusBadge>,
-            <span>
-              <span className="block font-medium text-slate-800">{leave.approval?.actionBy?.fullName || "-"}</span>
-              <span className="block text-xs text-slate-500">{leave.approval?.actionAt ? formatDate(leave.approval.actionAt) : ""}</span>
-            </span>,
-            <button type="button" onClick={() => onView(leave)} className="grid h-8 w-8 place-items-center rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
-              <Eye className="h-4 w-4" />
-            </button>,
-          ])}
-        />
-      )}
-    </SectionCard>
-  );
-}
-
-export function EventDutyTable({ duties }) {
-  return (
-    <SectionCard title="Event Duty Attendance" icon={CalendarDays}>
-      <DataTable
-        emptyText="No event duty attendance found."
-        headers={["#", "Event Name", "Duty Date", "Reporting Time", "Venue / City", "Role", "Duty Status"]}
-        rows={(duties || []).slice(0, 3).map((duty, index) => [
-          index + 1,
-          <span className="font-medium text-slate-800">{duty.eventName || duty.event?.eventName || "-"}</span>,
-          formatDate(duty.dutyDate || duty.eventDate),
-          duty.reportingTime || duty.time || "-",
-          duty.venueCity || duty.venue || duty.city || "-",
-          duty.role || duty.dutyRole || "-",
-          <StatusBadge>{duty.dutyStatus || duty.status || "Assigned"}</StatusBadge>,
-        ])}
-      />
-    </SectionCard>
-  );
-}
-
-export function MonthlySummary({ summary }) {
-  const total = Number(summary.totalDays) || 1;
-  const data = [
-    { name: "Present Days", value: Number(summary.presentDays) || 0, color: "#22c55e" },
-    { name: "Absent Days", value: Number(summary.absentDays) || 0, color: "#ef4444" },
-    { name: "Late Days", value: Number(summary.lateDays) || 0, color: "#fb923c" },
-    { name: "Leave Days", value: Number(summary.leaveDays) || 0, color: "#8b5cf6" },
-  ];
-
-  return (
-    <SectionCard
-      title="Monthly Attendance Summary"
-      action={<span className="rounded-md border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700">May 2025</span>}
-    >
-      <div className="grid gap-4 md:grid-cols-[160px_1fr]">
-        <div className="relative h-36">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={data} dataKey="value" innerRadius={48} outerRadius={68} paddingAngle={1}>
-                {data.map((item) => <Cell key={item.name} fill={item.color} />)}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="absolute inset-0 grid place-items-center text-center">
-            <div>
-              <p className="text-xs font-medium text-slate-500">Total</p>
-              <p className="text-2xl font-semibold text-slate-950">{total}</p>
-              <p className="text-xs text-slate-500">Days</p>
-            </div>
-          </div>
-        </div>
-        <div className="space-y-3 pt-2">
-          {data.map((item) => (
-            <div key={item.name} className="flex items-center justify-between gap-3 text-xs">
-              <span className="flex items-center gap-2 font-medium text-slate-700">
-                <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: item.color }} />
-                {item.name}
-              </span>
-              <span className="font-medium text-slate-900">{item.value} ({((item.value / total) * 100).toFixed(2)}%)</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4 text-sm">
-        <span className="font-medium text-slate-800">Total Working Hours</span>
-        <span className="font-semibold text-slate-950">{summary.totalWorkingHours || "00h 00m"}</span>
-      </div>
-    </SectionCard>
-  );
-}
-
-export function AttendanceGuidelines() {
-  return (
-    <div className="rounded-lg border border-blue-100 bg-blue-50/70 p-4">
-      <div className="flex gap-3">
-        <IconPill icon={Clock3} tone="blue" />
-        <div>
-          <h3 className="text-sm font-semibold text-blue-700">Attendance Guidelines</h3>
-          <ul className="mt-2 list-disc space-y-1 pl-4 text-xs font-normal leading-5 text-slate-700">
-            <li>Please check-in when you start your work.</li>
-            <li>Check-out when your day's work is completed.</li>
-            <li>For event duties, attendance will be marked by admin.</li>
-            <li>Leave requests require approval from your reporting manager.</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function LeaveBalancePanel({ balances }) {
-  return (
-    <SectionCard title="Leave Balance">
-      <div className="space-y-3">
-        {balances.length ? balances.map((item) => (
-          <div key={item.leaveType} className="rounded-lg border border-slate-200 p-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium text-slate-900">{item.leaveType}</span>
-              <span className="font-semibold text-blue-600">{item.balance} left</span>
-            </div>
-            <div className="mt-2 h-2 rounded-full bg-slate-100">
-              <div className="h-2 rounded-full bg-blue-600" style={{ width: `${Math.min(100, (Number(item.used || 0) / Number(item.allotted || 1)) * 100)}%` }} />
-            </div>
-            <p className="mt-2 text-xs text-slate-500">{item.used} used of {item.allotted} allotted</p>
-          </div>
-        )) : <p className="text-xs text-slate-500">No leave balance data.</p>}
-      </div>
-    </SectionCard>
-  );
-}
-
-function InfoRow({ label, value }) {
-  return (
-    <div className="grid grid-cols-[120px_1fr] gap-3 text-xs">
-      <span className="font-medium text-slate-500">{label}</span>
-      <span className="font-medium text-slate-900">{value || "-"}</span>
-    </div>
-  );
-}
-
-function SelectField({ label, value, values, onChange, placeholder }) {
-  return (
-    <div className="space-y-2">
-      <label className="text-xs font-medium text-slate-600">{label}</label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-9 border-slate-200 text-xs font-normal">
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          {values.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}
-
-function FormInput({ label, value, onChange, type = "text" }) {
-  return (
-    <div className="space-y-2">
-      <label className="text-xs font-medium text-slate-600">{label}</label>
-      <Input type={type} value={value || ""} onChange={(event) => onChange(event.target.value)} className="h-9 border-slate-200 text-xs" />
-    </div>
-  );
-}
-
-function LoadingLine({ label }) {
-  return (
-    <div className="p-8 text-center text-xs text-slate-500">
-      <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-blue-600" />
-      {label}
-    </div>
-  );
-}
-
-export function formatTime(value) {
-  if (!value) return "--:--";
-  return new Intl.DateTimeFormat("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-function formatLongDate(value) {
-  return new Intl.DateTimeFormat("en-IN", {
-    weekday: "long",
+export function formatDisplayDate(value) {
+  value = displayText(value, "");
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
-  }).format(new Date(value));
+    weekday: "long",
+  });
 }
 
-function dateRange(fromDate, toDate) {
-  if (!fromDate) return "-";
-  if (!toDate || formatDate(fromDate) === formatDate(toDate)) return formatDate(fromDate);
-  return `${formatDate(fromDate)} - ${formatDate(toDate)}`;
+export function formatShortDate(value) {
+  value = displayText(value, "");
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
+
+export function formatTime(value) {
+  value = displayText(value, "");
+  if (!value || value === "--") return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+}
+
+export function StatusPill({ children, tone = "green" }) {
+  const tones = {
+    green: "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
+    red: "bg-red-100 text-red-700 dark:bg-red-400/15 dark:text-red-300",
+    orange: "bg-orange-100 text-orange-700 dark:bg-orange-400/15 dark:text-orange-300",
+    blue: "bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-300",
+    purple: "bg-violet-100 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
+    gray: "bg-muted text-muted-foreground",
+  };
+  return <span className={`inline-flex rounded px-2 py-0.5 text-[11px] ${tones[tone] || tones.gray}`}>{displayText(children)}</span>;
+}
+
+export function Panel({ children, className = "" }) {
+  return <section className={`rounded-lg border border-border bg-card text-card-foreground shadow-sm ${className}`}>{children}</section>;
+}
+
+export function SectionTitle({ icon: Icon, children, action }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
+      <h2 className="flex items-center gap-2 text-sm font-medium text-foreground">
+        <Icon className="h-4 w-4 text-[#f97316]" />
+        {children}
+      </h2>
+      {action}
+    </div>
+  );
+}
+
+export function SummaryCard({ icon: Icon, label, value, sub, tone = "green" }) {
+  const tones = {
+    green: "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
+    blue: "bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-300",
+    orange: "bg-orange-100 text-orange-700 dark:bg-orange-400/15 dark:text-orange-300",
+    red: "bg-red-100 text-red-700 dark:bg-red-400/15 dark:text-red-300",
+    purple: "bg-violet-100 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
+  };
+  return (
+    <Panel className="flex min-h-[88px] items-center gap-4 p-4">
+      <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ${tones[tone]}`}>
+        <Icon className="h-6 w-6" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-foreground">{displayText(label)}</p>
+        <p className="mt-1 truncate text-lg font-semibold text-foreground">{displayText(value)}</p>
+        <p className={`mt-1 text-xs ${tone === "red" ? "text-red-600" : "text-muted-foreground"}`}>{displayText(sub)}</p>
+      </div>
+    </Panel>
+  );
+}
+
+export function TopTabs({ activeTab, onChange }) {
+  return (
+    <Panel className="overflow-x-auto">
+      <div className="flex min-w-max items-center gap-4 px-3">
+        {tabs.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => onChange(id)}
+            className={`flex items-center gap-2 border-b-2 px-3 py-3 text-xs font-medium transition ${
+              activeTab === id ? "border-[#f97316] text-[#f97316]" : "border-transparent text-foreground hover:text-[#f97316]"
+            }`}
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+          </button>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+export function TodayPanel({ attendance, duty }) {
+  const rows = [
+    ["Date", formatDisplayDate(attendance.date || attendance.attendanceDate)],
+    ["Shift Time", text(attendance.shiftTime, `${text(attendance.shiftStartTime, "11:00 AM")} - ${text(attendance.shiftEndTime, "07:30 PM")}`)],
+    ["Check-In Time", <><span className="text-emerald-600">{attendance.checkInTime ? formatTime(attendance.checkInTime) : "11:05 AM"}</span> <StatusPill>On Time</StatusPill></>],
+    ["Check-Out Time", <><span>{formatTime(attendance.checkOutTime)}</span> {!attendance.checkOutTime && <StatusPill tone="orange">Not Checked Out</StatusPill>}</>],
+    ["Status", <StatusPill key="attendance-status">{text(attendance.status, "Present")}</StatusPill>],
+    ["Location", <><MapPin className="inline h-3.5 w-3.5" /> {text(attendance.location, "DIVYAM Office, Prayagraj")} <StatusPill>Verified</StatusPill></>],
+    ["Check-In Proof", text(attendance.checkInProof || attendance.proofLabel, "11:05 AM View Photo")],
+  ];
+  return (
+    <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+      <Panel>
+        <SectionTitle icon={CalendarCheck}>Today&apos;s Attendance</SectionTitle>
+        <div className="grid gap-x-10 gap-y-3 p-4 md:grid-cols-2">
+          {rows.map(([label, value]) => (
+            <React.Fragment key={label}>
+              <p className="text-xs text-foreground">{label}</p>
+              <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-foreground">{value}</div>
+            </React.Fragment>
+          ))}
+        </div>
+      </Panel>
+      <Panel className="bg-blue-50/50 dark:bg-blue-400/5">
+        <SectionTitle icon={BriefcaseBusiness}>Today&apos;s Duty</SectionTitle>
+        <div className="space-y-4 p-4 text-xs">
+          <InfoRow label="Duty Type" value={<StatusPill tone="blue">{text(duty.dutyType, "Office Duty")}</StatusPill>} />
+          <InfoRow label="Department" value={text(duty.department, "Event Management")} />
+          <InfoRow label="Reporting Manager" value={<>{text(duty.reportingManager, "Pappu Verma")}<br /><span className="text-muted-foreground">{text(duty.managerRole, "Sr. Operation Manager")}</span></>} />
+          <InfoRow label="Remarks" value={text(duty.remarks, "Regular office day.")} />
+          <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-blue-300 px-3 py-2 text-xs font-medium text-foreground hover:bg-blue-100 dark:hover:bg-blue-400/10">
+            View Today&apos;s Tasks <Send className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+export function InfoRow({ label, value }) {
+  return (
+    <div className="grid grid-cols-[140px_1fr] gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-foreground">{value}</span>
+    </div>
+  );
+}
+
+export function AttendanceTable({ rows, monthLabel }) {
+  const safeRows = rows?.length ? rows : [];
+  return (
+    <Panel>
+      <SectionTitle
+        icon={CalendarDays}
+        action={
+          <div className="flex items-center gap-2">
+            <button className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs"><ChevronLeft className="h-3.5 w-3.5" />{monthLabel}<ChevronRight className="h-3.5 w-3.5" /></button>
+            <button className="hidden items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs md:flex"><Download className="h-3.5 w-3.5" />Download</button>
+          </div>
+        }
+      >
+        Monthly Attendance - {monthLabel}
+      </SectionTitle>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[780px] text-left text-xs">
+          <thead className="bg-muted/50 text-muted-foreground">
+            <tr>{["Date", "Day", "Check In", "Check Out", "Working Hours", "Status", "Duty Type", "Remark", "Action"].map((h) => <th key={h} className="px-4 py-2 font-medium">{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {safeRows.map((row, index) => (
+              <tr key={row._id || row.id || index} className="border-t border-border">
+                <td className="px-4 py-2">{formatShortDate(row.date || row.attendanceDate)}</td>
+                <td className="px-4 py-2">{text(row.day, new Date(row.date || row.attendanceDate).toLocaleDateString("en-IN", { weekday: "short" }))}</td>
+                <td className="px-4 py-2">{formatTime(row.checkInTime)}</td>
+                <td className="px-4 py-2">{formatTime(row.checkOutTime)}</td>
+                <td className="px-4 py-2">{text(row.workingHours || row.totalWorkingHours)}</td>
+                <td className="px-4 py-2"><StatusPill tone={statusTone(text(row.status))}>{text(row.status)}</StatusPill></td>
+                <td className="px-4 py-2">{text(row.dutyType)}</td>
+                <td className="px-4 py-2">{text(row.remark || row.remarks)}</td>
+                <td className="px-4 py-2">{index === 0 ? <MoreHorizontal className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</td>
+              </tr>
+            ))}
+            {!safeRows.length && <tr><td colSpan="9" className="px-4 py-8 text-center text-muted-foreground">No attendance records found.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex justify-center p-4">
+        <button className="rounded-md border border-border px-4 py-2 text-xs font-medium">View Full Monthly Report</button>
+      </div>
+    </Panel>
+  );
+}
+
+export function SimpleList({ title, icon, rows, emptyText, renderRow }) {
+  const Icon = icon;
+  return (
+    <Panel>
+      <SectionTitle icon={Icon}>{title}</SectionTitle>
+      <div className="divide-y divide-border">
+        {rows?.length ? rows.map(renderRow) : <p className="p-5 text-center text-xs text-muted-foreground">{emptyText}</p>}
+      </div>
+    </Panel>
+  );
+}
+
+export function CorrectionForm({ form, setForm, onSubmit, isPending }) {
+  const input = "rounded-md border border-input bg-background px-3 py-2 text-xs outline-none focus:border-primary";
+  return (
+    <Panel>
+      <SectionTitle icon={FilePenLine}>Request Attendance Correction</SectionTitle>
+      <form onSubmit={onSubmit} className="grid gap-3 p-4 md:grid-cols-2">
+        <input className={input} type="date" value={form.attendanceDate} onChange={(e) => setForm({ ...form, attendanceDate: e.target.value })} required />
+        <select className={input} value={form.correctionType} onChange={(e) => setForm({ ...form, correctionType: e.target.value })}>
+          <option>Check_In</option><option>Check_Out</option><option>Status</option><option>Both</option>
+        </select>
+        <input className={input} type="datetime-local" value={form.requestedCheckInTime} onChange={(e) => setForm({ ...form, requestedCheckInTime: e.target.value })} />
+        <input className={input} type="datetime-local" value={form.requestedCheckOutTime} onChange={(e) => setForm({ ...form, requestedCheckOutTime: e.target.value })} />
+        <select className={input} value={form.requestedStatus} onChange={(e) => setForm({ ...form, requestedStatus: e.target.value })}>
+          <option>Present</option><option>Late</option><option>Absent</option><option>Paid Leave</option>
+        </select>
+        <input className={input} type="file" onChange={(e) => setForm({ ...form, attachment: e.target.files?.[0] })} />
+        <textarea className={`${input} md:col-span-2`} rows="3" placeholder="Reason" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} required />
+        <button disabled={isPending} className="rounded-md bg-[#f97316] px-4 py-2 text-xs font-medium text-white disabled:opacity-60">
+          {isPending ? "Submitting..." : "Submit Correction"}
+        </button>
+      </form>
+    </Panel>
+  );
+}
+
+export function RightRail({ health, quickActions, alerts, note, setActiveTab }) {
+  const actions = quickActions?.length ? quickActions : [
+    { title: "Apply Leave", description: "Request new leave", tab: "leaves", icon: Umbrella },
+    { title: "Request Correction", description: "Fix attendance issue", tab: "corrections", icon: FilePenLine },
+    { title: "View Monthly Report", description: "Download attendance", tab: "monthly", icon: FileText },
+    { title: "Contact Manager", description: "Talk to your manager", tab: "duty", icon: UserRoundCheck },
+  ];
+  return (
+    <aside className="space-y-4">
+      <Panel>
+        <SectionTitle icon={HeartPulse}>Attendance Health</SectionTitle>
+        <div className="grid grid-cols-[110px_1fr] items-center gap-4 p-4 text-xs">
+          <div className="relative grid h-24 w-24 place-items-center rounded-full border-[10px] border-emerald-200 border-l-emerald-600">
+            <span className="text-sm font-semibold">Good</span>
+          </div>
+          <div className="space-y-3">
+            <RailStat label="Present Days" value={text(health.presentDays, 22)} />
+            <RailStat label="Late Count" value={text(health.lateCount, 3)} />
+            <RailStat label="Absent Days" value={text(health.absentDays, 1)} />
+            <RailStat label="Paid Leaves Used" value={text(health.paidLeavesUsed, 2)} />
+            <RailStat label="Corrections Pending" value={text(health.correctionsPending, 1)} />
+          </div>
+        </div>
+      </Panel>
+      <Panel>
+        <SectionTitle icon={Zap}>Quick Actions</SectionTitle>
+        <div className="space-y-3 p-4">
+          {actions.map((action, index) => {
+            const Icon = action.icon || [Umbrella, FilePenLine, FileText, UserRoundCheck][index % 4];
+            return (
+              <button key={displayText(action.title || action.label, index)} onClick={() => action.tab && setActiveTab(action.tab)} className="flex w-full items-start gap-3 text-left text-xs">
+                <Icon className="mt-0.5 h-4 w-4 text-blue-600" />
+                <span><b className="block font-medium text-foreground">{displayText(action.title || action.label)}</b><span className="text-muted-foreground">{displayText(action.description)}</span></span>
+              </button>
+            );
+          })}
+        </div>
+      </Panel>
+      <Panel>
+        <SectionTitle icon={Bell}>Alerts & Notifications</SectionTitle>
+        <div className="space-y-3 p-3">
+          {(alerts?.length ? alerts : [{ title: "1 correction request is pending.", description: "Please update before monthly lock." }, { title: "Monthly attendance will be locked on 07 Jul 2026.", description: "Learn More" }]).map((alert, index) => (
+            <div key={index} className={`rounded-md border p-3 text-xs ${index ? "border-blue-200 bg-blue-50 text-blue-900 dark:bg-blue-400/10 dark:text-blue-200" : "border-orange-200 bg-orange-50 text-orange-900 dark:bg-orange-400/10 dark:text-orange-200"}`}>
+              <p className="font-medium">{displayText(alert.title)}</p>
+              <p>{displayText(alert.description || alert.message)}</p>
+            </div>
+          ))}
+        </div>
+      </Panel>
+      <Panel className="border-orange-200 bg-orange-50/70 dark:bg-orange-400/10">
+        <div className="flex gap-3 p-4 text-xs">
+          <Info className="h-4 w-4 text-orange-600" />
+          <div><p className="mb-2 text-sm font-medium text-orange-800 dark:text-orange-200">Note</p><p>{displayText(note, "Attendance records may be used for payroll calculation after verification by Finance.")}</p></div>
+        </div>
+      </Panel>
+    </aside>
+  );
+}
+
+function RailStat({ label, value }) {
+  return <div className="flex justify-between gap-3"><span>{displayText(label)}</span><b className="font-semibold">{displayText(value)}</b></div>;
+}
+
+export function HeaderActions({ onCheckIn, onCheckOut, setActiveTab, isBusy }) {
+  const button = "inline-flex items-center gap-2 rounded-md border px-4 py-2 text-xs font-medium disabled:opacity-60";
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <button disabled={isBusy} onClick={onCheckIn} className={`${button} border-emerald-600 bg-emerald-600 text-white`}><LogIn className="h-4 w-4" />Check In</button>
+      <button disabled={isBusy} onClick={onCheckOut} className={`${button} border-red-200 text-red-600`}><LogOut className="h-4 w-4" />Check Out</button>
+      <button onClick={() => setActiveTab("leaves")} className={`${button} border-blue-300 text-foreground`}><CalendarCheck className="h-4 w-4" />Apply Leave</button>
+      <button onClick={() => setActiveTab("corrections")} className={`${button} border-blue-300 text-foreground`}><FilePenLine className="h-4 w-4" />Request Correction</button>
+    </div>
+  );
+}
+
+export function statusTone(status = "") {
+  const value = String(status).toLowerCase();
+  if (value.includes("late")) return "orange";
+  if (value.includes("absent") || value.includes("reject")) return "red";
+  if (value.includes("leave")) return "blue";
+  if (value.includes("pending")) return "purple";
+  if (value.includes("present") || value.includes("approved")) return "green";
+  return "gray";
+}
+
+export const summaryIcons = {
+  status: ShieldCheck,
+  checkIn: Clock3,
+  hours: Clock3,
+  present: CalendarCheck,
+  late: UserRoundCheck,
+  leave: Umbrella,
+  alert: AlertTriangle,
+};
