@@ -27,7 +27,7 @@ A modern, enterprise-grade React-based employee dashboard built with Vite, featu
 Divyam Employee Dashboard is a full-featured employee interface designed to streamline business operations through centralized management of employees, inventory, and organizational settings. The application provides a user-friendly interface with role-based access control, real-time data synchronization, and comprehensive analytics capabilities.
 
 **Project Name:** employeedashboard  
-**Version:** 0.0.0  
+**Version:** 0.0.1  
 **Type:** React SPA (Single Page Application)  
 **Build Tool:** Vite  
 **Package Manager:** npm
