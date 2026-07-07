@@ -5,7 +5,7 @@ import LoginForm from "../Pages/auth/Login";
 import Register from "../Pages/auth/Register";
 import ResetPassword from "../Pages/auth/ResetPassword";
 import { ForgetPasswordPage } from "../Pages/auth/ForgetPasswordPage";
-import Layout from "../Pages/dashboard/Layout";
+import Layout from "../Pages/dashboard/Layout"; 
 import ProtectedRoute from "./ProtectedRoute";
 import SuspenseLoader from "../components/components/SuspenseLoader";
 import { useSelector } from "react-redux";
