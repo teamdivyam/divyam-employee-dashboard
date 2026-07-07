@@ -1,4 +1,4 @@
-# Divyam Employee Dashboard Frontend
+# Divyam Employee Dashboard Frontends
 <!-- hi -->
 A modern, enterprise-grade React-based employee dashboard built with Vite, featuring comprehensive employee management, inventory control, and real-time data visualization capabilities.
 
