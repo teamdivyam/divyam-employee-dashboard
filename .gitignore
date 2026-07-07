@@ -41,7 +41,6 @@ coverage/
 *.tsbuildinfo
 
 # Optional lockfiles (pick the one you use, ignore others)
-package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
