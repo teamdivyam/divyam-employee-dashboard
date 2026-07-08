@@ -134,6 +134,7 @@ const EmployeeService = {
     }),
 
   checkInAttendance: ({
+    status,
     locationType,
     locationName,
     locationAddress,
@@ -141,8 +142,10 @@ const EmployeeService = {
     longitude,
     attendanceSource,
     notes,
-  }) =>
+    location,
+  } = {}) =>
     axiosRequest.post("/attendance-leave/check-in", {
+      status,
       locationType,
       locationName,
       locationAddress,
@@ -150,15 +153,39 @@ const EmployeeService = {
       longitude,
       attendanceSource,
       notes,
+      location,
     }),
 
-  checkOutAttendance: ({ notes }) =>
-    axiosRequest.patch("/attendance-leave/check-out", { notes }),
+  checkOutAttendance: ({
+    notes,
+    attendanceSource,
+    location,
+    locationType,
+    locationName,
+    locationAddress,
+    latitude,
+    longitude,
+  } = {}) =>
+    axiosRequest.patch("/attendance-leave/check-out", {
+      notes,
+      attendanceSource,
+      location,
+      locationType,
+      locationName,
+      locationAddress,
+      latitude,
+      longitude,
+    }),
 
   getAttendanceHistory: ({ page = 1, limit = 25, status, startDate, endDate }) =>
     axiosRequest.get("/attendance-leave/history", {
       params: { page, limit, status, startDate, endDate },
     }),
+
+  submitAttendanceCorrection: ({ attendanceId, data }) =>
+    axiosRequest.post(`/attendance-leave/attendance/${attendanceId}/corrections`, data, data instanceof FormData
+      ? { headers: { "Content-Type": "multipart/form-data" } }
+      : undefined),
 
   submitLeaveRequest: ({ formData }) =>
     axiosRequest.post("/attendance-leave/leave-requests", formData, {
@@ -178,9 +205,9 @@ const EmployeeService = {
       reason,
     }),
 
-  getLeaveBalance: ({ year }) =>
+  getLeaveBalance: ({ fiscalYearStartYear, year }) =>
     axiosRequest.get("/attendance-leave/leave-balance", {
-      params: { year },
+      params: { fiscalYearStartYear: fiscalYearStartYear || year },
     }),
 
   // Employee My Reports

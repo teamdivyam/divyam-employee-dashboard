@@ -17,14 +17,20 @@ import {
   Info,
   LogIn,
   LogOut,
-  MapPin,
-  MoreHorizontal,
-  Send,
   ShieldCheck,
   Umbrella,
   UserRoundCheck,
   Zap,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@components/components/ui/dialog";
+
+export const DEFAULT_SHIFT_START_TIME = "11:00 AM";
+export const DEFAULT_SHIFT_END_TIME = "07:30 PM";
 
 export const tabs = [
   { id: "today", label: "Today", icon: CalendarDays },
@@ -55,6 +61,47 @@ export function displayText(value, fallback = "--") {
 }
 
 const text = displayText;
+
+function getDateWithTime(dateValue, timeValue = DEFAULT_SHIFT_START_TIME) {
+  const baseDate = dateValue ? new Date(dateValue) : new Date();
+  if (Number.isNaN(baseDate.getTime())) return null;
+
+  const time = String(timeValue || DEFAULT_SHIFT_START_TIME).trim();
+  const match = time.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  if (!match) return null;
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2] || 0);
+  const meridiem = match[3]?.toUpperCase();
+  if (meridiem === "PM" && hours < 12) hours += 12;
+  if (meridiem === "AM" && hours === 12) hours = 0;
+
+  baseDate.setHours(hours, minutes, 0, 0);
+  return baseDate;
+}
+
+export function isLateCheckIn(checkInTime, shiftStartTime = DEFAULT_SHIFT_START_TIME) {
+  if (!checkInTime) return false;
+  const checkInDate = new Date(checkInTime);
+  const shiftStartDate = getDateWithTime(checkInTime, shiftStartTime);
+  if (Number.isNaN(checkInDate.getTime()) || !shiftStartDate) return false;
+  return checkInDate > shiftStartDate;
+}
+
+export function isEarlyCheckOut(checkOutTime, shiftEndTime = DEFAULT_SHIFT_END_TIME) {
+  if (!checkOutTime) return false;
+  const checkOutDate = new Date(checkOutTime);
+  const shiftEndDate = getDateWithTime(checkOutTime, shiftEndTime);
+  if (Number.isNaN(checkOutDate.getTime()) || !shiftEndDate) return false;
+  return checkOutDate < shiftEndDate;
+}
+
+export function resolvePresenceStatus(attendance = {}) {
+  const value = String(attendance.status || "").toLowerCase();
+  if (value.includes("absent")) return "Absent";
+  if (attendance.checkInTime || value.includes("present") || value.includes("late") || value.includes("half")) return "Present";
+  return "Absent";
+}
 
 export function formatDisplayDate(value) {
   value = displayText(value, "");
@@ -157,14 +204,22 @@ export function TopTabs({ activeTab, onChange }) {
 }
 
 export function TodayPanel({ attendance, duty }) {
+  const presenceStatus = resolvePresenceStatus(attendance);
+  const isLate = isLateCheckIn(attendance.checkInTime);
+  const isTooEarly = isEarlyCheckOut(attendance.checkOutTime);
+  const locationLabel =
+    attendance.locationName ||
+    attendance.locationAddress ||
+    attendance.location?.address ||
+    attendance.location?.locationAddress ||
+    (attendance.latitude && attendance.longitude ? `${attendance.latitude}, ${attendance.longitude}` : "");
   const rows = [
     ["Date", formatDisplayDate(attendance.date || attendance.attendanceDate)],
-    ["Shift Time", text(attendance.shiftTime, `${text(attendance.shiftStartTime, "11:00 AM")} - ${text(attendance.shiftEndTime, "07:30 PM")}`)],
-    ["Check-In Time", <><span className="text-emerald-600">{attendance.checkInTime ? formatTime(attendance.checkInTime) : "11:05 AM"}</span> <StatusPill>On Time</StatusPill></>],
-    ["Check-Out Time", <><span>{formatTime(attendance.checkOutTime)}</span> {!attendance.checkOutTime && <StatusPill tone="orange">Not Checked Out</StatusPill>}</>],
-    ["Status", <StatusPill key="attendance-status">{text(attendance.status, "Present")}</StatusPill>],
-    ["Location", <><MapPin className="inline h-3.5 w-3.5" /> {text(attendance.location, "DIVYAM Office, Prayagraj")} <StatusPill>Verified</StatusPill></>],
-    ["Check-In Proof", text(attendance.checkInProof || attendance.proofLabel, "11:05 AM View Photo")],
+    ["Status", <StatusPill key="attendance-status" tone={statusTone(presenceStatus)}>{presenceStatus}</StatusPill>],
+    ["Shift Time", `${DEFAULT_SHIFT_START_TIME} - ${DEFAULT_SHIFT_END_TIME}`],
+    ["Check-In Time", <><span className={isLate ? "text-orange-600" : "text-emerald-600"}>{formatTime(attendance.checkInTime)}</span> {attendance.checkInTime && <StatusPill tone={isLate ? "orange" : "green"}>{isLate ? "Late" : "In Time"}</StatusPill>}</>],
+    ["Check-Out Time", <><span>{formatTime(attendance.checkOutTime)}</span> {isTooEarly && <StatusPill tone="orange">Too Early</StatusPill>} {!attendance.checkOutTime && <StatusPill tone="orange">Not Checked Out</StatusPill>}</>],
+    ["Location", <> {text(locationLabel)}</>],
   ];
   return (
     <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
@@ -182,13 +237,10 @@ export function TodayPanel({ attendance, duty }) {
       <Panel className="bg-blue-50/50 dark:bg-blue-400/5">
         <SectionTitle icon={BriefcaseBusiness}>Today&apos;s Duty</SectionTitle>
         <div className="space-y-4 p-4 text-xs">
-          <InfoRow label="Duty Type" value={<StatusPill tone="blue">{text(duty.dutyType, "Office Duty")}</StatusPill>} />
-          <InfoRow label="Department" value={text(duty.department, "Event Management")} />
-          <InfoRow label="Reporting Manager" value={<>{text(duty.reportingManager, "Pappu Verma")}<br /><span className="text-muted-foreground">{text(duty.managerRole, "Sr. Operation Manager")}</span></>} />
-          <InfoRow label="Remarks" value={text(duty.remarks, "Regular office day.")} />
-          <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-blue-300 px-3 py-2 text-xs font-medium text-foreground hover:bg-blue-100 dark:hover:bg-blue-400/10">
-            View Today&apos;s Tasks <Send className="h-3.5 w-3.5" />
-          </button>
+          <InfoRow label="Duty Type" value={<StatusPill tone="blue">{text(duty.dutyType)}</StatusPill>} />
+          <InfoRow label="Department" value={text(duty.department)} />
+          <InfoRow label="Reporting Manager" value={<>{text(duty.reportingManager)}<br /><span className="text-muted-foreground">{text(duty.managerRole)}</span></>} />
+          <InfoRow label="Remarks" value={text(duty.remarks)} />
         </div>
       </Panel>
     </div>
@@ -206,6 +258,7 @@ export function InfoRow({ label, value }) {
 
 export function AttendanceTable({ rows, monthLabel }) {
   const safeRows = rows?.length ? rows : [];
+  const [selectedAttendance, setSelectedAttendance] = React.useState(null);
   return (
     <Panel>
       <SectionTitle
@@ -222,30 +275,87 @@ export function AttendanceTable({ rows, monthLabel }) {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[780px] text-left text-xs">
           <thead className="bg-muted/50 text-muted-foreground">
-            <tr>{["Date", "Day", "Check In", "Check Out", "Working Hours", "Status", "Duty Type", "Remark", "Action"].map((h) => <th key={h} className="px-4 py-2 font-medium">{h}</th>)}</tr>
+            <tr>{["Date", "Status", "Check In", "Check Out", "Working Hours", "Duty Type", "Action"].map((h) => <th key={h} className="px-4 py-2 font-medium">{h}</th>)}</tr>
           </thead>
           <tbody>
-            {safeRows.map((row, index) => (
-              <tr key={row._id || row.id || index} className="border-t border-border">
-                <td className="px-4 py-2">{formatShortDate(row.date || row.attendanceDate)}</td>
-                <td className="px-4 py-2">{text(row.day, new Date(row.date || row.attendanceDate).toLocaleDateString("en-IN", { weekday: "short" }))}</td>
-                <td className="px-4 py-2">{formatTime(row.checkInTime)}</td>
-                <td className="px-4 py-2">{formatTime(row.checkOutTime)}</td>
-                <td className="px-4 py-2">{text(row.workingHours || row.totalWorkingHours)}</td>
-                <td className="px-4 py-2"><StatusPill tone={statusTone(text(row.status))}>{text(row.status)}</StatusPill></td>
-                <td className="px-4 py-2">{text(row.dutyType)}</td>
-                <td className="px-4 py-2">{text(row.remark || row.remarks)}</td>
-                <td className="px-4 py-2">{index === 0 ? <MoreHorizontal className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</td>
-              </tr>
-            ))}
-            {!safeRows.length && <tr><td colSpan="9" className="px-4 py-8 text-center text-muted-foreground">No attendance records found.</td></tr>}
+            {safeRows.map((row, index) => {
+              const rowStatus = resolvePresenceStatus(row);
+              return (
+                <tr key={row._id || row.id || index} className="border-t border-border">
+                  <td className="px-4 py-2">{formatShortDate(row.date || row.attendanceDate)}</td>
+                  <td className="px-4 py-2"><StatusPill tone={statusTone(rowStatus)}>{rowStatus}</StatusPill></td>
+                  <td className="px-4 py-2">{formatTime(row.checkInTime)}</td>
+                  <td className="px-4 py-2">{formatTime(row.checkOutTime)}</td>
+                  <td className="px-4 py-2">{text(row.workingHours || row.totalWorkingHours)}</td>
+                  <td className="px-4 py-2">{text(row.dutyType)}</td>
+                  <td className="px-4 py-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAttendance(row)}
+                      className="inline-flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      View
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            {!safeRows.length && <tr><td colSpan="7" className="px-4 py-8 text-center text-muted-foreground">No attendance records found.</td></tr>}
           </tbody>
         </table>
       </div>
       <div className="flex justify-center p-4">
         <button className="rounded-md border border-border px-4 py-2 text-xs font-medium">View Full Monthly Report</button>
       </div>
+      <AttendanceDetailDialog attendance={selectedAttendance} onOpenChange={(open) => !open && setSelectedAttendance(null)} />
     </Panel>
+  );
+}
+
+function AttendanceDetailDialog({ attendance, onOpenChange }) {
+  const open = Boolean(attendance);
+  if (!attendance) return null;
+
+  const location =
+    attendance.locationName ||
+    attendance.locationAddress ||
+    attendance.location?.address ||
+    attendance.location?.locationAddress ||
+    (attendance.latitude && attendance.longitude ? `${attendance.latitude}, ${attendance.longitude}` : "");
+  const details = [
+    ["Date", formatDisplayDate(attendance.date || attendance.attendanceDate)],
+    ["Status", resolvePresenceStatus(attendance)],
+    ["Check In", formatTime(attendance.checkInTime)],
+    ["Check Out", formatTime(attendance.checkOutTime)],
+    ["Working Hours", text(attendance.workingHours || attendance.totalWorkingHours)],
+    ["Working Minutes", text(attendance.workingMinutes)],
+    ["Duty Type", text(attendance.dutyType)],
+    ["Location Type", text(attendance.locationType)],
+    ["Location Name", text(attendance.locationName)],
+    ["Location Address", text(location)],
+    ["Latitude", text(attendance.latitude || attendance.location?.latitude)],
+    ["Longitude", text(attendance.longitude || attendance.location?.longitude)],
+    ["Source", text(attendance.attendanceSource)],
+    ["Notes", text(attendance.notes || attendance.remark || attendance.remarks)],
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="atl-card max-h-[85vh] overflow-y-auto sm:max-w-[560px]">
+        <DialogHeader>
+          <DialogTitle className="text-base font-semibold text-foreground">Attendance Detail</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-2 text-xs">
+          {details.map(([label, value]) => (
+            <div key={label} className="grid grid-cols-[140px_1fr] gap-3 rounded-md border border-border px-3 py-2">
+              <span className="text-muted-foreground">{label}</span>
+              <span className="font-medium text-foreground">{value}</span>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -287,26 +397,21 @@ export function CorrectionForm({ form, setForm, onSubmit, isPending }) {
 }
 
 export function RightRail({ health, quickActions, alerts, note, setActiveTab }) {
-  const actions = quickActions?.length ? quickActions : [
-    { title: "Apply Leave", description: "Request new leave", tab: "leaves", icon: Umbrella },
-    { title: "Request Correction", description: "Fix attendance issue", tab: "corrections", icon: FilePenLine },
-    { title: "View Monthly Report", description: "Download attendance", tab: "monthly", icon: FileText },
-    { title: "Contact Manager", description: "Talk to your manager", tab: "duty", icon: UserRoundCheck },
-  ];
+  const actions = quickActions || [];
   return (
     <aside className="space-y-4">
       <Panel>
         <SectionTitle icon={HeartPulse}>Attendance Health</SectionTitle>
         <div className="grid grid-cols-[110px_1fr] items-center gap-4 p-4 text-xs">
           <div className="relative grid h-24 w-24 place-items-center rounded-full border-[10px] border-emerald-200 border-l-emerald-600">
-            <span className="text-sm font-semibold">Good</span>
+            <span className="text-sm font-semibold">{text(health.label)}</span>
           </div>
           <div className="space-y-3">
-            <RailStat label="Present Days" value={text(health.presentDays, 22)} />
-            <RailStat label="Late Count" value={text(health.lateCount, 3)} />
-            <RailStat label="Absent Days" value={text(health.absentDays, 1)} />
-            <RailStat label="Paid Leaves Used" value={text(health.paidLeavesUsed, 2)} />
-            <RailStat label="Corrections Pending" value={text(health.correctionsPending, 1)} />
+            <RailStat label="Present Days" value={text(health.presentDays)} />
+            <RailStat label="Late Count" value={text(health.lateCount)} />
+            <RailStat label="Absent Days" value={text(health.absentDays)} />
+            <RailStat label="Paid Leaves Used" value={text(health.paidLeavesUsed)} />
+            <RailStat label="Corrections Pending" value={text(health.correctionsPending)} />
           </div>
         </div>
       </Panel>
@@ -322,23 +427,25 @@ export function RightRail({ health, quickActions, alerts, note, setActiveTab }) 
               </button>
             );
           })}
+          {!actions.length && <p className="text-center text-xs text-muted-foreground">No quick actions available.</p>}
         </div>
       </Panel>
       <Panel>
         <SectionTitle icon={Bell}>Alerts & Notifications</SectionTitle>
         <div className="space-y-3 p-3">
-          {(alerts?.length ? alerts : [{ title: "1 correction request is pending.", description: "Please update before monthly lock." }, { title: "Monthly attendance will be locked on 07 Jul 2026.", description: "Learn More" }]).map((alert, index) => (
+          {(alerts || []).map((alert, index) => (
             <div key={index} className={`rounded-md border p-3 text-xs ${index ? "border-blue-200 bg-blue-50 text-blue-900 dark:bg-blue-400/10 dark:text-blue-200" : "border-orange-200 bg-orange-50 text-orange-900 dark:bg-orange-400/10 dark:text-orange-200"}`}>
               <p className="font-medium">{displayText(alert.title)}</p>
               <p>{displayText(alert.description || alert.message)}</p>
             </div>
           ))}
+          {!alerts?.length && <p className="p-2 text-center text-xs text-muted-foreground">No alerts found.</p>}
         </div>
       </Panel>
       <Panel className="border-orange-200 bg-orange-50/70 dark:bg-orange-400/10">
         <div className="flex gap-3 p-4 text-xs">
           <Info className="h-4 w-4 text-orange-600" />
-          <div><p className="mb-2 text-sm font-medium text-orange-800 dark:text-orange-200">Note</p><p>{displayText(note, "Attendance records may be used for payroll calculation after verification by Finance.")}</p></div>
+          <div><p className="mb-2 text-sm font-medium text-orange-800 dark:text-orange-200">Note</p><p>{displayText(note)}</p></div>
         </div>
       </Panel>
     </aside>
@@ -349,14 +456,19 @@ function RailStat({ label, value }) {
   return <div className="flex justify-between gap-3"><span>{displayText(label)}</span><b className="font-semibold">{displayText(value)}</b></div>;
 }
 
-export function HeaderActions({ onCheckIn, onCheckOut, setActiveTab, isBusy }) {
+export function HeaderActions({ onCheckIn, onCheckOut, onApplyLeave, onRequestCorrection, setActiveTab, isBusy, visibleAttendanceAction = "checkIn" }) {
   const button = "inline-flex items-center gap-2 rounded-md border px-4 py-2 text-xs font-medium disabled:opacity-60";
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button disabled={isBusy} onClick={onCheckIn} className={`${button} border-emerald-600 bg-emerald-600 text-white`}><LogIn className="h-4 w-4" />Check In</button>
-      <button disabled={isBusy} onClick={onCheckOut} className={`${button} border-red-200 text-red-600`}><LogOut className="h-4 w-4" />Check Out</button>
-      <button onClick={() => setActiveTab("leaves")} className={`${button} border-blue-300 text-foreground`}><CalendarCheck className="h-4 w-4" />Apply Leave</button>
-      <button onClick={() => setActiveTab("corrections")} className={`${button} border-blue-300 text-foreground`}><FilePenLine className="h-4 w-4" />Request Correction</button>
+      {visibleAttendanceAction === "completed" ? (
+        <button disabled className={`${button} border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300`}><CalendarCheck className="h-4 w-4" />Completed Today</button>
+      ) : visibleAttendanceAction === "checkOut" ? (
+        <button disabled={isBusy} onClick={onCheckOut} className={`${button} border-red-200 text-red-600`}><LogOut className="h-4 w-4" />Check Out</button>
+      ) : (
+        <button disabled={isBusy} onClick={onCheckIn} className={`${button} border-emerald-600 bg-emerald-600 text-white`}><LogIn className="h-4 w-4" />Check In</button>
+      )}
+      <button onClick={onApplyLeave || (() => setActiveTab("leaves"))} className={`${button} border-blue-300 text-foreground`}><CalendarCheck className="h-4 w-4" />Apply Leave</button>
+      <button onClick={onRequestCorrection || (() => setActiveTab("corrections"))} className={`${button} border-blue-300 text-foreground`}><FilePenLine className="h-4 w-4" />Request Correction</button>
     </div>
   );
 }
