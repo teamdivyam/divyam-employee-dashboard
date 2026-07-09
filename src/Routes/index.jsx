@@ -32,11 +32,11 @@ import ScorecardPage from "../Pages/dashboard/knowledge-base-sop/ScorecardPage";
 const NotFoundPage = lazy(() => import("../Pages/dashboard/NotFoundPage"));
 
 const DashBoardRoutes = () => {
-  const theme = useSelector(
-    (state) => state.theme.theme
-  );
+  const theme = useSelector((state) => state.theme);
 
   useEffect(() => {
+    if (!["light", "dark"].includes(theme)) return;
+
     document.documentElement.classList.toggle(
       "dark",
       theme === "dark"

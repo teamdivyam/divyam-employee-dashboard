@@ -21,7 +21,7 @@ import {
   summaryIcons,
 } from "./components/AttendanceLeaveComponents";
 import EmployeeService from "@/services/employee.service";
-import { BriefcaseBusiness, FilePenLine, FileText, Umbrella } from "lucide-react";
+import { BriefcaseBusiness, FilePenLine, FileText, Pencil, Trash2, Umbrella } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +47,7 @@ const correctionTypes = ["Check_In", "Check_Out", "Status", "Working_Hours", "Lo
 const correctionStatuses = ["Present", "Absent", "Late", "On_Leave", "Half_Day"];
 
 const defaultCorrectionForm = {
+  correctionId: "",
   attendanceId: "",
   correctionType: "Check_In",
   requestedCheckInTime: "",
@@ -80,6 +81,42 @@ function toDatetimeLocal(value) {
   if (Number.isNaN(date.getTime())) return "";
   const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return offsetDate.toISOString().slice(0, 16);
+}
+
+function getRecordId(record) {
+  if (!record) return "";
+  if (typeof record === "string") return record;
+  return record._id || record.id || "";
+}
+
+function isDateInMonth(value, year, month) {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return date.getFullYear() === year && date.getMonth() + 1 === month;
+}
+
+function isDateInYear(value, year) {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return date.getFullYear() === year;
+}
+
+function isLeaveInPeriod(leave, year, month) {
+  if (month === "All") {
+    return (
+      isDateInYear(leave.fromDate || leave.startDate, year) ||
+      isDateInYear(leave.toDate || leave.endDate, year) ||
+      isDateInYear(leave.createdAt || leave.requestedAt || leave.submittedAt, year)
+    );
+  }
+
+  return (
+    isDateInMonth(leave.fromDate || leave.startDate, year, month) ||
+    isDateInMonth(leave.toDate || leave.endDate, year, month) ||
+    isDateInMonth(leave.createdAt || leave.requestedAt || leave.submittedAt, year, month)
+  );
 }
 
 function getCurrentLocationPayload() {
@@ -120,12 +157,17 @@ export default function AttendenceLeavePage() {
     year: now.getFullYear(),
     month: now.getMonth() + 1,
   });
+  const [leaveFilters, setLeaveFilters] = useState({
+    year: now.getFullYear(),
+    month: "All",
+  });
   const [leaveForm, setLeaveForm] = useState(defaultLeaveForm);
   const [correctionForm, setCorrectionForm] = useState(defaultCorrectionForm);
   const [attendanceAction, setAttendanceAction] = useState(null);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [isCorrectionDialogOpen, setIsCorrectionDialogOpen] = useState(false);
   const [recentCorrectionRequest, setRecentCorrectionRequest] = useState(null);
+  const [correctionTypeFilter, setCorrectionTypeFilter] = useState("All");
   const leaveFiscalYearStartYear = useMemo(() => getFiscalYearStartYear(leaveForm.fromDate), [leaveForm.fromDate]);
 
   const historyFilters = useMemo(
@@ -254,6 +296,7 @@ export default function AttendenceLeavePage() {
         correctionType: correctionForm.correctionType,
         requestedStatus: correctionForm.requestedStatus,
         reason: correctionForm.reason.trim(),
+        remarks: correctionForm.reason.trim(),
       };
 
       if (correctionForm.requestedCheckInTime) {
@@ -261,6 +304,17 @@ export default function AttendenceLeavePage() {
       }
       if (correctionForm.requestedCheckOutTime) {
         payload.requestedCheckOutTime = new Date(correctionForm.requestedCheckOutTime).toISOString();
+      }
+
+      if (correctionForm.correctionId) {
+        const formData = new FormData();
+        Object.entries(payload).forEach(([key, value]) => formData.append(key, value));
+        if (correctionForm.attachment) formData.append("attachment", correctionForm.attachment);
+
+        return EmployeeService.updateAttendanceCorrection({
+          correctionId: correctionForm.correctionId,
+          data: formData,
+        });
       }
 
       if (correctionForm.attachment) {
@@ -279,14 +333,24 @@ export default function AttendenceLeavePage() {
       });
     },
     onSuccess: (response) => {
-      toast.success(response.data?.message || "Correction request submitted");
-      setRecentCorrectionRequest(response.data?.correctionRequest || null);
+      toast.success(response.data?.message || (correctionForm.correctionId ? "Correction request updated" : "Correction request submitted"));
+      setRecentCorrectionRequest(null);
       setCorrectionForm(defaultCorrectionForm);
       setIsCorrectionDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["attendance-leave-dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-leave-history"] });
     },
     onError: (error) => toast.error(error.response?.data?.message || "Unable to submit correction request"),
+  });
+
+  const deleteCorrectionMutation = useMutation({
+    mutationFn: (correctionId) => EmployeeService.deleteAttendanceCorrection({ correctionId }),
+    onSuccess: (response) => {
+      toast.success(response.data?.message || "Correction request deleted");
+      queryClient.invalidateQueries({ queryKey: ["attendance-leave-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-leave-history"] });
+    },
+    onError: (error) => toast.error(error.response?.data?.message || "Unable to delete correction request"),
   });
 
   const data = dashboardQuery.data || {};
@@ -315,25 +379,120 @@ export default function AttendenceLeavePage() {
       ? [normalizedTodayAttendance]
       : [];
   const dashboardCorrections = data.recentCorrectionRequests || data.correctionRequests || data.myCorrectionRequests || [];
+  const attendanceRule = data.attendanceRule || {};
+  const attendanceRules = attendanceRule.effectiveAttendanceRule?.length
+    ? attendanceRule.effectiveAttendanceRule
+    : [
+        ...(attendanceRule.globalAttendanceRule || []),
+        ...(attendanceRule.individualAttendanceRule || []),
+      ];
   const recentCorrections = recentCorrectionRequest
     ? [recentCorrectionRequest]
     : Array.isArray(dashboardCorrections)
-      ? dashboardCorrections.slice(0, 1)
+      ? dashboardCorrections
       : dashboardCorrections
         ? [dashboardCorrections]
         : [];
+  const filteredCorrections = recentCorrections.filter((correction) => (
+    correctionTypeFilter === "All" || correction.correctionType === correctionTypeFilter
+  ));
   const leaveRequests = leaveRequestsQuery.data?.leaveRequests?.length
     ? leaveRequestsQuery.data.leaveRequests
     : data.myLeaveRequests || [];
+  const requestNotifications = useMemo(() => {
+    const getTime = (item) => {
+      const value = item.requestedAt || item.submittedAt || item.createdAt || item.updatedAt || item.actionAt || item.fromDate || item.attendanceDate;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+    };
+
+    const leaveNotifications = (leaveRequests || []).map((leave) => {
+      const leaveStatus = displayText(leave.leaveStatus || leave.status, "Pending");
+      const leaveType = displayText(leave.leaveType || leave.type, "Leave Request");
+      const date = leave.requestedAt || leave.submittedAt || leave.createdAt || leave.fromDate || leave.startDate;
+
+      return {
+        title: `${leaveType} - ${leaveStatus}`,
+        description: `${formatShortDate(leave.fromDate || leave.startDate)} to ${formatShortDate(leave.toDate || leave.endDate)} • ${formatShortDate(date)}`,
+        status: leaveStatus,
+        time: getTime(leave),
+      };
+    });
+
+    const correctionNotifications = (recentCorrections || []).map((correction) => {
+      const correctionStatus = displayText(correction.correctionStatus || correction.status, "Pending");
+      const correctionType = displayText(correction.correctionType, "Correction Request");
+      const date = correction.requestedAt || correction.createdAt || correction.updatedAt || correction.attendanceDate;
+
+      return {
+        title: `${correctionType} Correction - ${correctionStatus}`,
+        description: `${formatShortDate(correction.attendanceDate || date)} • ${formatShortDate(date)}`,
+        status: correctionStatus,
+        time: getTime(correction),
+      };
+    });
+
+    return [...leaveNotifications, ...correctionNotifications]
+      .sort((a, b) => b.time - a.time)
+      .slice(0, 5)
+      .sort((a, b) => a.time - b.time);
+  }, [leaveRequests, recentCorrections]);
+  const monthlyLeaveRequests = useMemo(
+    () => leaveRequests.filter((leave) => isLeaveInPeriod(leave, leaveFilters.year, leaveFilters.month)),
+    [leaveFilters.month, leaveFilters.year, leaveRequests]
+  );
   const leaveBalanceResponse = leaveBalanceQuery.data || {};
   const leaveBalance = leaveBalanceResponse.leaveBalance || [];
+  const totalLeaveBalance = leaveBalance
+    .filter((item) => allowedLeaveTypes.includes(item.leaveType))
+    .reduce((total, item) => total + (Number(item.balance) || 0), 0);
   const selectedLeaveBalance = leaveBalance.find((item) => item.leaveType === leaveForm.leaveType);
   const estimatedLeaveDays = getLeaveDaysEstimate(leaveForm.fromDate, leaveForm.toDate, leaveForm.duration);
   const monthLabel = useMemo(
     () => new Date(filters.year, filters.month - 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
     [filters.month, filters.year]
   );
+  const leaveMonthLabel = useMemo(
+    () => String(leaveFilters.year),
+    [leaveFilters.year]
+  );
   const summary = data.monthlySummary || {};
+  const monthlyLeaveDays = monthlyLeaveRequests.reduce(
+    (total, leave) => total + (Number(leave.leaveDays || leave.totalDays || leave.days) || 0),
+    0
+  );
+  const latestAttendanceRows = useMemo(
+    () => [...monthlyRows]
+      .sort((a, b) => new Date(b.attendanceDate || b.date || 0) - new Date(a.attendanceDate || a.date || 0))
+      .slice(0, 5),
+    [monthlyRows]
+  );
+
+  const openCorrectionDialogForAttendance = (attendance) => {
+    setCorrectionForm({
+      ...defaultCorrectionForm,
+      attendanceId: getRecordId(attendance),
+      requestedCheckInTime: toDatetimeLocal(attendance?.checkInTime),
+      requestedCheckOutTime: toDatetimeLocal(attendance?.checkOutTime),
+      requestedStatus: attendance?.status || "Present",
+    });
+    setIsCorrectionDialogOpen(true);
+  };
+
+  const openCorrectionDialogForRequest = (correction) => {
+    const attendance = correction.attendance || correction.attendanceId || {};
+    setCorrectionForm({
+      ...defaultCorrectionForm,
+      correctionId: getRecordId(correction),
+      attendanceId: getRecordId(attendance),
+      correctionType: correction.correctionType || "Check_In",
+      requestedCheckInTime: toDatetimeLocal(correction.requestedCheckInTime),
+      requestedCheckOutTime: toDatetimeLocal(correction.requestedCheckOutTime),
+      requestedStatus: correction.requestedStatus || "Present",
+      reason: correction.reason || "",
+    });
+    setIsCorrectionDialogOpen(true);
+  };
 
   const submitLeave = (event) => {
     event.preventDefault();
@@ -426,9 +585,9 @@ export default function AttendenceLeavePage() {
       tone: "red",
     },
     {
-      label: "Leave Balance",
-      value: leaveBalance[0]?.balance === null || leaveBalance[0]?.balance === undefined ? "--" : `${leaveBalance[0].balance} Days`,
-      sub: `${displayText(leaveBalance[0]?.leaveType, "Leave")} Left`,
+      label: "Total Leave Balance",
+      value: leaveBalance.length ? `${totalLeaveBalance} Days` : "--",
+      sub: "Leaves Left",
       icon: summaryIcons.leave,
       tone: "purple",
     },
@@ -450,10 +609,6 @@ export default function AttendenceLeavePage() {
             setActiveTab("leaves");
             setIsLeaveDialogOpen(true);
           }}
-          onRequestCorrection={() => {
-            setActiveTab("corrections");
-            setIsCorrectionDialogOpen(true);
-          }}
           setActiveTab={setActiveTab}
         />
       </header>
@@ -472,16 +627,40 @@ export default function AttendenceLeavePage() {
               {activeTab === "today" && (
                 <>
                   <TodayPanel attendance={normalizedTodayAttendance} duty={todaysDuty} />
-                  <AttendanceTable rows={monthlyRows} monthLabel={monthLabel} />
+                  <AttendanceTable
+                    rows={latestAttendanceRows}
+                    monthLabel={monthLabel}
+                    showFullReportButton
+                    onViewFullReport={() => setActiveTab("monthly")}
+                    onAddCorrection={openCorrectionDialogForAttendance}
+                  />
                 </>
               )}
-              {activeTab === "monthly" && <AttendanceTable rows={monthlyRows} monthLabel={monthLabel} />}
+              {activeTab === "monthly" && (
+                <AttendanceTable
+                  rows={monthlyRows}
+                  monthLabel={monthLabel}
+                  onAddCorrection={openCorrectionDialogForAttendance}
+                />
+              )}
               {activeTab === "leaves" && (
+                <div className="space-y-4">
+                  <LeaveBalanceSummary
+                    leaveBalance={leaveBalance}
+                    totalLeaveBalance={totalLeaveBalance}
+                    monthlyLeaveDays={monthlyLeaveDays}
+                    monthlyLeaveRequests={monthlyLeaveRequests}
+                    monthLabel={leaveMonthLabel}
+                  />
                   <LeaveRequestsList
-                    rows={leaveRequests}
+                    rows={monthlyLeaveRequests}
                     cancelLeaveMutation={cancelLeaveMutation}
                     onApplyLeave={() => setIsLeaveDialogOpen(true)}
+                    monthLabel={leaveMonthLabel}
+                    filters={leaveFilters}
+                    onFilterChange={setLeaveFilters}
                   />
+                </div>
               )}
               {activeTab === "duty" && (
                 <SimpleList
@@ -501,18 +680,20 @@ export default function AttendenceLeavePage() {
               )}
               {activeTab === "corrections" && (
                 <RecentCorrectionsList
-                  rows={recentCorrections}
-                  onRequestCorrection={() => setIsCorrectionDialogOpen(true)}
+                  rows={filteredCorrections}
+                  typeFilter={correctionTypeFilter}
+                  onTypeFilterChange={setCorrectionTypeFilter}
+                  correctionTypes={correctionTypes}
+                  onEdit={openCorrectionDialogForRequest}
+                  onDelete={(correction) => {
+                    const correctionId = correction._id || correction.id;
+                    if (correctionId) deleteCorrectionMutation.mutate(correctionId);
+                  }}
+                  isDeleting={deleteCorrectionMutation.isPending}
                 />
               )}
               {activeTab === "rules" && (
-                <SimpleList
-                  title="Attendance Rules"
-                  icon={FileText}
-                  rows={[]}
-                  emptyText="No attendance rules available."
-                  renderRow={() => null}
-                />
+                <AttendanceRulesList rows={attendanceRules} />
               )}
             </>
           )}
@@ -527,7 +708,7 @@ export default function AttendenceLeavePage() {
             correctionsPending: data.pendingRequests,
           }}
           quickActions={data.quickActions}
-          alerts={data.alerts}
+          alerts={requestNotifications}
           note={data.note}
           setActiveTab={setActiveTab}
         />
@@ -688,24 +869,39 @@ function CorrectionRequestForm({ form, setForm, attendanceRows, onSubmit, isPend
   );
 }
 
-function RecentCorrectionsList({ rows, onRequestCorrection }) {
+function RecentCorrectionsList({
+  rows,
+  typeFilter,
+  onTypeFilterChange,
+  correctionTypes,
+  onEdit,
+  onDelete,
+  isDeleting,
+}) {
   return (
     <Panel>
       <SectionTitle
         icon={FilePenLine}
         action={
-          <button type="button" onClick={onRequestCorrection} className="atl-primary rounded-md px-3 py-1.5 text-xs font-medium">
-            Request Correction
-          </button>
+          <select
+            value={typeFilter}
+            onChange={(event) => onTypeFilterChange(event.target.value)}
+            className="atl-input rounded-md border px-3 py-1.5 text-xs"
+          >
+            <option value="All">All Types</option>
+            {correctionTypes.map((type) => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
         }
       >
-        Recent Correction
+        Correction Requests
       </SectionTitle>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-left text-xs">
+        <table className="w-full min-w-[900px] text-left text-xs">
           <thead className="bg-muted/50 text-muted-foreground">
             <tr>
-              {["Date", "Type", "Reason", "Status", "Requested At"].map((header) => (
+              {["Date", "Type", "Reason", "Admin Remark", "Status", "Requested At", "Action"].map((header) => (
                 <th key={header} className="px-4 py-2 font-medium">{header}</th>
               ))}
             </tr>
@@ -713,22 +909,82 @@ function RecentCorrectionsList({ rows, onRequestCorrection }) {
           <tbody>
             {rows?.length ? rows.map((correction, index) => {
               const correctionStatus = displayText(correction.correctionStatus || correction.status, "Pending");
+              const canModify = String(correctionStatus).toLowerCase() === "pending";
               return (
                 <tr key={correction._id || index} className="border-t border-border align-top">
                   <td className="px-4 py-3">{formatShortDate(correction.attendanceDate || correction.createdAt)}</td>
                   <td className="px-4 py-3 font-medium text-foreground">{displayText(correction.correctionType)}</td>
                   <td className="max-w-[320px] px-4 py-3 text-muted-foreground">{displayText(correction.reason || correction.remarks)}</td>
+                  <td className="max-w-[260px] px-4 py-3 text-muted-foreground">
+                    {displayText(correction.adminRemark || correction.adminRemarks || correction.adminNote || correction.reviewNote)}
+                  </td>
                   <td className="px-4 py-3"><StatusPill tone={statusTone(correctionStatus)}>{correctionStatus}</StatusPill></td>
                   <td className="px-4 py-3 text-muted-foreground">{formatShortDate(correction.requestedAt || correction.createdAt)}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={!canModify}
+                        onClick={() => onEdit(correction)}
+                        className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                        title={canModify ? "Edit correction request" : "Only pending correction requests can be edited"}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isDeleting || !canModify}
+                        onClick={() => onDelete(correction)}
+                        className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2 py-1 text-xs font-medium text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        title={canModify ? "Delete correction request" : "Only pending correction requests can be deleted"}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               );
             }) : (
               <tr>
-                <td colSpan="5" className="px-4 py-8 text-center text-muted-foreground">No recent correction request found.</td>
+                <td colSpan="7" className="px-4 py-8 text-center text-muted-foreground">No correction request found.</td>
               </tr>
             )}
           </tbody>
         </table>
+      </div>
+    </Panel>
+  );
+}
+
+function AttendanceRulesList({ rows }) {
+  const safeRows = rows?.length ? rows : [];
+
+  return (
+    <Panel>
+      <SectionTitle icon={FileText}>Attendance Rules</SectionTitle>
+      <div className="divide-y divide-border">
+        {safeRows.length ? safeRows.map((rule, index) => {
+          const points = Array.isArray(rule.points) ? rule.points.filter(Boolean) : [];
+
+          return (
+            <div key={rule._id || index} className="p-4 text-xs">
+              <p className="font-medium text-foreground">{displayText(rule.heading, "Attendance Rule")}</p>
+              {points.length ? (
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
+                  {points.map((point, pointIndex) => (
+                    <li key={`${rule._id || index}-${pointIndex}`}>{displayText(point)}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-muted-foreground">No rule points available.</p>
+              )}
+            </div>
+          );
+        }) : (
+          <p className="p-5 text-center text-xs text-muted-foreground">No attendance rules available.</p>
+        )}
       </div>
     </Panel>
   );
@@ -832,18 +1088,80 @@ function BalanceStat({ label, value }) {
   );
 }
 
-function LeaveRequestsList({ rows, cancelLeaveMutation, onApplyLeave }) {
+function LeaveBalanceSummary({
+  leaveBalance,
+  monthlyLeaveDays,
+  monthlyLeaveRequests,
+  monthLabel,
+}) {
+  const casualLeave = leaveBalance?.find((balance) => balance.leaveType === "Casual Leave");
+  const emergencyLeave = leaveBalance?.find((balance) => balance.leaveType === "Emergency Leave");
+  const pendingLeaves = (monthlyLeaveRequests || []).filter(
+    (leave) => displayText(leave.leaveStatus || leave.status, "Pending") === "Pending"
+  ).length;
+
+  return (
+    <Panel>
+      <SectionTitle icon={Umbrella}>Leave Balance - {monthLabel}</SectionTitle>
+      <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+        <BalanceStat label="Casual Leaves" value={casualLeave ? `${displayText(casualLeave.balance)} Left` : "--"} />
+        <BalanceStat label="Emergency Leaves" value={emergencyLeave ? `${displayText(emergencyLeave.balance)} Left` : "--"} />
+        <BalanceStat label="Used Leaves" value={`${monthlyLeaveDays} Days`} />
+        <BalanceStat label="Pending Leaves" value={pendingLeaves} />
+      </div>
+    </Panel>
+  );
+}
+
+function LeaveRequestsList({
+  rows,
+  cancelLeaveMutation,
+  onApplyLeave,
+  monthLabel,
+  filters,
+  onFilterChange,
+}) {
+  const [selectedLeave, setSelectedLeave] = useState(null);
+  const months = useMemo(
+    () => [
+      { value: "All", label: "All Month" },
+      ...Array.from({ length: 12 }, (_, index) => ({
+        value: index + 1,
+        label: new Date(2000, index, 1).toLocaleDateString("en-IN", { month: "short" }),
+      })),
+    ],
+    []
+  );
+
   return (
     <Panel>
       <SectionTitle
         icon={Umbrella}
         action={
-          <button type="button" onClick={onApplyLeave} className="atl-primary rounded-md px-3 py-1.5 text-xs font-medium">
-            Apply Leave
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <select
+              value={filters.month}
+              onChange={(event) => {
+                const value = event.target.value;
+                onFilterChange((current) => ({
+                  ...current,
+                  month: value === "All" ? "All" : Number(value),
+                }));
+              }}
+              className="atl-input rounded-md border px-2 py-1.5 text-xs"
+              aria-label="Filter leave month"
+            >
+              {months.map((month) => (
+                <option key={month.value} value={month.value}>{month.label}</option>
+              ))}
+            </select>
+            <button type="button" onClick={onApplyLeave} className="atl-primary rounded-md px-3 py-1.5 text-xs font-medium">
+              Apply Leave
+            </button>
+          </div>
         }
       >
-        Leave Requests
+        Leave Requests - {monthLabel}
       </SectionTitle>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] text-left text-xs">
@@ -872,17 +1190,24 @@ function LeaveRequestsList({ rows, cancelLeaveMutation, onApplyLeave }) {
                   <td className="max-w-[260px] px-4 py-3 text-muted-foreground">{displayText(leave.reason, "--")}</td>
                   <td className="px-4 py-3"><StatusPill tone={statusTone(leaveStatus)}>{leaveStatus}</StatusPill></td>
                   <td className="px-4 py-3">
-                    {leaveId && leaveStatus === "Pending" ? (
+                    <div className="flex items-center gap-2">
                       <button
-                        disabled={cancelLeaveMutation.isPending}
-                        onClick={() => cancelLeaveMutation.mutate(leaveId)}
-                        className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 disabled:opacity-60"
+                        type="button"
+                        onClick={() => setSelectedLeave(leave)}
+                        className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
                       >
-                        Cancel
+                        View
                       </button>
-                    ) : (
-                      <span className="text-muted-foreground">--</span>
-                    )}
+                      {leaveId && leaveStatus === "Pending" && (
+                        <button
+                          disabled={cancelLeaveMutation.isPending}
+                          onClick={() => cancelLeaveMutation.mutate(leaveId)}
+                          className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 disabled:opacity-60"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -894,6 +1219,45 @@ function LeaveRequestsList({ rows, cancelLeaveMutation, onApplyLeave }) {
           </tbody>
         </table>
       </div>
+      <LeaveRequestDetailDialog leave={selectedLeave} onOpenChange={(open) => !open && setSelectedLeave(null)} />
     </Panel>
+  );
+}
+
+function LeaveRequestDetailDialog({ leave, onOpenChange }) {
+  const open = Boolean(leave);
+  if (!leave) return null;
+
+  const leaveStatus = displayText(leave.leaveStatus || leave.status, "Pending");
+  const leaveDays = displayText(leave.leaveDays || leave.totalDays || leave.days);
+  const details = [
+    ["Leave Type", displayText(leave.leaveType || leave.type, "Leave Request")],
+    ["Status", <StatusPill key="status" tone={statusTone(leaveStatus)}>{leaveStatus}</StatusPill>],
+    ["From Date", formatShortDate(leave.fromDate || leave.startDate)],
+    ["To Date", formatShortDate(leave.toDate || leave.endDate)],
+    ["Duration", displayText(leave.duration)],
+    ["Leave Days", leaveDays === "--" ? leaveDays : `${leaveDays} Days`],
+    ["Reason", displayText(leave.reason)],
+    ["Admin Remark", displayText(leave.approval?.remarks || leave.adminRemark || leave.adminRemarks || leave.adminNote || leave.adminNotes || leave.reviewNote)],
+    // ["Admin Notes", displayText(leave.notes || leave.remark || leave.remarks)],
+    ["Requested At", formatShortDate(leave.requestedAt || leave.submittedAt || leave.createdAt)],
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="atl-card max-h-[85vh] overflow-y-auto sm:max-w-[560px]">
+        <DialogHeader>
+          <DialogTitle className="text-base font-semibold text-foreground">Leave Request Detail</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-2 text-xs">
+          {details.map(([label, value]) => (
+            <div key={label} className="grid grid-cols-[130px_1fr] gap-3 rounded-md border border-border px-3 py-2">
+              <span className="text-muted-foreground">{label}</span>
+              <span className="font-medium text-foreground">{value}</span>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

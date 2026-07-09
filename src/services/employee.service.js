@@ -187,6 +187,14 @@ const EmployeeService = {
       ? { headers: { "Content-Type": "multipart/form-data" } }
       : undefined),
 
+  updateAttendanceCorrection: ({ correctionId, data }) =>
+    axiosRequest.patch(`/attendance-leave/correction-requests/${correctionId}`, data, data instanceof FormData
+      ? { headers: { "Content-Type": "multipart/form-data" } }
+      : undefined),
+
+  deleteAttendanceCorrection: ({ correctionId }) =>
+    axiosRequest.delete(`/attendance-leave/correction-requests/${correctionId}`),
+
   submitLeaveRequest: ({ formData }) =>
     axiosRequest.post("/attendance-leave/leave-requests", formData, {
       headers: { "Content-Type": "multipart/form-data" },

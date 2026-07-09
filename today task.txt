@@ -1,0 +1,28 @@
+Date: 09-07-2026
+Employee
+1. Done- In today tab, monthly attendance show 5 day attendance, On click view full monthly report redirect it on monthly attendance, Month change should workable, put correction request in action option.
+2. Done- In view detail of attendance it should shown also correction note from employee and admin.
+3. Done: Remove view full monthly report button, download option should be workable, add correction and view correction notes.
+4. Done- In Leave request: showing leave balance, leaves should shown on monthly basis, leave request, admin remark or notes should be shown on detail of leave.
+5. Done- Remove correction request button from header and inside correction requests tab, filter for type (attendance or leave), showing admin remark, edit and delete correction request before admin approval.
+6. Done- In attendance rule tab, showing rules of attendance with heading and points.
+7. Skip- In Quick action card of employee attendance & leave should be skip for now.
+8. Done- In alert notification, recent leave or corrections request is approved or rejected.
+9. In notes showing admin recent notes for employee.
+10. Improve attendance health.
+11. Done- Improve metric card if anything required. In Leave balance showing total leave (emergency + casual leaves)
+12. Done- In header, employee name should be shown instead of Employee.
+
+Admin
+1. Add rule attendance with heading and point and select for every employee and customize also can be happened for every employee.
+2. Done - In leave requests: showing leave history, search using employee name, filter using leave type. Option for download the leave request of particular employee. In leave request reporting manager name should be shown.
+3. Done- Same to same implementation of leave requests working flow in correction request.(Put edit or delete in action in anytime)
+4. Done- In header, Admin names should be showin insteading of Admin.
+
+Pages should only be shown based on access_based of modules. Employee panel should not be open in admin credentials and vice versa.
+
+General:
+Theme not working when refresh the tab
+
+Query:
+What would admin do if employee submit a correction requests?

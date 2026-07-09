@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -19,21 +19,45 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuCheckboxItem
 } from "@components/components/ui//dropdown-menu";
 import { AppSidebar } from "@components/components/app-sidebar";
 import { Separator } from "@components/components/ui/separator";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@components/components/ui/avatar";
 import { UserRound, Settings, LogOut, Moon, Sun } from "lucide-react";
 import {
   setDarkTheme,
   setLightTheme,
 } from "@/store/Theme/themeSlice";
+import EmployeeService from "../../services/employee.service";
+
+const getInitials = (name) => {
+  if (!name) return "AD";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+};
+
+const getAvatarUrl = (avatar) => {
+  if (!avatar) return "";
+  if (/^https?:\/\//.test(avatar)) return avatar;
+  return `https://assets.divyam.com/Uploads/admins/${avatar}`;
+};
 
 export default function Layout() {
   const dispatch = useDispatch();
   const theme = useSelector((state) => state.theme);
+  const [employee, setEmployee] = useState(null);
 
   useEffect(() => {
+    if (!["light", "dark"].includes(theme)) return;
+
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
@@ -44,24 +68,39 @@ export default function Layout() {
   }, [theme]);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme");
+    let mounted = true;
 
-    if (savedTheme === "dark") {
-      dispatch(setDarkTheme());
-    } else {
-      dispatch(setLightTheme());
-    }
-  }, [dispatch]);
+    EmployeeService.me()
+      .then((response) => {
+        if (mounted) {
+          setEmployee(response?.data?.data || response?.data?.employee || response?.data);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setEmployee(null);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleToggleTheme = () => {
-    if (theme === "dark") {
+    const currentTheme = theme === "dark" ? "dark" : "light";
+
+    if (currentTheme === "dark") {
       dispatch(setLightTheme());
-      localStorage.setItem("theme", "light");
     } else {
       dispatch(setDarkTheme());
-      localStorage.setItem("theme", "dark");
     }
   };
+
+  const employeeName = employee?.fullName || employee?.name || "Employee";
+  const employeeRole =
+    employee?.role?.name || employee?.role || employee?.designation || "Employee";
+  const avatarUrl = getAvatarUrl(employee?.avatar);
 
   return (
     <SidebarProvider>
@@ -94,13 +133,16 @@ export default function Layout() {
                 <div
                   className="flex items-center gap-3 rounded-xl border-border bg-card px-3 py-2 transition-colors hover:bg-accent"
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary" >
-                    <UserRound className="h-4 w-4" />
-                  </div>
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={avatarUrl} alt={employeeName} />
+                    <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
+                      {getInitials(employeeName)}
+                    </AvatarFallback>
+                  </Avatar>
 
                   <div className="hidden md:block text-left">
                     <p className="text-sm font-medium text-foreground">
-                      Employee
+                      {employeeName}
                     </p>
                   </div>
                 </div>
@@ -109,11 +151,11 @@ export default function Layout() {
                 <DropdownMenuLabel>
                   <div className="space-y-1">
                     <p className="font-medium">
-                      Employee
+                      {employeeName}
                     </p>
 
                     <p className="text-xs text-muted-foreground">
-                      employee@divyam.com
+                      {employeeRole}
                     </p>
                   </div>
                 </DropdownMenuLabel>

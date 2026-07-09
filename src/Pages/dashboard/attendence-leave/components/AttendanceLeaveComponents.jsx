@@ -2,10 +2,12 @@
 import React from "react";
 import {
   AlertTriangle,
+  Ban,
   Bell,
   BriefcaseBusiness,
   CalendarCheck,
   CalendarDays,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -17,9 +19,12 @@ import {
   Info,
   LogIn,
   LogOut,
+  MoreHorizontal,
+  Pencil,
   ShieldCheck,
   Umbrella,
   UserRoundCheck,
+  XCircle,
   Zap,
 } from "lucide-react";
 import {
@@ -28,6 +33,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@components/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@components/components/ui/dropdown-menu";
 
 export const DEFAULT_SHIFT_START_TIME = "11:00 AM";
 export const DEFAULT_SHIFT_END_TIME = "07:30 PM";
@@ -256,7 +267,14 @@ export function InfoRow({ label, value }) {
   );
 }
 
-export function AttendanceTable({ rows, monthLabel }) {
+export function AttendanceTable({
+  rows,
+  monthLabel,
+  title = "Monthly Attendance",
+  showFullReportButton = false,
+  onViewFullReport,
+  onAddCorrection,
+}) {
   const safeRows = rows?.length ? rows : [];
   const [selectedAttendance, setSelectedAttendance] = React.useState(null);
   return (
@@ -270,7 +288,7 @@ export function AttendanceTable({ rows, monthLabel }) {
           </div>
         }
       >
-        Monthly Attendance - {monthLabel}
+        {title} - {monthLabel}
       </SectionTitle>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[780px] text-left text-xs">
@@ -289,14 +307,27 @@ export function AttendanceTable({ rows, monthLabel }) {
                   <td className="px-4 py-2">{text(row.workingHours || row.totalWorkingHours)}</td>
                   <td className="px-4 py-2">{text(row.dutyType)}</td>
                   <td className="px-4 py-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedAttendance(row)}
-                      className="inline-flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      View
-                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-foreground hover:bg-muted"
+                          aria-label="Attendance actions"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem onClick={() => setSelectedAttendance(row)}>
+                          <Eye className="h-4 w-4" />
+                          View
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onAddCorrection?.(row)}>
+                          <Pencil className="h-4 w-4" />
+                          Add Correction
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </td>
                 </tr>
               );
@@ -305,9 +336,17 @@ export function AttendanceTable({ rows, monthLabel }) {
           </tbody>
         </table>
       </div>
-      <div className="flex justify-center p-4">
-        <button className="rounded-md border border-border px-4 py-2 text-xs font-medium">View Full Monthly Report</button>
-      </div>
+      {showFullReportButton && (
+        <div className="flex justify-center p-4">
+          <button
+            type="button"
+            onClick={onViewFullReport}
+            className="rounded-md border border-border px-4 py-2 text-xs font-medium"
+          >
+            View Full Monthly Report
+          </button>
+        </div>
+      )}
       <AttendanceDetailDialog attendance={selectedAttendance} onOpenChange={(open) => !open && setSelectedAttendance(null)} />
     </Panel>
   );
@@ -338,6 +377,7 @@ function AttendanceDetailDialog({ attendance, onOpenChange }) {
     ["Longitude", text(attendance.longitude || attendance.location?.longitude)],
     ["Source", text(attendance.attendanceSource)],
     ["Notes", text(attendance.notes || attendance.remark || attendance.remarks)],
+    ["Admin Correction Note", text(attendance.adminCorrectionNote || attendance.correctionNote || attendance.adminRemark || attendance.adminRemarks || attendance.adminNote)],
   ];
 
   return (
@@ -398,13 +438,33 @@ export function CorrectionForm({ form, setForm, onSubmit, isPending }) {
 
 export function RightRail({ health, quickActions, alerts, note, setActiveTab }) {
   const actions = quickActions || [];
+  const presentDays = Number(health.presentDays) || 0;
+  const lateCount = Number(health.lateCount) || 0;
+  const absentDays = Number(health.absentDays) || 0;
+  const paidLeavesUsed = Number(health.paidLeavesUsed) || 0;
+  const correctionsPending = Number(health.correctionsPending) || 0;
+  const healthTotal = presentDays + lateCount + absentDays + paidLeavesUsed + correctionsPending;
+  const healthPercent = healthTotal ? Math.round((presentDays / healthTotal) * 100) : null;
+  const isHealthy = healthPercent !== null && healthPercent > 70;
+  const healthRingClass = isHealthy
+    ? "border-emerald-100 border-l-emerald-600 text-emerald-600 dark:border-emerald-400/15 dark:border-l-emerald-500 dark:text-emerald-300"
+    : "border-red-100 border-l-red-600 text-red-600 dark:border-red-400/15 dark:border-l-red-400 dark:text-red-300";
+  const getAlertMeta = (alert = {}) => {
+    const value = String(alert.status || alert.title || "").toLowerCase();
+    if (value.includes("approved")) return { icon: CheckCircle2, className: "text-emerald-600" };
+    if (value.includes("reject")) return { icon: XCircle, className: "text-red-600" };
+    if (value.includes("cancel")) return { icon: Ban, className: "text-slate-500" };
+    if (value.includes("pending")) return { icon: Clock3, className: "text-orange-600" };
+    return { icon: Bell, className: "text-blue-600" };
+  };
+
   return (
     <aside className="space-y-4">
       <Panel>
         <SectionTitle icon={HeartPulse}>Attendance Health</SectionTitle>
         <div className="grid grid-cols-[110px_1fr] items-center gap-4 p-4 text-xs">
-          <div className="relative grid h-24 w-24 place-items-center rounded-full border-[10px] border-emerald-200 border-l-emerald-600">
-            <span className="text-sm font-semibold">{text(health.label)}</span>
+          <div className={`relative grid h-24 w-24 place-items-center rounded-full border-[10px] ${healthRingClass}`}>
+            <span className="text-sm font-semibold">{healthPercent === null ? "--" : `${healthPercent}%`}</span>
           </div>
           <div className="space-y-3">
             <RailStat label="Present Days" value={text(health.presentDays)} />
@@ -432,13 +492,21 @@ export function RightRail({ health, quickActions, alerts, note, setActiveTab }) 
       </Panel>
       <Panel>
         <SectionTitle icon={Bell}>Alerts & Notifications</SectionTitle>
-        <div className="space-y-3 p-3">
-          {(alerts || []).map((alert, index) => (
-            <div key={index} className={`rounded-md border p-3 text-xs ${index ? "border-blue-200 bg-blue-50 text-blue-900 dark:bg-blue-400/10 dark:text-blue-200" : "border-orange-200 bg-orange-50 text-orange-900 dark:bg-orange-400/10 dark:text-orange-200"}`}>
-              <p className="font-medium">{displayText(alert.title)}</p>
-              <p>{displayText(alert.description || alert.message)}</p>
-            </div>
-          ))}
+        <div className="p-3">
+          <ul className="space-y-3">
+            {(alerts || []).map((alert, index) => {
+              const { icon: AlertIcon, className } = getAlertMeta(alert);
+              return (
+                <li key={index} className="flex gap-2 text-xs">
+                  <AlertIcon className={`mt-0.5 h-4 w-4 shrink-0 ${className}`} />
+                  <div className="min-w-0">
+                    <p className="font-medium leading-4 text-foreground">{displayText(alert.title)}</p>
+                    <p className="mt-0.5 leading-4 text-muted-foreground">{displayText(alert.description || alert.message)}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
           {!alerts?.length && <p className="p-2 text-center text-xs text-muted-foreground">No alerts found.</p>}
         </div>
       </Panel>
@@ -456,7 +524,7 @@ function RailStat({ label, value }) {
   return <div className="flex justify-between gap-3"><span>{displayText(label)}</span><b className="font-semibold">{displayText(value)}</b></div>;
 }
 
-export function HeaderActions({ onCheckIn, onCheckOut, onApplyLeave, onRequestCorrection, setActiveTab, isBusy, visibleAttendanceAction = "checkIn" }) {
+export function HeaderActions({ onCheckIn, onCheckOut, onApplyLeave, setActiveTab, isBusy, visibleAttendanceAction = "checkIn" }) {
   const button = "inline-flex items-center gap-2 rounded-md border px-4 py-2 text-xs font-medium disabled:opacity-60";
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -468,7 +536,6 @@ export function HeaderActions({ onCheckIn, onCheckOut, onApplyLeave, onRequestCo
         <button disabled={isBusy} onClick={onCheckIn} className={`${button} border-emerald-600 bg-emerald-600 text-white`}><LogIn className="h-4 w-4" />Check In</button>
       )}
       <button onClick={onApplyLeave || (() => setActiveTab("leaves"))} className={`${button} border-blue-300 text-foreground`}><CalendarCheck className="h-4 w-4" />Apply Leave</button>
-      <button onClick={onRequestCorrection || (() => setActiveTab("corrections"))} className={`${button} border-blue-300 text-foreground`}><FilePenLine className="h-4 w-4" />Request Correction</button>
     </div>
   );
 }
