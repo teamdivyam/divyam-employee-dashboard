@@ -26,3 +26,133 @@ Theme not working when refresh the tab
 
 Query:
 What would admin do if employee submit a correction requests?
+
+10-07-2026
+
+Employee:
+Attendnace health check based on monthly basis
+On same tab after refresh 
+Correction request - correction heading, reason same for leave correction
+Detail of correction request should be not long
+Leave requests- counting one more day in leave request form
+same filter for month in leave request as monthly record
+remove apply button from leave request tab
+shift aana chaiye leave request mein when apply for half day
+status mein present, absent or half day hone chaiye. shift time mein 11-3 3-7(woh kis session present rehta hain)
+
+Admin:
+Add Month filter in admin dashboard in leave request 
+done: concise the size of leave metric
+attendance rule mein indiviual nahi aa rha hain
+done: attendance rule ko last mein kar do tab mein
+
+3. Attendance Date  
+Attendance Date *
+Date picker:
+10 July 2026
+Default me current date selected ho.
+Past date bhi select kar sake, lekin future date allow nahi honi chahiye.
+4. Existing Record — Read Only
+Agar selected date par record already hai, to compact warning card dikhe:
+Existing Attendance Record
+Status: Present
+Check-in: 11:12 AM
+Check-out: Not Recorded
+Working Hours: 00h 20m
+Note:
+Saving will update the existing attendance record.
+Agar koi record nahi hai:
+No attendance record exists for this date.
+5. Attendance Status
+Attendance Status *
+Dropdown options:
+Present
+Absent
+Half Day
+On Leave
+Weekly Off
+Holiday
+6. Conditional Fields
+A. Present select hone par
+Fields:
+Check-in Time *
+Check-out Time
+Duty Type *
+Work Location
+Late Entry checkbox, optional
+Duty Type options:
+Office Duty
+Event Duty
+Field Duty
+Work From Home
+Other
+Example:
+Check-in Time: 11:12 AM
+Check-out Time: 07:30 PM
+Duty Type: Office Duty
+Location: Prayagraj Office
+B. Absent select hone par
+Fields:
+Absence Type
+Reason / Admin Note *
+Absence Type options:
+Uninformed Absence
+Approved Absence
+Unauthorized Absence
+Other
+Check-in/check-out fields hide ho jayenge.
+C. Half Day select hone par
+Fields:
+Half Day Type *
+First Half
+Second Half
+Check-in Time
+Check-out Time
+Duty Type
+Reason / Admin Note *
+D. On Leave select hone par
+Mark Attendance se sirf single-day leave mark ki jaye.
+Fields:
+Leave Type *
+Casual Leave
+Sick Leave
+Emergency Leave
+Compensatory Off
+Unpaid Leave
+Other
+Reason / Admin Note *
+Small note:
+For multiple-day leave, use the “Add Leave” option.
+Isse Mark Attendance aur Add Leave ka purpose clear rahega.
+E. Weekly Off / Holiday
+Fields:
+Title / Note
+Example:
+Sunday Weekly Off
+Independence Day
+Company Holiday
+Check-in/check-out ki zarurat nahi hogi.
+7. Reason / Admin Note
+Reason / Admin Note *
+Placeholder:
+Mention why this attendance is being marked or updated manually.
+Example:
+Employee was unable to check in due to a mobile network issue. Attendance verified by the reporting manager.
+Manual attendance entry me yeh field mandatory honi chahiye, taaki audit history clear rahe.
+9. Notify Employee
+Checkbox:
+☑ Notify employee about this attendance update
+Default checked rahe.
+Important System Rules
+Admin employee ki attendance manually add aur update kar sake.
+Existing record overwrite hone se pehle warning dikhe.
+Har manual change Activity Log me save ho:
+Updated by
+Previous value
+New value
+Date and time
+Admin reason
+Future attendance mark na ho.
+Multi-day leave ke liye Add Leave use ho.
+Check-out missing ho to Admin baad me same record update kar sake.
+Delete option nahi hona chahiye; galat record ko update ya mark as cancelled kiya jaye.

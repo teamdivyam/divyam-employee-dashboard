@@ -39,6 +39,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@components/components/ui/dropdown-menu";
+import {
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
 
 export const DEFAULT_SHIFT_START_TIME = "11:00 AM";
 export const DEFAULT_SHIFT_END_TIME = "07:30 PM";
@@ -436,19 +443,19 @@ export function CorrectionForm({ form, setForm, onSubmit, isPending }) {
   );
 }
 
-export function RightRail({ health, quickActions, alerts, note, setActiveTab }) {
+export function RightRail({ health, quickActions, alerts, note, setActiveTab, monthLabel }) {
   const actions = quickActions || [];
   const presentDays = Number(health.presentDays) || 0;
-  const lateCount = Number(health.lateCount) || 0;
   const absentDays = Number(health.absentDays) || 0;
-  const paidLeavesUsed = Number(health.paidLeavesUsed) || 0;
-  const correctionsPending = Number(health.correctionsPending) || 0;
-  const healthTotal = presentDays + lateCount + absentDays + paidLeavesUsed + correctionsPending;
+  const leaveDays = Number(health.leaveDays) || 0;
+  const healthTotal = presentDays + absentDays + leaveDays;
   const healthPercent = healthTotal ? Math.round((presentDays / healthTotal) * 100) : null;
-  const isHealthy = healthPercent !== null && healthPercent > 70;
-  const healthRingClass = isHealthy
-    ? "border-emerald-100 border-l-emerald-600 text-emerald-600 dark:border-emerald-400/15 dark:border-l-emerald-500 dark:text-emerald-300"
-    : "border-red-100 border-l-red-600 text-red-600 dark:border-red-400/15 dark:border-l-red-400 dark:text-red-300";
+  const healthItems = [
+    { name: "Present", value: presentDays, color: "hsl(var(--chart-2))" },
+    { name: "Absent", value: absentDays, color: "hsl(var(--chart-5))" },
+    { name: "Leaves", value: leaveDays, color: "hsl(var(--chart-4))" },
+  ];
+  const visibleHealthItems = healthItems.filter((item) => item.value > 0);
   const getAlertMeta = (alert = {}) => {
     const value = String(alert.status || alert.title || "").toLowerCase();
     if (value.includes("approved")) return { icon: CheckCircle2, className: "text-emerald-600" };
@@ -461,17 +468,70 @@ export function RightRail({ health, quickActions, alerts, note, setActiveTab }) 
   return (
     <aside className="space-y-4">
       <Panel>
-        <SectionTitle icon={HeartPulse}>Attendance Health</SectionTitle>
-        <div className="grid grid-cols-[110px_1fr] items-center gap-4 p-4 text-xs">
-          <div className={`relative grid h-24 w-24 place-items-center rounded-full border-[10px] ${healthRingClass}`}>
-            <span className="text-sm font-semibold">{healthPercent === null ? "--" : `${healthPercent}%`}</span>
+        <SectionTitle
+          icon={HeartPulse}
+          action={<span className="text-xs font-medium text-muted-foreground">{displayText(monthLabel, "Current Month")}</span>}
+        >
+          Attendance Health
+        </SectionTitle>
+        <div className="grid grid-cols-[126px_1fr] items-center gap-4 p-4 text-xs">
+          <div className="relative h-28 w-28">
+            {visibleHealthItems.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={visibleHealthItems}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={34}
+                    outerRadius={52}
+                    paddingAngle={4}
+                    cornerRadius={8}
+                    stroke="hsl(var(--card))"
+                    strokeWidth={2}
+                  >
+                    {visibleHealthItems.map((item) => (
+                      <Cell key={item.name} fill={item.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value, name) => [`${value} Days`, name]}
+                    contentStyle={{
+                      borderRadius: 8,
+                      border: "1px solid hsl(var(--border))",
+                      background: "hsl(var(--popover))",
+                      color: "hsl(var(--popover-foreground))",
+                      fontSize: 12,
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full w-full rounded-full border-[10px] border-muted" />
+            )}
+            <div className="pointer-events-none absolute inset-0 grid place-items-center">
+              <div className="text-center">
+                <p className="text-sm font-semibold text-foreground">{healthPercent === null ? "--" : `${healthPercent}%`}</p>
+                <p className="text-[10px] font-medium text-muted-foreground">Present</p>
+              </div>
+            </div>
           </div>
           <div className="space-y-3">
-            <RailStat label="Present Days" value={text(health.presentDays)} />
-            <RailStat label="Late Count" value={text(health.lateCount)} />
-            <RailStat label="Absent Days" value={text(health.absentDays)} />
-            <RailStat label="Paid Leaves Used" value={text(health.paidLeavesUsed)} />
-            <RailStat label="Corrections Pending" value={text(health.correctionsPending)} />
+            {healthItems.map((item) => (
+              <RailStat
+                key={item.name}
+                label={
+                  <span className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    {item.name}
+                  </span>
+                }
+                value={`${item.value} Days`}
+              />
+            ))}
+            <RailStat label="Total" value={`${healthTotal} Days`} />
           </div>
         </div>
       </Panel>
