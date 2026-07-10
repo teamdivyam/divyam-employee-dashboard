@@ -28,6 +28,7 @@ import Logout from "../Pages/dashboard/LogoutPage";
 import DetailAssignedClientPage from "../Pages/dashboard/assigned-clients/DetailAssignedClientPage";
 import DetailVendorCoordinationPage from "../Pages/dashboard/vendor-coordination/DetailVendorCoordinationPage";
 import ScorecardPage from "../Pages/dashboard/knowledge-base-sop/ScorecardPage";
+import DetailPayrollSalaryPage from "../Pages/dashboard/payroll-&-salary/PayrollSalaryPage";
 
 const NotFoundPage = lazy(() => import("../Pages/dashboard/NotFoundPage"));
 
@@ -84,6 +85,7 @@ const DashBoardRoutes = () => {
             <Route path="reports" element={<MyReportsPage />} />
             <Route path="scorecard" element={<ScorecardPage />} />
             <Route path="profile" element={<MyProfilePage />} />
+            <Route path="payroll-&-salary" element={<DetailPayrollSalaryPage />} />
 
             <Route path="/dashboard/logout" element={<Logout />} />
 

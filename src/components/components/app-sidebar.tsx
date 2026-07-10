@@ -79,6 +79,12 @@ const navMain: NavItem[] = [
     items: [],
   },
   {
+    title: "Payroll & Salary",
+    url: "/dashboard/payroll-&-salary",
+    icon: Workflow,
+    items: [],
+  },
+  {
     title: "Assigned Events",
     url: "/dashboard/assigned-events",
     icon: CalendarDays,
