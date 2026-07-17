@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -22,21 +22,16 @@ import {
 } from "@components/components/ui//dropdown-menu";
 import { AppSidebar } from "@components/components/app-sidebar";
 import { Separator } from "@components/components/ui/separator";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@components/components/ui/avatar";
 import { UserRound, Settings, LogOut, Moon, Sun } from "lucide-react";
 import {
   setDarkTheme,
   setLightTheme,
 } from "@/store/Theme/themeSlice";
-import EmployeeService from "../../services/employee.service";
+import useCurrentEmployee from "../../hooks/useCurrentEmployee";
 
-const getInitials = (name) => {
-  if (!name) return "AD";
+const getInitials = (name = "") => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "AD";
   return parts
     .slice(0, 2)
     .map((part) => part[0])
@@ -46,6 +41,9 @@ const getInitials = (name) => {
 
 const getAvatarUrl = (avatar) => {
   if (!avatar) return "";
+  if (typeof avatar === "object") {
+    return getAvatarUrl(avatar.url || avatar.path || avatar.filename || avatar.name);
+  }
   if (/^https?:\/\//.test(avatar)) return avatar;
   return `https://assets.divyam.com/Uploads/admins/${avatar}`;
 };
@@ -53,7 +51,7 @@ const getAvatarUrl = (avatar) => {
 export default function Layout() {
   const dispatch = useDispatch();
   const theme = useSelector((state) => state.theme);
-  const [employee, setEmployee] = useState(null);
+  const { data: employee } = useCurrentEmployee();
 
   useEffect(() => {
     if (!["light", "dark"].includes(theme)) return;
@@ -68,39 +66,29 @@ export default function Layout() {
   }, [theme]);
 
   useEffect(() => {
-    let mounted = true;
+    const savedTheme = localStorage.getItem("theme");
 
-    EmployeeService.me()
-      .then((response) => {
-        if (mounted) {
-          setEmployee(response?.data?.data || response?.data?.employee || response?.data);
-        }
-      })
-      .catch(() => {
-        if (mounted) {
-          setEmployee(null);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    if (savedTheme === "dark") {
+      dispatch(setDarkTheme());
+    } else {
+      dispatch(setLightTheme());
+    }
+  }, [dispatch]);
 
   const handleToggleTheme = () => {
-    const currentTheme = theme === "dark" ? "dark" : "light";
-
-    if (currentTheme === "dark") {
+    if (theme === "dark") {
       dispatch(setLightTheme());
+      localStorage.setItem("theme", "light");
     } else {
       dispatch(setDarkTheme());
+      localStorage.setItem("theme", "dark");
     }
   };
 
-  const employeeName = employee?.fullName || employee?.name || "Employee";
-  const employeeRole =
-    employee?.role?.name || employee?.role || employee?.designation || "Employee";
-  const avatarUrl = getAvatarUrl(employee?.avatar);
+  const employeeName = employee?.name || "Employee";
+  const employeeRole = employee?.accessRole || "Employee";
+  const employeeEmail = employee?.email || "";
+  const avatarUrl = getAvatarUrl(employee?.profileImage?.smallUrl);
 
   return (
     <SidebarProvider>
@@ -133,16 +121,24 @@ export default function Layout() {
                 <div
                   className="flex items-center gap-3 rounded-xl border-border bg-card px-3 py-2 transition-colors hover:bg-accent"
                 >
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={avatarUrl} alt={employeeName} />
-                    <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
-                      {getInitials(employeeName)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary" >
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={employeeName}
+                        className="h-full w-full rounded-lg object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs font-semibold">{getInitials(employeeName)}</span>
+                    )}
+                  </div>
 
                   <div className="hidden md:block text-left">
                     <p className="text-sm font-medium text-foreground">
                       {employeeName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {employeeRole}
                     </p>
                   </div>
                 </div>
@@ -155,7 +151,7 @@ export default function Layout() {
                     </p>
 
                     <p className="text-xs text-muted-foreground">
-                      {employeeRole}
+                      {employeeEmail || employeeRole}
                     </p>
                   </div>
                 </DropdownMenuLabel>

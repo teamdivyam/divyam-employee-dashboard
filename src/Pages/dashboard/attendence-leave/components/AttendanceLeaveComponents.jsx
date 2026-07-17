@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types, react-refresh/only-export-components */
 import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
   Ban,
@@ -116,8 +117,13 @@ export function isEarlyCheckOut(checkOutTime, shiftEndTime = DEFAULT_SHIFT_END_T
 
 export function resolvePresenceStatus(attendance = {}) {
   const value = String(attendance.status || "").toLowerCase();
+  if (value.includes("weekly off")) return "Weekly Off";
+  if (value.includes("holiday")) return "Holiday";
+  if (value.includes("on leave")) return "On Leave";
+  if (value.includes("half day")) return "Half Day";
+  if (value.includes("not marked")) return "Not Marked";
   if (value.includes("absent")) return "Absent";
-  if (attendance.checkInTime || value.includes("present") || value.includes("late") || value.includes("half")) return "Present";
+  if (attendance.checkInTime || value.includes("present") || value.includes("late")) return "Present";
   return "Absent";
 }
 
@@ -148,6 +154,15 @@ export function formatTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+}
+
+function formatShiftTime(value, fallback) {
+  if (!value) return fallback;
+  const match = String(value).match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return value;
+  const hours = Number(match[1]);
+  const displayHours = hours % 12 || 12;
+  return `${String(displayHours).padStart(2, "0")}:${match[2]} ${hours >= 12 ? "PM" : "AM"}`;
 }
 
 export function StatusPill({ children, tone = "green" }) {
@@ -223,8 +238,12 @@ export function TopTabs({ activeTab, onChange }) {
 
 export function TodayPanel({ attendance, duty }) {
   const presenceStatus = resolvePresenceStatus(attendance);
-  const isLate = isLateCheckIn(attendance.checkInTime);
-  const isTooEarly = isEarlyCheckOut(attendance.checkOutTime);
+  const shiftStartTime = attendance.workSchedule?.punchInTime || DEFAULT_SHIFT_START_TIME;
+  const shiftEndTime = attendance.workSchedule?.punchOutTime || DEFAULT_SHIFT_END_TIME;
+  const isLate = typeof attendance.lateEntry === "boolean"
+    ? attendance.lateEntry
+    : isLateCheckIn(attendance.checkInTime, shiftStartTime);
+  const isTooEarly = isEarlyCheckOut(attendance.checkOutTime, shiftEndTime);
   const locationLabel =
     attendance.locationName ||
     attendance.locationAddress ||
@@ -234,7 +253,7 @@ export function TodayPanel({ attendance, duty }) {
   const rows = [
     ["Date", formatDisplayDate(attendance.date || attendance.attendanceDate)],
     ["Status", <StatusPill key="attendance-status" tone={statusTone(presenceStatus)}>{presenceStatus}</StatusPill>],
-    ["Shift Time", `${DEFAULT_SHIFT_START_TIME} - ${DEFAULT_SHIFT_END_TIME}`],
+    ["Shift Time", `${formatShiftTime(shiftStartTime, DEFAULT_SHIFT_START_TIME)} - ${formatShiftTime(shiftEndTime, DEFAULT_SHIFT_END_TIME)}`],
     ["Check-In Time", <><span className={isLate ? "text-orange-600" : "text-emerald-600"}>{formatTime(attendance.checkInTime)}</span> {attendance.checkInTime && <StatusPill tone={isLate ? "orange" : "green"}>{isLate ? "Late" : "In Time"}</StatusPill>}</>],
     ["Check-Out Time", <><span>{formatTime(attendance.checkOutTime)}</span> {isTooEarly && <StatusPill tone="orange">Too Early</StatusPill>} {!attendance.checkOutTime && <StatusPill tone="orange">Not Checked Out</StatusPill>}</>],
     ["Location", <> {text(locationLabel)}</>],
@@ -281,6 +300,7 @@ export function AttendanceTable({
   showFullReportButton = false,
   onViewFullReport,
   onAddCorrection,
+  loadAttendanceDetail,
 }) {
   const safeRows = rows?.length ? rows : [];
   const [selectedAttendance, setSelectedAttendance] = React.useState(null);
@@ -354,37 +374,72 @@ export function AttendanceTable({
           </button>
         </div>
       )}
-      <AttendanceDetailDialog attendance={selectedAttendance} onOpenChange={(open) => !open && setSelectedAttendance(null)} />
+      <AttendanceDetailDialog
+        attendance={selectedAttendance}
+        loadAttendanceDetail={loadAttendanceDetail}
+        onOpenChange={(open) => !open && setSelectedAttendance(null)}
+      />
     </Panel>
   );
 }
 
-function AttendanceDetailDialog({ attendance, onOpenChange }) {
+function AttendanceDetailDialog({ attendance, loadAttendanceDetail, onOpenChange }) {
   const open = Boolean(attendance);
+  const attendanceId = attendance?._id || attendance?.id || "";
+  const detailQuery = useQuery({
+    queryKey: ["attendance-record-detail", attendanceId],
+    queryFn: () => loadAttendanceDetail(attendanceId),
+    enabled: Boolean(attendanceId && loadAttendanceDetail),
+    retry: false,
+  });
+
   if (!attendance) return null;
 
+  const detailAttendance = detailQuery.data || attendance;
+  const punches = Array.isArray(detailAttendance.punches) ? detailAttendance.punches : [];
   const location =
-    attendance.locationName ||
-    attendance.locationAddress ||
-    attendance.location?.address ||
-    attendance.location?.locationAddress ||
-    (attendance.latitude && attendance.longitude ? `${attendance.latitude}, ${attendance.longitude}` : "");
+    detailAttendance.locationName ||
+    detailAttendance.locationAddress ||
+    detailAttendance.location?.address ||
+    detailAttendance.location?.locationAddress ||
+    (detailAttendance.latitude && detailAttendance.longitude ? `${detailAttendance.latitude}, ${detailAttendance.longitude}` : "");
   const details = [
-    ["Date", formatDisplayDate(attendance.date || attendance.attendanceDate)],
-    ["Status", resolvePresenceStatus(attendance)],
-    ["Check In", formatTime(attendance.checkInTime)],
-    ["Check Out", formatTime(attendance.checkOutTime)],
-    ["Working Hours", text(attendance.workingHours || attendance.totalWorkingHours)],
-    ["Working Minutes", text(attendance.workingMinutes)],
-    ["Duty Type", text(attendance.dutyType)],
-    ["Location Type", text(attendance.locationType)],
-    ["Location Name", text(attendance.locationName)],
+    ["Date", formatDisplayDate(detailAttendance.date || detailAttendance.attendanceDate)],
+    ["Status", resolvePresenceStatus(detailAttendance)],
+    ["Check In", formatTime(detailAttendance.checkInTime)],
+    ["Check Out", formatTime(detailAttendance.checkOutTime)],
+    ["Working Hours", text(detailAttendance.workingHours || detailAttendance.totalWorkingHours)],
+    ["Working Minutes", text(detailAttendance.workingMinutes)],
+    ["Duty Type", text(detailAttendance.dutyType)],
+    ["Location Type", text(detailAttendance.locationType)],
+    ["Location Name", text(detailAttendance.locationName)],
     ["Location Address", text(location)],
-    ["Latitude", text(attendance.latitude || attendance.location?.latitude)],
-    ["Longitude", text(attendance.longitude || attendance.location?.longitude)],
-    ["Source", text(attendance.attendanceSource)],
-    ["Notes", text(attendance.notes || attendance.remark || attendance.remarks)],
-    ["Admin Correction Note", text(attendance.adminCorrectionNote || attendance.correctionNote || attendance.adminRemark || attendance.adminRemarks || attendance.adminNote)],
+    ["Latitude", text(detailAttendance.latitude || detailAttendance.location?.latitude)],
+    ["Longitude", text(detailAttendance.longitude || detailAttendance.location?.longitude)],
+    ["Source", text(detailAttendance.attendanceSource)],
+    ["Notes", text(detailAttendance.notes || detailAttendance.remark || detailAttendance.remarks)],
+    ["Admin Correction Note", text(detailAttendance.adminCorrectionNote || detailAttendance.correctionNote || detailAttendance.adminRemark || detailAttendance.adminRemarks || detailAttendance.adminNote)],
+    ...(detailQuery.isFetching ? [["Punch History", "Loading..."]] : []),
+    ...(detailQuery.isError ? [["Punch History", detailQuery.error?.response?.data?.message || detailQuery.error?.message || "Unable to load punch history"]] : []),
+    ...(!detailQuery.isFetching && !detailQuery.isError && !punches.length ? [["Punch History", "No punches recorded"]] : []),
+    ...punches.map((punch, index) => {
+      const punchLocation = [
+        punch.location?.name,
+        punch.location?.address,
+        punch.location?.latitude !== null && punch.location?.latitude !== undefined && punch.location?.longitude !== null && punch.location?.longitude !== undefined
+          ? `${punch.location.latitude}, ${punch.location.longitude}`
+          : "",
+      ].filter(Boolean).join(" • ");
+
+      return [
+        `Punch ${index + 1}`,
+        <span key={punch._id || index}>
+          {displayText(String(punch.punchType || "").replace("_", " "))} • {formatTime(punch.punchedAt)}
+          <br />
+          <span className="text-muted-foreground">{[punch.source, punch.location?.type, punchLocation, punch.notes].filter(Boolean).join(" • ") || "--"}</span>
+        </span>,
+      ];
+    }),
   ];
 
   return (
@@ -588,7 +643,7 @@ export function HeaderActions({ onCheckIn, onCheckOut, onApplyLeave, setActiveTa
   const button = "inline-flex items-center gap-2 rounded-md border px-4 py-2 text-xs font-medium disabled:opacity-60";
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {visibleAttendanceAction === "completed" ? (
+      {visibleAttendanceAction === "hidden" ? null : visibleAttendanceAction === "completed" ? (
         <button disabled className={`${button} border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300`}><CalendarCheck className="h-4 w-4" />Completed Today</button>
       ) : visibleAttendanceAction === "checkOut" ? (
         <button disabled={isBusy} onClick={onCheckOut} className={`${button} border-red-200 text-red-600`}><LogOut className="h-4 w-4" />Check Out</button>

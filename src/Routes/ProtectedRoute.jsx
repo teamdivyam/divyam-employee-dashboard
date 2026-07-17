@@ -1,13 +1,26 @@
-import React from "react";
-import { Navigate } from "react-router-dom";
-import { useSelector } from "react-redux";
-import isTokenExpired from "@/utils/isTokenExpired.js";
+import { useEffect } from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import SuspenseLoader from "../components/components/SuspenseLoader";
+import useAuthSession from "../hooks/useAuthSession";
 
+// Route element children are supplied by the router configuration.
+// eslint-disable-next-line react/prop-types
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem("AppID");
+  const location = useLocation();
+  const { data: session, isPending, isError, refetch } = useAuthSession();
 
-  if (isTokenExpired(token)) {
-    return <Navigate to="/login" />;
+  useEffect(() => {
+    const handleUnauthorized = () => refetch();
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
+  }, [refetch]);
+
+  if (isPending) {
+    return <SuspenseLoader />;
+  }
+
+  if (isError || !session) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   return children;

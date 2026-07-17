@@ -21,6 +21,13 @@ import {
   summaryIcons,
 } from "./components/AttendanceLeaveComponents";
 import EmployeeService from "@/services/employee.service";
+import EmployeeV2Service from "@/services/employee-v2.service";
+import {
+  HALF_DAY_PERIODS,
+  LEAVE_DURATIONS,
+  LEAVE_TYPES,
+  normalizeLeaveRequest,
+} from "./leave.constants";
 import {
   BriefcaseBusiness,
   ChevronLeft,
@@ -30,7 +37,6 @@ import {
   FileText,
   MoreHorizontal,
   Pencil,
-  Trash2,
   Umbrella,
   UploadCloud,
   XCircle,
@@ -66,29 +72,24 @@ const todayIso = toDateInputValue();
 const now = new Date();
 
 const defaultLeaveForm = {
-  leaveType: "Casual Leave",
-  leaveDate: todayIso,
+  leavePolicyId: "",
+  leaveType: "",
   fromDate: todayIso,
   toDate: todayIso,
-  leaveDuration: "Full Day",
+  duration: "Full Day",
   halfDayPeriod: "First Half",
-  reasonForLeave: "",
+  reason: "",
   workHandover: "",
-  supportingDocument: null,
 };
 
-const defaultLeaveTypes = ["Casual Leave", "Sick Leave", "Emergency Leave", "Compensatory Off", "Unpaid Leave", "Other"];
-const defaultLeaveDurations = ["Full Day", "Half Day", "Multiple Days"];
-const defaultHalfDayPeriods = ["First Half", "Second Half"];
-const attendanceCorrectionFields = [
-  "Check-in Time",
-  "Check-out Time",
-  "Both Check-in & Check-out",
-  "Attendance Status",
-  "Working Hours",
-  "Event Duty /Field Duty",
-  "Other",
-];
+const attendanceCorrectionFieldMap = {
+  "Check-in Time": "firstCheckIn",
+  "Check-out Time": "lastCheckOut",
+  "Duty Type": "dutyType",
+  Notes: "notes",
+};
+const attendanceCorrectionFields = Object.keys(attendanceCorrectionFieldMap);
+const attendanceDutyTypes = ["Office Duty", "Event Duty", "Field Duty", "Remote Duty", "Work From Home", "Other"];
 const leaveCorrectionFields = ["Change Leave Dates", "From Date", "To Date", "Leave Type", "Duration", "Reason", "Work Handover", "Other"];
 const attendanceTabStorageKey = "attendance-leave-active-tab";
 const attendanceTabIds = ["today", "monthly", "leaves", "duty", "corrections", "rules"];
@@ -107,10 +108,11 @@ const defaultCorrectionForm = {
   supportingProof: null,
 };
 
-function getFiscalYearStartYear(dateValue) {
+function getFiscalYear(dateValue) {
   const date = dateValue ? new Date(dateValue) : new Date();
-  if (Number.isNaN(date.getTime())) return new Date().getFullYear();
-  return date.getMonth() + 1 >= 4 ? date.getFullYear() : date.getFullYear() - 1;
+  const validDate = Number.isNaN(date.getTime()) ? new Date() : date;
+  const startYear = validDate.getMonth() + 1 >= 4 ? validDate.getFullYear() : validDate.getFullYear() - 1;
+  return `${startYear}-${startYear + 1}`;
 }
 
 function parseDateOnly(value) {
@@ -134,8 +136,8 @@ function getLeaveDaysEstimate(fromDate, toDate) {
 }
 
 function getRequestedLeaveDays(form) {
-  if (form.leaveDuration === "Half Day") return form.leaveDate ? 0.5 : null;
-  if (form.leaveDuration === "Full Day") return form.leaveDate ? 1 : null;
+  if (form.duration === "Half Day") return form.fromDate ? 0.5 : null;
+  if (form.duration === "Full Day") return form.fromDate ? 1 : null;
   return getLeaveDaysEstimate(form.fromDate, form.toDate);
 }
 
@@ -151,6 +153,9 @@ function getAvailableLeaveDays(balance) {
   const balanceFields = [
     balance.balance,
     balance.availableBalance,
+    balance.currentBalance,
+    balance.available,
+    balance.closingBalance,
     balance.availableLeaves,
     balance.availableLeaveDays,
     balance.remainingLeaves,
@@ -167,47 +172,137 @@ function getAvailableLeaveDays(balance) {
   return null;
 }
 
+function formatWorkingMinutes(minutes) {
+  if (minutes === null || minutes === undefined || !Number.isFinite(Number(minutes))) return "";
+  const totalMinutes = Number(minutes);
+  return `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`;
+}
+
+function normalizeAttendanceRecord(record = {}) {
+  const punches = Array.isArray(record.punches) ? record.punches : [];
+  const latestPunch = punches.at(-1);
+  const location = latestPunch?.location || null;
+
+  return {
+    ...record,
+    date: record.workDate,
+    attendanceDate: record.workDate,
+    checkInTime: record.firstCheckIn,
+    checkOutTime: record.lastCheckOut,
+    workingHours: formatWorkingMinutes(record.workingMinutes),
+    punches,
+    location,
+    locationType: location?.type,
+    locationName: location?.name,
+    locationAddress: location?.address,
+    latitude: location?.latitude,
+    longitude: location?.longitude,
+    attendanceSource: latestPunch?.source,
+  };
+}
+
+async function loadAttendanceRecordDetail(attendanceId) {
+  const response = await EmployeeV2Service.getAttendanceRecord(attendanceId);
+  return normalizeAttendanceRecord(response.data?.data?.record || {});
+}
+
 function getRecordId(record) {
   if (!record) return "";
   if (typeof record === "string") return record;
   return record._id || record.id || "";
 }
 
+function isValidObjectId(value) {
+  return /^[a-f\d]{24}$/i.test(String(value || ""));
+}
+
+function getAttendanceCorrectionFieldLabel(field) {
+  return Object.entries(attendanceCorrectionFieldMap).find(([, value]) => value === field)?.[0] || field;
+}
+
+function normalizeAttendanceCorrection(correction = {}) {
+  return {
+    ...correction,
+    correctionFor: "Attendance",
+    attendanceId: correction.targetId,
+    correctionStatus: correction.status,
+    reviewedBy: correction.reviewedBy ?? null,
+    reviewedAt: correction.reviewedAt ?? null,
+    adminRemarks: correction.adminRemarks ?? null,
+  };
+}
+
 function getCorrectionField(correction = {}) {
+  if (Array.isArray(correction.changes) && correction.changes.length) {
+    return correction.changes.map((change) => getAttendanceCorrectionFieldLabel(change.field)).join(", ");
+  }
+
   return displayText(
     correction.whatNeedsToBeCorrected || correction.whatNeedsToBeChanged || correction.correctionType,
     "Correction Request"
   );
 }
 
-function isDateInMonth(value, year, month) {
-  if (!value) return false;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return false;
-  return date.getFullYear() === year && date.getMonth() + 1 === month;
+function requestsNullCorrection(value) {
+  return /^(null|remove|clear)(\b.*)?$/i.test(String(value || "").trim());
 }
 
-function isDateInYear(value, year) {
-  if (!value) return false;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return false;
-  return date.getFullYear() === year;
-}
+function parseCorrectionDateTime(value, attendanceDate) {
+  const rawValue = String(value || "").trim();
+  if (requestsNullCorrection(rawValue)) return null;
 
-function isLeaveInPeriod(leave, year, month) {
-  if (month === "All") {
-    return (
-      isDateInYear(leave.fromDate || leave.startDate, year) ||
-      isDateInYear(leave.toDate || leave.endDate, year) ||
-      isDateInYear(leave.createdAt || leave.requestedAt || leave.submittedAt, year)
-    );
+  const directDate = new Date(rawValue);
+  if (!Number.isNaN(directDate.getTime()) && /\d{4}-\d{2}-\d{2}/.test(rawValue)) {
+    return directDate.toISOString();
   }
 
-  return (
-    isDateInMonth(leave.fromDate || leave.startDate, year, month) ||
-    isDateInMonth(leave.toDate || leave.endDate, year, month) ||
-    isDateInMonth(leave.createdAt || leave.requestedAt || leave.submittedAt, year, month)
-  );
+  const isoValue = rawValue.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})?/)?.[0];
+  if (isoValue) {
+    const isoDate = new Date(isoValue);
+    if (!Number.isNaN(isoDate.getTime())) return isoDate.toISOString();
+  }
+
+  const timeMatch = rawValue.match(/(?:^|\s)(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?\b/i);
+  const dateValue = toDateInputValue(attendanceDate);
+  if (!timeMatch || !dateValue) {
+    throw new Error("Enter the requested punch time, for example 7:30 PM, or provide an ISO timestamp");
+  }
+
+  let hours = Number(timeMatch[1]);
+  const minutes = Number(timeMatch[2] || 0);
+  const meridiem = timeMatch[3]?.toUpperCase();
+  if (minutes > 59 || (meridiem && (hours < 1 || hours > 12)) || (!meridiem && hours > 23)) {
+    throw new Error("Enter a valid requested punch time");
+  }
+  if (meridiem === "PM" && hours < 12) hours += 12;
+  if (meridiem === "AM" && hours === 12) hours = 0;
+
+  const [year, month, day] = dateValue.split("-").map(Number);
+  return new Date(year, month - 1, day, hours, minutes, 0, 0).toISOString();
+}
+
+function buildAttendanceCorrectionChange(form) {
+  const field = attendanceCorrectionFieldMap[form.whatNeedsToBeCorrected];
+  const rawValue = form.requestedCorrection.trim();
+  if (!field) throw new Error("Select a supported attendance correction field");
+
+  if (field === "firstCheckIn" || field === "lastCheckOut") {
+    return {
+      field,
+      requestedValue: parseCorrectionDateTime(
+        rawValue,
+        form.attendanceRecord?.workDate || form.attendanceRecord?.attendanceDate || form.attendanceRecord?.date
+      ),
+    };
+  }
+
+  if (field === "dutyType") {
+    const dutyType = attendanceDutyTypes.find((value) => value.toLowerCase() === rawValue.toLowerCase());
+    if (!dutyType) throw new Error(`Duty type must be one of: ${attendanceDutyTypes.join(", ")}`);
+    return { field, requestedValue: dutyType };
+  }
+
+  return { field, requestedValue: requestsNullCorrection(rawValue) ? null : rawValue };
 }
 
 function getCurrentLocationPayload() {
@@ -222,17 +317,11 @@ function getCurrentLocationPayload() {
         const longitude = Number(coords.longitude.toFixed(7));
 
         resolve({
-          locationType: "Office",
-          locationName: "Office",
-          locationAddress: `${latitude}, ${longitude}`,
+          type: "Corporate Office",
+          name: "Office",
+          address: `${latitude}, ${longitude}`,
           latitude,
           longitude,
-          location: {
-            latitude,
-            longitude,
-            accuracy: coords.accuracy,
-            capturedAt: new Date().toISOString(),
-          },
         });
       },
       (error) => reject(new Error(error.message || "Unable to capture location")),
@@ -260,14 +349,16 @@ export default function AttendenceLeavePage() {
     year: now.getFullYear(),
     month: now.getMonth() + 1,
   });
+  const [leavePage, setLeavePage] = useState(1);
   const [leaveForm, setLeaveForm] = useState(defaultLeaveForm);
   const [correctionForm, setCorrectionForm] = useState(defaultCorrectionForm);
-  const [attendanceAction, setAttendanceAction] = useState(null);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [isCorrectionDialogOpen, setIsCorrectionDialogOpen] = useState(false);
+  const [leaveToCancel, setLeaveToCancel] = useState(null);
+  const [cancelLeaveRemarks, setCancelLeaveRemarks] = useState("");
   const [recentCorrectionRequest, setRecentCorrectionRequest] = useState(null);
   const [correctionTypeFilter, setCorrectionTypeFilter] = useState("All");
-  const leaveFiscalYearStartYear = useMemo(() => getFiscalYearStartYear(leaveForm.fromDate), [leaveForm.fromDate]);
+  const leaveFiscalYear = useMemo(() => getFiscalYear(leaveForm.fromDate), [leaveForm.fromDate]);
 
   useEffect(() => {
     try {
@@ -281,74 +372,131 @@ export default function AttendenceLeavePage() {
     () => ({
       page: 1,
       limit: 25,
-      status: "All",
-      startDate: toDateInputValue(new Date(filters.year, filters.month - 1, 1)),
-      endDate: toDateInputValue(new Date(filters.year, filters.month, 0)),
+      fromDate: toDateInputValue(new Date(filters.year, filters.month - 1, 1)),
+      toDate: toDateInputValue(new Date(filters.year, filters.month, 0)),
+      sortOrder: "desc",
     }),
     [filters.month, filters.year]
   );
 
-  const dashboardQuery = useQuery({
-    queryKey: ["attendance-leave-dashboard", filters.year, filters.month],
+  const summaryQuery = useQuery({
+    queryKey: ["attendance-summary", historyFilters.fromDate, historyFilters.toDate],
     queryFn: async () => {
-      const response = await EmployeeService.getAttendanceLeaveDashboard(filters);
-      return response.data?.dashboard || {};
+      const response = await EmployeeV2Service.getAttendanceSummary({
+        fromDate: historyFilters.fromDate,
+        toDate: historyFilters.toDate,
+      });
+      return response.data?.data?.summary || {};
+    },
+  });
+
+  const todayAttendanceQuery = useQuery({
+    queryKey: ["attendance-me-today"],
+    queryFn: async () => {
+      const response = await EmployeeV2Service.getTodayAttendance();
+      return response.data?.data || {};
     },
   });
 
   const historyQuery = useQuery({
     queryKey: ["attendance-leave-history", historyFilters],
     queryFn: async () => {
-      const response = await EmployeeService.getAttendanceHistory(historyFilters);
-      return response.data || {};
+      const response = await EmployeeV2Service.getAttendanceRecords(historyFilters);
+      return response.data?.data || {};
+    },
+  });
+
+  const leavePoliciesQuery = useQuery({
+    queryKey: ["employee-leave-policies", leaveFiscalYear],
+    queryFn: async () => {
+      const response = await EmployeeV2Service.getApplicableLeavePolicies({
+        fiscalYear: leaveFiscalYear,
+        page: 1,
+        limit: 100,
+      });
+      return response.data?.data || {};
     },
   });
 
   const leaveBalanceQuery = useQuery({
-    queryKey: ["attendance-leave-balance", leaveFiscalYearStartYear],
+    queryKey: ["employee-leave-balances", leaveFiscalYear],
     queryFn: async () => {
-      const response = await EmployeeService.getLeaveBalance({ fiscalYearStartYear: leaveFiscalYearStartYear });
-      return response.data || {};
+      const response = await EmployeeV2Service.getLeaveBalances({
+        fiscalYear: leaveFiscalYear,
+      });
+      return response.data?.data || {};
     },
   });
 
+  const leaveRequestFilters = useMemo(() => {
+    const isAllMonths = leaveFilters.month === "All";
+    return {
+      fromDate: toDateInputValue(new Date(leaveFilters.year, isAllMonths ? 0 : leaveFilters.month - 1, 1)),
+      toDate: toDateInputValue(new Date(leaveFilters.year, isAllMonths ? 12 : leaveFilters.month, 0)),
+      page: leavePage,
+      limit: 20,
+      sortOrder: "desc",
+    };
+  }, [leaveFilters.month, leaveFilters.year, leavePage]);
+
   const leaveRequestsQuery = useQuery({
-    queryKey: ["attendance-leave-requests"],
+    queryKey: ["employee-leave-requests", leaveRequestFilters],
     queryFn: async () => {
-      const response = await EmployeeService.getLeaveRequests({
-        page: 1,
-        limit: 25,
-        leaveStatus: "All",
-        leaveType: "All",
-      });
-      return response.data || {};
+      const response = await EmployeeV2Service.getMyLeaveRequests(leaveRequestFilters);
+      return response.data?.data || {};
     },
   });
+
+  const leavePolicies = useMemo(() => {
+    const policies = leavePoliciesQuery.data?.policies;
+    return Array.isArray(policies) ? policies : [];
+  }, [leavePoliciesQuery.data?.policies]);
+
+  useEffect(() => {
+    if (!leavePolicies.length) return;
+
+    setLeaveForm((current) => {
+      const currentPolicy = leavePolicies.find((policy) => policy._id === current.leavePolicyId);
+      if (currentPolicy) {
+        return current.leaveType === currentPolicy.leaveType
+          ? current
+          : { ...current, leaveType: currentPolicy.leaveType };
+      }
+
+      const firstDayPolicy = leavePolicies.find((policy) => policy.unit === "Days") || leavePolicies[0];
+      return {
+        ...current,
+        leavePolicyId: firstDayPolicy._id,
+        leaveType: firstDayPolicy.leaveType,
+        duration: firstDayPolicy.requestRules?.allowHalfDay === false && current.duration === "Half Day"
+          ? "Full Day"
+          : current.duration,
+      };
+    });
+  }, [leavePolicies]);
 
   const actionMutation = useMutation({
     mutationFn: async (action) => {
-      const locationPayload = await getCurrentLocationPayload();
+      const location = await getCurrentLocationPayload();
+      const isCheckIn = action === "checkIn";
 
-      if (action === "checkIn") {
-        return EmployeeService.checkInAttendance({
-          status: "Present",
-          attendanceSource: "Web Portal",
-          notes: "Checked in from attendance dashboard",
-          ...locationPayload,
-        });
-      }
-
-      return EmployeeService.checkOutAttendance({
-        attendanceSource: "Web Portal",
-        notes: "Checked out from attendance dashboard",
-        ...locationPayload,
+      return EmployeeV2Service.markAttendancePunch({
+        punchType: isCheckIn ? "Check_In" : "Check_Out",
+        ...(isCheckIn ? { dutyType: "Office Duty" } : {}),
+        location,
+        notes: null,
       });
     },
     onSuccess: (response) => {
       toast.success(response.data?.message || "Attendance updated");
-      const attendance = response.data?.attendance || {};
-      setAttendanceAction(attendance.checkInTime && attendance.checkOutTime ? "completed" : "checkOut");
-      queryClient.invalidateQueries({ queryKey: ["attendance-leave-dashboard"] });
+      const punchData = response.data?.data || {};
+      queryClient.setQueryData(["attendance-me-today"], (current = {}) => ({
+        ...current,
+        attendanceRecord: punchData.attendanceRecord || current.attendanceRecord || null,
+        punches: punchData.punch ? [...(current.punches || []), punchData.punch] : current.punches || [],
+      }));
+      queryClient.invalidateQueries({ queryKey: ["attendance-me-today"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-leave-history"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-leave-balance"] });
     },
@@ -356,48 +504,52 @@ export default function AttendenceLeavePage() {
   });
 
   const leaveMutation = useMutation({
-    mutationFn: () => {
-      const formData = new FormData();
-      formData.append("leaveType", leaveForm.leaveType);
-      formData.append("leaveDuration", leaveForm.leaveDuration);
-      formData.append("requestedLeaveDays", String(estimatedLeaveDays));
-      formData.append("reasonForLeave", leaveForm.reasonForLeave.trim());
-      if (leaveForm.workHandover.trim()) formData.append("workHandover", leaveForm.workHandover.trim());
-
-      if (leaveForm.leaveDuration === "Multiple Days") {
-        formData.append("fromDate", leaveForm.fromDate);
-        formData.append("toDate", leaveForm.toDate);
-      } else {
-        formData.append("leaveDate", leaveForm.leaveDate);
-        if (leaveForm.leaveDuration === "Half Day") formData.append("halfDayPeriod", leaveForm.halfDayPeriod);
-      }
-
-      if (leaveForm.supportingDocument) formData.append("supportingDocument", leaveForm.supportingDocument);
-
-      return EmployeeService.submitLeaveRequest({ formData });
-    },
+    mutationFn: () => EmployeeV2Service.createLeaveRequest({
+      leavePolicyId: leaveForm.leavePolicyId,
+      leaveType: leaveForm.leaveType,
+      fromDate: toDateInputValue(leaveForm.fromDate),
+      toDate: toDateInputValue(leaveForm.toDate),
+      duration: leaveForm.duration,
+      ...(leaveForm.duration === "Half Day" ? { halfDayPeriod: leaveForm.halfDayPeriod } : {}),
+      reason: leaveForm.reason.trim(),
+      workHandover: leaveForm.workHandover.trim(),
+    }),
     onSuccess: (response) => {
-      toast.success(response.data?.message || "Leave request submitted");
+      const responseData = response.data?.data || {};
+      const createdRequest = responseData.request ? normalizeLeaveRequest(responseData.request) : null;
+      const requestedDays = createdRequest?.requestedDays;
+      const chargeableDates = Array.isArray(responseData.chargeableDates) ? responseData.chargeableDates : [];
+
+      toast.success(response.data?.message || "Leave request submitted", {
+        description: requestedDays == null
+          ? undefined
+          : `${requestedDays} day${requestedDays === 1 ? "" : "s"} requested${chargeableDates.length ? ` across ${chargeableDates.length} chargeable date${chargeableDates.length === 1 ? "" : "s"}` : ""}.`,
+      });
+
       setLeaveForm(defaultLeaveForm);
       setIsLeaveDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["attendance-leave-dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["attendance-leave-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["attendance-leave-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-leave-request-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-leave-balances"] });
     },
     onError: (error) => toast.error(error.response?.data?.message || error.message || "Unable to submit leave request"),
   });
 
   const cancelLeaveMutation = useMutation({
-    mutationFn: (leaveId) =>
-      EmployeeService.cancelLeaveRequest({
-        leaveId,
-        reason: "Cancelled by employee",
-      }),
+    mutationFn: ({ leaveRequestId, remarks }) =>
+      EmployeeV2Service.cancelMyLeaveRequest({ leaveRequestId, remarks }),
     onSuccess: (response) => {
       toast.success(response.data?.message || "Leave request cancelled");
-      queryClient.invalidateQueries({ queryKey: ["attendance-leave-dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["attendance-leave-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["attendance-leave-balance"] });
+      setLeaveToCancel(null);
+      setCancelLeaveRemarks("");
+      queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-me-today"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-leave-history"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-leave-request-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-leave-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-leave-ledger"] });
     },
     onError: (error) => toast.error(error.response?.data?.message || "Unable to cancel leave request"),
   });
@@ -427,95 +579,177 @@ export default function AttendenceLeavePage() {
         });
       }
 
-      const payload = {
-        whatNeedsToBeCorrected: correctionForm.whatNeedsToBeCorrected,
-        requestedCorrection: correctionForm.requestedCorrection.trim(),
-        reasonForCorrection: correctionForm.reasonForCorrection.trim(),
-      };
-
-      if (correctionForm.supportingProof) {
-        const formData = new FormData();
-        Object.entries(payload).forEach(([key, value]) => formData.append(key, value));
-        formData.append("supportingProof", correctionForm.supportingProof);
-        return EmployeeService.submitAttendanceCorrection({
-          attendanceId: correctionForm.attendanceId,
-          data: formData,
-        });
-      }
-
-      return EmployeeService.submitAttendanceCorrection({
-        attendanceId: correctionForm.attendanceId,
-        data: payload,
+      return EmployeeV2Service.createAttendanceCorrection({
+        targetId: correctionForm.attendanceId,
+        changes: [buildAttendanceCorrectionChange(correctionForm)],
+        reason: correctionForm.reasonForCorrection.trim(),
       });
     },
     onSuccess: (response) => {
       toast.success(response.data?.message || "Correction request submitted");
-      setRecentCorrectionRequest(null);
+      const createdCorrection = response.data?.data?.correction;
+      setRecentCorrectionRequest(
+        correctionForm.correctionFor === "Attendance" && createdCorrection
+          ? normalizeAttendanceCorrection(createdCorrection)
+          : null
+      );
       setCorrectionForm(defaultCorrectionForm);
       setIsCorrectionDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["attendance-leave-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-leave-history"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-corrections"] });
     },
-    onError: (error) => toast.error(error.response?.data?.message || "Unable to submit correction request"),
+    onError: (error) => toast.error(error.response?.data?.message || error.message || "Unable to submit correction request"),
   });
 
-  const deleteCorrectionMutation = useMutation({
-    mutationFn: (correctionId) => EmployeeService.deleteAttendanceCorrection({ correctionId }),
+  const cancelCorrectionMutation = useMutation({
+    mutationFn: (correctionId) => {
+      if (!/^[a-f\d]{24}$/i.test(correctionId)) {
+        throw new Error("A valid attendance correction is required");
+      }
+      return EmployeeV2Service.cancelAttendanceCorrection({ correctionId });
+    },
     onSuccess: (response) => {
-      toast.success(response.data?.message || "Correction request deleted");
-      queryClient.invalidateQueries({ queryKey: ["attendance-leave-dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["attendance-leave-history"] });
+      toast.success(response.data?.message || "Attendance correction cancelled");
+      const cancelledCorrection = response.data?.data?.correction;
+      if (cancelledCorrection) {
+        const normalizedCorrection = normalizeAttendanceCorrection(cancelledCorrection);
+        setRecentCorrectionRequest(normalizedCorrection);
+        queryClient.setQueryData(
+          ["attendance-correction-detail", normalizedCorrection._id],
+          normalizedCorrection
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: ["attendance-corrections"] });
     },
-    onError: (error) => toast.error(error.response?.data?.message || "Unable to delete correction request"),
+    onError: (error) => toast.error(
+      error.response?.data?.message || error.message || "Unable to cancel attendance correction"
+    ),
   });
 
-  const data = dashboardQuery.data || {};
-  const todayAttendance = data.todayAttendance || {};
+  const correctionsQuery = useQuery({
+    queryKey: ["attendance-corrections", 1, 20, "desc"],
+    queryFn: async () => {
+      const response = await EmployeeV2Service.getAttendanceCorrections({
+        page: 1,
+        limit: 20,
+        sortOrder: "desc",
+      });
+      return response.data?.data || {};
+    },
+  });
+
+  const correctionDetailMutation = useMutation({
+    mutationFn: async (correction) => {
+      const correctionId = getRecordId(correction);
+      if (!/^[a-f\d]{24}$/i.test(correctionId)) {
+        throw new Error("A valid attendance correction is required");
+      }
+
+      const response = await EmployeeV2Service.getAttendanceCorrection(correctionId);
+      const correctionDetail = normalizeAttendanceCorrection(response.data?.data?.correction || {});
+      if (!/^[a-f\d]{24}$/i.test(correctionDetail.targetId || "")) {
+        throw new Error("The correction does not reference a valid attendance record");
+      }
+
+      const attendanceRecord = await loadAttendanceRecordDetail(correctionDetail.targetId);
+      return { correction: correctionDetail, attendanceRecord };
+    },
+    onSuccess: ({ correction, attendanceRecord }) => {
+      const firstChange = Array.isArray(correction.changes) ? correction.changes[0] : null;
+      queryClient.setQueryData(["attendance-correction-detail", correction._id], correction);
+      setCorrectionForm({
+        ...defaultCorrectionForm,
+        correctionId: correction._id,
+        correctionFor: "Attendance",
+        attendanceId: correction.targetId,
+        attendanceRecord,
+        whatNeedsToBeCorrected: getAttendanceCorrectionFieldLabel(firstChange?.field) || "Notes",
+        requestedCorrection: firstChange
+          ? (firstChange.requestedValue === null ? "null" : String(firstChange.requestedValue))
+          : "",
+        reasonForCorrection: correction.reason || "",
+      });
+      setIsCorrectionDialogOpen(true);
+    },
+    onError: (error) => toast.error(
+      error.response?.data?.message || error.message || "Unable to load attendance correction"
+    ),
+  });
+
+  const summary = summaryQuery.data || {};
+  const todayData = todayAttendanceQuery.data || {};
+  const todayAttendance = todayData.attendanceRecord || {};
+  const punches = Array.isArray(todayData.punches) ? todayData.punches : [];
+  const lastPunch = punches.at(-1);
+  const punchLocation = lastPunch?.location || punches[0]?.location || null;
+  const workSchedule = todayData.workSchedule || {};
   const normalizedTodayAttendance = {
     ...todayAttendance,
-    status: data.todayStatus || todayAttendance.status,
-    checkInTime: data.checkInTime || todayAttendance.checkInTime,
-    checkOutTime: data.checkOutTime || todayAttendance.checkOutTime,
-    workingMinutes: data.workingMinutes || todayAttendance.workingMinutes,
-    workingHours: data.workingHours || todayAttendance.workingHours,
+    date: todayData.workDate,
+    attendanceDate: todayData.workDate,
+    status: todayAttendance.status || (todayData.holiday ? "Holiday" : "Not Marked"),
+    checkInTime: todayAttendance.firstCheckIn,
+    checkOutTime: todayAttendance.lastCheckOut,
+    workingMinutes: todayAttendance.workingMinutes,
+    workingHours: formatWorkingMinutes(todayAttendance.workingMinutes),
+    location: punchLocation,
+    locationType: punchLocation?.type,
+    locationName: punchLocation?.name,
+    locationAddress: punchLocation?.address,
+    latitude: punchLocation?.latitude,
+    longitude: punchLocation?.longitude,
+    attendanceSource: lastPunch?.source,
+    notes: lastPunch?.notes,
+    workSchedule,
   };
   const resolvedTodayStatus = resolvePresenceStatus({
     ...normalizedTodayAttendance,
   });
-  const hasCheckedIn = Boolean(normalizedTodayAttendance.checkInTime);
-  const hasCheckedOut = Boolean(normalizedTodayAttendance.checkOutTime);
-  const visibleAttendanceAction = attendanceAction || (hasCheckedIn ? (hasCheckedOut ? "completed" : "checkOut") : "checkIn");
-  const todaysDuty = Array.isArray(data.eventDutyAttendance)
-    ? data.eventDutyAttendance[0] || {}
-    : data.eventDutyAttendance || {};
-  const monthlyRows = historyQuery.data?.attendance?.length ? historyQuery.data.attendance : [];
+  const hasCheckInPunch = punches.some((punch) => punch.punchType === "Check_In");
+  const hasCheckOutPunch = punches.some((punch) => punch.punchType === "Check_Out");
+  const attendanceLocked = todayAttendance.payrollLocked === true;
+  const visibleAttendanceAction = hasCheckOutPunch ? "hidden" : hasCheckInPunch ? "checkOut" : "checkIn";
+  const todaysDuty = todayAttendance.dutyType ? { dutyType: todayAttendance.dutyType } : {};
+  const attendanceRecords = historyQuery.data?.records;
+  const monthlyRows = useMemo(
+    () => (Array.isArray(attendanceRecords) ? attendanceRecords.map(normalizeAttendanceRecord) : []),
+    [attendanceRecords]
+  );
   const correctionAttendanceRows = monthlyRows.length
     ? monthlyRows
     : normalizedTodayAttendance._id
       ? [normalizedTodayAttendance]
       : [];
-  const dashboardCorrections = data.recentCorrectionRequests || data.correctionRequests || data.myCorrectionRequests || [];
-  const attendanceRule = data.attendanceRule || {};
-  const attendanceRules = attendanceRule.effectiveAttendanceRule?.length
-    ? attendanceRule.effectiveAttendanceRule
-    : [
-        ...(attendanceRule.globalAttendanceRule || []),
-        ...(attendanceRule.individualAttendanceRule || []),
-      ];
-  const recentCorrections = recentCorrectionRequest
-    ? [recentCorrectionRequest]
-    : Array.isArray(dashboardCorrections)
-      ? dashboardCorrections
-      : dashboardCorrections
-        ? [dashboardCorrections]
-        : [];
+  const attendanceRules = [];
+  const correctionRecords = correctionsQuery.data?.corrections;
+  const recentCorrections = useMemo(() => {
+    const listedCorrections = Array.isArray(correctionRecords)
+      ? correctionRecords.map(normalizeAttendanceCorrection)
+      : [];
+    const mergedCorrections = recentCorrectionRequest
+      ? [recentCorrectionRequest, ...listedCorrections]
+      : listedCorrections;
+    const correctionIds = new Set();
+
+    return mergedCorrections.filter((correction) => {
+      const correctionId = getRecordId(correction);
+      if (!correctionId || correctionIds.has(correctionId)) return false;
+      correctionIds.add(correctionId);
+      return true;
+    });
+  }, [correctionRecords, recentCorrectionRequest]);
   const filteredCorrections = recentCorrections.filter((correction) => (
-    correctionTypeFilter === "All" || getCorrectionField(correction) === correctionTypeFilter
+    correctionTypeFilter === "All" ||
+    getCorrectionField(correction) === correctionTypeFilter ||
+    correction.changes?.some((change) => getAttendanceCorrectionFieldLabel(change.field) === correctionTypeFilter)
   ));
-  const leaveRequests = leaveRequestsQuery.data?.leaveRequests?.length
-    ? leaveRequestsQuery.data.leaveRequests
-    : data.myLeaveRequests || [];
+  const leaveRequestRecords = leaveRequestsQuery.data?.leaveRequests || leaveRequestsQuery.data?.requests;
+  const leaveRequests = useMemo(
+    () => (Array.isArray(leaveRequestRecords) ? leaveRequestRecords.map(normalizeLeaveRequest) : []),
+    [leaveRequestRecords]
+  );
   const requestNotifications = useMemo(() => {
     const getTime = (item) => {
       const value = item.requestedAt || item.submittedAt || item.createdAt || item.updatedAt || item.actionAt || item.fromDate || item.attendanceDate;
@@ -554,60 +788,60 @@ export default function AttendenceLeavePage() {
       .slice(0, 5)
       .sort((a, b) => a.time - b.time);
   }, [leaveRequests, recentCorrections]);
-  const monthlyLeaveRequests = useMemo(
-    () => leaveRequests.filter((leave) => isLeaveInPeriod(leave, leaveFilters.year, leaveFilters.month)),
-    [leaveFilters.month, leaveFilters.year, leaveRequests]
-  );
-  const currentMonthLeaveRequests = useMemo(
-    () => leaveRequests.filter((leave) => isLeaveInPeriod(leave, filters.year, filters.month)),
-    [filters.month, filters.year, leaveRequests]
-  );
+  const monthlyLeaveRequests = leaveRequests;
+  const leaveRequestPagination = leaveRequestsQuery.data?.pagination || {
+    page: leavePage,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+  };
   const leaveBalanceResponse = leaveBalanceQuery.data || {};
-  const leaveBalance = leaveBalanceResponse.leaveBalance || [];
-  const leaveMeta = data.meta || leaveRequestsQuery.data?.meta || {};
-  const leaveTypeOptions = leaveMeta.leaveTypes?.length ? leaveMeta.leaveTypes : defaultLeaveTypes;
-  const leaveDurationOptions = leaveMeta.leaveDurations?.length ? leaveMeta.leaveDurations : defaultLeaveDurations;
-  const halfDayPeriodOptions = leaveMeta.halfDayPeriods?.length ? leaveMeta.halfDayPeriods : defaultHalfDayPeriods;
+  const leaveBalanceRecords = leaveBalanceResponse.balances || leaveBalanceResponse.leaveBalances || leaveBalanceResponse.leaveBalance;
+  const leaveBalance = useMemo(() => {
+    const balances = Array.isArray(leaveBalanceRecords) ? leaveBalanceRecords : [];
+    return leavePolicies.map((policy) => {
+      const policyBalance = balances.find((balance) => (
+        balance.leavePolicy?._id === policy._id ||
+        balance.leavePolicyId === policy._id ||
+        balance.policyId === policy._id ||
+        balance.leaveType === policy.leaveType
+      ));
+      return {
+        ...policy,
+        ...(policyBalance || {}),
+        leavePolicy: policyBalance?.leavePolicy || policy,
+        leaveType: policy.leaveType,
+      };
+    });
+  }, [leaveBalanceRecords, leavePolicies]);
+  const leaveDurationOptions = LEAVE_DURATIONS;
+  const halfDayPeriodOptions = HALF_DAY_PERIODS;
+  const hasLeaveBalanceData = leaveBalance.some((item) => getAvailableLeaveDays(item) !== null);
   const totalLeaveBalance = leaveBalance.reduce((total, item) => total + (getAvailableLeaveDays(item) || 0), 0);
-  const selectedLeaveBalance = leaveBalance.find((item) => item.leaveType === leaveForm.leaveType);
+  const selectedLeavePolicy = leavePolicies.find((policy) => policy._id === leaveForm.leavePolicyId) || null;
+  const selectedLeaveBalance = leaveBalance.find((item) => item._id === leaveForm.leavePolicyId || item.leavePolicy?._id === leaveForm.leavePolicyId);
   const selectedLeaveDaysLeft = getAvailableLeaveDays(selectedLeaveBalance);
-  const estimatedLeaveDays = getRequestedLeaveDays(leaveForm);
-  const exceedsLeaveBalance =
-    selectedLeaveDaysLeft !== null && estimatedLeaveDays !== null && estimatedLeaveDays > selectedLeaveDaysLeft;
+  const selectedRequestRules = selectedLeavePolicy?.requestRules || {};
+  const calendarSpanDays = getRequestedLeaveDays(leaveForm);
   const monthLabel = useMemo(
     () => new Date(filters.year, filters.month - 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
     [filters.month, filters.year]
   );
   const leaveMonthLabel = useMemo(
-    () => String(leaveFilters.year),
-    [leaveFilters.year]
+    () => leaveFilters.month === "All"
+      ? String(leaveFilters.year)
+      : new Date(leaveFilters.year, leaveFilters.month - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
+    [leaveFilters.month, leaveFilters.year]
   );
-  const summary = data.monthlySummary || {};
   const monthlyLeaveDays = monthlyLeaveRequests.reduce(
-    (total, leave) => total + (Number(leave.leaveDays || leave.totalDays || leave.days) || 0),
+    (total, leave) => total + (Number(leave.requestedDays || leave.leaveDays || leave.totalDays || leave.days) || 0),
     0
   );
-  const currentMonthLeaveDays = currentMonthLeaveRequests.reduce(
-    (total, leave) => total + (Number(leave.leaveDays || leave.totalDays || leave.days) || 0),
-    0
-  );
-  const attendanceHealth = useMemo(() => {
-    const rowCounts = monthlyRows.reduce(
-      (counts, attendance) => {
-        const rowStatus = resolvePresenceStatus(attendance);
-        if (rowStatus === "Present") counts.presentDays += 1;
-        if (rowStatus === "Absent") counts.absentDays += 1;
-        return counts;
-      },
-      { presentDays: 0, absentDays: 0 }
-    );
-
-    return {
-      presentDays: summary.presentDays ?? rowCounts.presentDays,
-      absentDays: summary.absentDays ?? rowCounts.absentDays,
-      leaveDays: data.leavesTakenThisMonth ?? summary.leaveDays ?? summary.leavesTaken ?? currentMonthLeaveDays,
-    };
-  }, [currentMonthLeaveDays, data.leavesTakenThisMonth, monthlyRows, summary.absentDays, summary.leaveDays, summary.leavesTaken, summary.presentDays]);
+  const attendanceHealth = {
+    presentDays: summary.presentDays,
+    absentDays: summary.absentDays,
+    leaveDays: Number(summary.paidLeaveDays || 0) + Number(summary.unpaidLeaveDays || 0),
+  };
   const latestAttendanceRows = useMemo(
     () => [...monthlyRows]
       .sort((a, b) => new Date(b.attendanceDate || b.date || 0) - new Date(a.attendanceDate || a.date || 0))
@@ -627,19 +861,7 @@ export default function AttendenceLeavePage() {
   };
 
   const openCorrectionDialogForRequest = (correction) => {
-    const attendance = correction.attendance || correction.attendanceId || {};
-    setCorrectionForm({
-      ...defaultCorrectionForm,
-      correctionId: getRecordId(correction),
-      correctionFor: correction.correctionFor || "Attendance",
-      attendanceId: getRecordId(attendance),
-      attendanceRecord: typeof attendance === "object" ? attendance : null,
-      whatNeedsToBeCorrected: correction.whatNeedsToBeCorrected || correction.correctionType || "Other",
-      whatNeedsToBeChanged: correction.whatNeedsToBeChanged || "Other",
-      requestedCorrection: correction.requestedCorrection || correction.remarks || "",
-      reasonForCorrection: correction.reasonForCorrection || correction.reason || "",
-    });
-    setIsCorrectionDialogOpen(true);
+    correctionDetailMutation.mutate(correction);
   };
 
   const openLeaveCorrectionDialog = (leave) => {
@@ -653,26 +875,85 @@ export default function AttendenceLeavePage() {
     setIsCorrectionDialogOpen(true);
   };
 
+  const openCancelLeaveDialog = (leave) => {
+    const leaveId = getRecordId(leave);
+    const leaveStatus = leave?.status || leave?.leaveStatus;
+    if (!isValidObjectId(leaveId)) {
+      toast.error("A valid leave request is required.");
+      return;
+    }
+    if (leaveStatus !== "Pending" && leaveStatus !== "Approved") {
+      toast.error("Only pending or approved leave requests can be cancelled.");
+      return;
+    }
+    setCancelLeaveRemarks("");
+    setLeaveToCancel(leave);
+  };
+
+  const confirmLeaveCancellation = (event) => {
+    event.preventDefault();
+    const leaveRequestId = getRecordId(leaveToCancel);
+    const remarks = cancelLeaveRemarks.trim();
+    if (!isValidObjectId(leaveRequestId)) {
+      toast.error("A valid leave request is required.");
+      return;
+    }
+    if (remarks.length > 1000) {
+      toast.error("Cancellation remarks cannot exceed 1000 characters.");
+      return;
+    }
+    cancelLeaveMutation.mutate({ leaveRequestId, remarks });
+  };
+
   const submitLeave = (event) => {
     event.preventDefault();
-    if (!leaveForm.leaveType || !leaveForm.reasonForLeave.trim()) {
-      toast.error("Leave type and reason for leave are required!");
+    if (!selectedLeavePolicy || !leaveForm.leavePolicyId) {
+      toast.error("Select an applicable leave policy.");
       return;
     }
-    if (!leaveDurationOptions.includes(leaveForm.leaveDuration)) {
-      toast.error("Invalid leave duration!");
+    if (selectedLeavePolicy.unit !== "Days") {
+      toast.error("Only day-based leave policies can currently be submitted.");
       return;
     }
-    if (leaveForm.leaveDuration === "Half Day" && !halfDayPeriodOptions.includes(leaveForm.halfDayPeriod)) {
-      toast.error("Select a valid half day period!");
+    if (!LEAVE_TYPES.includes(leaveForm.leaveType) || leaveForm.leaveType !== selectedLeavePolicy.leaveType) {
+      toast.error("The selected leave type does not match the leave policy.");
       return;
     }
-    if (estimatedLeaveDays === null) {
-      toast.error(leaveForm.leaveDuration === "Multiple Days" ? "To date cannot be before from date!" : "Leave date is required!");
+    const reason = leaveForm.reason.trim();
+    const workHandover = leaveForm.workHandover.trim();
+    if (reason.length < 3 || reason.length > 2000) {
+      toast.error("Reason for leave must be between 3 and 2000 characters.");
       return;
     }
-    if (exceedsLeaveBalance) {
-      toast.error(`Requested leave days cannot exceed ${selectedLeaveDaysLeft} days left for ${leaveForm.leaveType}.`);
+    if (workHandover.length > 2000) {
+      toast.error("Work handover cannot exceed 2000 characters.");
+      return;
+    }
+    if (!leaveDurationOptions.includes(leaveForm.duration)) {
+      toast.error("Select a valid leave duration.");
+      return;
+    }
+    if (leaveForm.duration === "Half Day" && selectedRequestRules.allowHalfDay === false) {
+      toast.error("The selected policy does not allow half-day leave.");
+      return;
+    }
+    if (leaveForm.duration === "Half Day" && !halfDayPeriodOptions.includes(leaveForm.halfDayPeriod)) {
+      toast.error("Select a valid half-day period.");
+      return;
+    }
+    if (calendarSpanDays === null || !leaveForm.fromDate || !leaveForm.toDate) {
+      toast.error("To date cannot be before from date.");
+      return;
+    }
+
+    const fromDate = toDateInputValue(leaveForm.fromDate);
+    const toDate = toDateInputValue(leaveForm.toDate);
+    if (leaveForm.duration === "Multiple Days" && fromDate === toDate) {
+      toast.error("Multiple-day leave must span more than one calendar date.");
+      return;
+    }
+    if (leaveForm.duration !== "Multiple Days" && fromDate !== toDate) {
+      toast.error(`${leaveForm.duration} requests must use the same from and to date.`);
       return;
     }
     leaveMutation.mutate();
@@ -689,6 +970,14 @@ export default function AttendenceLeavePage() {
       toast.error("Attendance record is required!");
       return;
     }
+    if (correctionForm.correctionFor !== "Leave" && !/^[a-f\d]{24}$/i.test(correctionForm.attendanceId)) {
+      toast.error("A valid attendance record is required!");
+      return;
+    }
+    if (correctionForm.correctionFor !== "Leave" && correctionForm.attendanceRecord?.payrollLocked) {
+      toast.error("Attendance is locked for payroll and cannot be corrected");
+      return;
+    }
     if (correctionForm.correctionFor === "Leave" && !leaveCorrectionFields.includes(correctionForm.whatNeedsToBeChanged)) {
       toast.error("Select what needs to be changed!");
       return;
@@ -701,12 +990,24 @@ export default function AttendenceLeavePage() {
       toast.error("Requested correction and reason are required!");
       return;
     }
+    if (correctionForm.correctionFor !== "Leave") {
+      const reasonLength = correctionForm.reasonForCorrection.trim().length;
+      if (reasonLength < 3 || reasonLength > 1000) {
+        toast.error("Reason must be between 3 and 1,000 characters!");
+        return;
+      }
+    }
 
     correctionMutation.mutate();
   };
 
   const submitAttendanceAction = (action) => {
-    if (visibleAttendanceAction === "completed") {
+    if (attendanceLocked) {
+      toast.error("Attendance is locked for payroll");
+      return;
+    }
+
+    if (visibleAttendanceAction === "hidden") {
       toast.info("Today's check-in and check-out are already completed");
       return;
     }
@@ -744,20 +1045,20 @@ export default function AttendenceLeavePage() {
     {
       label: "This Month Present",
       value: summary.presentDays === null || summary.presentDays === undefined ? "--" : `${summary.presentDays} Days`,
-      sub: summary.totalDays === null || summary.totalDays === undefined ? "--" : `Out of ${summary.totalDays} Days`,
+      sub: summary.totalRecords === null || summary.totalRecords === undefined ? "--" : `Out of ${summary.totalRecords} Days`,
       icon: summaryIcons.present,
       tone: "green",
     },
     {
       label: "Late / Absent",
-      value: summary.lateDays === null || summary.lateDays === undefined ? "--" : `${summary.lateDays} Late`,
+      value: summary.lateEntries === null || summary.lateEntries === undefined ? "--" : `${summary.lateEntries} Late`,
       sub: summary.absentDays === null || summary.absentDays === undefined ? "--" : `${summary.absentDays} Absent`,
       icon: summaryIcons.late,
       tone: "red",
     },
     {
       label: "Total Leave Balance",
-      value: leaveBalance.length ? `${totalLeaveBalance} Days` : "--",
+      value: hasLeaveBalanceData ? `${totalLeaveBalance} Days` : "--",
       sub: "Leaves Left",
       icon: summaryIcons.leave,
       tone: "purple",
@@ -773,7 +1074,7 @@ export default function AttendenceLeavePage() {
           <p className="atl-muted mt-1 text-sm">Track your attendance, working hours, leave balance, event duty and requests.</p>
         </div>
         <HeaderActions
-          isBusy={actionMutation.isPending}
+          isBusy={actionMutation.isPending || todayAttendanceQuery.isPending || todayAttendanceQuery.isError || attendanceLocked}
           visibleAttendanceAction={visibleAttendanceAction}
           onCheckIn={() => submitAttendanceAction("checkIn")}
           onCheckOut={() => submitAttendanceAction("checkOut")}
@@ -792,7 +1093,7 @@ export default function AttendenceLeavePage() {
       <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_330px]">
         <main className="space-y-4">
           <TopTabs activeTab={activeTab} onChange={setActiveTab} />
-          {dashboardQuery.isLoading ? (
+          {summaryQuery.isLoading || historyQuery.isLoading || todayAttendanceQuery.isLoading ? (
             <div className="atl-card p-8 text-center text-sm text-muted-foreground">Loading attendance details...</div>
           ) : (
             <>
@@ -802,6 +1103,7 @@ export default function AttendenceLeavePage() {
                   <AttendanceTable
                     rows={latestAttendanceRows}
                     monthLabel={monthLabel}
+                    loadAttendanceDetail={loadAttendanceRecordDetail}
                     showFullReportButton
                     onViewFullReport={() => setActiveTab("monthly")}
                     onAddCorrection={openCorrectionDialogForAttendance}
@@ -812,6 +1114,7 @@ export default function AttendenceLeavePage() {
                 <AttendanceTable
                   rows={monthlyRows}
                   monthLabel={monthLabel}
+                  loadAttendanceDetail={loadAttendanceRecordDetail}
                   onAddCorrection={openCorrectionDialogForAttendance}
                 />
               )}
@@ -824,11 +1127,18 @@ export default function AttendenceLeavePage() {
                     monthlyLeaveRequests={monthlyLeaveRequests}
                     monthLabel={leaveMonthLabel}
                     filters={leaveFilters}
-                    onFilterChange={setLeaveFilters}
+                    onFilterChange={(updater) => {
+                      setLeaveFilters(updater);
+                      setLeavePage(1);
+                    }}
                   />
                   <LeaveRequestsList
                     rows={monthlyLeaveRequests}
-                    cancelLeaveMutation={cancelLeaveMutation}
+                    pagination={leaveRequestPagination}
+                    onPageChange={setLeavePage}
+                    isLoading={leaveRequestsQuery.isLoading || leaveRequestsQuery.isFetching}
+                    onCancelLeave={openCancelLeaveDialog}
+                    isCancelling={cancelLeaveMutation.isPending}
                     monthLabel={leaveMonthLabel}
                     onAddCorrection={openLeaveCorrectionDialog}
                   />
@@ -857,11 +1167,12 @@ export default function AttendenceLeavePage() {
                   onTypeFilterChange={setCorrectionTypeFilter}
                   correctionTypes={correctionFilterOptions}
                   onEdit={openCorrectionDialogForRequest}
-                  onDelete={(correction) => {
+                  onCancel={(correction) => {
                     const correctionId = correction._id || correction.id;
-                    if (correctionId) deleteCorrectionMutation.mutate(correctionId);
+                    if (correctionId) cancelCorrectionMutation.mutate(correctionId);
                   }}
-                  isDeleting={deleteCorrectionMutation.isPending}
+                  isCancelling={cancelCorrectionMutation.isPending}
+                  isLoadingDetail={correctionDetailMutation.isPending}
                 />
               )}
               {activeTab === "rules" && (
@@ -874,9 +1185,7 @@ export default function AttendenceLeavePage() {
         <RightRail
           health={attendanceHealth}
           monthLabel={monthLabel}
-          quickActions={data.quickActions}
           alerts={requestNotifications}
-          note={data.note}
           setActiveTab={setActiveTab}
         />
       </div>
@@ -885,19 +1194,30 @@ export default function AttendenceLeavePage() {
         onOpenChange={setIsLeaveDialogOpen}
         form={leaveForm}
         setForm={setLeaveForm}
-        leaveTypes={leaveTypeOptions}
+        leavePolicies={leavePolicies}
         leaveDurations={leaveDurationOptions}
         halfDayPeriods={halfDayPeriodOptions}
-        leaveBalance={leaveBalance}
-        fiscalYear={leaveBalanceResponse.fiscalYear}
-        selectedLeaveBalance={selectedLeaveBalance}
+        selectedLeavePolicy={selectedLeavePolicy}
         selectedLeaveDaysLeft={selectedLeaveDaysLeft}
-        totalLeaveBalance={totalLeaveBalance}
-        estimatedLeaveDays={estimatedLeaveDays}
-        exceedsLeaveBalance={exceedsLeaveBalance}
-        fiscalYearStartYear={leaveFiscalYearStartYear}
+        calendarSpanDays={calendarSpanDays}
+        isPoliciesLoading={leavePoliciesQuery.isLoading}
+        policiesError={leavePoliciesQuery.error}
         onSubmit={submitLeave}
         isPending={leaveMutation.isPending}
+      />
+      <CancelLeaveRequestDialog
+        open={Boolean(leaveToCancel)}
+        onOpenChange={(open) => {
+          if (!open && !cancelLeaveMutation.isPending) {
+            setLeaveToCancel(null);
+            setCancelLeaveRemarks("");
+          }
+        }}
+        leave={leaveToCancel}
+        remarks={cancelLeaveRemarks}
+        setRemarks={setCancelLeaveRemarks}
+        onSubmit={confirmLeaveCancellation}
+        isPending={cancelLeaveMutation.isPending}
       />
       <CorrectionRequestDialog
         open={isCorrectionDialogOpen}
@@ -928,6 +1248,57 @@ function LeaveRequestDialog({ open, onOpenChange, ...props }) {
           </DialogTitle>
         </DialogHeader>
         <LeaveRequestForm {...props} onCancel={() => onOpenChange(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CancelLeaveRequestDialog({ open, onOpenChange, leave, remarks, setRemarks, onSubmit, isPending }) {
+  const leaveStatus = displayText(leave?.status || leave?.leaveStatus);
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="atl-card sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle className="text-base font-semibold text-foreground">Cancel Leave Request</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-4 text-xs">
+          <div className="rounded-md border border-orange-200 bg-orange-50/50 p-3 text-orange-900 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-200">
+            <p className="font-medium">{displayText(leave?.leaveType, "Leave Request")} · {leaveStatus}</p>
+            <p className="mt-1">{formatShortDate(leave?.fromDate)} - {formatShortDate(leave?.toDate)}</p>
+            {leaveStatus === "Approved" && (
+              <p className="mt-2">Cancelling approved leave reverses its ledger and attendance entries. Payroll-locked attendance may prevent cancellation.</p>
+            )}
+          </div>
+          <label className="grid gap-1.5">
+            <span className="font-medium text-foreground">Remarks <span className="font-normal text-muted-foreground">- Optional</span></span>
+            <textarea
+              className="atl-input rounded-md border px-3 py-2 text-xs"
+              rows="4"
+              value={remarks}
+              maxLength={1000}
+              onChange={(event) => setRemarks(event.target.value)}
+              placeholder="Why are you cancelling this leave request?"
+            />
+            <span className="text-right text-[11px] text-muted-foreground">{remarks.length}/1000</span>
+          </label>
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => onOpenChange(false)}
+              className="rounded-md border border-border px-4 py-2 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              Keep Request
+            </button>
+            <button
+              type="submit"
+              disabled={isPending}
+              className="rounded-md border border-red-200 bg-red-600 px-4 py-2 text-xs font-medium text-white disabled:opacity-50"
+            >
+              {isPending ? "Cancelling..." : "Confirm Cancellation"}
+            </button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -967,6 +1338,12 @@ function CorrectionRequestForm({ form, setForm, attendanceRows, onSubmit, onCanc
   const input = "atl-input h-11 rounded-md border px-3 text-xs";
   const textarea = "atl-input rounded-md border px-3 py-2 text-xs";
   const isSubmitDisabled = isPending || (!isLeaveCorrection && !selectedAttendance) || (isLeaveCorrection && !form.leaveId);
+  const attendanceCorrectionPlaceholder = {
+    "Check-in Time": "Enter a time such as 9:45 AM, an ISO timestamp, or 'remove'.",
+    "Check-out Time": "Enter a time such as 7:30 PM, an ISO timestamp, or 'remove'.",
+    "Duty Type": `Enter one of: ${attendanceDutyTypes.join(", ")}.`,
+    Notes: "Enter the corrected attendance notes, or 'remove' to clear them.",
+  }[form.whatNeedsToBeCorrected];
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 p-5">
@@ -1000,7 +1377,7 @@ function CorrectionRequestForm({ form, setForm, attendanceRows, onSubmit, onCanc
         <textarea
           className={textarea}
           rows="3"
-          placeholder={isLeaveCorrection ? "Please change my approved leave dates from 15-17 July 2026 to 16-17 July 2026." : "Check-out time should be 7:30 PM. I forgot to check out after completing office work."}
+          placeholder={isLeaveCorrection ? "Please change my approved leave dates from 15-17 July 2026 to 16-17 July 2026." : attendanceCorrectionPlaceholder}
           value={form.requestedCorrection}
           onChange={(event) => setForm({ ...form, requestedCorrection: event.target.value })}
           required
@@ -1129,8 +1506,9 @@ function RecentCorrectionsList({
   onTypeFilterChange,
   correctionTypes,
   onEdit,
-  onDelete,
-  isDeleting,
+  onCancel,
+  isCancelling,
+  isLoadingDetail,
 }) {
   return (
     <Panel>
@@ -1178,7 +1556,7 @@ function RecentCorrectionsList({
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        disabled={!canModify}
+                        disabled={isLoadingDetail || !canModify}
                         onClick={() => onEdit(correction)}
                         className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                         title={canModify ? "Edit correction request" : "Only pending correction requests can be edited"}
@@ -1188,13 +1566,13 @@ function RecentCorrectionsList({
                       </button>
                       <button
                         type="button"
-                        disabled={isDeleting || !canModify}
-                        onClick={() => onDelete(correction)}
+                        disabled={isCancelling || !canModify}
+                        onClick={() => onCancel(correction)}
                         className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2 py-1 text-xs font-medium text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                        title={canModify ? "Delete correction request" : "Only pending correction requests can be deleted"}
+                        title={canModify ? "Cancel correction request" : "Only pending correction requests can be cancelled"}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Delete
+                        <XCircle className="h-3.5 w-3.5" />
+                        Cancel
                       </button>
                     </div>
                   </td>
@@ -1247,49 +1625,61 @@ function AttendanceRulesList({ rows }) {
 function LeaveRequestForm({
   form,
   setForm,
-  leaveTypes,
+  leavePolicies,
   leaveDurations,
   halfDayPeriods,
-  selectedLeaveBalance,
+  selectedLeavePolicy,
   selectedLeaveDaysLeft,
-  totalLeaveBalance,
-  estimatedLeaveDays,
-  exceedsLeaveBalance,
+  calendarSpanDays,
+  isPoliciesLoading,
+  policiesError,
   onSubmit,
   onCancel,
   isPending,
 }) {
   const input = "atl-input h-11 rounded-md border px-3 text-xs";
   const textarea = "atl-input rounded-md border px-3 py-2 text-xs";
-  const selectedBalanceText = selectedLeaveBalance
-    ? `${displayText(selectedLeaveDaysLeft ?? selectedLeaveBalance.balance)} ${displayText(selectedLeaveBalance.leaveType)} left`
-    : "Balance is tracked for eligible leave types.";
-  const updateDuration = (leaveDuration) => {
+  const requestRules = selectedLeavePolicy?.requestRules || {};
+  const selectedBalanceText = selectedLeaveDaysLeft !== null
+    ? `${selectedLeaveDaysLeft} ${displayText(selectedLeavePolicy?.leaveType)} available`
+    : "Balance is not available for the selected policy.";
+  const updatePolicy = (leavePolicyId) => {
+    const policy = leavePolicies.find((item) => item._id === leavePolicyId);
+    if (!policy) return;
+
+    setForm({
+      ...form,
+      leavePolicyId,
+      leaveType: policy.leaveType,
+      duration: policy.requestRules?.allowHalfDay === false && form.duration === "Half Day"
+        ? "Full Day"
+        : form.duration,
+    });
+  };
+  const updateDuration = (duration) => {
     const nextForm = {
       ...form,
-      leaveDuration,
+      duration,
     };
 
-    if (leaveDuration === "Multiple Days") {
-      nextForm.fromDate = toDateInputValue(form.fromDate || form.leaveDate || todayIso);
+    if (duration === "Multiple Days") {
+      nextForm.fromDate = toDateInputValue(form.fromDate || todayIso);
       nextForm.toDate = form.toDate && !isDateBefore(form.toDate, nextForm.fromDate) ? toDateInputValue(form.toDate) : nextForm.fromDate;
     } else {
-      nextForm.leaveDate = form.leaveDate || form.fromDate || todayIso;
-      nextForm.fromDate = nextForm.leaveDate;
-      nextForm.toDate = nextForm.leaveDate;
-      if (leaveDuration === "Half Day" && !halfDayPeriods.includes(form.halfDayPeriod)) {
+      nextForm.fromDate = form.fromDate || todayIso;
+      nextForm.toDate = nextForm.fromDate;
+      if (duration === "Half Day" && !halfDayPeriods.includes(form.halfDayPeriod)) {
         nextForm.halfDayPeriod = halfDayPeriods[0] || "First Half";
       }
     }
 
     setForm(nextForm);
   };
-  const updateLeaveDate = (leaveDate) => {
+  const updateLeaveDate = (fromDate) => {
     setForm({
       ...form,
-      leaveDate,
-      fromDate: leaveDate,
-      toDate: leaveDate,
+      fromDate,
+      toDate: fromDate,
     });
   };
   const handleFromDateChange = (fromDate) => {
@@ -1318,28 +1708,57 @@ function LeaveRequestForm({
           </span>
           <div>
             <p className="text-xs font-medium text-foreground">Available Leave Balance</p>
-            <p className="text-xl font-semibold text-foreground">{displayText(totalLeaveBalance)} Days</p>
+            <p className="text-xl font-semibold text-foreground">
+              {selectedLeaveDaysLeft === null ? "--" : selectedLeaveDaysLeft} Days
+            </p>
             <p className="mt-0.5 text-xs text-muted-foreground">{selectedBalanceText}</p>
           </div>
         </div>
+        {selectedLeavePolicy && (
+          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-orange-200 pt-3 text-xs dark:border-orange-400/30 sm:grid-cols-4">
+            <span><b className="block font-medium text-foreground">Leave Type</b>{displayText(selectedLeavePolicy.leaveType)}</span>
+            <span><b className="block font-medium text-foreground">Payment</b>{selectedLeavePolicy.isPaidLeave ? "Paid" : "Unpaid"}</span>
+            <span><b className="block font-medium text-foreground">Request Limit</b>{requestRules.maximumAmountPerRequest == null ? "--" : `${requestRules.maximumAmountPerRequest} Days`}</span>
+            <span><b className="block font-medium text-foreground">Notice</b>{`${Number(requestRules.minimumNoticeDays) || 0} Days`}</span>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4">
         <label className="grid gap-1.5 text-xs">
-          <span className="font-medium text-foreground">Leave Type <span className="text-red-500">*</span></span>
-          <select className={input} value={form.leaveType} onChange={(event) => setForm({ ...form, leaveType: event.target.value })}>
-            {leaveTypes.map((type) => <option key={type}>{type}</option>)}
+          <span className="font-medium text-foreground">Leave Policy <span className="text-red-500">*</span></span>
+          <select
+            className={input}
+            value={form.leavePolicyId}
+            onChange={(event) => updatePolicy(event.target.value)}
+            disabled={isPoliciesLoading || !leavePolicies.length}
+            required
+          >
+            <option value="">{isPoliciesLoading ? "Loading applicable policies..." : "Select leave policy"}</option>
+            {leavePolicies.map((policy) => (
+              <option key={policy._id} value={policy._id} disabled={policy.unit !== "Days"}>
+                {policy.name}{policy.unit !== "Days" ? " (Hours - unavailable)" : ""}
+              </option>
+            ))}
           </select>
+          {policiesError && <span className="text-red-600">Unable to load applicable leave policies.</span>}
+          {!isPoliciesLoading && !policiesError && !leavePolicies.length && (
+            <span className="text-muted-foreground">No active leave policy applies for {getFiscalYear(form.fromDate)}.</span>
+          )}
         </label>
 
         <label className="grid gap-1.5 text-xs">
           <span className="font-medium text-foreground">Leave Duration <span className="text-red-500">*</span></span>
-          <select className={input} value={form.leaveDuration} onChange={(event) => updateDuration(event.target.value)}>
-            {leaveDurations.map((duration) => <option key={duration}>{duration}</option>)}
+          <select className={input} value={form.duration} onChange={(event) => updateDuration(event.target.value)}>
+            {leaveDurations.map((duration) => (
+              <option key={duration} disabled={duration === "Half Day" && requestRules.allowHalfDay === false}>
+                {duration}
+              </option>
+            ))}
           </select>
         </label>
 
-        {form.leaveDuration === "Multiple Days" ? (
+        {form.duration === "Multiple Days" ? (
           <div className="grid gap-4 md:grid-cols-2">
             <label className="grid gap-1.5 text-xs">
               <span className="font-medium text-foreground">From Date <span className="text-red-500">*</span></span>
@@ -1358,12 +1777,12 @@ function LeaveRequestForm({
             </label>
           </div>
         ) : (
-          <div className={`grid gap-4 ${form.leaveDuration === "Half Day" ? "md:grid-cols-2" : ""}`}>
+          <div className={`grid gap-4 ${form.duration === "Half Day" ? "md:grid-cols-2" : ""}`}>
             <label className="grid gap-1.5 text-xs">
               <span className="font-medium text-foreground">Leave Date <span className="text-red-500">*</span></span>
-              <input className={input} type="date" value={toDateInputValue(form.leaveDate)} onChange={(event) => updateLeaveDate(event.target.value)} required />
+              <input className={input} type="date" value={toDateInputValue(form.fromDate)} onChange={(event) => updateLeaveDate(event.target.value)} required />
             </label>
-            {form.leaveDuration === "Half Day" && (
+            {form.duration === "Half Day" && (
               <label className="grid gap-1.5 text-xs">
                 <span className="font-medium text-foreground">Shift <span className="text-red-500">*</span></span>
                 <select
@@ -1379,10 +1798,16 @@ function LeaveRequestForm({
           </div>
         )}
 
-        <div className={`rounded-md px-3 py-2 text-xs ${exceedsLeaveBalance ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200" : "bg-muted/60 text-foreground"}`}>
+        <div className="rounded-md bg-muted/60 px-3 py-2 text-xs text-foreground">
           <div className="flex items-center justify-between gap-3">
-            <span>Requested Leave</span>
-            <span className="font-semibold">{estimatedLeaveDays === null ? "--" : `${estimatedLeaveDays} Days`}</span>
+            <span>Calendar Span</span>
+            <span className="font-semibold">
+              {calendarSpanDays === null
+                ? "--"
+                : form.duration === "Half Day"
+                  ? "Half Day"
+                  : `${calendarSpanDays} Day${calendarSpanDays === 1 ? "" : "s"}`}
+            </span>
           </div>
           {selectedLeaveDaysLeft !== null && (
             <div className="mt-1 flex items-center justify-between gap-3 text-muted-foreground">
@@ -1390,8 +1815,13 @@ function LeaveRequestForm({
               <span>{selectedLeaveDaysLeft} Days</span>
             </div>
           )}
-          {exceedsLeaveBalance && (
-            <p className="mt-1 text-[11px] font-medium">Requested days cannot be greater than available leave balance.</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Final requested days are calculated by the backend after weekly offs and mandatory holidays are excluded.
+          </p>
+          {selectedLeaveDaysLeft !== null && (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Ledger balance excludes pending requests; final availability is checked when you submit.
+            </p>
           )}
         </div>
 
@@ -1400,8 +1830,10 @@ function LeaveRequestForm({
           <textarea
             className={textarea}
             rows="3"
-            value={form.reasonForLeave}
-            onChange={(event) => setForm({ ...form, reasonForLeave: event.target.value })}
+            value={form.reason}
+            onChange={(event) => setForm({ ...form, reason: event.target.value })}
+            minLength={3}
+            maxLength={2000}
             required
           />
         </label>
@@ -1413,24 +1845,8 @@ function LeaveRequestForm({
             rows="3"
             value={form.workHandover}
             onChange={(event) => setForm({ ...form, workHandover: event.target.value })}
+            maxLength={2000}
           />
-        </label>
-
-        <label className="grid gap-1.5 text-xs">
-          <span className="font-medium text-foreground">Supporting Document <span className="font-normal text-muted-foreground">- Optional</span></span>
-          <div className="relative rounded-md border border-dashed border-border bg-background p-5 text-center hover:bg-muted/30">
-            <UploadCloud className="mx-auto h-7 w-7 text-foreground" />
-            <p className="mt-2 text-xs font-medium text-foreground">
-              {form.supportingDocument ? form.supportingDocument.name : "Click to upload or drag and drop"}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">JPG, PNG or PDF (Max. 5 MB)</p>
-            <input
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              type="file"
-              accept=".jpg,.jpeg,.png,.pdf"
-              onChange={(event) => setForm({ ...form, supportingDocument: event.target.files?.[0] || null })}
-            />
-          </div>
         </label>
 
         <div className="rounded-lg border border-orange-200 bg-orange-50/50 p-3 text-xs text-orange-900 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-200">
@@ -1447,7 +1863,10 @@ function LeaveRequestForm({
         >
           Cancel
         </button>
-        <button disabled={isPending || exceedsLeaveBalance} className="atl-primary rounded-md px-8 py-2.5 text-xs font-medium disabled:opacity-60">
+        <button
+          disabled={isPending || !selectedLeavePolicy || selectedLeavePolicy.unit !== "Days"}
+          className="atl-primary rounded-md px-8 py-2.5 text-xs font-medium disabled:opacity-60"
+        >
           {isPending ? "Submitting..." : "Submit Leave Request"}
         </button>
       </div>
@@ -1534,8 +1953,8 @@ function LeaveBalanceSummary({
         Leave Balance - {monthLabel}
       </SectionTitle>
       <div className="grid gap-2 p-2 sm:grid-cols-2 xl:grid-cols-4">
-        <LeaveMetric label="Casual Leaves" value={casualLeave ? `${displayText(casualLeave.balance)}` : "--"} tone="blue" />
-        <LeaveMetric label="Emergency Leaves" value={emergencyLeave ? `${displayText(emergencyLeave.balance)}` : "--"} tone="orange" />
+        <LeaveMetric label="Casual Leaves" value={casualLeave ? displayText(getAvailableLeaveDays(casualLeave)) : "--"} tone="blue" />
+        <LeaveMetric label="Emergency Leaves" value={emergencyLeave ? displayText(getAvailableLeaveDays(emergencyLeave)) : "--"} tone="orange" />
         <LeaveMetric label="Used Leaves" value={`${monthlyLeaveDays} Days`} tone="purple" />
         <LeaveMetric label="Pending Leaves" value={pendingLeaves} tone="gray" />
       </div>
@@ -1545,11 +1964,21 @@ function LeaveBalanceSummary({
 
 function LeaveRequestsList({
   rows,
-  cancelLeaveMutation,
+  pagination,
+  onPageChange,
+  isLoading,
+  onCancelLeave,
+  isCancelling,
   monthLabel,
   onAddCorrection,
 }) {
-  const [selectedLeave, setSelectedLeave] = useState(null);
+  const [selectedLeaveId, setSelectedLeaveId] = useState("");
+  const currentPage = Number(pagination?.page) || 1;
+  const pageSize = Number(pagination?.limit) || 20;
+  const totalRecords = Number(pagination?.total) || 0;
+  const totalPages = Number(pagination?.totalPages) || 0;
+  const rangeStart = totalRecords ? (currentPage - 1) * pageSize + 1 : 0;
+  const rangeEnd = totalRecords ? Math.min(currentPage * pageSize, totalRecords) : 0;
 
   return (
     <Panel>
@@ -1557,31 +1986,38 @@ function LeaveRequestsList({
         Leave Requests - {monthLabel}
       </SectionTitle>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[700px] text-left text-xs">
+        <table className="w-full min-w-[900px] text-left text-xs">
           <thead className="bg-muted/50 text-muted-foreground">
             <tr>
-              {["Leave Type", "From-To", "Reason", "Status", "Action"].map((header) => (
+              {["Leave Type", "Date Range", "Duration", "Requested Days", "Status", "Submitted Date", "Action"].map((header) => (
                 <th key={header} className="px-4 py-2 font-medium">{header}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows?.length ? rows.map((leave, index) => {
+            {isLoading ? (
+              <tr>
+                <td colSpan="7" className="px-4 py-8 text-center text-muted-foreground">Loading leave requests...</td>
+              </tr>
+            ) : rows?.length ? rows.map((leave, index) => {
               const leaveId = leave._id || leave.id;
               const leaveStatus = displayText(leave.leaveStatus || leave.status, "Pending");
-              const leaveDays = displayText(leave.leaveDays || leave.totalDays || leave.days);
+              const leaveDays = displayText(leave.requestedDays || leave.leaveDays || leave.totalDays || leave.days);
+              const canCancel = leaveStatus === "Pending" || leaveStatus === "Approved";
 
               return (
                 <tr key={leaveId || index} className="border-t border-border align-top">
                   <td className="px-4 py-3">
                     <p className="font-medium text-foreground">{displayText(leave.leaveType || leave.type, "Leave Request")}</p>
-                    <p className="mt-1 text-muted-foreground">{leaveDays === "--" ? leaveDays : `${leaveDays} Days`}</p>
+                    <p className="mt-1 text-muted-foreground">{displayText(leave.leavePolicy?.name)}</p>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {formatShortDate(leave.fromDate || leave.startDate)} - {formatShortDate(leave.toDate || leave.endDate)}
                   </td>
-                  <td className="max-w-[260px] px-4 py-3 text-muted-foreground">{displayText(leave.reasonForLeave || leave.reason, "--")}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{displayText(leave.duration || leave.leaveDuration)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{leaveDays === "--" ? leaveDays : `${leaveDays} Days`}</td>
                   <td className="px-4 py-3"><StatusPill tone={statusTone(leaveStatus)}>{leaveStatus}</StatusPill></td>
+                  <td className="px-4 py-3 text-muted-foreground">{formatShortDate(leave.createdAt)}</td>
                   <td className="px-4 py-3">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -1594,7 +2030,7 @@ function LeaveRequestsList({
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuItem onClick={() => setSelectedLeave(leave)}>
+                        <DropdownMenuItem onClick={() => setSelectedLeaveId(leaveId)}>
                           <Eye className="h-4 w-4" />
                           View
                         </DropdownMenuItem>
@@ -1602,10 +2038,10 @@ function LeaveRequestsList({
                           <FilePenLine className="h-4 w-4" />
                           Add Correction
                         </DropdownMenuItem>
-                        {leaveId && leaveStatus === "Pending" && (
+                        {leaveId && canCancel && (
                           <DropdownMenuItem
-                            disabled={cancelLeaveMutation.isPending}
-                            onClick={() => cancelLeaveMutation.mutate(leaveId)}
+                            disabled={isCancelling}
+                            onClick={() => onCancelLeave(leave)}
                             className="text-red-600 focus:text-red-600"
                           >
                             <XCircle className="h-4 w-4" />
@@ -1619,51 +2055,178 @@ function LeaveRequestsList({
               );
             }) : (
               <tr>
-                <td colSpan="5" className="px-4 py-8 text-center text-muted-foreground">No leave requests found.</td>
+                <td colSpan="7" className="px-4 py-8 text-center text-muted-foreground">No leave requests found.</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-      <LeaveRequestDetailDialog leave={selectedLeave} onOpenChange={(open) => !open && setSelectedLeave(null)} />
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted-foreground">
+        <span>{totalRecords ? `Showing ${rangeStart}-${rangeEnd} of ${totalRecords}` : "No leave requests"}</span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={isLoading || currentPage <= 1}
+            onClick={() => onPageChange(currentPage - 1)}
+            className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-3 text-foreground hover:bg-muted disabled:opacity-50"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" /> Previous
+          </button>
+          <span>Page {currentPage} of {Math.max(totalPages, 1)}</span>
+          <button
+            type="button"
+            disabled={isLoading || totalPages === 0 || currentPage >= totalPages}
+            onClick={() => onPageChange(currentPage + 1)}
+            className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-3 text-foreground hover:bg-muted disabled:opacity-50"
+          >
+            Next <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+      <LeaveRequestDetailDialog
+        requestId={selectedLeaveId}
+        onOpenChange={(open) => !open && setSelectedLeaveId("")}
+        onCancelLeave={onCancelLeave}
+        isCancelling={isCancelling}
+      />
     </Panel>
   );
 }
 
-function LeaveRequestDetailDialog({ leave, onOpenChange }) {
-  const open = Boolean(leave);
-  if (!leave) return null;
-
-  const leaveStatus = displayText(leave.leaveStatus || leave.status, "Pending");
-  const leaveDays = displayText(leave.leaveDays || leave.totalDays || leave.days);
-  const details = [
-    ["Leave Type", displayText(leave.leaveType || leave.type, "Leave Request")],
-    ["Status", <StatusPill key="status" tone={statusTone(leaveStatus)}>{leaveStatus}</StatusPill>],
-    ["From Date", formatShortDate(leave.fromDate || leave.startDate)],
-    ["To Date", formatShortDate(leave.toDate || leave.endDate)],
-    ["Duration", displayText(leave.leaveDuration || leave.duration)],
-    ["Leave Days", leaveDays === "--" ? leaveDays : `${leaveDays} Days`],
-    ["Reason", displayText(leave.reasonForLeave || leave.reason)],
-    ["Work Handover", displayText(leave.workHandover)],
-    ["Admin Remark", displayText(leave.approval?.remarks || leave.adminRemark || leave.adminRemarks || leave.adminNote || leave.adminNotes || leave.reviewNote)],
-    // ["Admin Notes", displayText(leave.notes || leave.remark || leave.remarks)],
-    ["Requested At", formatShortDate(leave.requestedAt || leave.submittedAt || leave.createdAt)],
-  ];
+function LeaveRequestDetailDialog({ requestId, onOpenChange, onCancelLeave, isCancelling }) {
+  const open = Boolean(requestId);
+  const validRequestId = isValidObjectId(requestId);
+  const detailQuery = useQuery({
+    queryKey: ["employee-leave-request-detail", requestId],
+    queryFn: async () => {
+      const response = await EmployeeV2Service.getMyLeaveRequestDetail(requestId);
+      return normalizeLeaveRequest(response.data?.data?.request || {});
+    },
+    enabled: open && validRequestId,
+  });
+  const leave = detailQuery.data;
+  const leaveStatus = displayText(leave?.status, "Pending");
+  const canCancel = leaveStatus === "Pending" || leaveStatus === "Approved";
+  const approvalHistory = leave?.approvalHistory || [];
+  const attachments = leave?.attachments || [];
+  const requestedAt = leave?.createdAt;
+  const dateTimeText = (value) => value
+    ? `${formatShortDate(value)} ${formatTime(value)}`
+    : "--";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="atl-card max-h-[85vh] overflow-y-auto sm:max-w-[560px]">
+      <DialogContent className="atl-card max-h-[85vh] overflow-y-auto sm:max-w-[640px]">
         <DialogHeader>
-          <DialogTitle className="text-base font-semibold text-foreground">Leave Request Detail</DialogTitle>
+          <DialogTitle className="flex items-center justify-between gap-3 pr-6 text-base font-semibold text-foreground">
+            <span>Leave Request Detail</span>
+            {leave && <StatusPill tone={statusTone(leaveStatus)}>{leaveStatus}</StatusPill>}
+          </DialogTitle>
         </DialogHeader>
-        <div className="grid gap-2 text-xs">
-          {details.map(([label, value]) => (
-            <div key={label} className="grid grid-cols-[130px_1fr] gap-3 rounded-md border border-border px-3 py-2">
-              <span className="text-muted-foreground">{label}</span>
-              <span className="font-medium text-foreground">{value}</span>
-            </div>
-          ))}
-        </div>
+
+        {!validRequestId ? (
+          <p className="rounded-md border border-red-200 bg-red-50 p-4 text-xs text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200">
+            A valid leave request ID is required.
+          </p>
+        ) : detailQuery.isLoading ? (
+          <p className="p-6 text-center text-xs text-muted-foreground">Loading leave request detail...</p>
+        ) : detailQuery.isError ? (
+          <p className="rounded-md border border-red-200 bg-red-50 p-4 text-xs text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200">
+            {detailQuery.error?.response?.data?.message || "Unable to load leave request detail."}
+          </p>
+        ) : leave ? (
+          <div className="space-y-4 text-xs">
+            <section className="rounded-md border border-border p-3">
+              <p className="mb-3 font-medium text-foreground">Leave Policy</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div><span className="text-muted-foreground">Policy</span><p className="mt-1 font-medium text-foreground">{displayText(leave.leavePolicy?.name)}</p></div>
+                <div><span className="text-muted-foreground">Policy Code</span><p className="mt-1 font-medium text-foreground">{displayText(leave.leavePolicy?.policyCode)}</p></div>
+                <div><span className="text-muted-foreground">Leave Type</span><p className="mt-1 font-medium text-foreground">{displayText(leave.leaveType)}</p></div>
+                <div>
+                  <span className="text-muted-foreground">Payment</span>
+                  <p className="mt-1"><StatusPill tone={leave.leavePolicy?.isPaidLeave ? "green" : "gray"}>{leave.leavePolicy?.isPaidLeave ? "Paid" : "Unpaid"}</StatusPill></p>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-md border border-border p-3">
+              <p className="mb-3 font-medium text-foreground">Request Information</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div><span className="text-muted-foreground">Date Range</span><p className="mt-1 font-medium text-foreground">{formatShortDate(leave.fromDate)} - {formatShortDate(leave.toDate)}</p></div>
+                <div><span className="text-muted-foreground">Requested Days</span><p className="mt-1 font-medium text-foreground">{leave.requestedDays == null ? "--" : `${leave.requestedDays} Days`}</p></div>
+                <div><span className="text-muted-foreground">Duration</span><p className="mt-1 font-medium text-foreground">{displayText(leave.duration)}</p></div>
+                <div><span className="text-muted-foreground">Half-day Period</span><p className="mt-1 font-medium text-foreground">{displayText(leave.halfDayPeriod)}</p></div>
+                <div className="sm:col-span-2"><span className="text-muted-foreground">Reason</span><p className="mt-1 whitespace-pre-wrap font-medium text-foreground">{displayText(leave.reason)}</p></div>
+                <div className="sm:col-span-2"><span className="text-muted-foreground">Work Handover</span><p className="mt-1 whitespace-pre-wrap font-medium text-foreground">{displayText(leave.workHandover)}</p></div>
+                <div><span className="text-muted-foreground">Submitted</span><p className="mt-1 font-medium text-foreground">{dateTimeText(requestedAt)}</p></div>
+                <div><span className="text-muted-foreground">Last Updated</span><p className="mt-1 font-medium text-foreground">{dateTimeText(leave.updatedAt)}</p></div>
+              </div>
+            </section>
+
+            <section className="rounded-md border border-border p-3">
+              <p className="mb-3 font-medium text-foreground">Approval Timeline</p>
+              {approvalHistory.length ? (
+                <ol className="space-y-3">
+                  {approvalHistory.map((history, index) => (
+                    <li key={history._id || index} className="border-l-2 border-border pl-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <StatusPill tone={statusTone(history.action)}>{displayText(history.action)}</StatusPill>
+                        <span className="text-muted-foreground">{dateTimeText(history.actionAt)}</span>
+                      </div>
+                      <p className="mt-1 font-medium text-foreground">{displayText(history.actionBy?.name, "System")}</p>
+                      <p className="mt-1 text-muted-foreground">{displayText(history.remarks, "No remarks")}</p>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="text-muted-foreground">No approval action has been recorded.</p>
+              )}
+            </section>
+
+            <section className="rounded-md border border-border p-3">
+              <p className="mb-3 font-medium text-foreground">Attachments</p>
+              {attachments.length ? (
+                <ul className="space-y-2">
+                  {attachments.map((attachment, index) => {
+                    const attachmentUrl = typeof attachment === "string"
+                      ? attachment
+                      : attachment?.url || attachment?.originalUrl || attachment?.fileUrl;
+                    const attachmentName = typeof attachment === "string"
+                      ? attachment.split("/").at(-1)
+                      : attachment?.name || attachment?.originalName || attachment?.fileName || attachment?.fileId || `Attachment ${index + 1}`;
+                    return (
+                      <li key={attachment?._id || attachment?.fileId || index} className="rounded-md bg-muted/60 px-3 py-2">
+                        {attachmentUrl ? (
+                          <a className="font-medium text-primary hover:underline" href={attachmentUrl} target="_blank" rel="noreferrer">{attachmentName}</a>
+                        ) : (
+                          <span className="font-medium text-foreground">{attachmentName}</span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground">No attachments.</p>
+              )}
+            </section>
+
+            {canCancel && (
+              <div className="flex justify-end border-t border-border pt-4">
+                <button
+                  type="button"
+                  disabled={isCancelling}
+                  onClick={() => {
+                    onOpenChange(false);
+                    onCancelLeave(leave);
+                  }}
+                  className="rounded-md border border-red-200 px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-400/10"
+                >
+                  Cancel Leave Request
+                </button>
+              </div>
+            )}
+          </div>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

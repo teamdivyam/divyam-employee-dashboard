@@ -49,3 +49,35 @@ done: attendance rule ko last mein kar do tab mein
 done: admin se mark attendance automatically approved ho jaiye, leave request bhi nahi aa rha hain
 done: correction request mein record link unavailable hain toh yeh click karney pe mark attendence mein pauch jaiye(yeh attendance and leave mein pauch jaiye particular employee key)
 leave edit honi chaiye aur delete, same for as correction request of employee.
+
+11-07-2026
+Admin:
+page andhar wala refresh top pe khulna chaiye
+
+13-07-2026
+Admin:
+Mark attendance check-in 11:00AM (default) and check-out 07:30AM(default), Admin Note(optional), Put check-in and check-out in same row
+In detail of employee, put attendance should be editable of any record date. Put edit button also in action.
+
+script-run for creating attendance data in database:
+1. All documents should have current date, marked as absent until it is sunday, holiday or other, present if check-in.
+2. If it is sunday, holiday, or other it should not be able to check-in.
+How it work in flow?
+1. First it takes one employee which is active, then check if employee has applied for leave in this day or not.
+2. If employee takes not leave, create document in attendance with status as absent.
+3. If employee takes leave in this day, then continue.
+4. If day is sunday, skip(1-3 step) and create document in attendance with status week-off.
+5. 
+
+query:
+Mene 5 dashboards banaiya hain admin, employee, finance, inventory aur vendor(yeh outer hain). 
+
+1. Employee, finance aur inventory teeno attendance laga saktey hain aur teeno ka payroll banega. 
+
+2. Admin create karega credential teeno ka aur role select karega (employee, finance, aur inventory).
+
+3. Admin, admin ko create kar sakta woh bhi credential ke sath.
+
+4. Employee sirf apney dashboard pe login kar paiye, aur jo usko page ka access miley ussi pe kaam kar paiye.
+
+Yeh mujhey detail mein samjhao kaisey karey.

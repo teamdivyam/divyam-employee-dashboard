@@ -42,7 +42,11 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@components/components/ui/sidebar";
-import EmployeeService from "../../services/employee.service";
+import { useQueryClient } from "@tanstack/react-query";
+import { AUTH_SESSION_QUERY_KEY } from "../../hooks/useAuthSession";
+import useCurrentEmployee, { CURRENT_EMPLOYEE_QUERY_KEY } from "../../hooks/useCurrentEmployee";
+import EmployeeV2Service from "../../services/employee-v2.service";
+import { toast } from "sonner";
 
 type EmployeeProfile = {
   fullName?: string;
@@ -162,7 +166,7 @@ const navMain: NavItem[] = [
 ];
 
 const getInitials = (name?: string) => {
-  if (!name) return "AD";
+  if (!name) return "EM";
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return parts
     .slice(0, 2)
@@ -174,40 +178,38 @@ const getInitials = (name?: string) => {
 const getAvatarUrl = (avatar?: string) => {
   if (!avatar) return "";
   if (/^https?:\/\//.test(avatar)) return avatar;
-  return `https://assets.divyam.com/Uploads/admins/${avatar}`;
+  return `https://assets.divyam.com/Uploads/employee/${avatar}`;
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const navigate = useNavigate();
-  const [employee, setEmployee] = React.useState<EmployeeProfile | null>(null);
+  const queryClient = useQueryClient();
+  const { data: employee } = useCurrentEmployee();
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
 
-  React.useEffect(() => {
-    let mounted = true;
+  const employeeName = employee?.name || "Employee";
+  const employeeRole = employee?.accessRole || "Employee";
+  const avatarUrl = getAvatarUrl(employee?.profileImage?.smallUrl ?? undefined);
 
-    EmployeeService.me()
-      .then((response) => {
-        if (mounted) {
-          setEmployee(response?.data?.data || response?.data?.employee || response?.data);
-        }
-      })
-      .catch(() => {
-        if (mounted) {
-          setEmployee(null);
-        }
-      });
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
 
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    setIsLoggingOut(true);
 
-  const employeeName = employee?.fullName || employee?.name || "Employee";
-  const employeeRole = employee?.role.name || "Employee";
-  const avatarUrl = getAvatarUrl(employee?.avatar);
-
-  const handleLogout = () => {
-    localStorage.removeItem("AppID");
-    navigate("/login");
+    try {
+      const response = await EmployeeV2Service.logout();
+      queryClient.removeQueries({ queryKey: AUTH_SESSION_QUERY_KEY });
+      queryClient.removeQueries({ queryKey: CURRENT_EMPLOYEE_QUERY_KEY });
+      toast.success(response.data?.message || "Logout successful");
+      navigate("/login", { replace: true });
+    } catch (error: any) {
+      const message = error.response?.data?.error?.message
+        || error.response?.data?.message
+        || error.response?.data?.msg
+        || "Unable to logout. Please try again.";
+      toast.error(message);
+      setIsLoggingOut(false);
+    }
   };
 
   return (

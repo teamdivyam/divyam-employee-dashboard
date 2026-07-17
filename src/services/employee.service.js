@@ -128,65 +128,6 @@ const EmployeeService = {
     }),
 
   // Employee Attendance / Leave
-  getAttendanceLeaveDashboard: ({ year, month }) =>
-    axiosRequest.get("/attendance-leave/dashboard", {
-      params: { year, month },
-    }),
-
-  checkInAttendance: ({
-    status,
-    locationType,
-    locationName,
-    locationAddress,
-    latitude,
-    longitude,
-    attendanceSource,
-    notes,
-    location,
-  } = {}) =>
-    axiosRequest.post("/attendance-leave/check-in", {
-      status,
-      locationType,
-      locationName,
-      locationAddress,
-      latitude,
-      longitude,
-      attendanceSource,
-      notes,
-      location,
-    }),
-
-  checkOutAttendance: ({
-    notes,
-    attendanceSource,
-    location,
-    locationType,
-    locationName,
-    locationAddress,
-    latitude,
-    longitude,
-  } = {}) =>
-    axiosRequest.patch("/attendance-leave/check-out", {
-      notes,
-      attendanceSource,
-      location,
-      locationType,
-      locationName,
-      locationAddress,
-      latitude,
-      longitude,
-    }),
-
-  getAttendanceHistory: ({ page = 1, limit = 25, status, startDate, endDate }) =>
-    axiosRequest.get("/attendance-leave/history", {
-      params: { page, limit, status, startDate, endDate },
-    }),
-
-  submitAttendanceCorrection: ({ attendanceId, data }) =>
-    axiosRequest.post(`/attendance-leave/attendance/${attendanceId}/corrections`, data, data instanceof FormData
-      ? { headers: { "Content-Type": "multipart/form-data" } }
-      : undefined),
-
   submitLeaveCorrection: ({ leaveId, data }) =>
     axiosRequest.post(`/attendance-leave/leave-requests/${leaveId}/corrections`, data, data instanceof FormData
       ? { headers: { "Content-Type": "multipart/form-data" } }
@@ -196,9 +137,6 @@ const EmployeeService = {
     axiosRequest.patch(`/attendance-leave/correction-requests/${correctionId}`, data, data instanceof FormData
       ? { headers: { "Content-Type": "multipart/form-data" } }
       : undefined),
-
-  deleteAttendanceCorrection: ({ correctionId }) =>
-    axiosRequest.delete(`/attendance-leave/correction-requests/${correctionId}`),
 
   submitLeaveRequest: ({ formData }) =>
     axiosRequest.post("/attendance-leave/leave-requests", formData, {
