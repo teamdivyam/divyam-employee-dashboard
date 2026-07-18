@@ -349,9 +349,9 @@ export function AttendanceTable({
                           <Eye className="h-4 w-4" />
                           View
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onAddCorrection?.(row)}>
+                        <DropdownMenuItem disabled={row.payrollLocked === true} onClick={() => onAddCorrection?.(row)}>
                           <Pencil className="h-4 w-4" />
-                          Add Correction
+                          {row.payrollLocked ? "Correction Locked" : "Add Correction"}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

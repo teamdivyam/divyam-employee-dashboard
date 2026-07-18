@@ -95,6 +95,7 @@ const EmployeeV2Service = {
         }),
     getAttendanceCorrections: ({
         status,
+        targetType,
         fromDate,
         toDate,
         page = 1,
@@ -102,8 +103,8 @@ const EmployeeV2Service = {
         sortOrder = "desc",
     } = {}) => employeeV2Request.get("/attendance/me/corrections", {
         params: {
-            targetType: "Attendance",
             status,
+            targetType,
             fromDate,
             toDate,
             page: Math.max(Number(page) || 1, 1),

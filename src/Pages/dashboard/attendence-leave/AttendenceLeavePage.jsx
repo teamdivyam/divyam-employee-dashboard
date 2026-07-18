@@ -29,6 +29,11 @@ import {
   normalizeLeaveRequest,
 } from "./leave.constants";
 import {
+  ATTENDANCE_DUTY_TYPES,
+  CORRECTION_FIELDS,
+  CORRECTION_STATUSES,
+} from "./attendance.constants";
+import {
   BriefcaseBusiness,
   ChevronLeft,
   ChevronRight,
@@ -36,7 +41,6 @@ import {
   FilePenLine,
   FileText,
   MoreHorizontal,
-  Pencil,
   Umbrella,
   UploadCloud,
   XCircle,
@@ -83,14 +87,13 @@ const defaultLeaveForm = {
 };
 
 const attendanceCorrectionFieldMap = {
-  "Check-in Time": "firstCheckIn",
-  "Check-out Time": "lastCheckOut",
-  "Duty Type": "dutyType",
-  Notes: "notes",
+  "Check-in Time": CORRECTION_FIELDS[0],
+  "Check-out Time": CORRECTION_FIELDS[1],
+  "Duty Type": CORRECTION_FIELDS[2],
+  Notes: CORRECTION_FIELDS[3],
 };
-const attendanceCorrectionFields = Object.keys(attendanceCorrectionFieldMap);
-const attendanceDutyTypes = ["Office Duty", "Event Duty", "Field Duty", "Remote Duty", "Work From Home", "Other"];
 const leaveCorrectionFields = ["Change Leave Dates", "From Date", "To Date", "Leave Type", "Duration", "Reason", "Work Handover", "Other"];
+const correctionTargetTypes = ["Attendance"];
 const attendanceTabStorageKey = "attendance-leave-active-tab";
 const attendanceTabIds = ["today", "monthly", "leaves", "duty", "corrections", "rules"];
 
@@ -104,6 +107,12 @@ const defaultCorrectionForm = {
   whatNeedsToBeCorrected: "Check-in Time",
   whatNeedsToBeChanged: "Change Leave Dates",
   requestedCorrection: "",
+  requestedFirstCheckIn: "",
+  removeFirstCheckIn: false,
+  requestedLastCheckOut: "",
+  removeLastCheckOut: false,
+  requestedDutyType: "",
+  requestedNotes: "",
   reasonForCorrection: "",
   supportingProof: null,
 };
@@ -243,66 +252,57 @@ function getCorrectionField(correction = {}) {
   );
 }
 
-function requestsNullCorrection(value) {
-  return /^(null|remove|clear)(\b.*)?$/i.test(String(value || "").trim());
+function formatCorrectionDateTime(value) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+  return date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
 }
 
-function parseCorrectionDateTime(value, attendanceDate) {
-  const rawValue = String(value || "").trim();
-  if (requestsNullCorrection(rawValue)) return null;
-
-  const directDate = new Date(rawValue);
-  if (!Number.isNaN(directDate.getTime()) && /\d{4}-\d{2}-\d{2}/.test(rawValue)) {
-    return directDate.toISOString();
-  }
-
-  const isoValue = rawValue.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})?/)?.[0];
-  if (isoValue) {
-    const isoDate = new Date(isoValue);
-    if (!Number.isNaN(isoDate.getTime())) return isoDate.toISOString();
-  }
-
-  const timeMatch = rawValue.match(/(?:^|\s)(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?\b/i);
-  const dateValue = toDateInputValue(attendanceDate);
-  if (!timeMatch || !dateValue) {
-    throw new Error("Enter the requested punch time, for example 7:30 PM, or provide an ISO timestamp");
-  }
-
-  let hours = Number(timeMatch[1]);
-  const minutes = Number(timeMatch[2] || 0);
-  const meridiem = timeMatch[3]?.toUpperCase();
-  if (minutes > 59 || (meridiem && (hours < 1 || hours > 12)) || (!meridiem && hours > 23)) {
-    throw new Error("Enter a valid requested punch time");
-  }
-  if (meridiem === "PM" && hours < 12) hours += 12;
-  if (meridiem === "AM" && hours === 12) hours = 0;
-
-  const [year, month, day] = dateValue.split("-").map(Number);
-  return new Date(year, month - 1, day, hours, minutes, 0, 0).toISOString();
-}
-
-function buildAttendanceCorrectionChange(form) {
-  const field = attendanceCorrectionFieldMap[form.whatNeedsToBeCorrected];
-  const rawValue = form.requestedCorrection.trim();
-  if (!field) throw new Error("Select a supported attendance correction field");
-
+function formatCorrectionValue(field, value) {
+  if (value === null) return "Removed";
+  if (value === undefined || value === "") return "--";
   if (field === "firstCheckIn" || field === "lastCheckOut") {
-    return {
-      field,
-      requestedValue: parseCorrectionDateTime(
-        rawValue,
-        form.attendanceRecord?.workDate || form.attendanceRecord?.attendanceDate || form.attendanceRecord?.date
-      ),
-    };
+    return formatCorrectionDateTime(value);
+  }
+  return String(value);
+}
+
+function buildAttendanceCorrectionChanges(form) {
+  const changes = [];
+  const addChange = (field, requestedValue) => {
+    if (!CORRECTION_FIELDS.includes(field)) {
+      throw new Error("Select a supported attendance correction field");
+    }
+    changes.push({ field, requestedValue });
+  };
+  const addDateTimeChange = (field, value, shouldRemove) => {
+    if (shouldRemove) {
+      addChange(field, null);
+      return;
+    }
+    if (!value) return;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) throw new Error("Enter a valid correction date and time");
+    addChange(field, date.toISOString());
+  };
+
+  addDateTimeChange("firstCheckIn", form.requestedFirstCheckIn, form.removeFirstCheckIn);
+  addDateTimeChange("lastCheckOut", form.requestedLastCheckOut, form.removeLastCheckOut);
+
+  if (form.requestedDutyType) {
+    if (!ATTENDANCE_DUTY_TYPES.includes(form.requestedDutyType)) {
+      throw new Error("Select a valid duty type");
+    }
+    addChange("dutyType", form.requestedDutyType);
   }
 
-  if (field === "dutyType") {
-    const dutyType = attendanceDutyTypes.find((value) => value.toLowerCase() === rawValue.toLowerCase());
-    if (!dutyType) throw new Error(`Duty type must be one of: ${attendanceDutyTypes.join(", ")}`);
-    return { field, requestedValue: dutyType };
+  if (form.requestedNotes.trim()) {
+    addChange("notes", form.requestedNotes.trim());
   }
 
-  return { field, requestedValue: requestsNullCorrection(rawValue) ? null : rawValue };
+  if (!changes.length) throw new Error("Enter at least one attendance change");
+  return changes;
 }
 
 function getCurrentLocationPayload() {
@@ -354,10 +354,19 @@ export default function AttendenceLeavePage() {
   const [correctionForm, setCorrectionForm] = useState(defaultCorrectionForm);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [isCorrectionDialogOpen, setIsCorrectionDialogOpen] = useState(false);
+  const [selectedCorrectionDetail, setSelectedCorrectionDetail] = useState(null);
+  const [correctionToCancel, setCorrectionToCancel] = useState(null);
+  const [cancelCorrectionReason, setCancelCorrectionReason] = useState("");
   const [leaveToCancel, setLeaveToCancel] = useState(null);
   const [cancelLeaveRemarks, setCancelLeaveRemarks] = useState("");
   const [recentCorrectionRequest, setRecentCorrectionRequest] = useState(null);
-  const [correctionTypeFilter, setCorrectionTypeFilter] = useState("All");
+  const [correctionFilters, setCorrectionFilters] = useState({
+    status: "",
+    targetType: "Attendance",
+    fromDate: "",
+    toDate: "",
+  });
+  const [correctionPage, setCorrectionPage] = useState(1);
   const leaveFiscalYear = useMemo(() => getFiscalYear(leaveForm.fromDate), [leaveForm.fromDate]);
 
   useEffect(() => {
@@ -581,7 +590,7 @@ export default function AttendenceLeavePage() {
 
       return EmployeeV2Service.createAttendanceCorrection({
         targetId: correctionForm.attendanceId,
-        changes: [buildAttendanceCorrectionChange(correctionForm)],
+        changes: buildAttendanceCorrectionChanges(correctionForm),
         reason: correctionForm.reasonForCorrection.trim(),
       });
     },
@@ -600,15 +609,17 @@ export default function AttendenceLeavePage() {
       queryClient.invalidateQueries({ queryKey: ["attendance-leave-requests"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-corrections"] });
     },
-    onError: (error) => toast.error(error.response?.data?.message || error.message || "Unable to submit correction request"),
+    onError: (error) => toast.error(
+      error.response?.data?.message || error.response?.data?.msg || error.message || "Unable to process attendance correction"
+    ),
   });
 
   const cancelCorrectionMutation = useMutation({
-    mutationFn: (correctionId) => {
+    mutationFn: ({ correctionId, reason }) => {
       if (!/^[a-f\d]{24}$/i.test(correctionId)) {
         throw new Error("A valid attendance correction is required");
       }
-      return EmployeeV2Service.cancelAttendanceCorrection({ correctionId });
+      return EmployeeV2Service.cancelAttendanceCorrection({ correctionId, reason });
     },
     onSuccess: (response) => {
       toast.success(response.data?.message || "Attendance correction cancelled");
@@ -621,18 +632,24 @@ export default function AttendenceLeavePage() {
           normalizedCorrection
         );
       }
+      setCorrectionToCancel(null);
+      setCancelCorrectionReason("");
       queryClient.invalidateQueries({ queryKey: ["attendance-corrections"] });
     },
     onError: (error) => toast.error(
-      error.response?.data?.message || error.message || "Unable to cancel attendance correction"
+      error.response?.data?.message || error.response?.data?.msg || error.message || "Unable to process attendance correction"
     ),
   });
 
   const correctionsQuery = useQuery({
-    queryKey: ["attendance-corrections", 1, 20, "desc"],
+    queryKey: ["attendance-corrections", correctionFilters, correctionPage, 20, "desc"],
     queryFn: async () => {
       const response = await EmployeeV2Service.getAttendanceCorrections({
-        page: 1,
+        status: correctionFilters.status || undefined,
+        targetType: correctionFilters.targetType || undefined,
+        fromDate: correctionFilters.fromDate || undefined,
+        toDate: correctionFilters.toDate || undefined,
+        page: correctionPage,
         limit: 20,
         sortOrder: "desc",
       });
@@ -649,29 +666,12 @@ export default function AttendenceLeavePage() {
 
       const response = await EmployeeV2Service.getAttendanceCorrection(correctionId);
       const correctionDetail = normalizeAttendanceCorrection(response.data?.data?.correction || {});
-      if (!/^[a-f\d]{24}$/i.test(correctionDetail.targetId || "")) {
-        throw new Error("The correction does not reference a valid attendance record");
-      }
-
-      const attendanceRecord = await loadAttendanceRecordDetail(correctionDetail.targetId);
-      return { correction: correctionDetail, attendanceRecord };
+      if (!getRecordId(correctionDetail)) throw new Error("Correction details were not found");
+      return correctionDetail;
     },
-    onSuccess: ({ correction, attendanceRecord }) => {
-      const firstChange = Array.isArray(correction.changes) ? correction.changes[0] : null;
+    onSuccess: (correction) => {
       queryClient.setQueryData(["attendance-correction-detail", correction._id], correction);
-      setCorrectionForm({
-        ...defaultCorrectionForm,
-        correctionId: correction._id,
-        correctionFor: "Attendance",
-        attendanceId: correction.targetId,
-        attendanceRecord,
-        whatNeedsToBeCorrected: getAttendanceCorrectionFieldLabel(firstChange?.field) || "Notes",
-        requestedCorrection: firstChange
-          ? (firstChange.requestedValue === null ? "null" : String(firstChange.requestedValue))
-          : "",
-        reasonForCorrection: correction.reason || "",
-      });
-      setIsCorrectionDialogOpen(true);
+      setSelectedCorrectionDetail(correction);
     },
     onError: (error) => toast.error(
       error.response?.data?.message || error.message || "Unable to load attendance correction"
@@ -724,13 +724,20 @@ export default function AttendenceLeavePage() {
       : [];
   const attendanceRules = [];
   const correctionRecords = correctionsQuery.data?.corrections;
+  const correctionRows = useMemo(
+    () => (Array.isArray(correctionRecords) ? correctionRecords.map(normalizeAttendanceCorrection) : []),
+    [correctionRecords]
+  );
+  const correctionPagination = correctionsQuery.data?.pagination || {
+    page: correctionPage,
+    limit: 20,
+    total: correctionRows.length,
+    totalPages: correctionRows.length ? 1 : 0,
+  };
   const recentCorrections = useMemo(() => {
-    const listedCorrections = Array.isArray(correctionRecords)
-      ? correctionRecords.map(normalizeAttendanceCorrection)
-      : [];
     const mergedCorrections = recentCorrectionRequest
-      ? [recentCorrectionRequest, ...listedCorrections]
-      : listedCorrections;
+      ? [recentCorrectionRequest, ...correctionRows]
+      : correctionRows;
     const correctionIds = new Set();
 
     return mergedCorrections.filter((correction) => {
@@ -739,12 +746,7 @@ export default function AttendenceLeavePage() {
       correctionIds.add(correctionId);
       return true;
     });
-  }, [correctionRecords, recentCorrectionRequest]);
-  const filteredCorrections = recentCorrections.filter((correction) => (
-    correctionTypeFilter === "All" ||
-    getCorrectionField(correction) === correctionTypeFilter ||
-    correction.changes?.some((change) => getAttendanceCorrectionFieldLabel(change.field) === correctionTypeFilter)
-  ));
+  }, [correctionRows, recentCorrectionRequest]);
   const leaveRequestRecords = leaveRequestsQuery.data?.leaveRequests || leaveRequestsQuery.data?.requests;
   const leaveRequests = useMemo(
     () => (Array.isArray(leaveRequestRecords) ? leaveRequestRecords.map(normalizeLeaveRequest) : []),
@@ -850,6 +852,10 @@ export default function AttendenceLeavePage() {
   );
 
   const openCorrectionDialogForAttendance = (attendance) => {
+    if (attendance?.payrollLocked) {
+      toast.error("Attendance is locked for payroll and cannot be corrected");
+      return;
+    }
     setCorrectionForm({
       ...defaultCorrectionForm,
       correctionFor: "Attendance",
@@ -860,7 +866,7 @@ export default function AttendenceLeavePage() {
     setIsCorrectionDialogOpen(true);
   };
 
-  const openCorrectionDialogForRequest = (correction) => {
+  const openCorrectionDetail = (correction) => {
     correctionDetailMutation.mutate(correction);
   };
 
@@ -903,6 +909,35 @@ export default function AttendenceLeavePage() {
       return;
     }
     cancelLeaveMutation.mutate({ leaveRequestId, remarks });
+  };
+
+  const openCorrectionCancellation = (correction) => {
+    const correctionId = getRecordId(correction);
+    if (!isValidObjectId(correctionId)) {
+      toast.error("A valid attendance correction is required.");
+      return;
+    }
+    if (String(correction?.status || correction?.correctionStatus).toLowerCase() !== "pending") {
+      toast.error("Only pending corrections can be cancelled.");
+      return;
+    }
+    setCancelCorrectionReason("");
+    setCorrectionToCancel(correction);
+  };
+
+  const confirmCorrectionCancellation = (event) => {
+    event.preventDefault();
+    const correctionId = getRecordId(correctionToCancel);
+    const reason = cancelCorrectionReason.trim();
+    if (!isValidObjectId(correctionId)) {
+      toast.error("A valid attendance correction is required.");
+      return;
+    }
+    if (reason.length > 1000) {
+      toast.error("Cancellation reason cannot exceed 1,000 characters.");
+      return;
+    }
+    cancelCorrectionMutation.mutate({ correctionId, reason: reason || undefined });
   };
 
   const submitLeave = (event) => {
@@ -982,11 +1017,7 @@ export default function AttendenceLeavePage() {
       toast.error("Select what needs to be changed!");
       return;
     }
-    if (correctionForm.correctionFor !== "Leave" && !attendanceCorrectionFields.includes(correctionForm.whatNeedsToBeCorrected)) {
-      toast.error("Select what needs to be corrected!");
-      return;
-    }
-    if (!correctionForm.requestedCorrection.trim() || !correctionForm.reasonForCorrection.trim()) {
+    if (correctionForm.correctionFor === "Leave" && (!correctionForm.requestedCorrection.trim() || !correctionForm.reasonForCorrection.trim())) {
       toast.error("Requested correction and reason are required!");
       return;
     }
@@ -994,6 +1025,12 @@ export default function AttendenceLeavePage() {
       const reasonLength = correctionForm.reasonForCorrection.trim().length;
       if (reasonLength < 3 || reasonLength > 1000) {
         toast.error("Reason must be between 3 and 1,000 characters!");
+        return;
+      }
+      try {
+        buildAttendanceCorrectionChanges(correctionForm);
+      } catch (error) {
+        toast.error(error.message);
         return;
       }
     }
@@ -1064,8 +1101,6 @@ export default function AttendenceLeavePage() {
       tone: "purple",
     },
   ];
-  const correctionFilterOptions = [...attendanceCorrectionFields, ...leaveCorrectionFields.filter((field) => !attendanceCorrectionFields.includes(field))];
-
   return (
     <div className="atl-page min-h-screen px-4 py-4">
       <header className="mb-6 flex flex-col justify-between gap-4 xl:flex-row xl:items-start">
@@ -1162,15 +1197,20 @@ export default function AttendenceLeavePage() {
               )}
               {activeTab === "corrections" && (
                 <RecentCorrectionsList
-                  rows={filteredCorrections}
-                  typeFilter={correctionTypeFilter}
-                  onTypeFilterChange={setCorrectionTypeFilter}
-                  correctionTypes={correctionFilterOptions}
-                  onEdit={openCorrectionDialogForRequest}
-                  onCancel={(correction) => {
-                    const correctionId = correction._id || correction.id;
-                    if (correctionId) cancelCorrectionMutation.mutate(correctionId);
+                  rows={correctionRows}
+                  filters={correctionFilters}
+                  statuses={CORRECTION_STATUSES}
+                  targetTypes={correctionTargetTypes}
+                  onFilterChange={(field, value) => {
+                    setCorrectionFilters((current) => ({ ...current, [field]: value }));
+                    setCorrectionPage(1);
                   }}
+                  pagination={correctionPagination}
+                  onPageChange={setCorrectionPage}
+                  isLoading={correctionsQuery.isLoading || correctionsQuery.isFetching}
+                  error={correctionsQuery.error}
+                  onView={openCorrectionDetail}
+                  onCancel={openCorrectionCancellation}
                   isCancelling={cancelCorrectionMutation.isPending}
                   isLoadingDetail={correctionDetailMutation.isPending}
                 />
@@ -1218,6 +1258,27 @@ export default function AttendenceLeavePage() {
         setRemarks={setCancelLeaveRemarks}
         onSubmit={confirmLeaveCancellation}
         isPending={cancelLeaveMutation.isPending}
+      />
+      <CorrectionDetailDialog
+        open={Boolean(selectedCorrectionDetail)}
+        correction={selectedCorrectionDetail}
+        onOpenChange={(open) => {
+          if (!open) setSelectedCorrectionDetail(null);
+        }}
+      />
+      <CancelCorrectionRequestDialog
+        open={Boolean(correctionToCancel)}
+        correction={correctionToCancel}
+        reason={cancelCorrectionReason}
+        setReason={setCancelCorrectionReason}
+        onSubmit={confirmCorrectionCancellation}
+        isPending={cancelCorrectionMutation.isPending}
+        onOpenChange={(open) => {
+          if (!open && !cancelCorrectionMutation.isPending) {
+            setCorrectionToCancel(null);
+            setCancelCorrectionReason("");
+          }
+        }}
       />
       <CorrectionRequestDialog
         open={isCorrectionDialogOpen}
@@ -1304,6 +1365,167 @@ function CancelLeaveRequestDialog({ open, onOpenChange, leave, remarks, setRemar
   );
 }
 
+function CancelCorrectionRequestDialog({ open, onOpenChange, correction, reason, setReason, onSubmit, isPending }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="atl-card sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle className="text-base font-semibold text-foreground">Cancel Correction Request</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-4 text-xs">
+          <div className="rounded-md border border-red-200 bg-red-50/50 p-3 text-red-900 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200">
+            <p className="font-medium">{getCorrectionField(correction || {})}</p>
+            <p className="mt-1 break-all text-[11px]">{displayText(correction?.targetId)}</p>
+            <p className="mt-2">Only pending correction requests can be cancelled.</p>
+          </div>
+          <label className="grid gap-1.5">
+            <span className="font-medium text-foreground">Reason <span className="font-normal text-muted-foreground">- Optional</span></span>
+            <textarea
+              className="atl-input rounded-md border px-3 py-2 text-xs"
+              rows="4"
+              value={reason}
+              maxLength={1000}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Why are you cancelling this correction request?"
+            />
+            <span className="text-right text-[11px] text-muted-foreground">{reason.length}/1000</span>
+          </label>
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => onOpenChange(false)}
+              className="rounded-md border border-border px-4 py-2 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              Keep Request
+            </button>
+            <button
+              type="submit"
+              disabled={isPending}
+              className="rounded-md border border-red-200 bg-red-600 px-4 py-2 text-xs font-medium text-white disabled:opacity-50"
+            >
+              {isPending ? "Cancelling..." : "Cancel Request"}
+            </button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CorrectionDetailDialog({ open, onOpenChange, correction }) {
+  if (!correction) return null;
+
+  const employee = correction.employee && typeof correction.employee === "object" ? correction.employee : null;
+  const reviewedBy = correction.reviewedBy && typeof correction.reviewedBy === "object" ? correction.reviewedBy : null;
+  const changes = Array.isArray(correction.changes) ? correction.changes : [];
+  const correctionStatus = displayText(correction.status, "Pending");
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="atl-card max-h-[90vh] overflow-y-auto p-0 sm:max-w-[700px]">
+        <DialogHeader className="border-b border-border px-5 py-4">
+          <DialogTitle className="flex items-center justify-between gap-3 pr-6 text-left">
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-orange-50 text-[#f97316] dark:bg-orange-400/10">
+                <FilePenLine className="h-5 w-5" />
+              </span>
+              <span>
+                <span className="block text-base font-semibold text-foreground">Correction Details</span>
+                <span className="mt-1 block text-xs font-normal text-muted-foreground">{displayText(correction._id)}</span>
+              </span>
+            </span>
+            <StatusPill tone={statusTone(correctionStatus)}>{correctionStatus}</StatusPill>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 p-5 text-xs">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CorrectionPersonSummary title="Employee" person={employee} fallbackId={typeof correction.employee === "string" ? correction.employee : ""} />
+            <CorrectionPersonSummary title="Reviewed By" person={reviewedBy} fallbackId={typeof correction.reviewedBy === "string" ? correction.reviewedBy : ""} emptyText="Not reviewed yet" />
+          </div>
+
+          <div className="grid gap-3 rounded-lg border border-border bg-muted/20 p-3 sm:grid-cols-2">
+            <CorrectionDetailStat label="Target Type" value={displayText(correction.targetType)} />
+            <CorrectionDetailStat label="Target ID" value={<span className="break-all">{displayText(correction.targetId)}</span>} />
+          </div>
+
+          <div>
+            <p className="mb-2 font-medium text-foreground">Requested Changes</p>
+            <div className="overflow-hidden rounded-lg border border-border">
+              {changes.length ? changes.map((change, index) => (
+                <div key={`${change.field}-${index}`} className="grid gap-2 border-b border-border p-3 last:border-b-0 sm:grid-cols-[140px_1fr]">
+                  <span className="font-medium text-foreground">{getAttendanceCorrectionFieldLabel(change.field)}</span>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <CorrectionDetailStat label="Current Value" value={formatCorrectionValue(change.field, change.currentValue)} />
+                    <CorrectionDetailStat label="Requested Value" value={formatCorrectionValue(change.field, change.requestedValue)} />
+                  </div>
+                </div>
+              )) : (
+                <p className="p-4 text-center text-muted-foreground">No correction changes were included.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-border p-3">
+              <p className="mb-2 font-medium text-foreground">Reason</p>
+              <p className="whitespace-pre-wrap text-muted-foreground">{displayText(correction.reason)}</p>
+            </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="mb-2 font-medium text-foreground">Admin Remarks</p>
+              <p className="whitespace-pre-wrap text-muted-foreground">{displayText(correction.adminRemarks)}</p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 rounded-lg border border-border bg-muted/20 p-3 sm:grid-cols-3">
+            <CorrectionDetailStat label="Requested At" value={formatCorrectionDateTime(correction.createdAt)} />
+            <CorrectionDetailStat label="Reviewed At" value={formatCorrectionDateTime(correction.reviewedAt)} />
+            <CorrectionDetailStat label="Last Updated" value={formatCorrectionDateTime(correction.updatedAt)} />
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CorrectionPersonSummary({ title, person, fallbackId, emptyText = "Not available" }) {
+  const name = person?.name;
+  const employeeId = person?.employeeId || fallbackId;
+  const initial = String(name || employeeId || "E").charAt(0).toUpperCase();
+
+  return (
+    <div className="rounded-lg border border-border p-3">
+      <p className="mb-3 font-medium text-foreground">{title}</p>
+      {person || fallbackId ? (
+        <div className="flex items-center gap-3">
+          {person?.profileImage ? (
+            <img src={person.profileImage} alt="" className="h-9 w-9 rounded-full object-cover" />
+          ) : (
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-muted font-medium text-foreground">{initial}</span>
+          )}
+          <div className="min-w-0">
+            <p className="truncate font-medium text-foreground">{displayText(name, "Employee")}</p>
+            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{displayText(employeeId)}</p>
+            {person?.designation && <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{person.designation}</p>}
+          </div>
+        </div>
+      ) : (
+        <p className="text-muted-foreground">{emptyText}</p>
+      )}
+    </div>
+  );
+}
+
+function CorrectionDetailStat({ label, value }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+      <div className="mt-1 text-xs text-foreground">{value}</div>
+    </div>
+  );
+}
+
 function CorrectionRequestDialog({ open, onOpenChange, ...props }) {
   const isLeaveCorrection = props.form?.correctionFor === "Leave";
 
@@ -1337,13 +1559,7 @@ function CorrectionRequestForm({ form, setForm, attendanceRows, onSubmit, onCanc
   const selectedLeave = form.leaveRecord || {};
   const input = "atl-input h-11 rounded-md border px-3 text-xs";
   const textarea = "atl-input rounded-md border px-3 py-2 text-xs";
-  const isSubmitDisabled = isPending || (!isLeaveCorrection && !selectedAttendance) || (isLeaveCorrection && !form.leaveId);
-  const attendanceCorrectionPlaceholder = {
-    "Check-in Time": "Enter a time such as 9:45 AM, an ISO timestamp, or 'remove'.",
-    "Check-out Time": "Enter a time such as 7:30 PM, an ISO timestamp, or 'remove'.",
-    "Duty Type": `Enter one of: ${attendanceDutyTypes.join(", ")}.`,
-    Notes: "Enter the corrected attendance notes, or 'remove' to clear them.",
-  }[form.whatNeedsToBeCorrected];
+  const isSubmitDisabled = isPending || (!isLeaveCorrection && (!selectedAttendance || selectedAttendance.payrollLocked)) || (isLeaveCorrection && !form.leaveId);
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 p-5">
@@ -1353,36 +1569,34 @@ function CorrectionRequestForm({ form, setForm, attendanceRows, onSubmit, onCanc
         <AttendanceCorrectionCurrentCard attendance={selectedAttendance} />
       )}
 
-      <label className="grid gap-1.5 text-xs">
-        <span className="font-medium text-foreground">
-          {isLeaveCorrection ? "What needs to be changed?" : "What needs to be corrected?"} <span className="text-red-500">*</span>
-        </span>
-        <select
-          className={input}
-          value={isLeaveCorrection ? form.whatNeedsToBeChanged : form.whatNeedsToBeCorrected}
-          onChange={(event) => setForm({
-            ...form,
-            [isLeaveCorrection ? "whatNeedsToBeChanged" : "whatNeedsToBeCorrected"]: event.target.value,
-          })}
-          required
-        >
-          {(isLeaveCorrection ? leaveCorrectionFields : attendanceCorrectionFields).map((field) => (
-            <option key={field}>{field}</option>
-          ))}
-        </select>
-      </label>
-
-      <label className="grid gap-1.5 text-xs">
-        <span className="font-medium text-foreground">Requested Correction <span className="text-red-500">*</span></span>
-        <textarea
-          className={textarea}
-          rows="3"
-          placeholder={isLeaveCorrection ? "Please change my approved leave dates from 15-17 July 2026 to 16-17 July 2026." : attendanceCorrectionPlaceholder}
-          value={form.requestedCorrection}
-          onChange={(event) => setForm({ ...form, requestedCorrection: event.target.value })}
-          required
-        />
-      </label>
+      {isLeaveCorrection ? (
+        <>
+          <label className="grid gap-1.5 text-xs">
+            <span className="font-medium text-foreground">What needs to be changed? <span className="text-red-500">*</span></span>
+            <select
+              className={input}
+              value={form.whatNeedsToBeChanged}
+              onChange={(event) => setForm({ ...form, whatNeedsToBeChanged: event.target.value })}
+              required
+            >
+              {leaveCorrectionFields.map((field) => <option key={field}>{field}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1.5 text-xs">
+            <span className="font-medium text-foreground">Requested Correction <span className="text-red-500">*</span></span>
+            <textarea
+              className={textarea}
+              rows="3"
+              placeholder="Please change my approved leave dates from 15-17 July 2026 to 16-17 July 2026."
+              value={form.requestedCorrection}
+              onChange={(event) => setForm({ ...form, requestedCorrection: event.target.value })}
+              required
+            />
+          </label>
+        </>
+      ) : (
+        <AttendanceCorrectionFields form={form} setForm={setForm} input={input} textarea={textarea} />
+      )}
 
       <label className="grid gap-1.5 text-xs">
         <span className="font-medium text-foreground">Reason for Correction <span className="text-red-500">*</span></span>
@@ -1392,15 +1606,20 @@ function CorrectionRequestForm({ form, setForm, attendanceRows, onSubmit, onCanc
           placeholder={isLeaveCorrection ? "My personal work has been rescheduled." : "I forgot to check out before leaving the office."}
           value={form.reasonForCorrection}
           onChange={(event) => setForm({ ...form, reasonForCorrection: event.target.value })}
+          minLength={isLeaveCorrection ? undefined : 3}
+          maxLength={isLeaveCorrection ? undefined : 1000}
           required
         />
+        {!isLeaveCorrection && <span className="text-right text-[11px] text-muted-foreground">{form.reasonForCorrection.length}/1000</span>}
       </label>
 
-      <CorrectionProofUpload
-        label={isLeaveCorrection ? "Supporting Document" : "Supporting Proof"}
-        file={form.supportingProof}
-        onChange={(file) => setForm({ ...form, supportingProof: file })}
-      />
+      {isLeaveCorrection && (
+        <CorrectionProofUpload
+          label="Supporting Document"
+          file={form.supportingProof}
+          onChange={(file) => setForm({ ...form, supportingProof: file })}
+        />
+      )}
 
       <div className="rounded-lg border border-orange-200 bg-orange-50/50 p-3 text-xs text-orange-900 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-200">
         {isLeaveCorrection
@@ -1424,24 +1643,107 @@ function CorrectionRequestForm({ form, setForm, attendanceRows, onSubmit, onCanc
   );
 }
 
+function AttendanceCorrectionFields({ form, setForm, input, textarea }) {
+  const updateForm = (changes) => setForm({ ...form, ...changes });
+  const removeControl = (field, checked, valueField) => updateForm({
+    [field]: checked,
+    ...(checked ? { [valueField]: "" } : {}),
+  });
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs font-medium text-foreground">Requested Changes <span className="text-red-500">*</span></p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="grid gap-1.5 text-xs">
+          <span className="font-medium text-foreground">Check-in</span>
+          <input
+            className={input}
+            type="datetime-local"
+            value={form.requestedFirstCheckIn}
+            disabled={form.removeFirstCheckIn}
+            onChange={(event) => updateForm({ requestedFirstCheckIn: event.target.value })}
+          />
+          <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={form.removeFirstCheckIn}
+              onChange={(event) => removeControl("removeFirstCheckIn", event.target.checked, "requestedFirstCheckIn")}
+            />
+            Remove incorrect check-in
+          </span>
+        </label>
+        <label className="grid gap-1.5 text-xs">
+          <span className="font-medium text-foreground">Check-out</span>
+          <input
+            className={input}
+            type="datetime-local"
+            value={form.requestedLastCheckOut}
+            disabled={form.removeLastCheckOut}
+            onChange={(event) => updateForm({ requestedLastCheckOut: event.target.value })}
+          />
+          <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={form.removeLastCheckOut}
+              onChange={(event) => removeControl("removeLastCheckOut", event.target.checked, "requestedLastCheckOut")}
+            />
+            Remove incorrect check-out
+          </span>
+        </label>
+      </div>
+      <label className="grid gap-1.5 text-xs">
+        <span className="font-medium text-foreground">Duty Type</span>
+        <select
+          className={input}
+          value={form.requestedDutyType}
+          onChange={(event) => updateForm({ requestedDutyType: event.target.value })}
+        >
+          <option value="">No change</option>
+          {ATTENDANCE_DUTY_TYPES.map((dutyType) => <option key={dutyType} value={dutyType}>{dutyType}</option>)}
+        </select>
+      </label>
+      <label className="grid gap-1.5 text-xs">
+        <span className="font-medium text-foreground">Notes</span>
+        <textarea
+          className={textarea}
+          rows="3"
+          placeholder="Enter corrected attendance notes, or leave blank for no change."
+          value={form.requestedNotes}
+          onChange={(event) => updateForm({ requestedNotes: event.target.value })}
+        />
+      </label>
+      <p className="text-[11px] text-muted-foreground">Enter one or more changes. Unfilled fields will not be included in the request.</p>
+    </div>
+  );
+}
+
 function AttendanceCorrectionCurrentCard({ attendance }) {
   const status = resolvePresenceStatus(attendance || {});
   const attendanceDate = attendance?.attendanceDate || attendance?.date;
 
   return (
     <div className="space-y-3">
-      <label className="grid max-w-[310px] gap-1.5 text-xs">
-        <span className="font-medium text-foreground">Attendance Date</span>
-        <input className="atl-input h-11 rounded-md border px-3 text-xs" type="text" value={formatShortDate(attendanceDate)} disabled readOnly />
-      </label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="grid gap-1.5 text-xs">
+          <span className="font-medium text-foreground">Attendance ID</span>
+          <input className="atl-input h-11 rounded-md border px-3 text-xs" type="text" value={getRecordId(attendance)} disabled readOnly />
+        </label>
+        <label className="grid gap-1.5 text-xs">
+          <span className="font-medium text-foreground">Attendance Date</span>
+          <input className="atl-input h-11 rounded-md border px-3 text-xs" type="text" value={formatShortDate(attendanceDate)} disabled readOnly />
+        </label>
+      </div>
       <div>
         <p className="mb-2 text-xs font-medium text-foreground">Current Record</p>
-        <div className="grid gap-3 rounded-lg border border-orange-200 bg-orange-50/25 p-3 text-xs dark:border-orange-400/30 dark:bg-orange-400/10 sm:grid-cols-4">
+        <div className="grid gap-3 rounded-lg border border-orange-200 bg-orange-50/25 p-3 text-xs dark:border-orange-400/30 dark:bg-orange-400/10 sm:grid-cols-3">
           <CurrentRecordStat label="Status" value={<StatusPill tone={statusTone(status)}>{status}</StatusPill>} />
           <CurrentRecordStat label="Check-in" value={formatTime(attendance?.checkInTime)} />
           <CurrentRecordStat label="Check-out" value={attendance?.checkOutTime ? formatTime(attendance.checkOutTime) : <span className="text-red-600">Not Recorded</span>} />
           <CurrentRecordStat label="Working Hours" value={displayText(attendance?.workingHours || attendance?.totalWorkingHours)} />
+          <CurrentRecordStat label="Duty Type" value={displayText(attendance?.dutyType)} />
+          <CurrentRecordStat label="Notes" value={displayText(attendance?.notes || attendance?.remark || attendance?.remarks)} />
         </div>
+        {attendance?.payrollLocked && <p className="mt-2 text-[11px] text-red-600">This record is payroll locked and cannot be corrected.</p>}
       </div>
     </div>
   );
@@ -1502,89 +1804,185 @@ function CorrectionProofUpload({ label, file, onChange }) {
 
 function RecentCorrectionsList({
   rows,
-  typeFilter,
-  onTypeFilterChange,
-  correctionTypes,
-  onEdit,
+  filters,
+  statuses,
+  targetTypes,
+  onFilterChange,
+  pagination,
+  onPageChange,
+  isLoading,
+  error,
+  onView,
   onCancel,
   isCancelling,
   isLoadingDetail,
 }) {
+  const currentPage = Number(pagination?.page) || 1;
+  const pageLimit = Number(pagination?.limit) || 20;
+  const total = Number(pagination?.total) || 0;
+  const totalPages = Number(pagination?.totalPages) || 0;
+  const firstRecord = total ? (currentPage - 1) * pageLimit + 1 : 0;
+  const lastRecord = total ? Math.min(currentPage * pageLimit, total) : 0;
+
   return (
     <Panel>
-      <SectionTitle
-        icon={FilePenLine}
-        action={
+      <SectionTitle icon={FilePenLine}>Correction Requests</SectionTitle>
+      <div className="grid gap-3 border-b border-border p-4 sm:grid-cols-2 xl:grid-cols-4">
+        <label className="grid gap-1.5 text-xs">
+          <span className="font-medium text-foreground">Status</span>
           <select
-            value={typeFilter}
-            onChange={(event) => onTypeFilterChange(event.target.value)}
-            className="atl-input rounded-md border px-3 py-1.5 text-xs"
+            value={filters.status}
+            onChange={(event) => onFilterChange("status", event.target.value)}
+            className="atl-input h-10 rounded-md border px-3 text-xs"
           >
-            <option value="All">All Types</option>
-            {correctionTypes.map((type) => (
-              <option key={type} value={type}>{type}</option>
-            ))}
+            <option value="">All Statuses</option>
+            {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
           </select>
-        }
-      >
-        Correction Requests
-      </SectionTitle>
+        </label>
+        <label className="grid gap-1.5 text-xs">
+          <span className="font-medium text-foreground">Target Type</span>
+          <select
+            value={filters.targetType}
+            onChange={(event) => onFilterChange("targetType", event.target.value)}
+            className="atl-input h-10 rounded-md border px-3 text-xs"
+          >
+            <option value="">All Target Types</option>
+            {targetTypes.map((targetType) => <option key={targetType} value={targetType}>{targetType}</option>)}
+          </select>
+        </label>
+        <label className="grid gap-1.5 text-xs">
+          <span className="font-medium text-foreground">From Date</span>
+          <input
+            type="date"
+            value={filters.fromDate}
+            max={filters.toDate || undefined}
+            onChange={(event) => onFilterChange("fromDate", event.target.value)}
+            className="atl-input h-10 rounded-md border px-3 text-xs"
+          />
+        </label>
+        <label className="grid gap-1.5 text-xs">
+          <span className="font-medium text-foreground">To Date</span>
+          <input
+            type="date"
+            value={filters.toDate}
+            min={filters.fromDate || undefined}
+            onChange={(event) => onFilterChange("toDate", event.target.value)}
+            className="atl-input h-10 rounded-md border px-3 text-xs"
+          />
+        </label>
+      </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-left text-xs">
+        <table className="w-full min-w-[1220px] text-left text-xs">
           <thead className="bg-muted/50 text-muted-foreground">
             <tr>
-              {["Date", "Type", "Reason", "Admin Remark", "Status", "Requested At", "Action"].map((header) => (
+              {["Employee", "Target", "Changes", "Reason", "Status", "Review", "Requested At", "Action"].map((header) => (
                 <th key={header} className="px-4 py-2 font-medium">{header}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows?.length ? rows.map((correction, index) => {
+            {!isLoading && !error && rows?.length ? rows.map((correction, index) => {
               const correctionStatus = displayText(correction.correctionStatus || correction.status, "Pending");
               const canModify = String(correctionStatus).toLowerCase() === "pending";
+              const employee = correction.employee && typeof correction.employee === "object" ? correction.employee : null;
+              const reviewedBy = correction.reviewedBy && typeof correction.reviewedBy === "object"
+                ? correction.reviewedBy.name || correction.reviewedBy.employeeId || correction.reviewedBy._id
+                : correction.reviewedBy;
+              const changes = Array.isArray(correction.changes) ? correction.changes : [];
               return (
                 <tr key={correction._id || index} className="border-t border-border align-top">
-                  <td className="px-4 py-3">{formatShortDate(correction.attendanceDate || correction.createdAt)}</td>
-                  <td className="px-4 py-3 font-medium text-foreground">{getCorrectionField(correction)}</td>
-                  <td className="max-w-[320px] px-4 py-3 text-muted-foreground">{displayText(correction.reasonForCorrection || correction.reason || correction.remarks)}</td>
-                  <td className="max-w-[260px] px-4 py-3 text-muted-foreground">
-                    {displayText(correction.adminRemark || correction.adminRemarks || correction.adminNote || correction.reviewNote)}
+                  <td className="min-w-[170px] px-4 py-3">
+                    <p className="font-medium text-foreground">{displayText(employee?.name, "Employee")}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">{displayText(employee?.employeeId || (typeof correction.employee === "string" ? correction.employee : ""))}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">{[employee?.designation, employee?.workLocation].filter(Boolean).join(" / ") || "--"}</p>
                   </td>
+                  <td className="min-w-[180px] px-4 py-3">
+                    <p className="font-medium text-foreground">{displayText(correction.targetType)}</p>
+                    <p className="mt-1 break-all text-[11px] text-muted-foreground">{displayText(correction.targetId)}</p>
+                  </td>
+                  <td className="min-w-[280px] px-4 py-3">
+                    {changes.length ? (
+                      <div className="space-y-2">
+                        {changes.map((change, changeIndex) => (
+                          <div key={`${change.field}-${changeIndex}`}>
+                            <p className="font-medium text-foreground">{getAttendanceCorrectionFieldLabel(change.field)}</p>
+                            <p className="mt-0.5 text-[11px] text-muted-foreground">
+                              {formatCorrectionValue(change.field, change.currentValue)} {" -> "} {formatCorrectionValue(change.field, change.requestedValue)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : "--"}
+                  </td>
+                  <td className="max-w-[320px] px-4 py-3 text-muted-foreground">{displayText(correction.reasonForCorrection || correction.reason || correction.remarks)}</td>
                   <td className="px-4 py-3"><StatusPill tone={statusTone(correctionStatus)}>{correctionStatus}</StatusPill></td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatShortDate(correction.requestedAt || correction.createdAt)}</td>
+                  <td className="max-w-[240px] px-4 py-3 text-muted-foreground">
+                    <p>{displayText(correction.adminRemark || correction.adminRemarks || correction.adminNote || correction.reviewNote)}</p>
+                    {reviewedBy && <p className="mt-1 text-[11px]">By {reviewedBy}</p>}
+                    {correction.reviewedAt && <p className="mt-1 text-[11px]">{formatCorrectionDateTime(correction.reviewedAt)}</p>}
+                  </td>
+                  <td className="min-w-[150px] px-4 py-3 text-muted-foreground">{formatCorrectionDateTime(correction.requestedAt || correction.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        disabled={isLoadingDetail || !canModify}
-                        onClick={() => onEdit(correction)}
+                        disabled={isLoadingDetail}
+                        onClick={() => onView(correction)}
                         className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-                        title={canModify ? "Edit correction request" : "Only pending correction requests can be edited"}
+                        title="View correction details"
                       >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Edit
+                        <Eye className="h-3.5 w-3.5" />
+                        View
                       </button>
-                      <button
-                        type="button"
-                        disabled={isCancelling || !canModify}
-                        onClick={() => onCancel(correction)}
-                        className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2 py-1 text-xs font-medium text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                        title={canModify ? "Cancel correction request" : "Only pending correction requests can be cancelled"}
-                      >
-                        <XCircle className="h-3.5 w-3.5" />
-                        Cancel
-                      </button>
+                      {canModify && (
+                        <button
+                          type="button"
+                          disabled={isCancelling}
+                          onClick={() => onCancel(correction)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-red-400/10"
+                          title="Cancel correction request"
+                          aria-label="Cancel correction request"
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
               );
             }) : (
               <tr>
-                <td colSpan="7" className="px-4 py-8 text-center text-muted-foreground">No correction request found.</td>
+                <td colSpan="8" className="px-4 py-8 text-center text-muted-foreground">
+                  {isLoading
+                    ? "Loading correction requests..."
+                    : error?.response?.data?.message || error?.message || "No correction request found."}
+                </td>
               </tr>
             )}
           </tbody>
         </table>
+      </div>
+      <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <span>Showing {firstRecord}-{lastRecord} of {total}</span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={isLoading || currentPage <= 1}
+            onClick={() => onPageChange(currentPage - 1)}
+            className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" /> Previous
+          </button>
+          <span>Page {currentPage} of {Math.max(totalPages, 1)}</span>
+          <button
+            type="button"
+            disabled={isLoading || totalPages === 0 || currentPage >= totalPages}
+            onClick={() => onPageChange(currentPage + 1)}
+            className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Next <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
     </Panel>
   );
