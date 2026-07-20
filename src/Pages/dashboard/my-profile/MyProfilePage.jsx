@@ -15,7 +15,8 @@ import {
   SheetTitle,
 } from "@components/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/components/ui/tabs";
-import FinanceService from "@/services/employee.service";
+import LegacyEmployeeService from "@/services/employee.service";
+import EmployeeV2Service from "@/services/employee-v2.service";
 import {
   CompletionStrip,
   DocumentsTab,
@@ -30,6 +31,102 @@ import {
 } from "./components/ProfileCards";
 
 const profileQueryKey = ["employee-profile"];
+
+const joinAddress = (address = {}) =>
+  [address.addressLine1, address.addressLine2].filter(Boolean).join(", ");
+
+const mapEmployeeToProfile = (employee = {}) => {
+  const address = employee.address || {};
+  const emergencyContact = employee.emergencyContact || {};
+  const permissions = employee.permissionOverrides || {};
+  const completionFields = [
+    employee.name,
+    employee.email,
+    employee.phoneNumber,
+    employee.dateOfBirth,
+    employee.gender,
+    address.addressLine1,
+    address.city,
+    emergencyContact.name,
+    employee.designation,
+    employee.joiningDate,
+    employee.workLocation,
+  ];
+  const completedFields = completionFields.filter(Boolean).length;
+
+  return {
+    ...employee,
+    profileImage: employee.profileImage
+      ? {
+          ...employee.profileImage,
+          original: employee.profileImage.originalUrl,
+          small: employee.profileImage.smallUrl,
+          medium: employee.profileImage.mediumUrl,
+          large: employee.profileImage.largeUrl,
+        }
+      : null,
+    overview: {
+      fullName: employee.name,
+      status: employee.employmentStatus,
+      designation: employee.designation,
+      employeeId: employee.employeeId,
+      phoneNo: employee.phoneNumber,
+      email: employee.email,
+      location: employee.workLocation || joinAddress(address),
+      panelAccess: employee.accessRole,
+      reportingManagerName: employee.reportingManager?.name,
+      joiningDate: employee.joiningDate,
+      employmentType: employee.employmentType,
+    },
+    personalInformation: {
+      fullName: employee.name,
+      emailAddress: employee.email,
+      phoneNo: employee.phoneNumber,
+      mobileNumber: employee.phoneNumber,
+      dateOfBirth: employee.dateOfBirth,
+      gender: employee.gender,
+      address: joinAddress(address),
+      addressLine1: address.addressLine1,
+      addressLine2: address.addressLine2,
+      city: address.city,
+      state: address.state,
+      pinCode: address.pincode,
+      country: address.country,
+    },
+    roleAndAccess: {
+      roleDesignation: employee.designation || employee.accessRole,
+      panelAccess: employee.accessRole,
+      moduleAccess: [
+        ...(permissions.allow || []).map((key) => ({ key, label: key, allowed: true })),
+        ...(permissions.deny || []).map((key) => ({ key, label: key, allowed: false })),
+      ],
+    },
+    employmentInformation: {
+      employeeId: employee.employeeId,
+      employmentType: employee.employmentType,
+      joiningDate: employee.joiningDate,
+      probationEndDate: employee.probationEndDate,
+      workLocation: employee.workLocation,
+    },
+    emergencyContactInformation: {
+      name: emergencyContact.name,
+      relationship: emergencyContact.relationship,
+      mobileNumber: emergencyContact.mobileNumber || emergencyContact.phoneNumber,
+    },
+    loginSecurity: {
+      loginEmail: employee.email,
+      loginStatus: employee.accountStatus,
+      lastLoginAt: employee.lastLoginAt,
+      passwordStatus: employee.mustChangePassword ? "Change Required" : "Protected",
+    },
+    profileCompletion: {
+      percentage: Math.round((completedFields / completionFields.length) * 100),
+      updatedAt: employee.updatedAt,
+    },
+    quickActions: [],
+    summary: {},
+  };
+};
 
 const dateInput = (value) => {
   if (!value) return "";
@@ -46,16 +143,46 @@ const profileFormFromApi = (profile) => {
     mobileNumber: personal.mobileNumber || personal.phoneNo || "",
     dateOfBirth: dateInput(personal.dateOfBirth),
     gender: personal.gender || "",
-    address: personal.address || "",
+    address: personal.addressLine1 || personal.address || "",
+    addressLine2: personal.addressLine2 || "",
     city: personal.city || "",
     state: personal.state || "",
     pincode: personal.pinCode || personal.pincode || "",
+    country: personal.country || "",
     emergencyContactNo: emergency.mobileNumber || "",
     emergencyContact: {
       name: emergency.name || "",
       relationship: emergency.relationship || "",
       mobileNumber: emergency.mobileNumber || "",
     },
+  };
+};
+
+const profileFormToApi = (form = {}) => {
+  const emergencyContact = form.emergencyContact || {};
+  const hasEmergencyContact = Object.values(emergencyContact).some(Boolean);
+
+  return {
+    name: form.name?.trim() || "",
+    email: form.email?.trim() || "",
+    phoneNumber: (form.mobileNumber || form.phoneNo)?.trim() || "",
+    dateOfBirth: form.dateOfBirth || null,
+    gender: form.gender || null,
+    address: {
+      addressLine1: form.address?.trim() || "",
+      addressLine2: form.addressLine2?.trim() || "",
+      city: form.city?.trim() || "",
+      state: form.state?.trim() || "",
+      pincode: form.pincode?.trim() || "",
+      country: form.country?.trim() || "",
+    },
+    emergencyContact: hasEmergencyContact
+      ? {
+          name: emergencyContact.name?.trim() || "",
+          relationship: emergencyContact.relationship?.trim() || "",
+          phoneNumber: emergencyContact.mobileNumber?.trim() || "",
+        }
+      : null,
   };
 };
 
@@ -74,15 +201,21 @@ export default function MyProfilePage() {
   const profileQuery = useQuery({
     queryKey: profileQueryKey,
     queryFn: async () => {
-      const response = await FinanceService.getEmployeeProfile();
-      return response.data?.profile || {};
+      const meResponse = await EmployeeV2Service.me();
+      const currentEmployee = meResponse.data?.data?.employee;
+      const employeeId = currentEmployee?.employeeId;
+
+      if (!employeeId) throw new Error("Employee ID was not found for the signed-in user");
+
+      const detailResponse = await EmployeeV2Service.me(employeeId);
+      return mapEmployeeToProfile(detailResponse.data?.data?.employee || currentEmployee);
     },
   });
 
   const profile = profileQuery.data || {};
 
   const updateProfileMutation = useMutation({
-    mutationFn: (formData) => FinanceService.updateEmployeeProfile({ formData }),
+    mutationFn: (formData) => EmployeeV2Service.editEmployee(profile.employeeId, profileFormToApi(formData)),
     onSuccess: (response) => {
       toast.success(response.data?.message || "Profile updated successfully");
       queryClient.invalidateQueries({ queryKey: profileQueryKey });
@@ -92,7 +225,7 @@ export default function MyProfilePage() {
   });
 
   const changePasswordMutation = useMutation({
-    mutationFn: ({ currentPassword, newPassword }) => FinanceService.changeEmployeePassword({ currentPassword, newPassword }),
+    mutationFn: ({ currentPassword, newPassword }) => EmployeeV2Service.changePassword({ currentPassword, newPassword }),
     onSuccess: (response) => {
       toast.success(response.data?.message || "Password changed successfully");
       queryClient.invalidateQueries({ queryKey: profileQueryKey });
@@ -106,7 +239,7 @@ export default function MyProfilePage() {
     mutationFn: (file) => {
       const formData = new FormData();
       formData.append("profileImage", file);
-      return FinanceService.uploadEmployeeProfileImage({ formData });
+      return EmployeeV2Service.editEmployee(profile.employeeId, formData);
     },
     onSuccess: (response) => {
       toast.success(response.data?.message || "Profile image updated successfully");
@@ -117,7 +250,9 @@ export default function MyProfilePage() {
   });
 
   const downloadIdCardMutation = useMutation({
-    mutationFn: () => FinanceService.getEmployeeIdCard(),
+    // The v2 service does not expose an ID-card endpoint yet, so this unrelated
+    // download action continues to use its existing endpoint.
+    mutationFn: () => LegacyEmployeeService.getEmployeeIdCard(),
     onSuccess: (response) => {
       const blob = response.data instanceof Blob ? response.data : new Blob([response.data]);
       const url = window.URL.createObjectURL(blob);
