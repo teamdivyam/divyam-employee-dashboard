@@ -37,14 +37,17 @@ import {
   BriefcaseBusiness,
   CalendarClock,
   CalendarDays,
+  Check,
   ChevronLeft,
   ChevronRight,
   Clock3,
   Copy,
+  CreditCard,
   Download,
   Eye,
   FilePenLine,
   FileText,
+  Hash,
   Info,
   MessageCircle,
   MoreHorizontal,
@@ -282,6 +285,10 @@ function getCorrectionField(correction = {}) {
     correction.whatNeedsToBeCorrected || correction.whatNeedsToBeChanged || correction.correctionType,
     "Correction Request"
   );
+}
+
+function canCancelCorrectionRequest(correction) {
+  return String(correction?.status || correction?.correctionStatus || "").trim().toLowerCase() === "pending";
 }
 
 function formatCorrectionDateTime(value) {
@@ -927,8 +934,8 @@ export default function AttendenceLeavePage() {
       toast.error("A valid leave request is required.");
       return;
     }
-    if (leaveStatus !== "Pending" && leaveStatus !== "Approved") {
-      toast.error("Only pending or approved leave requests can be cancelled.");
+    if (leaveStatus !== "Pending") {
+      toast.error("Only pending leave requests can be cancelled.");
       return;
     }
     setCancelLeaveRemarks("");
@@ -956,7 +963,7 @@ export default function AttendenceLeavePage() {
       toast.error("A valid correction request is required.");
       return;
     }
-    if (String(correction?.status || correction?.correctionStatus).toLowerCase() !== "pending") {
+    if (!canCancelCorrectionRequest(correction)) {
       toast.error("Only pending corrections can be cancelled.");
       return;
     }
@@ -968,6 +975,11 @@ export default function AttendenceLeavePage() {
     event.preventDefault();
     const correctionId = getRecordId(correctionToCancel);
     const reason = cancelCorrectionReason.trim();
+    if (!canCancelCorrectionRequest(correctionToCancel)) {
+      toast.error("Only pending corrections can be cancelled.");
+      setCorrectionToCancel(null);
+      return;
+    }
     if (!isValidObjectId(correctionId)) {
       toast.error("A valid correction request is required.");
       return;
@@ -1330,7 +1342,7 @@ export default function AttendenceLeavePage() {
         }}
       />
       <CancelCorrectionRequestDialog
-        open={Boolean(correctionToCancel)}
+        open={Boolean(correctionToCancel) && canCancelCorrectionRequest(correctionToCancel)}
         correction={correctionToCancel}
         reason={cancelCorrectionReason}
         setReason={setCancelCorrectionReason}
@@ -1617,7 +1629,7 @@ function CorrectionPersonSummary({ title, person, fallbackId, emptyText = "Not a
   const name = person?.name || person?.fullName;
   const employeeId = person?.employeeId || fallbackId;
   const designation = person?.designation || person?.jobTitle;
-  const profileImage = person?.profileImage.smallUrl || person?.profilePicture;
+  const profileImage = person?.profileImage?.smallUrl || person?.profilePicture;
   const initials = String(name || "E")
     .trim()
     .split(/\s+/)
@@ -2188,7 +2200,7 @@ function RecentCorrectionsList({
           <tbody>
             {!isLoading && !error && rows?.length ? rows.map((correction, index) => {
               const correctionStatus = displayText(correction.correctionStatus || correction.status, "Pending");
-              const canModify = String(correctionStatus).toLowerCase() === "pending";
+              const canCancelCorrection = canCancelCorrectionRequest(correction);
               const employee = correction.employee && typeof correction.employee === "object" ? correction.employee : null;
               const reviewedBy = correction.reviewedBy && typeof correction.reviewedBy === "object"
                 ? correction.reviewedBy.name || correction.reviewedBy.employeeId || correction.reviewedBy._id
@@ -2229,7 +2241,7 @@ function RecentCorrectionsList({
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {canModify && (
+                      {canCancelCorrection && (
                         <Button
                           type="button"
                           variant="outline"
@@ -2782,7 +2794,7 @@ function LeaveRequestsList({
               const leaveId = leave._id || leave.id;
               const leaveStatus = displayText(leave.leaveStatus || leave.status, "Pending");
               const leaveDays = displayText(leave.requestedDays || leave.leaveDays || leave.totalDays || leave.days);
-              const canCancel = leaveStatus === "Pending" || leaveStatus === "Approved";
+              const canCancel = leaveStatus === "Pending";
 
               return (
                 <tr key={leaveId || index} className="border-t border-border align-middle transition-colors hover:bg-muted/20">
@@ -2795,7 +2807,7 @@ function LeaveRequestsList({
                   </td>
                   <td className="px-3 py-4 text-muted-foreground">{displayText(leave.duration || leave.leaveDuration)}</td>
                   <td className="whitespace-nowrap px-3 py-4 text-muted-foreground">{leaveDays === "--" ? leaveDays : `${leaveDays} Days`}</td>
-                  <td className="px-3 py-4"><StatusPill tone={statusTone(leaveStatus)}>{leaveStatus}</StatusPill></td>
+                  <td className="px-3 py-4"><StatusPill tone={leaveRequestTone(leaveStatus)}>{leaveStatus}</StatusPill></td>
                   <td className="whitespace-nowrap px-3 py-4 text-muted-foreground">{formatShortDate(leave.createdAt)}</td>
                   <td className="px-3 py-4">
                     <DropdownMenu>
@@ -2891,7 +2903,7 @@ function LeaveRequestDetailDialog({ requestId, onOpenChange, onCancelLeave, isCa
   });
   const leave = detailQuery.data;
   const leaveStatus = displayText(leave?.status, "Pending");
-  const canCancel = leaveStatus === "Pending" || leaveStatus === "Approved";
+  const canCancel = leaveStatus === "Pending";
   const approvalHistory = leave?.approvalHistory || [];
   const attachments = leave?.attachments || [];
   const requestedAt = leave?.createdAt;
@@ -2901,66 +2913,93 @@ function LeaveRequestDetailDialog({ requestId, onOpenChange, onCancelLeave, isCa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="atl-card max-h-[85vh] overflow-y-auto sm:max-w-[640px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between gap-3 pr-6 text-base font-semibold text-foreground">
-            <span>Leave Request Detail</span>
-            {leave && <StatusPill tone={statusTone(leaveStatus)}>{leaveStatus}</StatusPill>}
+      <DialogContent className="atl-card max-h-[92vh] gap-0 overflow-y-auto p-0 sm:max-w-[580px] [&>button]:right-4 [&>button]:top-[15px] [&>button]:grid [&>button]:h-8 [&>button]:w-8 [&>button]:place-items-center [&>button]:rounded-md [&>button]:border [&>button]:border-border [&>button]:bg-background [&>button]:opacity-100">
+        <DialogHeader className="border-b border-border px-4 py-3.5">
+          <DialogTitle className="flex items-center justify-between gap-3 pr-12 text-left">
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="atl-detail-icon-violet grid h-10 w-10 shrink-0 place-items-center rounded-lg">
+                <CalendarDays className="h-5 w-5" />
+              </span>
+              <span className="truncate text-base font-semibold text-foreground">Leave Request Detail</span>
+            </span>
+            {leave && <StatusPill tone={leaveRequestTone(leaveStatus)}>{leaveStatus}</StatusPill>}
           </DialogTitle>
         </DialogHeader>
 
         {!validRequestId ? (
-          <p className="rounded-md border border-red-200 bg-red-50 p-4 text-xs text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200">
+          <p className="m-4 rounded-md border border-red-200 bg-red-50 p-4 text-xs text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200">
             A valid leave request ID is required.
           </p>
         ) : detailQuery.isLoading ? (
           <p className="p-6 text-center text-xs text-muted-foreground">Loading leave request detail...</p>
         ) : detailQuery.isError ? (
-          <p className="rounded-md border border-red-200 bg-red-50 p-4 text-xs text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200">
+          <p className="m-4 rounded-md border border-red-200 bg-red-50 p-4 text-xs text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200">
             {detailQuery.error?.response?.data?.message || "Unable to load leave request detail."}
           </p>
         ) : leave ? (
-          <div className="space-y-4 text-xs">
-            <section className="rounded-md border border-border p-3">
-              <p className="mb-3 font-medium text-foreground">Leave Policy</p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div><span className="text-muted-foreground">Policy</span><p className="mt-1 font-medium text-foreground">{displayText(leave.leavePolicy?.name)}</p></div>
-                <div><span className="text-muted-foreground">Policy Code</span><p className="mt-1 font-medium text-foreground">{displayText(leave.leavePolicy?.policyCode)}</p></div>
-                <div><span className="text-muted-foreground">Leave Type</span><p className="mt-1 font-medium text-foreground">{displayText(leave.leaveType)}</p></div>
-                <div>
-                  <span className="text-muted-foreground">Payment</span>
-                  <p className="mt-1"><StatusPill tone={leave.leavePolicy?.isPaidLeave ? "green" : "gray"}>{leave.leavePolicy?.isPaidLeave ? "Paid" : "Unpaid"}</StatusPill></p>
+          <div className="space-y-3 p-4 text-xs">
+            <section className="atl-leave-detail-summary grid gap-x-5 gap-y-4 rounded-lg border p-4 sm:grid-cols-2">
+              <LeavePolicyDetailItem
+                icon={FileText}
+                iconClassName="atl-detail-icon-violet"
+                label="Policy"
+                value={displayText(leave.leavePolicy?.name)}
+              />
+              <LeavePolicyDetailItem
+                icon={Hash}
+                iconClassName="atl-detail-icon-blue"
+                label="Policy Code"
+                value={displayText(leave.leavePolicy?.policyCode)}
+              />
+              <LeavePolicyDetailItem
+                icon={Tag}
+                iconClassName="atl-soft"
+                label="Leave Type"
+                value={displayText(leave.leaveType)}
+              />
+              <LeavePolicyDetailItem
+                icon={CreditCard}
+                iconClassName="atl-detail-icon-success"
+                label="Payment"
+                value={<StatusPill tone={leave.leavePolicy?.isPaidLeave ? "green" : "gray"}>{leave.leavePolicy?.isPaidLeave ? "Paid" : "Unpaid"}</StatusPill>}
+              />
+            </section>
+
+            <section className="overflow-hidden rounded-lg border border-border bg-card">
+              <h3 className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-foreground">
+                <FileText className="h-4 w-4 text-violet-500" />
+                Request Information
+              </h3>
+              <div className="grid sm:grid-cols-2">
+                <div className="space-y-3 px-4 pb-4">
+                  <LeaveRequestInfoItem label="Date Range" value={`${formatShortDate(leave.fromDate)} - ${formatShortDate(leave.toDate)}`} />
+                  <LeaveRequestInfoItem label="Duration" value={displayText(leave.duration)} />
+                  <LeaveRequestInfoItem label="Reason" value={displayText(leave.reason, "No reason")} />
+                  <LeaveRequestInfoItem label="Work Handover" value={displayText(leave.workHandover)} />
+                  <LeaveRequestInfoItem label="Submitted" value={dateTimeText(requestedAt)} />
+                </div>
+                <div className="space-y-3 border-t border-border px-4 pb-4 pt-3 sm:border-l sm:border-t-0 sm:pt-0">
+                  <LeaveRequestInfoItem label="Requested Days" value={leave.requestedDays == null ? "--" : `${leave.requestedDays} Days`} />
+                  <LeaveRequestInfoItem label="Half-day Period" value={displayText(leave.halfDayPeriod)} />
+                  <LeaveRequestInfoItem label="Last Updated" value={dateTimeText(leave.updatedAt)} />
                 </div>
               </div>
             </section>
 
-            <section className="rounded-md border border-border p-3">
-              <p className="mb-3 font-medium text-foreground">Request Information</p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div><span className="text-muted-foreground">Date Range</span><p className="mt-1 font-medium text-foreground">{formatShortDate(leave.fromDate)} - {formatShortDate(leave.toDate)}</p></div>
-                <div><span className="text-muted-foreground">Requested Days</span><p className="mt-1 font-medium text-foreground">{leave.requestedDays == null ? "--" : `${leave.requestedDays} Days`}</p></div>
-                <div><span className="text-muted-foreground">Duration</span><p className="mt-1 font-medium text-foreground">{displayText(leave.duration)}</p></div>
-                <div><span className="text-muted-foreground">Half-day Period</span><p className="mt-1 font-medium text-foreground">{displayText(leave.halfDayPeriod)}</p></div>
-                <div className="sm:col-span-2"><span className="text-muted-foreground">Reason</span><p className="mt-1 whitespace-pre-wrap font-medium text-foreground">{displayText(leave.reason)}</p></div>
-                <div className="sm:col-span-2"><span className="text-muted-foreground">Work Handover</span><p className="mt-1 whitespace-pre-wrap font-medium text-foreground">{displayText(leave.workHandover)}</p></div>
-                <div><span className="text-muted-foreground">Submitted</span><p className="mt-1 font-medium text-foreground">{dateTimeText(requestedAt)}</p></div>
-                <div><span className="text-muted-foreground">Last Updated</span><p className="mt-1 font-medium text-foreground">{dateTimeText(leave.updatedAt)}</p></div>
-              </div>
-            </section>
-
-            <section className="rounded-md border border-border p-3">
-              <p className="mb-3 font-medium text-foreground">Approval Timeline</p>
+            <section className="rounded-lg border border-border bg-card p-4">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+                <UserRound className="h-4 w-4 text-violet-500" />
+                Approval Timeline
+              </h3>
               {approvalHistory.length ? (
-                <ol className="space-y-3">
+                <ol>
                   {approvalHistory.map((history, index) => (
-                    <li key={history._id || index} className="border-l-2 border-border pl-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <StatusPill tone={statusTone(history.action)}>{displayText(history.action)}</StatusPill>
-                        <span className="text-muted-foreground">{dateTimeText(history.actionAt)}</span>
-                      </div>
-                      <p className="mt-1 font-medium text-foreground">{displayText(history.actionBy?.name, "System")}</p>
-                      <p className="mt-1 text-muted-foreground">{displayText(history.remarks, "No remarks")}</p>
-                    </li>
+                    <LeaveApprovalTimelineItem
+                      key={history._id || index}
+                      history={history}
+                      dateTimeText={dateTimeText}
+                      isLast={index === approvalHistory.length - 1}
+                    />
                   ))}
                 </ol>
               ) : (
@@ -2968,8 +3007,11 @@ function LeaveRequestDetailDialog({ requestId, onOpenChange, onCancelLeave, isCa
               )}
             </section>
 
-            <section className="rounded-md border border-border p-3">
-              <p className="mb-3 font-medium text-foreground">Attachments</p>
+            <section className="rounded-lg border border-border bg-card p-4">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Paperclip className="h-4 w-4 text-violet-500" />
+                Attachments
+              </h3>
               {attachments.length ? (
                 <ul className="space-y-2">
                   {attachments.map((attachment, index) => {
@@ -2996,23 +3038,90 @@ function LeaveRequestDetailDialog({ requestId, onOpenChange, onCancelLeave, isCa
             </section>
 
             {canCancel && (
-              <div className="flex justify-end border-t border-border pt-4">
-                <button
+              <div className="flex justify-end pt-1">
+                <Button
                   type="button"
+                  variant="outline"
                   disabled={isCancelling}
                   onClick={() => {
                     onOpenChange(false);
                     onCancelLeave(leave);
                   }}
-                  className="rounded-md border border-red-200 px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-400/10"
+                  className="h-9 border-red-200 px-4 text-xs text-red-600 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-400/10"
                 >
                   Cancel Leave Request
-                </button>
+                </Button>
               </div>
             )}
           </div>
         ) : null}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function leaveRequestTone(status) {
+  const value = String(status || "").toLowerCase();
+  if (value.includes("cancel") || value.includes("reject")) return "red";
+  return statusTone(status);
+}
+
+function LeavePolicyDetailItem({ icon: Icon, iconClassName, label, value }) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <span className={`${iconClassName} grid h-9 w-9 shrink-0 place-items-center rounded-full`}>
+        <Icon className="h-[18px] w-[18px]" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+        <div className="mt-1 truncate text-sm font-medium text-foreground">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+function LeaveRequestInfoItem({ label, value }) {
+  return (
+    <div className="flex min-w-0 items-start gap-2">
+      <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-violet-500" />
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+        <p className="mt-0.5 whitespace-pre-wrap break-words font-medium text-foreground">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function LeaveApprovalTimelineItem({ history, dateTimeText, isLast }) {
+  const action = displayText(history.action, "Pending");
+  const actionValue = String(action).toLowerCase();
+  const approved = actionValue.includes("approv");
+  const declined = actionValue.includes("cancel") || actionValue.includes("reject");
+  const MarkerIcon = approved ? Check : declined ? XCircle : Clock3;
+  const markerClassName = approved
+    ? "atl-leave-timeline-approved"
+    : declined
+      ? "atl-leave-timeline-declined"
+      : "atl-leave-timeline-pending";
+
+  return (
+    <li className="grid grid-cols-[28px_minmax(0,1fr)] gap-3">
+      <div className="relative flex justify-center">
+        <span className={`${markerClassName} z-10 grid h-6 w-6 place-items-center rounded-full`}>
+          <MarkerIcon className="h-3.5 w-3.5" />
+        </span>
+        {!isLast && <span className="absolute bottom-0 top-6 w-px bg-border" />}
+      </div>
+      <div className={`${isLast ? "pb-0" : "pb-4"}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusPill tone={leaveRequestTone(action)}>{action}</StatusPill>
+            <span className="font-medium text-foreground">{displayText(history.actionBy?.name || history.actionBy?.fullName, "System")}</span>
+          </div>
+          <span className="text-[11px] text-muted-foreground">{dateTimeText(history.actionAt || history.createdAt)}</span>
+        </div>
+        <p className="mt-1.5 whitespace-pre-wrap text-muted-foreground">{displayText(history.remarks, "No remarks")}</p>
+      </div>
+    </li>
   );
 }

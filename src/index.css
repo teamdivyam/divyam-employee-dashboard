@@ -394,6 +394,22 @@ body {
   .atl-leave-form-request-summary {
     @apply border-blue-300 bg-blue-50/30 dark:border-blue-400/30 dark:bg-blue-400/5;
   }
+
+  .atl-leave-detail-summary {
+    @apply border-violet-200 bg-violet-50/25 dark:border-violet-400/30 dark:bg-violet-400/5;
+  }
+
+  .atl-leave-timeline-approved {
+    @apply bg-emerald-600 text-white dark:bg-emerald-500;
+  }
+
+  .atl-leave-timeline-declined {
+    @apply bg-red-500 text-white dark:bg-red-500;
+  }
+
+  .atl-leave-timeline-pending {
+    @apply bg-violet-500 text-white dark:bg-violet-500;
+  }
 }
 
 /* SETTING_PAGE */
