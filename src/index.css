@@ -310,6 +310,90 @@ body {
   .atl-status-neutral {
     @apply border-border bg-muted/50 text-muted-foreground;
   }
+
+  .atl-correction-icon-success {
+    @apply bg-emerald-500/10 text-emerald-600 dark:text-emerald-400;
+  }
+
+  .atl-correction-icon-warning {
+    @apply bg-orange-500/10 text-orange-600 dark:text-orange-400;
+  }
+
+  .atl-correction-icon-duty {
+    @apply bg-violet-500/10 text-violet-600 dark:text-violet-400;
+  }
+
+  .atl-correction-notice {
+    @apply border-orange-200 bg-orange-50/50 text-orange-900 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-200;
+  }
+
+  .atl-detail-icon-success {
+    @apply bg-emerald-500/10 text-emerald-600 dark:text-emerald-400;
+  }
+
+  .atl-detail-icon-blue {
+    @apply bg-blue-500/10 text-blue-600 dark:text-blue-400;
+  }
+
+  .atl-detail-icon-danger {
+    @apply bg-red-500/10 text-red-600 dark:text-red-400;
+  }
+
+  .atl-detail-icon-cyan {
+    @apply bg-cyan-500/10 text-cyan-600 dark:text-cyan-400;
+  }
+
+  .atl-detail-icon-violet {
+    @apply bg-violet-500/10 text-violet-600 dark:text-violet-400;
+  }
+
+  .atl-detail-icon-orange {
+    @apply bg-orange-500/10 text-orange-600 dark:text-orange-400;
+  }
+
+  .atl-detail-icon-amber {
+    @apply bg-amber-500/10 text-amber-600 dark:text-amber-400;
+  }
+
+  .atl-detail-location {
+    @apply border-cyan-200/80 bg-cyan-50/40 dark:border-cyan-400/20 dark:bg-cyan-400/5;
+  }
+
+  .atl-leave-metric-casual {
+    @apply bg-emerald-500/10 text-emerald-600 dark:text-emerald-400;
+  }
+
+  .atl-leave-metric-emergency {
+    @apply bg-blue-500/10 text-blue-600 dark:text-blue-400;
+  }
+
+  .atl-leave-metric-compensatory {
+    @apply bg-violet-500/10 text-violet-600 dark:text-violet-400;
+  }
+
+  .atl-leave-metric-used {
+    @apply bg-orange-500/10 text-orange-600 dark:text-orange-400;
+  }
+
+  .atl-leave-correction-summary {
+    @apply border-orange-200 bg-orange-50/20 dark:border-orange-400/30 dark:bg-orange-400/5;
+  }
+
+  .atl-leave-form-casual {
+    @apply border-violet-200 bg-violet-50/30 dark:border-violet-400/30 dark:bg-violet-400/5;
+  }
+
+  .atl-leave-form-compensatory {
+    @apply border-emerald-200 bg-emerald-50/30 dark:border-emerald-400/30 dark:bg-emerald-400/5;
+  }
+
+  .atl-leave-form-emergency {
+    @apply border-blue-200 bg-blue-50/30 dark:border-blue-400/30 dark:bg-blue-400/5;
+  }
+
+  .atl-leave-form-request-summary {
+    @apply border-blue-300 bg-blue-50/30 dark:border-blue-400/30 dark:bg-blue-400/5;
+  }
 }
 
 /* SETTING_PAGE */

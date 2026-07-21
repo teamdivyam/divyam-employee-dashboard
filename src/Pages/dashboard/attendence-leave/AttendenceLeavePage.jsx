@@ -20,7 +20,6 @@ import {
   statusTone,
   summaryIcons,
 } from "./components/AttendanceLeaveComponents";
-import EmployeeService from "@/services/employee.service";
 import EmployeeV2Service from "@/services/employee-v2.service";
 import {
   HALF_DAY_PERIODS,
@@ -34,15 +33,27 @@ import {
   CORRECTION_STATUSES,
 } from "./attendance.constants";
 import {
+  BadgeCheck,
   BriefcaseBusiness,
+  CalendarClock,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Clock3,
+  Copy,
+  Download,
   Eye,
   FilePenLine,
   FileText,
+  Info,
+  MessageCircle,
   MoreHorizontal,
+  Paperclip,
+  PencilLine,
+  TriangleAlert,
+  Tag,
   Umbrella,
-  UploadCloud,
+  UserRound,
   XCircle,
 } from "lucide-react";
 import {
@@ -57,6 +68,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@components/components/ui/dropdown-menu";
+import { Button } from "@components/components/ui/button";
+import { Input } from "@components/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@components/components/ui/select";
+import { Textarea } from "@components/components/ui/textarea";
 
 function toDateInputValue(value = new Date()) {
   if (typeof value === "string") {
@@ -93,7 +114,7 @@ const attendanceCorrectionFieldMap = {
   Notes: CORRECTION_FIELDS[3],
 };
 const leaveCorrectionFields = ["Change Leave Dates", "From Date", "To Date", "Leave Type", "Duration", "Reason", "Work Handover", "Other"];
-const correctionTargetTypes = ["Attendance"];
+const correctionTargetTypes = ["Attendance", "Leave"];
 const attendanceTabStorageKey = "attendance-leave-active-tab";
 const attendanceTabIds = ["today", "monthly", "leaves", "duty", "corrections", "rules"];
 
@@ -108,11 +129,8 @@ const defaultCorrectionForm = {
   whatNeedsToBeChanged: "Change Leave Dates",
   requestedCorrection: "",
   requestedFirstCheckIn: "",
-  removeFirstCheckIn: false,
   requestedLastCheckOut: "",
-  removeLastCheckOut: false,
   requestedDutyType: "",
-  requestedNotes: "",
   reasonForCorrection: "",
   supportingProof: null,
 };
@@ -229,16 +247,30 @@ function getAttendanceCorrectionFieldLabel(field) {
   return Object.entries(attendanceCorrectionFieldMap).find(([, value]) => value === field)?.[0] || field;
 }
 
-function normalizeAttendanceCorrection(correction = {}) {
+function normalizeCorrection(correction = {}) {
+  const correctionFor = displayText(correction.targetType || correction.correctionFor, "Attendance");
   return {
     ...correction,
-    correctionFor: "Attendance",
-    attendanceId: correction.targetId,
+    correctionFor,
+    attendanceId: correctionFor === "Attendance" ? correction.targetId : correction.attendanceId,
+    leaveId: correctionFor === "Leave" ? correction.targetId : correction.leaveId,
     correctionStatus: correction.status,
     reviewedBy: correction.reviewedBy ?? null,
     reviewedAt: correction.reviewedAt ?? null,
     adminRemarks: correction.adminRemarks ?? null,
   };
+}
+
+function buildLeaveCorrectionChanges(form) {
+  const field = form.whatNeedsToBeChanged;
+  const requestedValue = form.requestedCorrection.trim();
+  if (!leaveCorrectionFields.includes(field)) {
+    throw new Error("Select a supported leave correction field");
+  }
+  if (!requestedValue) {
+    throw new Error("Enter the requested leave correction");
+  }
+  return [{ field, requestedValue }];
 }
 
 function getCorrectionField(correction = {}) {
@@ -276,33 +308,38 @@ function buildAttendanceCorrectionChanges(form) {
     }
     changes.push({ field, requestedValue });
   };
-  const addDateTimeChange = (field, value, shouldRemove) => {
-    if (shouldRemove) {
-      addChange(field, null);
-      return;
-    }
+  const addDateTimeChange = (field, value, currentValue) => {
     if (!value) return;
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) throw new Error("Enter a valid correction date and time");
+    if (isSameAttendanceMinute(value, currentValue)) return;
     addChange(field, date.toISOString());
   };
 
-  addDateTimeChange("firstCheckIn", form.requestedFirstCheckIn, form.removeFirstCheckIn);
-  addDateTimeChange("lastCheckOut", form.requestedLastCheckOut, form.removeLastCheckOut);
+  addDateTimeChange("firstCheckIn", form.requestedFirstCheckIn, form.attendanceRecord?.checkInTime);
+  addDateTimeChange("lastCheckOut", form.requestedLastCheckOut, form.attendanceRecord?.checkOutTime);
 
-  if (form.requestedDutyType) {
+  if (form.requestedDutyType && form.requestedDutyType !== form.attendanceRecord?.dutyType) {
     if (!ATTENDANCE_DUTY_TYPES.includes(form.requestedDutyType)) {
       throw new Error("Select a valid duty type");
     }
     addChange("dutyType", form.requestedDutyType);
   }
 
-  if (form.requestedNotes.trim()) {
-    addChange("notes", form.requestedNotes.trim());
-  }
-
   if (!changes.length) throw new Error("Enter at least one attendance change");
   return changes;
+}
+
+function isSameAttendanceMinute(firstValue, secondValue) {
+  if (!firstValue || !secondValue) return false;
+  const firstDate = new Date(firstValue);
+  const secondDate = new Date(secondValue);
+  if (Number.isNaN(firstDate.getTime()) || Number.isNaN(secondDate.getTime())) return false;
+  return firstDate.getFullYear() === secondDate.getFullYear()
+    && firstDate.getMonth() === secondDate.getMonth()
+    && firstDate.getDate() === secondDate.getDate()
+    && firstDate.getHours() === secondDate.getHours()
+    && firstDate.getMinutes() === secondDate.getMinutes();
 }
 
 function getCurrentLocationPayload() {
@@ -341,7 +378,7 @@ export default function AttendenceLeavePage() {
       return "today";
     }
   });
-  const [filters] = useState({
+  const [filters, setFilters] = useState({
     year: now.getFullYear(),
     month: now.getMonth() + 1,
   });
@@ -363,8 +400,8 @@ export default function AttendenceLeavePage() {
   const [correctionFilters, setCorrectionFilters] = useState({
     status: "",
     targetType: "Attendance",
-    fromDate: "",
-    toDate: "",
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
   });
   const [correctionPage, setCorrectionPage] = useState(1);
   const leaveFiscalYear = useMemo(() => getFiscalYear(leaveForm.fromDate), [leaveForm.fromDate]);
@@ -566,29 +603,16 @@ export default function AttendenceLeavePage() {
   const correctionMutation = useMutation({
     mutationFn: () => {
       if (correctionForm.correctionFor === "Leave") {
-        const payload = {
-          whatNeedsToBeChanged: correctionForm.whatNeedsToBeChanged,
-          requestedCorrection: correctionForm.requestedCorrection.trim(),
-          reasonForCorrection: correctionForm.reasonForCorrection.trim(),
-        };
-
-        if (correctionForm.supportingProof) {
-          const formData = new FormData();
-          Object.entries(payload).forEach(([key, value]) => formData.append(key, value));
-          formData.append("supportingProof", correctionForm.supportingProof);
-          return EmployeeService.submitLeaveCorrection({
-            leaveId: correctionForm.leaveId,
-            data: formData,
-          });
-        }
-
-        return EmployeeService.submitLeaveCorrection({
-          leaveId: correctionForm.leaveId,
-          data: payload,
+        return EmployeeV2Service.createLeaveCorrection({
+          targetType: "Leave",
+          targetId: correctionForm.leaveId,
+          changes: buildLeaveCorrectionChanges(correctionForm),
+          reason: correctionForm.reasonForCorrection.trim(),
         });
       }
 
       return EmployeeV2Service.createAttendanceCorrection({
+        targetType: "Attendance",
         targetId: correctionForm.attendanceId,
         changes: buildAttendanceCorrectionChanges(correctionForm),
         reason: correctionForm.reasonForCorrection.trim(),
@@ -598,8 +622,11 @@ export default function AttendenceLeavePage() {
       toast.success(response.data?.message || "Correction request submitted");
       const createdCorrection = response.data?.data?.correction;
       setRecentCorrectionRequest(
-        correctionForm.correctionFor === "Attendance" && createdCorrection
-          ? normalizeAttendanceCorrection(createdCorrection)
+        createdCorrection
+          ? normalizeCorrection({
+            ...createdCorrection,
+            targetType: createdCorrection.targetType || correctionForm.correctionFor,
+          })
           : null
       );
       setCorrectionForm(defaultCorrectionForm);
@@ -607,25 +634,30 @@ export default function AttendenceLeavePage() {
       queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-leave-history"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-leave-request-detail"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-corrections"] });
     },
     onError: (error) => toast.error(
-      error.response?.data?.message || error.response?.data?.msg || error.message || "Unable to process attendance correction"
+      error.response?.data?.message || error.response?.data?.msg || error.message || "Unable to process correction request"
     ),
   });
 
   const cancelCorrectionMutation = useMutation({
     mutationFn: ({ correctionId, reason }) => {
       if (!/^[a-f\d]{24}$/i.test(correctionId)) {
-        throw new Error("A valid attendance correction is required");
+        throw new Error("A valid correction request is required");
       }
       return EmployeeV2Service.cancelAttendanceCorrection({ correctionId, reason });
     },
-    onSuccess: (response) => {
-      toast.success(response.data?.message || "Attendance correction cancelled");
+    onSuccess: (response, variables) => {
+      toast.success(response.data?.message || "Correction request cancelled");
       const cancelledCorrection = response.data?.data?.correction;
       if (cancelledCorrection) {
-        const normalizedCorrection = normalizeAttendanceCorrection(cancelledCorrection);
+        const normalizedCorrection = normalizeCorrection({
+          ...cancelledCorrection,
+          targetType: cancelledCorrection.targetType || variables.targetType,
+        });
         setRecentCorrectionRequest(normalizedCorrection);
         queryClient.setQueryData(
           ["attendance-correction-detail", normalizedCorrection._id],
@@ -635,9 +667,13 @@ export default function AttendenceLeavePage() {
       setCorrectionToCancel(null);
       setCancelCorrectionReason("");
       queryClient.invalidateQueries({ queryKey: ["attendance-corrections"] });
+      if (variables.targetType === "Leave") {
+        queryClient.invalidateQueries({ queryKey: ["employee-leave-requests"] });
+        queryClient.invalidateQueries({ queryKey: ["employee-leave-request-detail"] });
+      }
     },
     onError: (error) => toast.error(
-      error.response?.data?.message || error.response?.data?.msg || error.message || "Unable to process attendance correction"
+      error.response?.data?.message || error.response?.data?.msg || error.message || "Unable to cancel correction request"
     ),
   });
 
@@ -647,8 +683,8 @@ export default function AttendenceLeavePage() {
       const response = await EmployeeV2Service.getAttendanceCorrections({
         status: correctionFilters.status || undefined,
         targetType: correctionFilters.targetType || undefined,
-        fromDate: correctionFilters.fromDate || undefined,
-        toDate: correctionFilters.toDate || undefined,
+        fromDate: toDateInputValue(new Date(correctionFilters.year, correctionFilters.month - 1, 1)),
+        toDate: toDateInputValue(new Date(correctionFilters.year, correctionFilters.month, 0)),
         page: correctionPage,
         limit: 20,
         sortOrder: "desc",
@@ -661,11 +697,11 @@ export default function AttendenceLeavePage() {
     mutationFn: async (correction) => {
       const correctionId = getRecordId(correction);
       if (!/^[a-f\d]{24}$/i.test(correctionId)) {
-        throw new Error("A valid attendance correction is required");
+        throw new Error("A valid correction request is required");
       }
 
       const response = await EmployeeV2Service.getAttendanceCorrection(correctionId);
-      const correctionDetail = normalizeAttendanceCorrection(response.data?.data?.correction || {});
+      const correctionDetail = normalizeCorrection(response.data?.data?.correction || {});
       if (!getRecordId(correctionDetail)) throw new Error("Correction details were not found");
       return correctionDetail;
     },
@@ -674,7 +710,7 @@ export default function AttendenceLeavePage() {
       setSelectedCorrectionDetail(correction);
     },
     onError: (error) => toast.error(
-      error.response?.data?.message || error.message || "Unable to load attendance correction"
+      error.response?.data?.message || error.message || "Unable to load correction request"
     ),
   });
 
@@ -725,7 +761,7 @@ export default function AttendenceLeavePage() {
   const attendanceRules = [];
   const correctionRecords = correctionsQuery.data?.corrections;
   const correctionRows = useMemo(
-    () => (Array.isArray(correctionRecords) ? correctionRecords.map(normalizeAttendanceCorrection) : []),
+    () => (Array.isArray(correctionRecords) ? correctionRecords.map(normalizeCorrection) : []),
     [correctionRecords]
   );
   const correctionPagination = correctionsQuery.data?.pagination || {
@@ -862,6 +898,9 @@ export default function AttendenceLeavePage() {
       attendanceId: getRecordId(attendance),
       attendanceRecord: attendance,
       whatNeedsToBeCorrected: "Check-out Time",
+      requestedFirstCheckIn: toAttendanceRequestedDateTime(attendance, attendance?.checkInTime),
+      requestedLastCheckOut: toAttendanceRequestedDateTime(attendance, attendance?.checkOutTime),
+      requestedDutyType: attendance?.dutyType || "",
     });
     setIsCorrectionDialogOpen(true);
   };
@@ -914,7 +953,7 @@ export default function AttendenceLeavePage() {
   const openCorrectionCancellation = (correction) => {
     const correctionId = getRecordId(correction);
     if (!isValidObjectId(correctionId)) {
-      toast.error("A valid attendance correction is required.");
+      toast.error("A valid correction request is required.");
       return;
     }
     if (String(correction?.status || correction?.correctionStatus).toLowerCase() !== "pending") {
@@ -930,14 +969,18 @@ export default function AttendenceLeavePage() {
     const correctionId = getRecordId(correctionToCancel);
     const reason = cancelCorrectionReason.trim();
     if (!isValidObjectId(correctionId)) {
-      toast.error("A valid attendance correction is required.");
+      toast.error("A valid correction request is required.");
       return;
     }
     if (reason.length > 1000) {
       toast.error("Cancellation reason cannot exceed 1,000 characters.");
       return;
     }
-    cancelCorrectionMutation.mutate({ correctionId, reason: reason || undefined });
+    cancelCorrectionMutation.mutate({
+      correctionId,
+      reason: reason || undefined,
+      targetType: correctionToCancel?.targetType || correctionToCancel?.correctionFor || "Attendance",
+    });
   };
 
   const submitLeave = (event) => {
@@ -997,8 +1040,8 @@ export default function AttendenceLeavePage() {
   const submitCorrection = (event) => {
     event.preventDefault();
 
-    if (correctionForm.correctionFor === "Leave" && !correctionForm.leaveId) {
-      toast.error("Leave request is required!");
+    if (correctionForm.correctionFor === "Leave" && !isValidObjectId(correctionForm.leaveId)) {
+      toast.error("A valid leave request is required!");
       return;
     }
     if (correctionForm.correctionFor !== "Leave" && !correctionForm.attendanceId) {
@@ -1017,16 +1060,19 @@ export default function AttendenceLeavePage() {
       toast.error("Select what needs to be changed!");
       return;
     }
-    if (correctionForm.correctionFor === "Leave" && (!correctionForm.requestedCorrection.trim() || !correctionForm.reasonForCorrection.trim())) {
-      toast.error("Requested correction and reason are required!");
+    const reasonLength = correctionForm.reasonForCorrection.trim().length;
+    if (reasonLength < 3 || reasonLength > 200) {
+      toast.error("Reason must be between 3 and 200 characters!");
       return;
     }
-    if (correctionForm.correctionFor !== "Leave") {
-      const reasonLength = correctionForm.reasonForCorrection.trim().length;
-      if (reasonLength < 3 || reasonLength > 1000) {
-        toast.error("Reason must be between 3 and 1,000 characters!");
+    if (correctionForm.correctionFor === "Leave") {
+      try {
+        buildLeaveCorrectionChanges(correctionForm);
+      } catch (error) {
+        toast.error(error.message);
         return;
       }
+    } else {
       try {
         buildAttendanceCorrectionChanges(correctionForm);
       } catch (error) {
@@ -1125,8 +1171,8 @@ export default function AttendenceLeavePage() {
         {cardConfig.map((card) => <SummaryCard key={card.label} {...card} />)}
       </div>
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_330px]">
-        <main className="space-y-4">
+      <div className="mt-5 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
+        <main className="min-w-0 space-y-4">
           <TopTabs activeTab={activeTab} onChange={setActiveTab} />
           {summaryQuery.isLoading || historyQuery.isLoading || todayAttendanceQuery.isLoading ? (
             <div className="atl-card p-8 text-center text-sm text-muted-foreground">Loading attendance details...</div>
@@ -1138,6 +1184,7 @@ export default function AttendenceLeavePage() {
                   <AttendanceTable
                     rows={latestAttendanceRows}
                     monthLabel={monthLabel}
+                    monthFilterControl={<MonthFilterControl filters={filters} onFilterChange={setFilters} />}
                     loadAttendanceDetail={loadAttendanceRecordDetail}
                     showFullReportButton
                     onViewFullReport={() => setActiveTab("monthly")}
@@ -1149,6 +1196,7 @@ export default function AttendenceLeavePage() {
                 <AttendanceTable
                   rows={monthlyRows}
                   monthLabel={monthLabel}
+                  monthFilterControl={<MonthFilterControl filters={filters} onFilterChange={setFilters} />}
                   loadAttendanceDetail={loadAttendanceRecordDetail}
                   onAddCorrection={openCorrectionDialogForAttendance}
                 />
@@ -1159,7 +1207,6 @@ export default function AttendenceLeavePage() {
                     leaveBalance={leaveBalance}
                     totalLeaveBalance={totalLeaveBalance}
                     monthlyLeaveDays={monthlyLeaveDays}
-                    monthlyLeaveRequests={monthlyLeaveRequests}
                     monthLabel={leaveMonthLabel}
                     filters={leaveFilters}
                     onFilterChange={(updater) => {
@@ -1201,6 +1248,21 @@ export default function AttendenceLeavePage() {
                   filters={correctionFilters}
                   statuses={CORRECTION_STATUSES}
                   targetTypes={correctionTargetTypes}
+                  monthFilterControl={(
+                    <div className="flex items-center gap-2">
+                      <MonthFilterControl
+                        filters={correctionFilters}
+                        onFilterChange={(updater) => {
+                          setCorrectionFilters(updater);
+                          setCorrectionPage(1);
+                        }}
+                      />
+                      <Button type="button" variant="outline" size="sm" className="hidden h-8 gap-2 text-xs md:inline-flex">
+                        <Download className="h-3.5 w-3.5" />
+                        Download
+                      </Button>
+                    </div>
+                  )}
                   onFilterChange={(field, value) => {
                     setCorrectionFilters((current) => ({ ...current, [field]: value }));
                     setCorrectionPage(1);
@@ -1235,6 +1297,7 @@ export default function AttendenceLeavePage() {
         form={leaveForm}
         setForm={setLeaveForm}
         leavePolicies={leavePolicies}
+        leaveBalance={leaveBalance}
         leaveDurations={leaveDurationOptions}
         halfDayPeriods={halfDayPeriodOptions}
         selectedLeavePolicy={selectedLeavePolicy}
@@ -1296,15 +1359,15 @@ export default function AttendenceLeavePage() {
 function LeaveRequestDialog({ open, onOpenChange, ...props }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="atl-card max-h-[90vh] overflow-y-auto p-0 sm:max-w-[690px]">
-        <DialogHeader className="border-b border-border px-5 py-4">
+      <DialogContent className="atl-card max-h-[92vh] gap-0 overflow-y-auto p-0 sm:max-w-[540px]">
+        <DialogHeader className="border-b border-border px-4 py-3.5">
           <DialogTitle className="flex items-start gap-3 text-left">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-orange-50 text-[#f97316] dark:bg-orange-400/10">
-              <FileText className="h-5 w-5" />
+            <span className="atl-detail-icon-orange grid h-9 w-9 shrink-0 place-items-center rounded-lg">
+              <FileText className="h-[18px] w-[18px]" />
             </span>
             <span>
               <span className="block text-base font-semibold text-foreground">Apply for Leave</span>
-              <span className="mt-1 block text-xs font-normal text-muted-foreground">Submit your leave request for Admin approval.</span>
+              <span className="mt-1 block text-xs font-normal text-muted-foreground">Submit your leave request for admin approval.</span>
             </span>
           </DialogTitle>
         </DialogHeader>
@@ -1419,69 +1482,130 @@ function CorrectionDetailDialog({ open, onOpenChange, correction }) {
   const employee = correction.employee && typeof correction.employee === "object" ? correction.employee : null;
   const reviewedBy = correction.reviewedBy && typeof correction.reviewedBy === "object" ? correction.reviewedBy : null;
   const changes = Array.isArray(correction.changes) ? correction.changes : [];
-  const correctionStatus = displayText(correction.status, "Pending");
+  const correctionStatus = displayText(correction.status || correction.correctionStatus, "Pending");
+  const correctionTone = String(correctionStatus).toLowerCase().includes("cancel") ? "red" : statusTone(correctionStatus);
+  const correctionType = displayText(correction.targetType || correction.correctionFor, "Attendance");
+  const targetId = correction.targetId || correction.attendanceId || correction.leaveId;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="atl-card max-h-[90vh] overflow-y-auto p-0 sm:max-w-[700px]">
+      <DialogContent className="atl-card max-h-[92vh] gap-0 overflow-y-auto p-0 sm:max-w-[675px] [&>button]:right-4 [&>button]:top-[17px] [&>button]:grid [&>button]:h-10 [&>button]:w-10 [&>button]:place-items-center [&>button]:rounded-full [&>button]:border [&>button]:border-border [&>button]:bg-background [&>button]:opacity-100">
         <DialogHeader className="border-b border-border px-5 py-4">
-          <DialogTitle className="flex items-center justify-between gap-3 pr-6 text-left">
+          <DialogTitle className="flex items-center justify-between gap-3 pr-14 text-left">
             <span className="flex min-w-0 items-center gap-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-orange-50 text-[#f97316] dark:bg-orange-400/10">
-                <FilePenLine className="h-5 w-5" />
+              <span className="atl-detail-icon-orange grid h-11 w-11 shrink-0 place-items-center rounded-xl">
+                <FilePenLine className="h-6 w-6" />
               </span>
-              <span>
+              <span className="min-w-0">
                 <span className="block text-base font-semibold text-foreground">Correction Details</span>
-                <span className="mt-1 block text-xs font-normal text-muted-foreground">{displayText(correction._id)}</span>
+                <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">{displayText(correction._id)}</span>
               </span>
             </span>
-            <StatusPill tone={statusTone(correctionStatus)}>{correctionStatus}</StatusPill>
+            <StatusPill tone={correctionTone}>{correctionStatus}</StatusPill>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 p-5 text-xs">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <CorrectionPersonSummary title="Employee" person={employee} fallbackId={typeof correction.employee === "string" ? correction.employee : ""} />
-            <CorrectionPersonSummary title="Reviewed By" person={reviewedBy} fallbackId={typeof correction.reviewedBy === "string" ? correction.reviewedBy : ""} emptyText="Not reviewed yet" />
+        <div className="space-y-4 p-4 text-xs sm:p-[18px]">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <CorrectionPersonSummary
+              title="Employee"
+              person={employee}
+              fallbackId={typeof correction.employee === "string" ? correction.employee : ""}
+              toneClass="atl-detail-icon-blue"
+            />
+            <CorrectionPersonSummary
+              title="Reviewed By"
+              person={reviewedBy}
+              fallbackId={typeof correction.reviewedBy === "string" ? correction.reviewedBy : ""}
+              emptyText="Not reviewed yet"
+              toneClass="atl-detail-icon-violet"
+            />
           </div>
 
-          <div className="grid gap-3 rounded-lg border border-border bg-muted/20 p-3 sm:grid-cols-2">
-            <CorrectionDetailStat label="Target Type" value={displayText(correction.targetType)} />
-            <CorrectionDetailStat label="Target ID" value={<span className="break-all">{displayText(correction.targetId)}</span>} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <CorrectionMetaCard
+              icon={CalendarDays}
+              iconClassName="atl-detail-icon-success"
+              label="Correction Type"
+              value={correctionType}
+            />
+            <CorrectionMetaCard
+              icon={Tag}
+              iconClassName="atl-detail-icon-violet"
+              label="Target ID"
+              value={<span className="break-all">{displayText(targetId)}</span>}
+            />
           </div>
 
           <div>
-            <p className="mb-2 font-medium text-foreground">Requested Changes</p>
-            <div className="overflow-hidden rounded-lg border border-border">
-              {changes.length ? changes.map((change, index) => (
-                <div key={`${change.field}-${index}`} className="grid gap-2 border-b border-border p-3 last:border-b-0 sm:grid-cols-[140px_1fr]">
-                  <span className="font-medium text-foreground">{getAttendanceCorrectionFieldLabel(change.field)}</span>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <CorrectionDetailStat label="Current Value" value={formatCorrectionValue(change.field, change.currentValue)} />
-                    <CorrectionDetailStat label="Requested Value" value={formatCorrectionValue(change.field, change.requestedValue)} />
-                  </div>
-                </div>
-              )) : (
-                <p className="p-4 text-center text-muted-foreground">No correction changes were included.</p>
-              )}
+            <p className="mb-2 text-sm font-semibold text-foreground">Requested Changes</p>
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full min-w-[540px] table-fixed text-left text-xs">
+                <colgroup>
+                  <col className="w-[30%]" />
+                  <col className="w-[35%]" />
+                  <col className="w-[35%]" />
+                </colgroup>
+                <thead className="bg-muted/25">
+                  <tr>
+                    <th className="px-4 py-3 font-medium text-muted-foreground">Field</th>
+                    <th className="px-3 py-3 font-medium">
+                      <span className="atl-detail-icon-blue inline-flex rounded-md px-2.5 py-1 text-[11px]">Current Value</span>
+                    </th>
+                    <th className="px-3 py-3 font-medium">
+                      <span className="atl-detail-icon-success inline-flex rounded-md px-2.5 py-1 text-[11px]">Requested Value</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {changes.length ? changes.map((change, index) => (
+                    <CorrectionChangeRow key={`${change.field}-${index}`} change={change} />
+                  )) : (
+                    <tr className="border-t border-border">
+                      <td colSpan="3" className="px-4 py-7 text-center text-muted-foreground">No correction changes were included.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-border p-3">
-              <p className="mb-2 font-medium text-foreground">Reason</p>
-              <p className="whitespace-pre-wrap text-muted-foreground">{displayText(correction.reason)}</p>
-            </div>
-            <div className="rounded-lg border border-border p-3">
-              <p className="mb-2 font-medium text-foreground">Admin Remarks</p>
-              <p className="whitespace-pre-wrap text-muted-foreground">{displayText(correction.adminRemarks)}</p>
-            </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <CorrectionTextCard
+              icon={MessageCircle}
+              iconClassName="atl-detail-icon-orange"
+              title="Reason"
+              value={correction.reasonForCorrection || correction.reason}
+            />
+            <CorrectionTextCard
+              icon={PencilLine}
+              iconClassName="atl-detail-icon-violet"
+              title="Admin Remarks"
+              value={correction.adminRemark || correction.adminRemarks}
+            />
           </div>
 
-          <div className="grid gap-3 rounded-lg border border-border bg-muted/20 p-3 sm:grid-cols-3">
-            <CorrectionDetailStat label="Requested At" value={formatCorrectionDateTime(correction.createdAt)} />
-            <CorrectionDetailStat label="Reviewed At" value={formatCorrectionDateTime(correction.reviewedAt)} />
-            <CorrectionDetailStat label="Last Updated" value={formatCorrectionDateTime(correction.updatedAt)} />
+          <div className="grid overflow-hidden rounded-lg border border-border sm:grid-cols-3">
+            <CorrectionTimelineItem
+              icon={CalendarClock}
+              iconClassName="atl-detail-icon-blue"
+              label="Requested At"
+              value={formatCorrectionDateTime(correction.requestedAt || correction.createdAt)}
+            />
+            <CorrectionTimelineItem
+              icon={CalendarDays}
+              iconClassName="atl-detail-icon-violet"
+              label="Reviewed At"
+              value={formatCorrectionDateTime(correction.reviewedAt)}
+              divided
+            />
+            <CorrectionTimelineItem
+              icon={CalendarClock}
+              iconClassName="atl-detail-icon-success"
+              label="Last Updated"
+              value={formatCorrectionDateTime(correction.updatedAt)}
+              divided
+            />
           </div>
         </div>
       </DialogContent>
@@ -1489,39 +1613,108 @@ function CorrectionDetailDialog({ open, onOpenChange, correction }) {
   );
 }
 
-function CorrectionPersonSummary({ title, person, fallbackId, emptyText = "Not available" }) {
-  const name = person?.name;
+function CorrectionPersonSummary({ title, person, fallbackId, emptyText = "Not available", toneClass }) {
+  const name = person?.name || person?.fullName;
   const employeeId = person?.employeeId || fallbackId;
-  const initial = String(name || employeeId || "E").charAt(0).toUpperCase();
+  const designation = person?.designation || person?.jobTitle;
+  const profileImage = person?.profileImage.smallUrl || person?.profilePicture;
+  const initials = String(name || "E")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "E";
 
   return (
-    <div className="rounded-lg border border-border p-3">
-      <p className="mb-3 font-medium text-foreground">{title}</p>
+    <div className="min-h-[116px] rounded-lg border border-border bg-card p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-medium text-foreground">{title}</p>
+        <span className={`${toneClass} grid h-8 w-8 shrink-0 place-items-center rounded-lg`}>
+          <UserRound className="h-4 w-4" />
+        </span>
+      </div>
       {person || fallbackId ? (
-        <div className="flex items-center gap-3">
-          {person?.profileImage ? (
-            <img src={person.profileImage} alt="" className="h-9 w-9 rounded-full object-cover" />
+        <div className="mt-2 flex items-center gap-3">
+          {profileImage ? (
+            <img src={profileImage} alt={name || "Employee"} className="h-11 w-11 rounded-full object-cover" />
           ) : (
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-muted font-medium text-foreground">{initial}</span>
+            <span className="atl-detail-icon-blue grid h-11 w-11 shrink-0 place-items-center rounded-full font-medium">{initials}</span>
           )}
           <div className="min-w-0">
-            <p className="truncate font-medium text-foreground">{displayText(name, "Employee")}</p>
-            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{displayText(employeeId)}</p>
-            {person?.designation && <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{person.designation}</p>}
+            <p className="truncate text-sm font-medium text-foreground">{displayText(name, "Employee")}</p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">{displayText(employeeId)}</p>
+            {designation && <p className="mt-0.5 truncate text-xs text-muted-foreground">{designation}</p>}
           </div>
         </div>
       ) : (
-        <p className="text-muted-foreground">{emptyText}</p>
+        <div className="flex min-h-[58px] items-center justify-center text-muted-foreground">{emptyText}</div>
       )}
     </div>
   );
 }
 
-function CorrectionDetailStat({ label, value }) {
+function CorrectionMetaCard({ icon: Icon, iconClassName, label, value }) {
   return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
-      <div className="mt-1 text-xs text-foreground">{value}</div>
+    <div className="flex min-h-[74px] min-w-0 items-center gap-3 rounded-lg border border-border bg-card p-4 shadow-sm">
+      <span className={`${iconClassName} grid h-9 w-9 shrink-0 place-items-center rounded-lg`}>
+        <Icon className="h-[18px] w-[18px]" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+        <div className="mt-1 text-xs font-medium text-foreground">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+function CorrectionChangeRow({ change }) {
+  const field = change.field;
+  const label = getAttendanceCorrectionFieldLabel(field);
+  const isTime = field === "firstCheckIn" || field === "lastCheckOut";
+  const isDuty = field === "dutyType";
+  const Icon = isTime ? Clock3 : isDuty ? BriefcaseBusiness : FileText;
+  const iconClassName = isTime ? "atl-detail-icon-blue" : isDuty ? "atl-detail-icon-violet" : "atl-detail-icon-orange";
+
+  return (
+    <tr className="border-t border-border">
+      <td className="px-3 py-2.5">
+        <div className="flex items-center gap-3">
+          <span className={`${iconClassName} grid h-8 w-8 shrink-0 place-items-center rounded-lg`}>
+            <Icon className="h-4 w-4" />
+          </span>
+          <span className="font-medium text-foreground">{label}</span>
+        </div>
+      </td>
+      <td className="break-words px-3 py-2.5 text-foreground">{formatCorrectionValue(field, change.currentValue)}</td>
+      <td className="break-words px-3 py-2.5 text-foreground">{formatCorrectionValue(field, change.requestedValue)}</td>
+    </tr>
+  );
+}
+
+function CorrectionTextCard({ icon: Icon, iconClassName, title, value }) {
+  return (
+    <div className="flex min-h-[70px] items-start gap-3 rounded-lg border border-border bg-card p-3 shadow-sm">
+      <span className={`${iconClassName} grid h-8 w-8 shrink-0 place-items-center rounded-lg`}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <p className="font-medium text-foreground">{title}</p>
+        <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">{displayText(value)}</p>
+      </div>
+    </div>
+  );
+}
+
+function CorrectionTimelineItem({ icon: Icon, iconClassName, label, value, divided = false }) {
+  return (
+    <div className={`flex min-w-0 items-center gap-3 p-3 ${divided ? "border-t border-border sm:border-l sm:border-t-0" : ""}`}>
+      <span className={`${iconClassName} grid h-8 w-8 shrink-0 place-items-center rounded-lg`}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+        <p className="mt-1 text-[11px] font-medium text-foreground">{value}</p>
+      </div>
     </div>
   );
 }
@@ -1531,18 +1724,18 @@ function CorrectionRequestDialog({ open, onOpenChange, ...props }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="atl-card max-h-[90vh] overflow-y-auto p-0 sm:max-w-[680px]">
-        <DialogHeader className="border-b border-border px-5 py-4">
+      <DialogContent className="atl-card max-h-[92vh] overflow-y-auto p-0 sm:max-w-[620px]">
+        <DialogHeader className={`px-5 pb-4 pt-5 ${isLeaveCorrection ? "border-b border-border" : ""}`}>
           <DialogTitle className="flex items-start gap-3 text-left">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-orange-50 text-[#f97316] dark:bg-orange-400/10">
-              <FilePenLine className="h-5 w-5" />
+            <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ${isLeaveCorrection ? "bg-orange-500/10 text-orange-600 dark:text-orange-400" : "bg-primary/10 text-primary"}`}>
+              {isLeaveCorrection ? <FilePenLine className="h-5 w-5" /> : <CalendarClock className="h-6 w-6" />}
             </span>
-            <span>
+            <span className="pt-0.5">
               <span className="block text-base font-semibold text-foreground">
                 {isLeaveCorrection ? "Request Leave Correction" : "Request Attendance Correction"}
               </span>
               <span className="mt-1 block text-xs font-normal text-muted-foreground">
-                {isLeaveCorrection ? "Submit the required changes for your approved leave." : "Submit the correction details for Admin review."}
+                {isLeaveCorrection ? "Submit the required changes for your approved leave." : "Submit a correction request for admin review"}
               </span>
             </span>
           </DialogTitle>
@@ -1558,11 +1751,11 @@ function CorrectionRequestForm({ form, setForm, attendanceRows, onSubmit, onCanc
   const selectedAttendance = form.attendanceRecord || attendanceRows.find((attendance) => (attendance._id || attendance.id) === form.attendanceId);
   const selectedLeave = form.leaveRecord || {};
   const input = "atl-input h-11 rounded-md border px-3 text-xs";
-  const textarea = "atl-input rounded-md border px-3 py-2 text-xs";
+  const textarea = "atl-input rounded-lg border px-3 py-2 text-xs";
   const isSubmitDisabled = isPending || (!isLeaveCorrection && (!selectedAttendance || selectedAttendance.payrollLocked)) || (isLeaveCorrection && !form.leaveId);
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4 p-5">
+    <form onSubmit={onSubmit} className={`space-y-4 px-5 pb-5 ${isLeaveCorrection ? "pt-4" : "pt-2"}`}>
       {isLeaveCorrection ? (
         <LeaveCorrectionCurrentCard leave={selectedLeave} />
       ) : (
@@ -1570,178 +1763,263 @@ function CorrectionRequestForm({ form, setForm, attendanceRows, onSubmit, onCanc
       )}
 
       {isLeaveCorrection ? (
-        <>
-          <label className="grid gap-1.5 text-xs">
-            <span className="font-medium text-foreground">What needs to be changed? <span className="text-red-500">*</span></span>
-            <select
-              className={input}
-              value={form.whatNeedsToBeChanged}
-              onChange={(event) => setForm({ ...form, whatNeedsToBeChanged: event.target.value })}
-              required
-            >
-              {leaveCorrectionFields.map((field) => <option key={field}>{field}</option>)}
-            </select>
-          </label>
-          <label className="grid gap-1.5 text-xs">
-            <span className="font-medium text-foreground">Requested Correction <span className="text-red-500">*</span></span>
-            <textarea
-              className={textarea}
-              rows="3"
-              placeholder="Please change my approved leave dates from 15-17 July 2026 to 16-17 July 2026."
-              value={form.requestedCorrection}
-              onChange={(event) => setForm({ ...form, requestedCorrection: event.target.value })}
+        <LeaveCorrectionFields form={form} setForm={setForm} textarea={textarea} />
+      ) : (
+        <AttendanceCorrectionFields form={form} setForm={setForm} input={input} attendance={selectedAttendance} />
+      )}
+
+      {!isLeaveCorrection && (
+        <label className="grid gap-2 text-xs">
+          <span className="flex items-center gap-2 font-medium text-foreground">
+            <PencilLine className="h-3.5 w-3.5 text-muted-foreground" />
+            Reason for Correction
+          </span>
+          <span className="relative">
+            <Textarea
+              className={`${textarea} min-h-[64px] w-full resize-none pb-7`}
+              rows={2}
+              placeholder="I forgot to check out before leaving the office."
+              value={form.reasonForCorrection}
+              onChange={(event) => setForm({ ...form, reasonForCorrection: event.target.value })}
+              minLength={3}
+              maxLength={200}
               required
             />
-          </label>
-        </>
-      ) : (
-        <AttendanceCorrectionFields form={form} setForm={setForm} input={input} textarea={textarea} />
+            <span className="pointer-events-none absolute bottom-2 right-3 text-[10px] text-muted-foreground">
+              {form.reasonForCorrection.length}/200
+            </span>
+          </span>
+        </label>
       )}
 
-      <label className="grid gap-1.5 text-xs">
-        <span className="font-medium text-foreground">Reason for Correction <span className="text-red-500">*</span></span>
-        <textarea
-          className={textarea}
-          rows="3"
-          placeholder={isLeaveCorrection ? "My personal work has been rescheduled." : "I forgot to check out before leaving the office."}
-          value={form.reasonForCorrection}
-          onChange={(event) => setForm({ ...form, reasonForCorrection: event.target.value })}
-          minLength={isLeaveCorrection ? undefined : 3}
-          maxLength={isLeaveCorrection ? undefined : 1000}
-          required
-        />
-        {!isLeaveCorrection && <span className="text-right text-[11px] text-muted-foreground">{form.reasonForCorrection.length}/1000</span>}
-      </label>
-
-      {isLeaveCorrection && (
-        <CorrectionProofUpload
-          label="Supporting Document"
-          file={form.supportingProof}
-          onChange={(file) => setForm({ ...form, supportingProof: file })}
-        />
-      )}
-
-      <div className="rounded-lg border border-orange-200 bg-orange-50/50 p-3 text-xs text-orange-900 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-200">
-        {isLeaveCorrection
-          ? "Your currently approved leave will remain unchanged until Admin reviews and approves this correction request."
-          : "Admin will review this request and manually update the attendance record, if approved."}
+      <div className={`atl-correction-notice flex items-start gap-3 rounded-lg border p-3 ${isLeaveCorrection ? "text-[10px]" : "text-xs"}`}>
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
+        <span>
+          {isLeaveCorrection
+            ? "Your currently approved leave will remain unchanged until Admin reviews and approves this correction request."
+            : "Admin will review this request and update the attendance record if approved."}
+        </span>
       </div>
 
-      <div className="flex justify-end gap-3 border-t border-border pt-4">
-        <button
+      <div className="flex justify-end gap-3">
+        <Button
           type="button"
+          variant="outline"
           onClick={onCancel}
-          className="rounded-md border border-border px-6 py-2.5 text-xs font-medium text-foreground hover:bg-muted"
+          className="h-10 px-6 text-xs"
         >
           Cancel
-        </button>
-        <button disabled={isSubmitDisabled} className="atl-primary rounded-md px-8 py-2.5 text-xs font-medium disabled:opacity-60">
-          {isPending ? "Submitting..." : "Submit Correction Request"}
-        </button>
+        </Button>
+        <Button disabled={isSubmitDisabled} className="h-10 px-8 text-xs">
+          {isPending ? "Submitting..." : isLeaveCorrection ? "Submit Correction Request" : "Submit Request"}
+        </Button>
       </div>
     </form>
   );
 }
 
-function AttendanceCorrectionFields({ form, setForm, input, textarea }) {
+function LeaveCorrectionFields({ form, setForm, textarea }) {
+  return (
+    <div className="space-y-4">
+      <label className="grid gap-1.5 text-xs">
+        <span className="font-medium text-foreground">What needs to be changed? <span className="text-red-500">*</span></span>
+        <Select
+          value={form.whatNeedsToBeChanged}
+          onValueChange={(value) => setForm({ ...form, whatNeedsToBeChanged: value })}
+        >
+          <SelectTrigger className="h-10 text-xs">
+            <SelectValue placeholder="Select a field" />
+          </SelectTrigger>
+          <SelectContent>
+            {leaveCorrectionFields.map((field) => <SelectItem key={field} value={field}>{field}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </label>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="grid gap-1.5 text-xs">
+          <span className="font-medium text-foreground">Requested Correction <span className="text-red-500">*</span></span>
+          <Textarea
+            className={`${textarea} min-h-[72px] resize-none`}
+            rows={2}
+            value={form.requestedCorrection}
+            onChange={(event) => setForm({ ...form, requestedCorrection: event.target.value })}
+            required
+          />
+        </label>
+        <label className="grid gap-1.5 text-xs">
+          <span className="font-medium text-foreground">Reason for Correction <span className="text-red-500">*</span></span>
+          <Textarea
+            className={`${textarea} min-h-[72px] resize-none`}
+            rows={2}
+            value={form.reasonForCorrection}
+            onChange={(event) => setForm({ ...form, reasonForCorrection: event.target.value })}
+            required
+          />
+        </label>
+      </div>
+
+      <CorrectionProofUpload
+        label="Supporting Document"
+        file={form.supportingProof}
+        onChange={(file) => setForm({ ...form, supportingProof: file })}
+      />
+    </div>
+  );
+}
+
+function toTimeInputValue(value) {
+  return String(value || "").match(/T(\d{2}:\d{2})/)?.[1] || "";
+}
+
+function toAttendanceRequestedDateTime(attendance, value) {
+  if (!value) return "";
+  const attendanceDate = toDateInputValue(attendance?.attendanceDate || attendance?.date);
+  const valueDate = new Date(value);
+  if (!attendanceDate || Number.isNaN(valueDate.getTime())) return "";
+  const hours = String(valueDate.getHours()).padStart(2, "0");
+  const minutes = String(valueDate.getMinutes()).padStart(2, "0");
+  return `${attendanceDate}T${hours}:${minutes}`;
+}
+
+function AttendanceCorrectionFields({ form, setForm, input, attendance }) {
   const updateForm = (changes) => setForm({ ...form, ...changes });
-  const removeControl = (field, checked, valueField) => updateForm({
-    [field]: checked,
-    ...(checked ? { [valueField]: "" } : {}),
+  const attendanceDate = toDateInputValue(attendance?.attendanceDate || attendance?.date);
+  const updateRequestedTime = (field, time) => updateForm({
+    [field]: time && attendanceDate ? `${attendanceDate}T${time}` : "",
   });
 
   return (
-    <div className="space-y-4">
-      <p className="text-xs font-medium text-foreground">Requested Changes <span className="text-red-500">*</span></p>
+    <div className="space-y-3">
+      <CorrectionFormSectionTitle>Requested Changes</CorrectionFormSectionTitle>
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-1.5 text-xs">
-          <span className="font-medium text-foreground">Check-in</span>
-          <input
-            className={input}
-            type="datetime-local"
-            value={form.requestedFirstCheckIn}
-            disabled={form.removeFirstCheckIn}
-            onChange={(event) => updateForm({ requestedFirstCheckIn: event.target.value })}
-          />
-          <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={form.removeFirstCheckIn}
-              onChange={(event) => removeControl("removeFirstCheckIn", event.target.checked, "requestedFirstCheckIn")}
-            />
-            Remove incorrect check-in
-          </span>
-        </label>
-        <label className="grid gap-1.5 text-xs">
-          <span className="font-medium text-foreground">Check-out</span>
-          <input
-            className={input}
-            type="datetime-local"
-            value={form.requestedLastCheckOut}
-            disabled={form.removeLastCheckOut}
-            onChange={(event) => updateForm({ requestedLastCheckOut: event.target.value })}
-          />
-          <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={form.removeLastCheckOut}
-              onChange={(event) => removeControl("removeLastCheckOut", event.target.checked, "requestedLastCheckOut")}
-            />
-            Remove incorrect check-out
-          </span>
-        </label>
+        <CorrectionTimeField
+          label="Correct Check-in"
+          value={toTimeInputValue(form.requestedFirstCheckIn)}
+          onChange={(time) => updateRequestedTime("requestedFirstCheckIn", time)}
+          inputClassName={input}
+        />
+        <CorrectionTimeField
+          label="Correct Check-out"
+          value={toTimeInputValue(form.requestedLastCheckOut)}
+          onChange={(time) => updateRequestedTime("requestedLastCheckOut", time)}
+          inputClassName={input}
+        />
       </div>
       <label className="grid gap-1.5 text-xs">
         <span className="font-medium text-foreground">Duty Type</span>
-        <select
-          className={input}
-          value={form.requestedDutyType}
-          onChange={(event) => updateForm({ requestedDutyType: event.target.value })}
-        >
-          <option value="">No change</option>
-          {ATTENDANCE_DUTY_TYPES.map((dutyType) => <option key={dutyType} value={dutyType}>{dutyType}</option>)}
-        </select>
+        <span className="relative">
+          <BriefcaseBusiness className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
+          <Select
+            value={form.requestedDutyType || "no-change"}
+            onValueChange={(value) => updateForm({ requestedDutyType: value === "no-change" ? "" : value })}
+          >
+            <SelectTrigger className={`${input} pl-10`}>
+              <SelectValue placeholder="No change" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="no-change">No change</SelectItem>
+              {ATTENDANCE_DUTY_TYPES.map((dutyType) => (
+                <SelectItem key={dutyType} value={dutyType}>{dutyType}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </span>
       </label>
-      <label className="grid gap-1.5 text-xs">
-        <span className="font-medium text-foreground">Notes</span>
-        <textarea
-          className={textarea}
-          rows="3"
-          placeholder="Enter corrected attendance notes, or leave blank for no change."
-          value={form.requestedNotes}
-          onChange={(event) => updateForm({ requestedNotes: event.target.value })}
-        />
-      </label>
-      <p className="text-[11px] text-muted-foreground">Enter one or more changes. Unfilled fields will not be included in the request.</p>
     </div>
+  );
+}
+
+function CorrectionTimeField({ label, value, onChange, inputClassName }) {
+  return (
+    <label className="grid gap-1.5 text-xs">
+      <span className="font-medium text-foreground">{label}</span>
+      <span className="relative">
+        {/* <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /> */}
+        <Input
+          className={`${inputClassName} w-full`}
+          type="time"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </span>
+    </label>
+  );
+}
+
+function CorrectionFormSectionTitle({ children }) {
+  return (
+    <p className="flex items-center gap-2 text-xs font-semibold text-foreground">
+      <span className="h-4 w-0.5 rounded-full bg-primary" />
+      {children}
+    </p>
   );
 }
 
 function AttendanceCorrectionCurrentCard({ attendance }) {
   const status = resolvePresenceStatus(attendance || {});
   const attendanceDate = attendance?.attendanceDate || attendance?.date;
+  const attendanceId = getRecordId(attendance);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="grid gap-1.5 text-xs">
-          <span className="font-medium text-foreground">Attendance ID</span>
-          <input className="atl-input h-11 rounded-md border px-3 text-xs" type="text" value={getRecordId(attendance)} disabled readOnly />
-        </label>
-        <label className="grid gap-1.5 text-xs">
-          <span className="font-medium text-foreground">Attendance Date</span>
-          <input className="atl-input h-11 rounded-md border px-3 text-xs" type="text" value={formatShortDate(attendanceDate)} disabled readOnly />
-        </label>
+        <AttendanceCorrectionSummaryCard
+          icon={BadgeCheck}
+          label="Attendance ID"
+          value={attendanceId}
+          iconClassName="atl-correction-icon-success"
+          action={(
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                navigator.clipboard?.writeText(attendanceId);
+                toast.success("Attendance ID copied");
+              }}
+              className="h-8 w-8 shrink-0 text-primary hover:bg-primary/10 hover:text-primary"
+              aria-label="Copy attendance ID"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          )}
+        />
+        <AttendanceCorrectionSummaryCard
+          icon={CalendarDays}
+          label="Attendance Date"
+          value={formatShortDate(attendanceDate)}
+          iconClassName="bg-primary/10 text-primary"
+          action={<CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />}
+        />
       </div>
       <div>
-        <p className="mb-2 text-xs font-medium text-foreground">Current Record</p>
-        <div className="grid gap-3 rounded-lg border border-orange-200 bg-orange-50/25 p-3 text-xs dark:border-orange-400/30 dark:bg-orange-400/10 sm:grid-cols-3">
-          <CurrentRecordStat label="Status" value={<StatusPill tone={statusTone(status)}>{status}</StatusPill>} />
-          <CurrentRecordStat label="Check-in" value={formatTime(attendance?.checkInTime)} />
-          <CurrentRecordStat label="Check-out" value={attendance?.checkOutTime ? formatTime(attendance.checkOutTime) : <span className="text-red-600">Not Recorded</span>} />
-          <CurrentRecordStat label="Working Hours" value={displayText(attendance?.workingHours || attendance?.totalWorkingHours)} />
-          <CurrentRecordStat label="Duty Type" value={displayText(attendance?.dutyType)} />
-          <CurrentRecordStat label="Notes" value={displayText(attendance?.notes || attendance?.remark || attendance?.remarks)} />
+        <CorrectionFormSectionTitle>Current Record</CorrectionFormSectionTitle>
+        <div className="mt-3 grid overflow-hidden rounded-lg border border-border bg-card text-xs shadow-sm sm:grid-cols-4 sm:divide-x sm:divide-border">
+          <AttendanceCurrentRecordStat
+            icon={BadgeCheck}
+            label="Status"
+            value={<StatusPill tone={statusTone(status)}>{status}</StatusPill>}
+            iconClassName="atl-correction-icon-success"
+          />
+          <AttendanceCurrentRecordStat
+            icon={Clock3}
+            label="Check-in"
+            value={formatTime(attendance?.checkInTime)}
+            iconClassName="bg-primary/10 text-primary"
+          />
+          <AttendanceCurrentRecordStat
+            icon={TriangleAlert}
+            label="Check-out"
+            value={attendance?.checkOutTime ? formatTime(attendance.checkOutTime) : <span className="text-orange-600 dark:text-orange-400">Not Recorded</span>}
+            iconClassName="atl-correction-icon-warning"
+          />
+          <AttendanceCurrentRecordStat
+            icon={BriefcaseBusiness}
+            label="Duty Type"
+            value={displayText(attendance?.dutyType)}
+            iconClassName="atl-correction-icon-duty"
+          />
         </div>
         {attendance?.payrollLocked && <p className="mt-2 text-[11px] text-red-600">This record is payroll locked and cannot be corrected.</p>}
       </div>
@@ -1749,23 +2027,55 @@ function AttendanceCorrectionCurrentCard({ attendance }) {
   );
 }
 
+function AttendanceCorrectionSummaryCard({ icon: Icon, label, value, iconClassName, action }) {
+  return (
+    <div className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-card p-3 shadow-sm">
+      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${iconClassName}`}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[10px] font-medium text-muted-foreground">{label}</span>
+        <span className="mt-1 block truncate text-xs font-semibold text-foreground" title={String(value || "")}>{displayText(value)}</span>
+      </span>
+      {action}
+    </div>
+  );
+}
+
+function AttendanceCurrentRecordStat({ icon: Icon, label, value, iconClassName }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2 p-3">
+      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${iconClassName}`}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[10px] font-medium text-muted-foreground">{label}</span>
+        <span className="mt-1 block truncate text-xs font-semibold text-foreground">{value}</span>
+      </span>
+    </div>
+  );
+}
+
 function LeaveCorrectionCurrentCard({ leave }) {
   const leaveStatus = displayText(leave.leaveStatus || leave.status, "Pending");
-  const leaveDays = displayText(leave.leaveDays || leave.totalDays || leave.days || leave.requestedLeaveDays);
+  const fromDate = leave.fromDate || leave.startDate || leave.leaveDate;
+  const toDate = leave.toDate || leave.endDate || leave.leaveDate;
+  const dateValue = formatShortDate(fromDate) === formatShortDate(toDate)
+    ? formatShortDate(fromDate)
+    : `${formatShortDate(fromDate)} - ${formatShortDate(toDate)}`;
 
   return (
-    <div className="rounded-lg border border-orange-200 bg-orange-50/25 p-4 text-xs dark:border-orange-400/30 dark:bg-orange-400/10">
-      <p className="mb-4 flex items-center gap-2 text-sm font-medium text-foreground">
-        <FileText className="h-4 w-4 text-[#f97316]" />
-        Current Approved Leave
-      </p>
-      <div className="grid gap-4 sm:grid-cols-3">
+    <div className="atl-leave-correction-summary grid overflow-hidden rounded-lg border text-xs sm:grid-cols-4 sm:divide-x sm:divide-border">
+      <div className="p-4">
         <CurrentRecordStat label="Leave Type" value={displayText(leave.leaveType || leave.type, "Leave Request")} />
-        <CurrentRecordStat label="From" value={formatShortDate(leave.fromDate || leave.startDate || leave.leaveDate)} />
-        <CurrentRecordStat label="To" value={formatShortDate(leave.toDate || leave.endDate || leave.leaveDate)} />
       </div>
-      <div className="mt-4 grid gap-4 border-t border-border pt-4 sm:grid-cols-3">
-        <CurrentRecordStat label="Duration" value={leaveDays === "--" ? displayText(leave.leaveDuration || leave.duration) : `${leaveDays} Days`} />
+      <div className="p-4">
+        <CurrentRecordStat label="Date" value={dateValue} />
+      </div>
+      <div className="p-4">
+        <CurrentRecordStat label="Duration" value={displayText(leave.duration || leave.leaveDuration)} />
+      </div>
+      <div className="p-4">
         <CurrentRecordStat label="Status" value={<StatusPill tone={statusTone(leaveStatus)}>{leaveStatus}</StatusPill>} />
       </div>
     </div>
@@ -1784,14 +2094,12 @@ function CurrentRecordStat({ label, value }) {
 function CorrectionProofUpload({ label, file, onChange }) {
   return (
     <label className="grid gap-1.5 text-xs">
-      <span className="font-medium text-foreground">{label} <span className="font-normal text-muted-foreground">- Optional</span></span>
-      <div className="relative rounded-md border border-dashed border-border bg-background p-5 text-center hover:bg-muted/30">
-        <UploadCloud className="mx-auto h-7 w-7 text-foreground" />
-        <p className="mt-2 text-xs font-medium text-foreground">
-          {file ? file.name : "Click to upload or drag and drop"}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">JPG, PNG or PDF (Max. 5 MB)</p>
-        <input
+      <span className="font-medium text-foreground">{label} <span className="font-normal text-muted-foreground">(Optional)</span></span>
+      <div className="relative flex h-11 items-center gap-3 rounded-md border border-border bg-background px-3 transition-colors hover:bg-muted/30">
+        <Paperclip className="h-4 w-4 shrink-0 text-primary" />
+        <span className="min-w-0 flex-1 truncate font-medium text-foreground">{file ? file.name : "Upload file"}</span>
+        <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:block">JPG, PNG, PDF (Max. 5 MB)</span>
+        <Input
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
           type="file"
           accept=".jpg,.jpeg,.png,.pdf"
@@ -1807,6 +2115,7 @@ function RecentCorrectionsList({
   filters,
   statuses,
   targetTypes,
+  monthFilterControl,
   onFilterChange,
   pagination,
   onPageChange,
@@ -1825,58 +2134,54 @@ function RecentCorrectionsList({
   const lastRecord = total ? Math.min(currentPage * pageLimit, total) : 0;
 
   return (
-    <Panel>
-      <SectionTitle icon={FilePenLine}>Correction Requests</SectionTitle>
-      <div className="grid gap-3 border-b border-border p-4 sm:grid-cols-2 xl:grid-cols-4">
-        <label className="grid gap-1.5 text-xs">
+    <Panel className="min-w-0 overflow-hidden">
+      <SectionTitle icon={FilePenLine} action={monthFilterControl}>Correction Requests</SectionTitle>
+      <div className="grid gap-3 border-b border-border p-4 sm:grid-cols-2">
+        <div className="grid gap-1.5 text-xs">
           <span className="font-medium text-foreground">Status</span>
-          <select
-            value={filters.status}
-            onChange={(event) => onFilterChange("status", event.target.value)}
-            className="atl-input h-10 rounded-md border px-3 text-xs"
+          <Select
+            value={filters.status || "all"}
+            onValueChange={(value) => onFilterChange("status", value === "all" ? "" : value)}
           >
-            <option value="">All Statuses</option>
-            {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
-          </select>
-        </label>
-        <label className="grid gap-1.5 text-xs">
-          <span className="font-medium text-foreground">Target Type</span>
-          <select
-            value={filters.targetType}
-            onChange={(event) => onFilterChange("targetType", event.target.value)}
-            className="atl-input h-10 rounded-md border px-3 text-xs"
+            <SelectTrigger className="h-10 text-xs">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              {statuses.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1.5 text-xs">
+          <span className="font-medium text-foreground">Correction Type</span>
+          <Select
+            value={filters.targetType || "Attendance"}
+            onValueChange={(value) => onFilterChange("targetType", value)}
           >
-            <option value="">All Target Types</option>
-            {targetTypes.map((targetType) => <option key={targetType} value={targetType}>{targetType}</option>)}
-          </select>
-        </label>
-        <label className="grid gap-1.5 text-xs">
-          <span className="font-medium text-foreground">From Date</span>
-          <input
-            type="date"
-            value={filters.fromDate}
-            max={filters.toDate || undefined}
-            onChange={(event) => onFilterChange("fromDate", event.target.value)}
-            className="atl-input h-10 rounded-md border px-3 text-xs"
-          />
-        </label>
-        <label className="grid gap-1.5 text-xs">
-          <span className="font-medium text-foreground">To Date</span>
-          <input
-            type="date"
-            value={filters.toDate}
-            min={filters.fromDate || undefined}
-            onChange={(event) => onFilterChange("toDate", event.target.value)}
-            className="atl-input h-10 rounded-md border px-3 text-xs"
-          />
-        </label>
+            <SelectTrigger className="h-10 text-xs">
+              <SelectValue placeholder="Select correction type" />
+            </SelectTrigger>
+            <SelectContent>
+              {targetTypes.map((targetType) => <SelectItem key={targetType} value={targetType}>{targetType}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1220px] text-left text-xs">
+      <div className="max-w-full overflow-hidden">
+        <table className="w-full table-fixed text-left text-xs">
+          <colgroup>
+            <col className="w-[15%]" />
+            <col className="w-[14%]" />
+            <col className="w-[19%]" />
+            <col className="w-[10%]" />
+            <col className="w-[17%]" />
+            <col className="w-[15%]" />
+            <col className="w-[10%]" />
+          </colgroup>
           <thead className="bg-muted/50 text-muted-foreground">
             <tr>
-              {["Employee", "Target", "Changes", "Reason", "Status", "Review", "Requested At", "Action"].map((header) => (
-                <th key={header} className="px-4 py-2 font-medium">{header}</th>
+              {["Employee", "Correction Type", "Reason", "Status", "Review", "Requested At", "Action"].map((header) => (
+                <th key={header} className="whitespace-nowrap px-3 py-2 font-medium">{header}</th>
               ))}
             </tr>
           </thead>
@@ -1888,63 +2193,55 @@ function RecentCorrectionsList({
               const reviewedBy = correction.reviewedBy && typeof correction.reviewedBy === "object"
                 ? correction.reviewedBy.name || correction.reviewedBy.employeeId || correction.reviewedBy._id
                 : correction.reviewedBy;
-              const changes = Array.isArray(correction.changes) ? correction.changes : [];
               return (
                 <tr key={correction._id || index} className="border-t border-border align-top">
-                  <td className="min-w-[170px] px-4 py-3">
-                    <p className="font-medium text-foreground">{displayText(employee?.name, "Employee")}</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">{displayText(employee?.employeeId || (typeof correction.employee === "string" ? correction.employee : ""))}</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">{[employee?.designation, employee?.workLocation].filter(Boolean).join(" / ") || "--"}</p>
+                  <td className="px-3 py-3">
+                    <p className="truncate font-medium text-foreground" title={employee?.name || correction.employeeName || "Employee"}>
+                      {displayText(employee?.name || correction.employeeName, "Employee")}
+                    </p>
                   </td>
-                  <td className="min-w-[180px] px-4 py-3">
-                    <p className="font-medium text-foreground">{displayText(correction.targetType)}</p>
-                    <p className="mt-1 break-all text-[11px] text-muted-foreground">{displayText(correction.targetId)}</p>
+                  <td className="px-3 py-3">
+                    <p className="truncate font-medium text-foreground">
+                      {displayText(correction.targetType || correction.correctionFor, "Attendance")}
+                    </p>
                   </td>
-                  <td className="min-w-[280px] px-4 py-3">
-                    {changes.length ? (
-                      <div className="space-y-2">
-                        {changes.map((change, changeIndex) => (
-                          <div key={`${change.field}-${changeIndex}`}>
-                            <p className="font-medium text-foreground">{getAttendanceCorrectionFieldLabel(change.field)}</p>
-                            <p className="mt-0.5 text-[11px] text-muted-foreground">
-                              {formatCorrectionValue(change.field, change.currentValue)} {" -> "} {formatCorrectionValue(change.field, change.requestedValue)}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : "--"}
+                  <td className="px-3 py-3 text-muted-foreground">
+                    <p className="line-clamp-2 break-words">{displayText(correction.reasonForCorrection || correction.reason || correction.remarks)}</p>
                   </td>
-                  <td className="max-w-[320px] px-4 py-3 text-muted-foreground">{displayText(correction.reasonForCorrection || correction.reason || correction.remarks)}</td>
-                  <td className="px-4 py-3"><StatusPill tone={statusTone(correctionStatus)}>{correctionStatus}</StatusPill></td>
-                  <td className="max-w-[240px] px-4 py-3 text-muted-foreground">
-                    <p>{displayText(correction.adminRemark || correction.adminRemarks || correction.adminNote || correction.reviewNote)}</p>
+                  <td className="px-3 py-3"><StatusPill tone={statusTone(correctionStatus)}>{correctionStatus}</StatusPill></td>
+                  <td className="px-3 py-3 text-muted-foreground">
+                    <p className="line-clamp-2 break-words">{displayText(correction.adminRemark || correction.adminRemarks || correction.adminNote || correction.reviewNote)}</p>
                     {reviewedBy && <p className="mt-1 text-[11px]">By {reviewedBy}</p>}
                     {correction.reviewedAt && <p className="mt-1 text-[11px]">{formatCorrectionDateTime(correction.reviewedAt)}</p>}
                   </td>
-                  <td className="min-w-[150px] px-4 py-3 text-muted-foreground">{formatCorrectionDateTime(correction.requestedAt || correction.createdAt)}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3 text-muted-foreground">{formatCorrectionDateTime(correction.requestedAt || correction.createdAt)}</td>
+                  <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
-                      <button
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="icon"
                         disabled={isLoadingDetail}
                         onClick={() => onView(correction)}
-                        className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                        className="h-8 w-8"
                         title="View correction details"
+                        aria-label="View correction details"
                       >
-                        <Eye className="h-3.5 w-3.5" />
-                        View
-                      </button>
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       {canModify && (
-                        <button
+                        <Button
                           type="button"
+                          variant="outline"
+                          size="icon"
                           disabled={isCancelling}
                           onClick={() => onCancel(correction)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-red-400/10"
+                          className="h-8 w-8 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-400/10"
                           title="Cancel correction request"
                           aria-label="Cancel correction request"
                         >
                           <XCircle className="h-4 w-4" />
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </td>
@@ -1952,7 +2249,7 @@ function RecentCorrectionsList({
               );
             }) : (
               <tr>
-                <td colSpan="8" className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan="7" className="px-4 py-8 text-center text-muted-foreground">
                   {isLoading
                     ? "Loading correction requests..."
                     : error?.response?.data?.message || error?.message || "No correction request found."}
@@ -1965,23 +2262,27 @@ function RecentCorrectionsList({
       <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <span>Showing {firstRecord}-{lastRecord} of {total}</span>
         <div className="flex items-center gap-2">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             disabled={isLoading || currentPage <= 1}
             onClick={() => onPageChange(currentPage - 1)}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-8 gap-1 text-xs"
           >
             <ChevronLeft className="h-3.5 w-3.5" /> Previous
-          </button>
+          </Button>
           <span>Page {currentPage} of {Math.max(totalPages, 1)}</span>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             disabled={isLoading || totalPages === 0 || currentPage >= totalPages}
             onClick={() => onPageChange(currentPage + 1)}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-8 gap-1 text-xs"
           >
             Next <ChevronRight className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         </div>
       </div>
     </Panel>
@@ -2024,6 +2325,7 @@ function LeaveRequestForm({
   form,
   setForm,
   leavePolicies,
+  leaveBalance,
   leaveDurations,
   halfDayPeriods,
   selectedLeavePolicy,
@@ -2035,12 +2337,46 @@ function LeaveRequestForm({
   onCancel,
   isPending,
 }) {
-  const input = "atl-input h-11 rounded-md border px-3 text-xs";
-  const textarea = "atl-input rounded-md border px-3 py-2 text-xs";
+  const input = "h-10 text-xs";
+  const textarea = "min-h-[62px] resize-y text-xs";
   const requestRules = selectedLeavePolicy?.requestRules || {};
-  const selectedBalanceText = selectedLeaveDaysLeft !== null
-    ? `${selectedLeaveDaysLeft} ${displayText(selectedLeavePolicy?.leaveType)} available`
-    : "Balance is not available for the selected policy.";
+  const findBalance = (type) => (leaveBalance || []).find((item) => (
+    String(item.leaveType || item.leavePolicy?.leaveType || "").toLowerCase().includes(type)
+  ));
+  const availableBalanceCards = [
+    {
+      key: "casual",
+      label: "Casual Leave",
+      record: findBalance("casual"),
+      icon: Umbrella,
+      cardClassName: "atl-leave-form-casual",
+      iconClassName: "atl-detail-icon-violet",
+    },
+    {
+      key: "compensatory",
+      label: "Compensatory Leave",
+      record: findBalance("compensatory"),
+      icon: Clock3,
+      cardClassName: "atl-leave-form-compensatory",
+      iconClassName: "atl-detail-icon-success",
+    },
+    {
+      key: "emergency",
+      label: "Emergency Leave",
+      record: findBalance("emergency"),
+      icon: BadgeCheck,
+      cardClassName: "atl-leave-form-emergency",
+      iconClassName: "atl-detail-icon-blue",
+    },
+  ];
+  const requestedDays = calendarSpanDays === null ? null : calendarSpanDays;
+  const balanceAfterRequest = selectedLeaveDaysLeft === null || requestedDays === null
+    ? null
+    : Math.max(0, selectedLeaveDaysLeft - requestedDays);
+  const formatDays = (value) => {
+    if (value === null || value === undefined) return "--";
+    return `${value} Day${Number(value) === 1 ? "" : "s"}`;
+  };
   const updatePolicy = (leavePolicyId) => {
     const policy = leavePolicies.find((item) => item._id === leavePolicyId);
     if (!policy) return;
@@ -2098,175 +2434,178 @@ function LeaveRequestForm({
   };
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4 p-5">
-      <div className="rounded-lg border border-orange-200 bg-orange-50/30 p-4 dark:border-orange-400/30 dark:bg-orange-400/10">
-        <div className="flex items-center gap-3">
-          <span className="grid h-12 w-12 place-items-center rounded-full bg-violet-100 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300">
-            <Umbrella className="h-6 w-6" />
-          </span>
-          <div>
-            <p className="text-xs font-medium text-foreground">Available Leave Balance</p>
-            <p className="text-xl font-semibold text-foreground">
-              {selectedLeaveDaysLeft === null ? "--" : selectedLeaveDaysLeft} Days
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{selectedBalanceText}</p>
-          </div>
+    <form onSubmit={onSubmit} className="space-y-4 p-4 text-xs">
+      <div>
+        <p className="mb-2 font-medium text-foreground">Available Leave Balance</p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {availableBalanceCards.map((balance) => {
+            const Icon = balance.icon;
+            const availableDays = getAvailableLeaveDays(balance.record);
+            return (
+              <div key={balance.key} className={`${balance.cardClassName} flex min-w-0 items-center gap-2.5 rounded-lg border p-2.5`}>
+                <span className={`${balance.iconClassName} grid h-9 w-9 shrink-0 place-items-center rounded-full`}>
+                  <Icon className="h-[18px] w-[18px]" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-[10px] font-medium text-muted-foreground" title={balance.label}>{balance.label}</p>
+                  <p className="mt-0.5 truncate text-sm font-semibold text-foreground">{formatDays(availableDays)}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
-        {selectedLeavePolicy && (
-          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-orange-200 pt-3 text-xs dark:border-orange-400/30 sm:grid-cols-4">
-            <span><b className="block font-medium text-foreground">Leave Type</b>{displayText(selectedLeavePolicy.leaveType)}</span>
-            <span><b className="block font-medium text-foreground">Payment</b>{selectedLeavePolicy.isPaidLeave ? "Paid" : "Unpaid"}</span>
-            <span><b className="block font-medium text-foreground">Request Limit</b>{requestRules.maximumAmountPerRequest == null ? "--" : `${requestRules.maximumAmountPerRequest} Days`}</span>
-            <span><b className="block font-medium text-foreground">Notice</b>{`${Number(requestRules.minimumNoticeDays) || 0} Days`}</span>
-          </div>
-        )}
       </div>
 
-      <div className="grid gap-4">
-        <label className="grid gap-1.5 text-xs">
-          <span className="font-medium text-foreground">Leave Policy <span className="text-red-500">*</span></span>
-          <select
-            className={input}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-1.5">
+          <span className="font-medium text-foreground">Leave Type <span className="text-red-500">*</span></span>
+          <Select
             value={form.leavePolicyId}
-            onChange={(event) => updatePolicy(event.target.value)}
+            onValueChange={updatePolicy}
             disabled={isPoliciesLoading || !leavePolicies.length}
-            required
           >
-            <option value="">{isPoliciesLoading ? "Loading applicable policies..." : "Select leave policy"}</option>
-            {leavePolicies.map((policy) => (
-              <option key={policy._id} value={policy._id} disabled={policy.unit !== "Days"}>
-                {policy.name}{policy.unit !== "Days" ? " (Hours - unavailable)" : ""}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className={input}>
+              <SelectValue placeholder={isPoliciesLoading ? "Loading applicable policies..." : "Select leave policy"} />
+            </SelectTrigger>
+            <SelectContent>
+              {leavePolicies.map((policy) => (
+                <SelectItem key={policy._id} value={policy._id} disabled={policy.unit !== "Days"}>
+                  {policy.name}{policy.unit !== "Days" ? " (Hours - unavailable)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {policiesError && <span className="text-red-600">Unable to load applicable leave policies.</span>}
           {!isPoliciesLoading && !policiesError && !leavePolicies.length && (
             <span className="text-muted-foreground">No active leave policy applies for {getFiscalYear(form.fromDate)}.</span>
           )}
-        </label>
-
-        <label className="grid gap-1.5 text-xs">
-          <span className="font-medium text-foreground">Leave Duration <span className="text-red-500">*</span></span>
-          <select className={input} value={form.duration} onChange={(event) => updateDuration(event.target.value)}>
-            {leaveDurations.map((duration) => (
-              <option key={duration} disabled={duration === "Half Day" && requestRules.allowHalfDay === false}>
-                {duration}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {form.duration === "Multiple Days" ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="grid gap-1.5 text-xs">
-              <span className="font-medium text-foreground">From Date <span className="text-red-500">*</span></span>
-              <input className={input} type="date" value={toDateInputValue(form.fromDate)} onChange={(event) => handleFromDateChange(event.target.value)} required />
-            </label>
-            <label className="grid gap-1.5 text-xs">
-              <span className="font-medium text-foreground">To Date <span className="text-red-500">*</span></span>
-              <input
-                className={input}
-                type="date"
-                min={toDateInputValue(form.fromDate)}
-                value={toDateInputValue(form.toDate)}
-                onChange={(event) => handleToDateChange(event.target.value)}
-                required
-              />
-            </label>
-          </div>
-        ) : (
-          <div className={`grid gap-4 ${form.duration === "Half Day" ? "md:grid-cols-2" : ""}`}>
-            <label className="grid gap-1.5 text-xs">
-              <span className="font-medium text-foreground">Leave Date <span className="text-red-500">*</span></span>
-              <input className={input} type="date" value={toDateInputValue(form.fromDate)} onChange={(event) => updateLeaveDate(event.target.value)} required />
-            </label>
-            {form.duration === "Half Day" && (
-              <label className="grid gap-1.5 text-xs">
-                <span className="font-medium text-foreground">Shift <span className="text-red-500">*</span></span>
-                <select
-                  className={input}
-                  value={form.halfDayPeriod}
-                  onChange={(event) => setForm({ ...form, halfDayPeriod: event.target.value })}
-                  required
-                >
-                  {halfDayPeriods.map((period) => <option key={period}>{period}</option>)}
-                </select>
-              </label>
-            )}
-          </div>
-        )}
-
-        <div className="rounded-md bg-muted/60 px-3 py-2 text-xs text-foreground">
-          <div className="flex items-center justify-between gap-3">
-            <span>Calendar Span</span>
-            <span className="font-semibold">
-              {calendarSpanDays === null
-                ? "--"
-                : form.duration === "Half Day"
-                  ? "Half Day"
-                  : `${calendarSpanDays} Day${calendarSpanDays === 1 ? "" : "s"}`}
-            </span>
-          </div>
-          {selectedLeaveDaysLeft !== null && (
-            <div className="mt-1 flex items-center justify-between gap-3 text-muted-foreground">
-              <span>Available</span>
-              <span>{selectedLeaveDaysLeft} Days</span>
-            </div>
-          )}
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Final requested days are calculated by the backend after weekly offs and mandatory holidays are excluded.
-          </p>
-          {selectedLeaveDaysLeft !== null && (
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Ledger balance excludes pending requests; final availability is checked when you submit.
-            </p>
-          )}
         </div>
 
-        <label className="grid gap-1.5 text-xs">
-          <span className="font-medium text-foreground">Reason for Leave <span className="text-red-500">*</span></span>
-          <textarea
-            className={textarea}
-            rows="3"
-            value={form.reason}
-            onChange={(event) => setForm({ ...form, reason: event.target.value })}
-            minLength={3}
-            maxLength={2000}
-            required
-          />
-        </label>
-
-        <label className="grid gap-1.5 text-xs">
-          <span className="font-medium text-foreground">Work Handover <span className="font-normal text-muted-foreground">- Optional</span></span>
-          <textarea
-            className={textarea}
-            rows="3"
-            value={form.workHandover}
-            onChange={(event) => setForm({ ...form, workHandover: event.target.value })}
-            maxLength={2000}
-          />
-        </label>
-
-        <div className="rounded-lg border border-orange-200 bg-orange-50/50 p-3 text-xs text-orange-900 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-200">
-          <p className="font-medium">Your leave is not confirmed until it is approved by Admin.</p>
-          <p className="mt-1">Please continue your assigned responsibilities unless approval is received.</p>
+        <div className="grid gap-1.5">
+          <span className="font-medium text-foreground">Leave Duration <span className="text-red-500">*</span></span>
+          <Select value={form.duration} onValueChange={updateDuration}>
+            <SelectTrigger className={input}>
+              <SelectValue placeholder="Select duration" />
+            </SelectTrigger>
+            <SelectContent>
+              {leaveDurations.map((duration) => (
+                <SelectItem key={duration} value={duration} disabled={duration === "Half Day" && requestRules.allowHalfDay === false}>
+                  {duration}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      <div className="flex justify-end gap-3 pt-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-md border border-border px-6 py-2.5 text-xs font-medium text-foreground hover:bg-muted"
-        >
+      {form.duration === "Multiple Days" ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="grid gap-1.5">
+            <span className="font-medium text-foreground">From Date <span className="text-red-500">*</span></span>
+            <Input className={input} type="date" value={toDateInputValue(form.fromDate)} onChange={(event) => handleFromDateChange(event.target.value)} required />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="font-medium text-foreground">To Date <span className="text-red-500">*</span></span>
+            <Input
+              className={input}
+              type="date"
+              min={toDateInputValue(form.fromDate)}
+              value={toDateInputValue(form.toDate)}
+              onChange={(event) => handleToDateChange(event.target.value)}
+              required
+            />
+          </label>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="grid gap-1.5">
+            <span className="font-medium text-foreground">Leave Date <span className="text-red-500">*</span></span>
+            <Input className={input} type="date" value={toDateInputValue(form.fromDate)} onChange={(event) => updateLeaveDate(event.target.value)} required />
+          </label>
+          {form.duration === "Half Day" && (
+            <div className="grid gap-1.5">
+              <span className="font-medium text-foreground">Shift <span className="text-red-500">*</span></span>
+              <Select value={form.halfDayPeriod} onValueChange={(value) => setForm({ ...form, halfDayPeriod: value })}>
+                <SelectTrigger className={input}>
+                  <SelectValue placeholder="Select shift" />
+                </SelectTrigger>
+                <SelectContent>
+                  {halfDayPeriods.map((period) => <SelectItem key={period} value={period}>{period}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+      )}
+
+      <label className="grid gap-1.5">
+        <span className="font-medium text-foreground">Reason for Leave <span className="text-red-500">*</span></span>
+        <Textarea
+          className={textarea}
+          rows="2"
+          value={form.reason}
+          onChange={(event) => setForm({ ...form, reason: event.target.value })}
+          minLength={3}
+          maxLength={2000}
+          placeholder="Brief reason for your leave"
+          required
+        />
+      </label>
+
+      <label className="grid gap-1.5">
+        <span className="font-medium text-foreground">Work Handover <span className="font-normal text-muted-foreground">(Optional)</span></span>
+        <Textarea
+          className={textarea}
+          rows="2"
+          value={form.workHandover}
+          onChange={(event) => setForm({ ...form, workHandover: event.target.value })}
+          maxLength={2000}
+          placeholder="Hand over your work (if any)"
+        />
+      </label>
+
+      <div className="atl-leave-form-request-summary grid grid-cols-2 overflow-hidden rounded-lg border py-2.5">
+        <div className="flex items-center gap-3 px-4">
+          <span className="atl-detail-icon-blue grid h-8 w-8 shrink-0 place-items-center rounded-lg">
+            <CalendarDays className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-[10px] font-medium text-muted-foreground">Requested Days</p>
+            <p className="mt-0.5 text-sm font-semibold text-primary">{formatDays(requestedDays)}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 border-l border-blue-200 px-4 dark:border-blue-400/30">
+          <span className="atl-detail-icon-violet grid h-8 w-8 shrink-0 place-items-center rounded-lg">
+            <BadgeCheck className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-[10px] font-medium text-muted-foreground">Balance After Request</p>
+            <p className="mt-0.5 text-sm font-semibold text-primary">{formatDays(balanceAfterRequest)}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="atl-correction-notice flex items-start gap-3 rounded-lg border p-3">
+        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-orange-500 text-white">
+          <Info className="h-3.5 w-3.5" />
+        </span>
+        <div>
+          <p className="font-medium">Your leave is not confirmed until it is approved by Admin.</p>
+          <p className="mt-1 text-[11px]">Please continue your assigned responsibilities unless approval is received.</p>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-3 pt-0.5">
+        <Button type="button" variant="outline" className="h-9 px-5 text-xs" onClick={onCancel}>
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
+          type="submit"
+          className="h-9 px-6 text-xs"
           disabled={isPending || !selectedLeavePolicy || selectedLeavePolicy.unit !== "Days"}
-          className="atl-primary rounded-md px-8 py-2.5 text-xs font-medium disabled:opacity-60"
         >
           {isPending ? "Submitting..." : "Submit Leave Request"}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -2319,11 +2658,16 @@ function MonthFilterControl({ filters, onFilterChange }) {
   );
 }
 
-function LeaveMetric({ label, value, tone }) {
+function LeaveMetric({ icon: Icon, label, value, toneClassName }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-background p-0.5 text-xs">
-      <span className="truncate px-1 text-muted-foreground">{label}</span>
-      <StatusPill tone={tone}>{value}</StatusPill>
+    <div className="flex min-h-[132px] min-w-0 flex-col items-center justify-center px-3 py-4 text-center lg:border-l lg:border-border">
+      <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${toneClassName}`}>
+        <Icon className="h-5 w-5" />
+      </span>
+      <span className="mt-3 min-w-0 max-w-full">
+        <span className="block truncate text-xs font-medium text-muted-foreground" title={label}>{label}</span>
+        <span className="mt-1.5 block truncate text-lg font-semibold text-foreground">{value}</span>
+      </span>
     </div>
   );
 }
@@ -2331,30 +2675,55 @@ function LeaveMetric({ label, value, tone }) {
 function LeaveBalanceSummary({
   leaveBalance,
   monthlyLeaveDays,
-  monthlyLeaveRequests,
-  monthLabel,
   filters,
   onFilterChange,
 }) {
   const casualLeave = leaveBalance?.find((balance) => balance.leaveType === "Casual Leave");
   const emergencyLeave = leaveBalance?.find((balance) => balance.leaveType === "Emergency Leave");
-  const pendingLeaves = (monthlyLeaveRequests || []).filter(
-    (leave) => String(displayText(leave.leaveStatus || leave.status, "Pending")).toLowerCase() === "pending"
-  ).length;
+  const compensatoryLeave = leaveBalance?.find((balance) => (
+    String(balance.leaveType || "").toLowerCase().includes("compensatory")
+  ));
 
   return (
-    <Panel>
-      <SectionTitle
-        icon={Umbrella}
-        action={<MonthFilterControl filters={filters} onFilterChange={onFilterChange} />}
-      >
-        Leave Balance - {monthLabel}
-      </SectionTitle>
-      <div className="grid gap-2 p-2 sm:grid-cols-2 xl:grid-cols-4">
-        <LeaveMetric label="Casual Leaves" value={casualLeave ? displayText(getAvailableLeaveDays(casualLeave)) : "--"} tone="blue" />
-        <LeaveMetric label="Emergency Leaves" value={emergencyLeave ? displayText(getAvailableLeaveDays(emergencyLeave)) : "--"} tone="orange" />
-        <LeaveMetric label="Used Leaves" value={`${monthlyLeaveDays} Days`} tone="purple" />
-        <LeaveMetric label="Pending Leaves" value={pendingLeaves} tone="gray" />
+    <Panel className="min-w-0 overflow-hidden">
+      <div className="grid lg:grid-cols-[220px_minmax(0,1fr)]">
+        <div className="flex flex-col justify-center border-b border-border p-5 lg:border-b-0">
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400">
+              <Umbrella className="h-5 w-5" />
+            </span>
+            <h2 className="text-lg font-semibold text-foreground">Leave Balance</h2>
+          </div>
+          <div className="mt-4">
+            <MonthFilterControl filters={filters} onFilterChange={onFilterChange} />
+          </div>
+        </div>
+        <div className="grid min-w-0 sm:grid-cols-2 xl:grid-cols-4">
+          <LeaveMetric
+            icon={CalendarDays}
+            label="Casual Leaves"
+            value={casualLeave ? displayText(getAvailableLeaveDays(casualLeave)) : "--"}
+            toneClassName="atl-leave-metric-casual"
+          />
+          <LeaveMetric
+            icon={TriangleAlert}
+            label="Emergency Leaves"
+            value={emergencyLeave ? displayText(getAvailableLeaveDays(emergencyLeave)) : "--"}
+            toneClassName="atl-leave-metric-emergency"
+          />
+          <LeaveMetric
+            icon={CalendarClock}
+            label="Compensatory Leaves"
+            value={compensatoryLeave ? displayText(getAvailableLeaveDays(compensatoryLeave)) : "--"}
+            toneClassName="atl-leave-metric-compensatory"
+          />
+          <LeaveMetric
+            icon={UserRound}
+            label="Used Leaves"
+            value={`${monthlyLeaveDays} Days`}
+            toneClassName="atl-leave-metric-used"
+          />
+        </div>
       </div>
     </Panel>
   );
@@ -2379,16 +2748,28 @@ function LeaveRequestsList({
   const rangeEnd = totalRecords ? Math.min(currentPage * pageSize, totalRecords) : 0;
 
   return (
-    <Panel>
-      <SectionTitle icon={Umbrella}>
-        Leave Requests - {monthLabel}
-      </SectionTitle>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-left text-xs">
-          <thead className="bg-muted/50 text-muted-foreground">
+    <Panel className="min-w-0 overflow-hidden">
+      <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+        <span className="grid h-8 w-8 place-items-center rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
+          <Umbrella className="h-4 w-4" />
+        </span>
+        <h2 className="text-base font-semibold text-foreground">Leave Requests - {monthLabel}</h2>
+      </div>
+      <div className="max-w-full overflow-hidden">
+        <table className="w-full table-fixed text-left text-xs">
+          <colgroup>
+            <col className="w-[17%]" />
+            <col className="w-[21%]" />
+            <col className="w-[12%]" />
+            <col className="w-[15%]" />
+            <col className="w-[11%]" />
+            <col className="w-[16%]" />
+            <col className="w-[8%]" />
+          </colgroup>
+          <thead className="bg-muted/40 text-muted-foreground">
             <tr>
               {["Leave Type", "Date Range", "Duration", "Requested Days", "Status", "Submitted Date", "Action"].map((header) => (
-                <th key={header} className="px-4 py-2 font-medium">{header}</th>
+                <th key={header} className="whitespace-nowrap px-3 py-3 font-medium">{header}</th>
               ))}
             </tr>
           </thead>
@@ -2404,28 +2785,30 @@ function LeaveRequestsList({
               const canCancel = leaveStatus === "Pending" || leaveStatus === "Approved";
 
               return (
-                <tr key={leaveId || index} className="border-t border-border align-top">
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-foreground">{displayText(leave.leaveType || leave.type, "Leave Request")}</p>
+                <tr key={leaveId || index} className="border-t border-border align-middle transition-colors hover:bg-muted/20">
+                  <td className="px-3 py-4">
+                    <p className="font-semibold text-foreground">{displayText(leave.leaveType || leave.type, "Leave Request")}</p>
                     <p className="mt-1 text-muted-foreground">{displayText(leave.leavePolicy?.name)}</p>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  <td className="whitespace-nowrap px-3 py-4 text-muted-foreground">
                     {formatShortDate(leave.fromDate || leave.startDate)} - {formatShortDate(leave.toDate || leave.endDate)}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{displayText(leave.duration || leave.leaveDuration)}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{leaveDays === "--" ? leaveDays : `${leaveDays} Days`}</td>
-                  <td className="px-4 py-3"><StatusPill tone={statusTone(leaveStatus)}>{leaveStatus}</StatusPill></td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatShortDate(leave.createdAt)}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-4 text-muted-foreground">{displayText(leave.duration || leave.leaveDuration)}</td>
+                  <td className="whitespace-nowrap px-3 py-4 text-muted-foreground">{leaveDays === "--" ? leaveDays : `${leaveDays} Days`}</td>
+                  <td className="px-3 py-4"><StatusPill tone={statusTone(leaveStatus)}>{leaveStatus}</StatusPill></td>
+                  <td className="whitespace-nowrap px-3 py-4 text-muted-foreground">{formatShortDate(leave.createdAt)}</td>
+                  <td className="px-3 py-4">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button
+                        <Button
                           type="button"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-foreground hover:bg-muted"
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
                           aria-label="Leave request actions"
                         >
                           <MoreHorizontal className="h-4 w-4" />
-                        </button>
+                        </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44">
                         <DropdownMenuItem onClick={() => setSelectedLeaveId(leaveId)}>
@@ -2459,26 +2842,30 @@ function LeaveRequestsList({
           </tbody>
         </table>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3 text-xs text-muted-foreground">
         <span>{totalRecords ? `Showing ${rangeStart}-${rangeEnd} of ${totalRecords}` : "No leave requests"}</span>
         <div className="flex items-center gap-2">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             disabled={isLoading || currentPage <= 1}
             onClick={() => onPageChange(currentPage - 1)}
-            className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-3 text-foreground hover:bg-muted disabled:opacity-50"
+            className="text-xs"
           >
             <ChevronLeft className="h-3.5 w-3.5" /> Previous
-          </button>
+          </Button>
           <span>Page {currentPage} of {Math.max(totalPages, 1)}</span>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             disabled={isLoading || totalPages === 0 || currentPage >= totalPages}
             onClick={() => onPageChange(currentPage + 1)}
-            className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-3 text-foreground hover:bg-muted disabled:opacity-50"
+            className="text-xs"
           >
             Next <ChevronRight className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         </div>
       </div>
       <LeaveRequestDetailDialog

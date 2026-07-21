@@ -2,6 +2,7 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Activity,
   AlertTriangle,
   Ban,
   Bell,
@@ -9,17 +10,18 @@ import {
   CalendarCheck,
   CalendarDays,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
+  ClipboardList,
   Clock3,
   Download,
   Eye,
   FilePenLine,
   FileText,
   HeartPulse,
+  Globe2,
   Info,
   LogIn,
   LogOut,
+  MapPin,
   MoreHorizontal,
   Pencil,
   ShieldCheck,
@@ -296,6 +298,7 @@ export function InfoRow({ label, value }) {
 export function AttendanceTable({
   rows,
   monthLabel,
+  monthFilterControl,
   title = "Monthly Attendance",
   showFullReportButton = false,
   onViewFullReport,
@@ -310,7 +313,7 @@ export function AttendanceTable({
         icon={CalendarDays}
         action={
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs"><ChevronLeft className="h-3.5 w-3.5" />{monthLabel}<ChevronRight className="h-3.5 w-3.5" /></button>
+            {monthFilterControl}
             <button className="hidden items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs md:flex"><Download className="h-3.5 w-3.5" />Download</button>
           </div>
         }
@@ -397,67 +400,183 @@ function AttendanceDetailDialog({ attendance, loadAttendanceDetail, onOpenChange
 
   const detailAttendance = detailQuery.data || attendance;
   const punches = Array.isArray(detailAttendance.punches) ? detailAttendance.punches : [];
-  const location =
-    detailAttendance.locationName ||
-    detailAttendance.locationAddress ||
-    detailAttendance.location?.address ||
-    detailAttendance.location?.locationAddress ||
-    (detailAttendance.latitude && detailAttendance.longitude ? `${detailAttendance.latitude}, ${detailAttendance.longitude}` : "");
-  const details = [
-    ["Date", formatDisplayDate(detailAttendance.date || detailAttendance.attendanceDate)],
-    ["Status", resolvePresenceStatus(detailAttendance)],
-    ["Check In", formatTime(detailAttendance.checkInTime)],
-    ["Check Out", formatTime(detailAttendance.checkOutTime)],
-    ["Working Hours", text(detailAttendance.workingHours || detailAttendance.totalWorkingHours)],
-    ["Working Minutes", text(detailAttendance.workingMinutes)],
-    ["Duty Type", text(detailAttendance.dutyType)],
-    ["Location Type", text(detailAttendance.locationType)],
-    ["Location Name", text(detailAttendance.locationName)],
-    ["Location Address", text(location)],
-    ["Latitude", text(detailAttendance.latitude || detailAttendance.location?.latitude)],
-    ["Longitude", text(detailAttendance.longitude || detailAttendance.location?.longitude)],
-    ["Source", text(detailAttendance.attendanceSource)],
-    ["Notes", text(detailAttendance.notes || detailAttendance.remark || detailAttendance.remarks)],
-    ["Admin Correction Note", text(detailAttendance.adminCorrectionNote || detailAttendance.correctionNote || detailAttendance.adminRemark || detailAttendance.adminRemarks || detailAttendance.adminNote)],
-    ...(detailQuery.isFetching ? [["Punch History", "Loading..."]] : []),
-    ...(detailQuery.isError ? [["Punch History", detailQuery.error?.response?.data?.message || detailQuery.error?.message || "Unable to load punch history"]] : []),
-    ...(!detailQuery.isFetching && !detailQuery.isError && !punches.length ? [["Punch History", "No punches recorded"]] : []),
-    ...punches.map((punch, index) => {
-      const punchLocation = [
-        punch.location?.name,
-        punch.location?.address,
-        punch.location?.latitude !== null && punch.location?.latitude !== undefined && punch.location?.longitude !== null && punch.location?.longitude !== undefined
-          ? `${punch.location.latitude}, ${punch.location.longitude}`
-          : "",
-      ].filter(Boolean).join(" • ");
-
-      return [
-        `Punch ${index + 1}`,
-        <span key={punch._id || index}>
-          {displayText(String(punch.punchType || "").replace("_", " "))} • {formatTime(punch.punchedAt)}
-          <br />
-          <span className="text-muted-foreground">{[punch.source, punch.location?.type, punchLocation, punch.notes].filter(Boolean).join(" • ") || "--"}</span>
-        </span>,
-      ];
-    }),
-  ];
-
+  const latestPunch = punches.at(-1) || {};
+  const location = detailAttendance.location || latestPunch.location || {};
+  const latitude = firstDetailValue(detailAttendance.latitude, location.latitude);
+  const longitude = firstDetailValue(detailAttendance.longitude, location.longitude);
+  const attendanceDate = formatShortDate(detailAttendance.date || detailAttendance.attendanceDate);
+  const workingMinutes = firstDetailValue(detailAttendance.workingMinutes, 0);
+  const workingHours = firstDetailValue(
+    detailAttendance.workingHours,
+    detailAttendance.totalWorkingHours,
+    Number.isFinite(Number(workingMinutes))
+      ? `${Math.floor(Number(workingMinutes) / 60)}h ${Number(workingMinutes) % 60}m`
+      : undefined
+  );
+  const resolvedStatus = resolvePresenceStatus(detailAttendance);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="atl-card max-h-[85vh] overflow-y-auto sm:max-w-[560px]">
-        <DialogHeader>
-          <DialogTitle className="text-base font-semibold text-foreground">Attendance Detail</DialogTitle>
+      <DialogContent className="atl-card max-h-[92vh] gap-0 overflow-y-auto p-0 sm:max-w-[560px] [&>button]:right-4 [&>button]:top-4 [&>button]:grid [&>button]:h-8 [&>button]:w-8 [&>button]:place-items-center [&>button]:rounded-lg [&>button]:border [&>button]:border-border [&>button]:opacity-100">
+        <DialogHeader className="px-5 pb-4 pt-5">
+          <DialogTitle className="flex items-start gap-4 pr-10 text-left">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+              <CalendarDays className="h-6 w-6" />
+            </span>
+            <span className="pt-0.5">
+              <span className="block text-lg font-semibold text-foreground">Attendance Detail</span>
+              <span className="mt-1 block text-xs font-normal text-muted-foreground">Daily attendance summary</span>
+            </span>
+          </DialogTitle>
         </DialogHeader>
-        <div className="grid gap-2 text-xs">
-          {details.map(([label, value]) => (
-            <div key={label} className="grid grid-cols-[140px_1fr] gap-3 rounded-md border border-border px-3 py-2">
-              <span className="text-muted-foreground">{label}</span>
-              <span className="font-medium text-foreground">{value}</span>
+
+        <div className="space-y-3 px-5 pb-5 text-xs">
+          <div className="grid grid-cols-2 gap-0 overflow-hidden rounded-lg border border-border shadow-sm sm:grid-cols-4 sm:divide-x sm:divide-border">
+            <AttendanceDetailMetric
+              icon={CalendarDays}
+              label="Date"
+              value={attendanceDate}
+              iconClassName="bg-primary/10 text-primary"
+              noWrap
+            />
+            <AttendanceDetailMetric
+              icon={ShieldCheck}
+              label="Status"
+              value={<StatusPill tone={statusTone(resolvedStatus)}>{resolvedStatus}</StatusPill>}
+              iconClassName="atl-detail-icon-success"
+            />
+            <AttendanceDetailMetric icon={Clock3} label="Check In" value={formatTime(detailAttendance.checkInTime)} iconClassName="atl-detail-icon-violet" />
+            <AttendanceDetailMetric icon={Clock3} label="Check Out" value={formatTime(detailAttendance.checkOutTime)} iconClassName="atl-detail-icon-danger" />
+          </div>
+
+          <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-lg border border-border shadow-sm sm:grid-cols-3 sm:divide-x sm:divide-border">
+            <AttendanceDetailMetric compact icon={Clock3} label="Working Hours" value={text(workingHours)} iconClassName="atl-detail-icon-cyan" />
+            <AttendanceDetailMetric compact icon={Clock3} label="Working Minutes" value={text(workingMinutes)} iconClassName="atl-detail-icon-violet" />
+            <AttendanceDetailMetric compact icon={BriefcaseBusiness} label="Duty Type" value={text(detailAttendance.dutyType)} iconClassName="atl-detail-icon-orange" />
+          </div>
+
+          <section className="atl-detail-location rounded-lg border p-3.5">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
+                <MapPin className="h-4 w-4" />
+              </span>
+              Location
+            </h3>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <AttendanceDetailValue label="Location Type" value={firstDetailValue(detailAttendance.locationType, location.type)} />
+              <AttendanceDetailValue label="Location Name" value={firstDetailValue(detailAttendance.locationName, location.name)} />
+              <AttendanceDetailValue label="Address" value={firstDetailValue(detailAttendance.locationAddress, location.address, location.locationAddress)} />
             </div>
-          ))}
+            <div className="mt-3 grid gap-3 border-t border-border/70 pt-3 sm:grid-cols-2">
+              <AttendanceDetailValue label="Latitude" value={latitude} />
+              <AttendanceDetailValue label="Longitude" value={longitude} />
+            </div>
+          </section>
+
+          <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-lg border border-border shadow-sm sm:grid-cols-3 sm:divide-x sm:divide-border">
+            <AttendanceDetailMetric compact icon={Globe2} label="Source" value={text(firstDetailValue(detailAttendance.attendanceSource, latestPunch.source))} iconClassName="bg-primary/10 text-primary" />
+            <AttendanceDetailMetric compact icon={ClipboardList} label="Notes" value={text(firstDetailValue(detailAttendance.notes, detailAttendance.remark, detailAttendance.remarks, latestPunch.notes))} iconClassName="atl-detail-icon-amber" />
+            <AttendanceDetailMetric
+              compact
+              icon={ShieldCheck}
+              label="Admin Correction Note"
+              value={text(firstDetailValue(detailAttendance.adminCorrectionNote, detailAttendance.correctionNote, detailAttendance.adminRemark, detailAttendance.adminRemarks, detailAttendance.adminNote))}
+              iconClassName="atl-detail-icon-violet"
+            />
+          </div>
+
+          <section className="rounded-lg border border-border bg-muted/15 p-3.5">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-muted text-foreground">
+                <Activity className="h-4 w-4" />
+              </span>
+              Punch Activity
+            </h3>
+            <div className="mt-3 space-y-2">
+              {detailQuery.isFetching ? (
+                <p className="rounded-lg bg-background p-4 text-center text-muted-foreground">Loading punch activity...</p>
+              ) : detailQuery.isError ? (
+                <p className="rounded-lg bg-background p-4 text-center text-red-600 dark:text-red-400">
+                  {detailQuery.error?.response?.data?.message || detailQuery.error?.message || "Unable to load punch activity"}
+                </p>
+              ) : punches.length ? (
+                punches.map((punch, index) => <PunchActivityItem key={punch._id || index} punch={punch} index={index} />)
+              ) : (
+                <p className="rounded-lg bg-background p-4 text-center text-muted-foreground">No punches recorded.</p>
+              )}
+            </div>
+          </section>
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function firstDetailValue(...values) {
+  return values.find((value) => value !== null && value !== undefined && value !== "");
+}
+
+function AttendanceDetailMetric({ icon: Icon, label, value, iconClassName, compact = false, noWrap = false }) {
+  return (
+    <div className={`flex min-w-0 items-center gap-2 bg-card px-3 py-2.5 ${compact ? "min-h-[68px]" : "min-h-[82px]"}`}>
+      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${iconClassName}`}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[10px] font-medium text-muted-foreground">{label}</span>
+        <span className={`mt-1 block text-xs font-semibold leading-5 text-foreground ${noWrap ? "whitespace-nowrap" : ""}`}>{displayText(value)}</span>
+      </span>
+    </div>
+  );
+}
+
+function AttendanceDetailValue({ label, value }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-medium text-muted-foreground">{label}</p>
+      <p className="mt-2 break-words text-xs font-semibold text-foreground">{displayText(value)}</p>
+    </div>
+  );
+}
+
+function PunchActivityItem({ punch, index }) {
+  const isCheckOut = String(punch.punchType || "").toLowerCase().includes("out");
+  const PunchIcon = isCheckOut ? LogOut : LogIn;
+  const location = punch.location || {};
+  const coordinates = location.latitude !== null && location.latitude !== undefined
+    && location.longitude !== null && location.longitude !== undefined
+    ? `${location.latitude}, ${location.longitude}`
+    : "";
+  const detailLine = [
+    punch.source,
+    location.type,
+    location.name,
+    location.address && location.address !== coordinates ? location.address : "",
+  ]
+    .filter(Boolean)
+    .filter((value, valueIndex, values) => values.indexOf(value) === valueIndex)
+    .join(" • ");
+  const punchTypeLabel = isCheckOut ? "Check Out" : "Check In";
+
+  return (
+    <div className="grid items-center gap-3 overflow-hidden rounded-lg bg-background p-3 shadow-sm sm:grid-cols-[36px_104px_minmax(0,1fr)]">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-500/10 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+        {index + 1}
+      </span>
+      <div className="flex min-w-0 items-center gap-2">
+        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full ${isCheckOut ? "atl-detail-icon-danger" : "atl-detail-icon-success"}`}>
+          <PunchIcon className="h-3.5 w-3.5" />
+        </span>
+        <span className="min-w-0">
+          <span className="block whitespace-nowrap text-[10px] text-muted-foreground">{punchTypeLabel}</span>
+          <span className="mt-0.5 block whitespace-nowrap font-semibold text-foreground">{formatTime(punch.punchedAt)}</span>
+        </span>
+      </div>
+      <div className="min-w-0 border-t border-border/60 pt-2 text-[11px] leading-5 text-muted-foreground sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0">
+        <p className="truncate whitespace-nowrap" title={displayText(detailLine)}>{displayText(detailLine)}</p>
+        {coordinates && <p className="whitespace-nowrap">{coordinates}</p>}
+        {punch.notes && <p className="truncate whitespace-nowrap" title={punch.notes}>{punch.notes}</p>}
+      </div>
+    </div>
   );
 }
 

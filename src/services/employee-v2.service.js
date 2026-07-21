@@ -86,9 +86,16 @@ const EmployeeV2Service = {
     }),
     getAttendanceRecord: (attendanceId) =>
         employeeV2Request.get(`/attendance/me/records/${encodeURIComponent(attendanceId)}`),
-    createAttendanceCorrection: ({ targetId, changes, reason } = {}) =>
+    createAttendanceCorrection: ({ targetType = "Attendance", targetId, changes, reason } = {}) =>
         employeeV2Request.post("/attendance/corrections", {
-            targetType: "Attendance",
+            targetType,
+            targetId,
+            changes,
+            reason,
+        }),
+    createLeaveCorrection: ({ targetType = "Leave", targetId, changes, reason } = {}) =>
+        employeeV2Request.post("/leave/corrections", {
+            targetType,
             targetId,
             changes,
             reason,
