@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@components/components/ui/button";
 import { Input } from "@components/components/ui/input";
+import PageLocked from "@components/components/PageLocked";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/components/ui/select";
 import {
   AlertTriangle,
@@ -104,8 +105,9 @@ export default function VendorCoordinationPage() {
   ];
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground md:p-6">
-      <div className="mx-auto max-w-[1500px] space-y-5">
+    <div className="relative min-h-[calc(100vh-4rem)]">
+      <div className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground md:p-6">
+        <div className="mx-auto max-w-[1500px] space-y-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Vendor Coordination</h1>
@@ -238,7 +240,9 @@ export default function VendorCoordinationPage() {
             </div>
           </SectionCard>
         </div>
+        </div>
       </div>
+      <PageLocked className="z-[100]" />
     </div>
   );
 }

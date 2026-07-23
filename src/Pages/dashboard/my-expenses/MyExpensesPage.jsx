@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@components/components/ui/button";
 import { Input } from "@components/components/ui/input";
+import PageLocked from "@components/components/PageLocked";
 import { Textarea } from "@components/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/components/ui/select";
 import {
@@ -197,7 +198,8 @@ export default function MyExpensesPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground md:p-6">
+    <div className="relative min-h-[calc(100vh-4rem)]">
+      <div className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground md:p-6">
       <div className="mx-auto max-w-[1500px] space-y-5">
         <PageHeader search={filters.search} onSearch={(value) => setFilter("search", value)} />
 
@@ -297,15 +299,17 @@ export default function MyExpensesPage() {
         </SheetContent>
       </Sheet>
 
-      <ExpenseFormSheet
-        open={Boolean(sheetMode)}
-        mode={sheetMode}
-        form={form}
-        setForm={setForm}
-        onOpenChange={(open) => !open && setSheetMode(null)}
-        onSubmit={() => submitMutation.mutate({ mode: sheetMode })}
-        loading={submitMutation.isPending}
-      />
+        <ExpenseFormSheet
+          open={Boolean(sheetMode)}
+          mode={sheetMode}
+          form={form}
+          setForm={setForm}
+          onOpenChange={(open) => !open && setSheetMode(null)}
+          onSubmit={() => submitMutation.mutate({ mode: sheetMode })}
+          loading={submitMutation.isPending}
+        />
+      </div>
+      <PageLocked className="z-[100]" />
     </div>
   );
 }

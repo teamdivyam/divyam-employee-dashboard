@@ -12,11 +12,13 @@ import {
   TrendPanel,
 } from "./components/ScorecardComponents";
 import { Star, TrendingUp } from "lucide-react";
+import PageLocked from "@components/components/PageLocked";
 
 export default function ScorecardPage() {
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground md:p-6">
-      <div className="mx-auto max-w-[1700px] space-y-5">
+    <div className="relative min-h-[calc(100vh-4rem)]">
+      <div className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground md:p-6">
+        <div className="mx-auto max-w-[1700px] space-y-5">
         <PageHeader />
         <ScoreMetrics metrics={scorecardData.metrics} />
 
@@ -33,7 +35,9 @@ export default function ScorecardPage() {
 
           <ConfidentialPanel className="xl:col-span-12" />
         </div>
+        </div>
       </div>
+      <PageLocked className="z-[100]" />
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
   UserRound,
   Wallet,
 } from 'lucide-react';
+import PageLocked from '@components/components/PageLocked';
 import EmployeeService from '../../../services/employee.service';
 
 const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN')}`;
@@ -120,11 +121,17 @@ function DetailPayrollSalaryPage() {
   ];
 
   if (detailQuery.isLoading) {
-    return <div className="min-h-screen bg-background p-6 text-muted-foreground">Loading payroll detail...</div>;
+    return (
+      <div className="relative min-h-screen">
+        <div className="min-h-screen bg-background p-6 text-muted-foreground">Loading payroll detail...</div>
+        <PageLocked className="z-[100]" />
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 text-foreground md:p-6">
+    <div className="relative min-h-screen">
+      <div className="min-h-screen bg-background p-4 text-foreground md:p-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
@@ -214,6 +221,8 @@ function DetailPayrollSalaryPage() {
         </div>
       </section>
 
+      </div>
+      <PageLocked className="z-[100]" />
     </div>
   );
 }

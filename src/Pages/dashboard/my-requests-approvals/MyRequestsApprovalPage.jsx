@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import EmployeeService from "@/services/employee.service";
+import PageLocked from "@components/components/PageLocked";
 import {
   emptyRequestForm,
   MetricsGrid,
@@ -134,8 +135,9 @@ export default function MyRequestsApprovalPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 p-4 text-slate-950 md:p-6">
-      <div className="mx-auto max-w-[1700px] space-y-5">
+    <div className="relative min-h-[calc(100vh-4rem)]">
+      <div className="min-h-[calc(100vh-4rem)] bg-slate-50 p-4 text-slate-950 md:p-6">
+        <div className="mx-auto max-w-[1700px] space-y-5">
         <PageHeader search={filters.search} onSearch={(value) => setFilter("search", value)} />
         <MetricsGrid analytics={analyticsQuery.data || {}} />
 
@@ -170,16 +172,18 @@ export default function MyRequestsApprovalPage() {
         onEdit={openEdit}
       />
 
-      <RequestFormSheet
-        open={Boolean(formMode)}
-        mode={formMode}
-        form={form}
-        setForm={setForm}
-        meta={meta}
-        loading={submitMutation.isPending}
-        onOpenChange={(open) => !open && setFormMode(null)}
-        onSubmit={() => submitMutation.mutate({ mode: formMode })}
-      />
+        <RequestFormSheet
+          open={Boolean(formMode)}
+          mode={formMode}
+          form={form}
+          setForm={setForm}
+          meta={meta}
+          loading={submitMutation.isPending}
+          onOpenChange={(open) => !open && setFormMode(null)}
+          onSubmit={() => submitMutation.mutate({ mode: formMode })}
+        />
+      </div>
+      <PageLocked className="z-[100]" />
     </div>
   );
 }

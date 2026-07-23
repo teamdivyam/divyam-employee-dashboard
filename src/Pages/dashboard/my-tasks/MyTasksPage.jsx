@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@components/components/ui/button";
 import { Input } from "@components/components/ui/input";
+import PageLocked from "@components/components/PageLocked";
 import { Textarea } from "@components/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/components/ui/select";
 import {
@@ -186,8 +187,9 @@ export default function MyTasksPage() {
   ];
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground md:p-6">
-      <div className="mx-auto max-w-[1500px] space-y-5">
+    <div className="relative min-h-[calc(100vh-4rem)]">
+      <div className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground md:p-6">
+        <div className="mx-auto max-w-[1500px] space-y-5">
         <PageHeader
           title="My Tasks"
           breadcrumb="My Tasks"
@@ -328,12 +330,14 @@ export default function MyTasksPage() {
         </SheetContent>
       </Sheet>
 
-      <AddTaskSheet
-        open={isAddTaskOpen}
-        onOpenChange={setIsAddTaskOpen}
-        task={newTask}
-        setTask={setNewTask}
-      />
+        <AddTaskSheet
+          open={isAddTaskOpen}
+          onOpenChange={setIsAddTaskOpen}
+          task={newTask}
+          setTask={setNewTask}
+        />
+      </div>
+      <PageLocked className="z-[100]" />
     </div>
   );
 }

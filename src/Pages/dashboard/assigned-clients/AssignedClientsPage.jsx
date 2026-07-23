@@ -32,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from '@components/components/ui/dropdown-menu';
 import { Input } from '@components/components/ui/input';
+import PageLocked from '@components/components/PageLocked';
 import {
   Select,
   SelectContent,
@@ -450,8 +451,9 @@ export default function ClientCRMPage() {
   );
 
   return (
-    <div className="w-full min-w-0 max-w-full overflow-x-hidden bg-background p-4 text-foreground md:p-6">
-      <div className="w-full min-w-0 space-y-5">
+    <div className="relative min-h-[calc(100vh-4rem)]">
+      <div className="w-full min-w-0 max-w-full overflow-x-hidden bg-background p-4 text-foreground md:p-6">
+        <div className="w-full min-w-0 space-y-5">
         <div className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-5">
           {statCards.map((stat) => (
             <StatCard key={stat.label} {...stat} />
@@ -736,13 +738,15 @@ export default function ClientCRMPage() {
         </div>
       </div>
 
-      <ClientLeadSheet
-        open={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        employees={employees}
-        onSubmit={handleCreateClient}
-        saving={Boolean(createCustomerMutation.isPending || createCustomerMutation.isLoading)}
-      />
+        <ClientLeadSheet
+          open={isFormOpen}
+          onOpenChange={setIsFormOpen}
+          employees={employees}
+          onSubmit={handleCreateClient}
+          saving={Boolean(createCustomerMutation.isPending || createCustomerMutation.isLoading)}
+        />
+      </div>
+      <PageLocked className="z-[100]" />
     </div>
   );
 }

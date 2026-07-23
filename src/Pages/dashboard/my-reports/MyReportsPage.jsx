@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import EmployeeService from "@/services/employee.service";
+import PageLocked from "@components/components/PageLocked";
 import {
   emptyReportForm,
   PageHeader,
@@ -149,8 +150,9 @@ export default function MyReportsPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 p-4 text-slate-950 md:p-6">
-      <div className="mx-auto max-w-[1700px] space-y-4">
+    <div className="relative min-h-[calc(100vh-4rem)]">
+      <div className="min-h-[calc(100vh-4rem)] bg-slate-50 p-4 text-slate-950 md:p-6">
+        <div className="mx-auto max-w-[1700px] space-y-4">
         <PageHeader search={filters.search} onSearch={(value) => setFilter("search", value)} />
         <ReportMetrics analytics={analyticsQuery.data || {}} />
 
@@ -181,18 +183,20 @@ export default function MyReportsPage() {
         onResubmit={openResubmit}
       />
 
-      <ReportFormSheet
-        open={Boolean(formMode)}
-        mode={formMode}
-        form={form}
-        setForm={setForm}
-        meta={meta}
-        employees={employeeSelectQuery.data || []}
-        events={eventSelectQuery.data || []}
-        loading={submitMutation.isPending}
-        onOpenChange={(open) => !open && setFormMode(null)}
-        onSubmit={() => submitMutation.mutate({ mode: formMode })}
-      />
+        <ReportFormSheet
+          open={Boolean(formMode)}
+          mode={formMode}
+          form={form}
+          setForm={setForm}
+          meta={meta}
+          employees={employeeSelectQuery.data || []}
+          events={eventSelectQuery.data || []}
+          loading={submitMutation.isPending}
+          onOpenChange={(open) => !open && setFormMode(null)}
+          onSubmit={() => submitMutation.mutate({ mode: formMode })}
+        />
+      </div>
+      <PageLocked className="z-[100]" />
     </div>
   );
 }
