@@ -410,6 +410,19 @@ body {
   .atl-leave-timeline-pending {
     @apply bg-violet-500 text-white dark:bg-violet-500;
   }
+
+  .profile-tab-trigger {
+    @apply text-xs font-medium text-foreground;
+  }
+
+  .profile-tab-trigger:hover,
+  .profile-tab-trigger[data-state="active"] {
+    color: rgb(249 115 22);
+  }
+
+  .profile-tab-trigger[data-state="active"] {
+    border-color: rgb(249 115 22);
+  }
 }
 
 /* SETTING_PAGE */

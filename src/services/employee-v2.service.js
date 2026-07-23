@@ -48,10 +48,18 @@ const EmployeeV2Service = {
     refresh: () => employeeV2Request.post("/auth/refresh"),
     logout: () => employeeV2Request.post("/auth/logout"),
     logoutAll: () => employeeV2Request.post("/auth/logout-all"),
-    changePassword: (formData) => employeeV2Request.post("/auth/change-password", formData),
+    changePassword: (formData) => employeeV2Request.patch("/auth/change-password", formData),
     sessions: () => employeeV2Request.get("/auth/session"),
 
     me: () => employeeV2Request.get("/employees/me"),
+    getMyDocuments: (params = {}) => employeeV2Request.get("/employees/me/documents", { params }),
+    updateMyProfile: (formData) => employeeV2Request.patch(
+        "/employees/me",
+        formData,
+        formData instanceof FormData
+            ? { headers: { "Content-Type": "multipart/form-data" } }
+            : undefined,
+    ),
     getEmployeeDetail: (employeeId) =>
         employeeV2Request.get(`/employees/${encodeURIComponent(employeeId)}`),
     editEmployee: (employeeId, formData) => employeeV2Request.patch(`/employees/${encodeURIComponent(employeeId)}`, formData),

@@ -5,7 +5,7 @@ import {
   CalendarDays,
   CircleUserRound,
   Clock3,
-  Download,
+  Eye,
   FileText,
   IdCard,
   LockKeyhole,
@@ -18,18 +18,26 @@ import {
   UsersRound,
   Zap,
 } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@components/components/ui/table";
 
 export const profileTabs = [
-  { value: "overview", label: "Overview" },
-  { value: "personal", label: "Personal Information" },
-  { value: "work", label: "Work Information" },
-  { value: "emergency", label: "Emergency Contact" },
-  { value: "documents", label: "Documents" },
+  { value: "overview", label: "Overview", icon: CircleUserRound },
+  { value: "personal", label: "Personal Information", icon: UserRound },
+  { value: "work", label: "Work Information", icon: BriefcaseBusiness },
+  { value: "emergency", label: "Emergency Contact", icon: Phone },
+  { value: "documents", label: "Documents", icon: FileText },
 ];
 
 export function displayText(value, fallback = "--") {
   if (value === null || value === undefined || value === "") return fallback;
-  if (Array.isArray(value)) return value.map((item) => displayText(item, "")).filter(Boolean).join(", ") || fallback;
+  if (Array.isArray(value)) return value.map((item) => displayText(item, "")).filter(Boolean).join(" ") || fallback;
   if (typeof value === "object") {
     return value.label || value.name || value.title || value.status || value.value || value.email || value.phoneNo || fallback;
   }
@@ -156,8 +164,8 @@ export function DetailRows({ rows, valueClassName = "" }) {
     <div className="grid gap-3">
       {rows.map(({ label, value, render, valueClassName: rowValueClassName = "" }) => (
         <div key={label} className="grid min-w-0 grid-cols-[minmax(116px,0.7fr)_minmax(0,1fr)] gap-4 text-xs">
-          <span className="text-muted-foreground">{label}</span>
-          <span className={`min-w-0 break-words font-semibold text-foreground ${valueClassName} ${rowValueClassName}`}>{render ? render(value) : displayText(value)}</span>
+          <span className="text-foreground font-semibold">{label}</span>
+          <span className={`min-w-0 break-words text-foreground ${valueClassName} ${rowValueClassName}`}>{render ? render(value) : displayText(value)}</span>
         </div>
       ))}
     </div>
@@ -192,14 +200,14 @@ export function ProfileHero({ profile, onAction }) {
             </div>
             <div className="min-w-0 pt-1">
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-2xl font-bold leading-tight text-foreground">{name}</h1>
+                <h1 className="text-xl font-semibold leading-tight text-foreground">{name}</h1>
                 <StatusPill>{overview.status || "Active"}</StatusPill>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-3">
-                <p className="text-sm font-semibold text-foreground">{displayText(overview.designation)}</p>
-                <StatusPill tone="orange">Employee ID: {displayText(overview.employeeId || profile.employeeId)}</StatusPill>
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs ">
+                <p className="font-semibold text-foreground">{displayText(overview.designation)}</p>
+                <StatusPill tone="orange">ID: {displayText(overview.employeeId || profile.employeeId)}</StatusPill>
               </div>
-              <div className="mt-5 grid gap-3 text-sm font-semibold text-foreground">
+              <div className="mt-5 grid gap-3 text-xs font-semibold text-foreground">
                 <span className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /> +91 {displayText(overview.phoneNo)}</span>
                 <span className="flex items-center gap-3"><Mail className="h-4 w-4 text-muted-foreground" /> {displayText(overview.email)}</span>
                 <span className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground" /> {displayText(overview.location)}</span>
@@ -223,10 +231,10 @@ export function ProfileHero({ profile, onAction }) {
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-3 lg:justify-end">
-          <button onClick={() => onAction("password")} className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-background px-5 text-xs font-bold text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground">
+          <button onClick={() => onAction("password")} className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-background px-5 text-xs font-semibold text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground">
             <LockKeyhole className="h-4 w-4" /> Change Password
           </button>
-          <button onClick={() => onAction("edit")} className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-5 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/90">
+          <button onClick={() => onAction("edit")} className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90">
             <Pencil className="h-4 w-4" /> Edit Profile
           </button>
         </div>
@@ -239,9 +247,9 @@ export function OverviewTab({ profile, onAction }) {
   return (
     <div className="grid gap-4 xl:grid-cols-12">
       <PersonalInformationCard profile={profile} onAction={() => onAction("tab:personal")} className="xl:col-span-4" />
+      <EmploymentInformationCard profile={profile} className="xl:col-span-4" />
+      <LoginSecurityCard profile={profile} onAction={() => onAction("password")} className="xl:col-span-4" />
       <RoleAccessCard profile={profile} onAction={() => onAction("tab:work")} className="xl:col-span-8" />
-      <EmploymentInformationCard profile={profile} className="xl:col-span-5" />
-      <LoginSecurityCard profile={profile} onAction={() => onAction("password")} className="xl:col-span-3" />
       <QuickActionsCard profile={profile} onAction={onAction} className="xl:col-span-4" />
     </div>
   );
@@ -322,11 +330,11 @@ export function LoginSecurityCard({ profile, onAction, className = "" }) {
     <SectionCard title="Login & Security" icon={LockKeyhole} className={className}>
       <DetailRows rows={[
         { label: "Login Email", value: security.loginEmail, valueClassName: "break-all" },
-        { label: "Login Status", value: security.loginStatus, render: (value) => <StatusPill>{value}</StatusPill> },
         { label: "Last Login", value: formatDateTime(security.lastLoginAt) },
+        { label: "Login Status", value: security.loginStatus, render: (value) => <StatusPill>{value}</StatusPill> },
         { label: "Password Status", value: security.passwordStatus, render: (value) => <StatusPill>{value}</StatusPill> },
       ]} />
-      <button onClick={onAction} className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-border bg-background text-xs font-bold text-foreground hover:bg-accent hover:text-accent-foreground">
+      <button onClick={onAction} className="mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-border bg-background text-xs font-semibold text-foreground hover:bg-accent hover:text-accent-foreground">
         <LockKeyhole className="h-4 w-4" /> Change Password
       </button>
     </SectionCard>
@@ -352,10 +360,10 @@ export function QuickActionsCard({ profile, onAction, className = "" }) {
           <button
             key={key}
             onClick={() => onAction(action)}
-            className={`min-h-20 rounded-lg border border-border bg-background px-2 py-3 text-center shadow-sm transition hover:bg-accent ${availableKeys.size && !availableKeys.has(key) ? "opacity-75" : ""}`}
+            className={`min-h-20 rounded-lg border border-border bg-background px-1.5 py-3 text-center shadow-sm transition hover:bg-accent ${availableKeys.size && !availableKeys.has(key) ? "opacity-75" : ""}`}
           >
             <Icon className={`mx-auto h-6 w-6 ${tone}`} />
-            <span className="mt-2 block text-xs font-bold text-foreground">{label}</span>
+            <span className="mt-2 block text-xs font-semibold text-foreground">{label}</span>
           </button>
         ))}
       </div>
@@ -380,7 +388,7 @@ export function WorkInformationTab({ profile }) {
             ["Documents", summary.documentCount],
           ].map(([label, value]) => (
             <div key={label} className="rounded-lg border border-border bg-muted/50 p-4">
-              <p className="text-2xl font-bold text-foreground">{displayText(value, 0)}</p>
+              <p className="text-2xl font-semibold text-foreground">{displayText(value, 0)}</p>
               <p className="mt-1 text-xs font-semibold text-muted-foreground">{label}</p>
             </div>
           ))}
@@ -429,17 +437,75 @@ export function EmergencyContactTab({ profile }) {
   );
 }
 
-export function DocumentsTab({ profile, onAction }) {
-  const { summary } = getSections(profile);
+export function DocumentsTab({ documents, isLoading, error, onRetry }) {
   return (
     <SectionCard title="Documents" icon={FileText}>
-      <div className="rounded-lg border border-dashed border-border bg-muted/50 p-8 text-center">
-        <FileText className="mx-auto h-10 w-10 text-muted-foreground" />
-        <p className="mt-3 text-sm font-semibold text-foreground">{displayText(summary.documentCount, 0)} document(s) on record</p>
-        <p className="mt-1 text-xs text-muted-foreground">Document list data is not included in the current profile response.</p>
-        <button onClick={() => onAction("download_id_card")} className="mt-4 inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-xs font-bold text-primary-foreground hover:bg-primary/90">
-          <Download className="h-4 w-4" /> Download ID Card
-        </button>
+      <div className="overflow-hidden rounded-lg border border-border">
+        <Table>
+          <TableHeader className="bg-muted/50">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="whitespace-nowrap px-4">Document Name</TableHead>
+              <TableHead className="whitespace-nowrap px-4">Document Type</TableHead>
+              <TableHead className="whitespace-nowrap px-4">File</TableHead>
+              <TableHead className="whitespace-nowrap px-4">Issued At</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="h-28 text-center text-xs text-muted-foreground">
+                  Loading documents...
+                </TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={4} className="h-28 text-center">
+                  <p className="text-xs text-destructive">
+                    {String(error.response?.data?.message || error.response?.data?.msg || error.message || "Unable to load documents.").split("|")[0]}
+                  </p>
+                  <button type="button" onClick={onRetry} className="mt-3 text-xs font-medium text-primary hover:underline">
+                    Try again
+                  </button>
+                </TableCell>
+              </TableRow>
+            ) : documents.length ? (
+              documents.map((document) => (
+                <TableRow key={document._id}>
+                  <TableCell className="px-4 text-xs font-medium text-foreground">
+                    {displayText(document.documentName)}
+                  </TableCell>
+                  <TableCell className="px-4 text-xs text-foreground">
+                    {displayText(document.documentType)}
+                  </TableCell>
+                  <TableCell className="px-4">
+                    {document.file?.fileUrl ? (
+                      <a
+                        href={document.file.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex max-w-[220px] items-center gap-2 text-xs font-medium text-primary hover:underline"
+                      >
+                        <Eye className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{displayText(document.documentName, "View File")}</span>
+                      </a>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">--</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap px-4 text-xs text-foreground">
+                    {formatDate(document.createdAt)}
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={4} className="h-28 text-center text-xs text-muted-foreground">
+                  No documents have been added for you.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
     </SectionCard>
   );
@@ -452,14 +518,14 @@ export function CompletionStrip({ profile }) {
     <div className="rounded-lg border border-border bg-card px-5 py-4 text-card-foreground shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-bold text-foreground">Profile Completion</p>
+          <p className="text-sm font-semibold text-foreground">Profile Completion</p>
           <p className="text-xs text-muted-foreground">Last updated {formatDate(completion.updatedAt)}</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="h-2 w-40 overflow-hidden rounded-full bg-muted">
             <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(0, Math.min(percentage, 100))}%` }} />
           </div>
-          <span className="text-sm font-bold text-foreground">{percentage}%</span>
+          <span className="text-sm font-semibold text-foreground">{percentage}%</span>
         </div>
       </div>
     </div>
