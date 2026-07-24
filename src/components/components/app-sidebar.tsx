@@ -107,25 +107,25 @@ const navMain: NavItem[] = [
     icon: Handshake,
     items: [],
   },
-  {
-    title: "Inventory & Essentials",
-    url: "/dashboard/inventory",
-    icon: Boxes,
-    items: [
-      {
-        title: "Stocks",
-        url: "/dashboard/inventory/stock",
-      },
-      {
-        title: "Products",
-        url: "/dashboard/inventory/product",
-      },
-      {
-        title: "Packages",
-        url: "/dashboard/inventory/package",
-      },
-    ],
-  },
+  // {
+  //   title: "Inventory & Essentials",
+  //   url: "/dashboard/inventory",
+  //   icon: Boxes,
+  //   items: [
+  //     {
+  //       title: "Stocks",
+  //       url: "/dashboard/inventory/stock",
+  //     },
+  //     {
+  //       title: "Products",
+  //       url: "/dashboard/inventory/product",
+  //     },
+  //     {
+  //       title: "Packages",
+  //       url: "/dashboard/inventory/package",
+  //     },
+  //   ],
+  // },
   {
     title: "My Request & Approvals",
     url: "/dashboard/requests-approvals",

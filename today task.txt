@@ -81,3 +81,10 @@ Mene 5 dashboards banaiya hain admin, employee, finance, inventory aur vendor(ye
 4. Employee sirf apney dashboard pe login kar paiye, aur jo usko page ka access miley ussi pe kaam kar paiye.
 
 Yeh mujhey detail mein samjhao kaisey karey.
+
+24-07-2026
+1. Correction request pe open attendance record or open leave record click karney pe dialog khul jaiye particular attendance ka or particular leave ka.
+2. Done - Mark attendance wala thik karna hain, back date pe attendance lagani hain.
+3. Done - Allot leave mein minus nahi ho rha hain.
+4. Done - Admin detail attendance mein overview wala tab ko replace karna hain employee.
+5. Done - Present mein half day nahi included ho rha hain.
