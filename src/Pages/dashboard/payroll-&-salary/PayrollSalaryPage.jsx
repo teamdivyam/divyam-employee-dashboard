@@ -222,7 +222,7 @@ function DetailPayrollSalaryPage() {
       </section>
 
       </div>
-      <PageLocked className="z-[100]" />
+      {/* <PageLocked className="z-[100]" /> */}
     </div>
   );
 }
