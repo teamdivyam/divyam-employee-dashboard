@@ -1,21 +1,32 @@
 /* eslint-disable react/prop-types, react-refresh/only-export-components */
 import {
   BadgeCheck,
+  BadgeInfo,
   BriefcaseBusiness,
+  Building2,
   CalendarDays,
+  CheckCircle2,
   CircleUserRound,
   Clock3,
+  CreditCard,
   Eye,
+  FileCheck2,
+  FileClock,
   FileText,
   IdCard,
+  Landmark,
+  Loader2,
   LockKeyhole,
   Mail,
   MapPin,
   Pencil,
   Phone,
   ShieldCheck,
+  Trash2,
+  UploadCloud,
+  UserRoundCheck,
   UserRound,
-  UsersRound,
+  WalletCards,
   Zap,
 } from "lucide-react";
 import {
@@ -31,7 +42,7 @@ export const profileTabs = [
   { value: "overview", label: "Overview", icon: CircleUserRound },
   { value: "personal", label: "Personal Information", icon: UserRound },
   { value: "work", label: "Work Information", icon: BriefcaseBusiness },
-  { value: "emergency", label: "Emergency Contact", icon: Phone },
+  // { value: "emergency", label: "Emergency Contact", icon: Phone },
   { value: "documents", label: "Documents", icon: FileText },
 ];
 
@@ -79,6 +90,7 @@ export function getSections(profile = {}) {
     employment: profile.employmentInformation || {},
     emergency: profile.emergencyContactInformation || {},
     security: profile.loginSecurity || {},
+    banking: profile.bankingInformation || {},
     quickActions: profile.quickActions || [],
     completion: profile.profileCompletion || {},
     summary: profile.summary || {},
@@ -169,6 +181,232 @@ export function DetailRows({ rows, valueClassName = "" }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function ProfileDetailRows({ rows }) {
+  return (
+    <dl className="divide-y divide-border">
+      {rows.map(({ label, value }) => (
+        <div
+          key={label}
+          className="grid min-w-0 grid-cols-[minmax(118px,0.72fr)_minmax(0,1fr)] gap-4 py-3 first:pt-0 last:pb-0"
+        >
+          <dt className="text-xs font-medium leading-5 text-foreground">{label}</dt>
+          <dd className="min-w-0 break-words text-xs leading-5 text-foreground">
+            {displayText(value)}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function ProfileDetailCard({ title, description, icon: Icon, tone, rows }) {
+  return (
+    <section className="profile-detail-card">
+      <header className="flex items-center gap-3 border-b border-border px-5 py-4">
+        <span className={`profile-detail-icon profile-detail-icon-${tone}`}>
+          <Icon className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold leading-5 text-foreground">{title}</h2>
+          <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">{description}</p>
+        </div>
+      </header>
+      <div className="px-5 py-4">
+        <ProfileDetailRows rows={rows} />
+      </div>
+    </section>
+  );
+}
+
+function maskAccountNumber(value) {
+  const raw = displayText(value, "");
+  if (!raw) return "--";
+  if (/[*xX]/.test(raw)) return raw;
+
+  const compact = String(raw).replace(/\s+/g, "");
+  if (compact.length <= 4) return compact;
+  return `${"X".repeat(Math.max(compact.length - 4, 8))}${compact.slice(-4)}`;
+}
+
+function BankingDetailItem({ icon: Icon, label, value, revealable = false }) {
+  return (
+    <div className="grid grid-cols-[18px_minmax(112px,0.65fr)_minmax(0,1fr)_18px] items-center gap-2 border-b border-border py-3 last:border-b-0">
+      <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+      <span className="text-xs font-medium text-foreground">{label}</span>
+      <span className="min-w-0 break-words text-xs text-foreground">{displayText(value)}</span>
+      {revealable ? <Eye className="h-4 w-4 text-muted-foreground" aria-hidden="true" /> : <span />}
+    </div>
+  );
+}
+
+function BankingDetailsCard({
+  banking,
+  isLoading,
+  error,
+  canEdit,
+  onEdit,
+  onRetry,
+}) {
+  const details = banking || {};
+  const normalizedStatus = String(displayText(details.verificationStatus, "")).toLowerCase();
+  const isApproved = Boolean(details.isVerified)
+    || ["approved", "verified", "finance approved", "approved by finance"].includes(normalizedStatus);
+  const isRejected = normalizedStatus === "rejected";
+  const isPending = ["pending", "pending verification"].includes(normalizedStatus);
+  const statusLabel = isApproved
+    ? "Approved by Finance"
+    : displayText(details.verificationStatus, "Not available");
+  const StatusIcon = isApproved ? CheckCircle2 : Clock3;
+
+  return (
+    <section className="profile-detail-card overflow-hidden">
+      <header className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <span className="profile-detail-icon profile-detail-icon-bank">
+            <Landmark className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div>
+            <h2 className="text-sm font-semibold leading-5 text-foreground">Banking Details</h2>
+            <div className="profile-bank-notice mt-1.5">
+              <BadgeInfo className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>Bank details are added and verified by the Finance team. Only finance-approved details are shown here.</span>
+            </div>
+          </div>
+        </div>
+        {canEdit && !isLoading && !error && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-background px-4 text-xs font-medium text-foreground shadow-sm transition hover:bg-accent hover:text-accent-foreground"
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+            {banking ? "Edit Banking Details" : "Add Banking Details"}
+          </button>
+        )}
+      </header>
+
+      {isLoading ? (
+        <div className="grid min-h-40 place-items-center px-5 py-8 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-2">
+            <Clock3 className="h-4 w-4 animate-pulse" aria-hidden="true" />
+            Loading banking details
+          </span>
+        </div>
+      ) : error ? (
+        <div className="grid min-h-40 place-items-center px-5 py-8 text-center">
+          <div>
+            <p className="text-xs text-destructive">Unable to load banking details.</p>
+            <button type="button" onClick={onRetry} className="mt-2 text-xs font-medium text-primary hover:underline">
+              Try again
+            </button>
+          </div>
+        </div>
+      ) : (
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_280px]">
+        <div className="px-5 py-3 lg:border-r lg:border-border">
+          <BankingDetailItem icon={UserRound} label="Account Holder Name" value={details.accountHolderName} />
+          <BankingDetailItem icon={Building2} label="Bank Name" value={details.bankName} />
+          <BankingDetailItem icon={CreditCard} label="Account Number" value={maskAccountNumber(details.accountNumber)} revealable />
+        </div>
+        <div className="border-t border-border px-5 py-3 lg:border-r lg:border-t-0">
+          <BankingDetailItem icon={UserRoundCheck} label="IFSC Code" value={details.ifscCode} />
+          <BankingDetailItem icon={MapPin} label="Branch" value={details.branch} />
+          <BankingDetailItem icon={WalletCards} label="UPI ID" value={details.upiId} />
+        </div>
+        <div className="flex items-center justify-center border-t border-border px-5 py-6 lg:border-t-0">
+          <div className="text-center">
+            <p className="text-xs font-medium text-muted-foreground">Verification Status</p>
+            <div className={`profile-bank-status mt-2 ${isApproved ? "profile-bank-status-approved" : ""} ${isRejected ? "profile-bank-status-rejected" : ""} ${isPending ? "profile-bank-status-pending" : ""}`}>
+              <div className="flex items-center justify-center gap-2 text-xs font-semibold">
+                <StatusIcon className="h-4 w-4" aria-hidden="true" />
+                <span>{statusLabel}</span>
+              </div>
+              {details.verifiedAt && (
+                <p className="mt-1.5 text-[11px] font-normal">
+                  Verified on {formatDate(details.verifiedAt)}
+                </p>
+              )}
+              {!canEdit && !isApproved && normalizedStatus === "inactive" && (
+                <p className="mt-1.5 text-[11px] font-normal">Editing is disabled</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      )}
+    </section>
+  );
+}
+
+function documentStatus(document = {}) {
+  const rawStatus = displayText(
+    document.approvalStatus
+    || document.verificationStatus
+    || document.status,
+    "Pending Approval",
+  );
+  const normalized = String(rawStatus).trim().toLowerCase();
+
+  if (normalized.includes("reject") || normalized.includes("declin")) {
+    return { label: "Rejected", tone: "rejected" };
+  }
+  if (normalized.includes("approv") || normalized.startsWith("verified")) {
+    return { label: "Approved", tone: "approved" };
+  }
+  return { label: normalized.includes("pending") ? "Pending" : rawStatus, tone: "pending" };
+}
+
+function documentIcon(document = {}) {
+  const type = String(document.documentType || document.documentName || "").toLowerCase();
+  if (type.includes("bank")) return Landmark;
+  if (["identity", "aadhaar", "aadhar", "pan", "passport"].some((item) => type.includes(item))) return IdCard;
+  if (["photo", "image"].some((item) => type.includes(item))) return UserRound;
+  return FileText;
+}
+
+function documentReviewText(document, status) {
+  const review =
+    document.adminReview?.remarks
+    || document.reviewRemarks
+    || document.verificationRemarks
+    || document.rejectionReason;
+  if (review) return review;
+
+  const reviewer = displayText(
+    document.adminReview?.reviewedBy
+    || document.reviewedBy
+    || document.verifiedBy,
+    "Admin",
+  );
+  if (status.tone === "approved") return `Approved by ${reviewer}`;
+  if (status.tone === "rejected") return "Rejected – Re-upload required";
+  return "Awaiting Review";
+}
+
+function DocumentSummaryCard({ icon: Icon, label, value, description, tone }) {
+  return (
+    <div className={`profile-document-summary profile-document-summary-${tone}`}>
+      <span className={`profile-document-summary-icon profile-document-summary-icon-${tone}`}>
+        <Icon className="h-5 w-5" aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+        <p className="mt-0.5 text-lg font-semibold leading-5 text-foreground">{value}</p>
+        <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+function DocumentStatusPill({ status }) {
+  return (
+    <span className={`profile-document-status profile-document-status-${status.tone}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {status.label}
+    </span>
   );
 }
 
@@ -407,107 +645,267 @@ export function WorkInformationTab({ profile }) {
   );
 }
 
-export function PersonalInformationTab({ profile }) {
-  const { personal } = getSections(profile);
+export function PersonalInformationTab({
+  profile,
+  banking,
+  isBankingLoading,
+  bankingError,
+  canEditBanking,
+  onEditBanking,
+  onRetryBanking,
+}) {
+  const { personal, emergency } = getSections(profile);
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
-      <PersonalInformationCard profile={profile} />
-      <SectionCard title="Additional Details" icon={CircleUserRound}>
-        <DetailRows rows={[
-          { label: "Date of Birth", value: formatDate(personal.dateOfBirth) },
-          { label: "Gender", value: personal.gender },
-          { label: "Phone No", value: personal.phoneNo },
-          { label: "PIN Code", value: personal.pinCode || personal.pincode },
-        ]} />
-      </SectionCard>
+    <div className="space-y-4">
+      <div className="grid items-stretch gap-4 xl:grid-cols-3">
+        <ProfileDetailCard
+          title="Personal Information"
+          description="Basic personal and contact information"
+          icon={UserRound}
+          tone="personal"
+          rows={[
+            { label: "Full Name", value: personal.fullName },
+            { label: "Email Address", value: personal.emailAddress },
+            { label: "Mobile Number", value: personal.mobileNumber || personal.phoneNo },
+            { label: "Address", value: personal.address },
+            { label: "City", value: personal.city },
+            { label: "State", value: personal.state },
+            { label: "PIN Code", value: personal.pinCode || personal.pincode },
+          ]}
+        />
+        <ProfileDetailCard
+          title="Additional Details"
+          description="More information about the employee"
+          icon={IdCard}
+          tone="additional"
+          rows={[
+            { label: "Date of Birth", value: formatDate(personal.dateOfBirth) },
+            { label: "Gender", value: personal.gender },
+            { label: "Phone No", value: personal.phoneNo || personal.mobileNumber },
+            { label: "Alternate Phone", value: personal.alternatePhone },
+            { label: "Marital Status", value: personal.maritalStatus },
+            { label: "Aadhaar / ID", value: personal.aadhaarId },
+          ]}
+        />
+        <ProfileDetailCard
+          title="Emergency Contact Details"
+          description="Emergency contact information"
+          icon={Phone}
+          tone="emergency"
+          rows={[
+            { label: "Emergency Contact Name", value: emergency.name },
+            { label: "Relationship", value: emergency.relationship },
+            { label: "Emergency Mobile Number", value: emergency.mobileNumber },
+            { label: "Alternate Emergency Number", value: emergency.alternateMobileNumber },
+            { label: "Contact Address", value: emergency.address },
+          ]}
+        />
+      </div>
+      <BankingDetailsCard
+        banking={banking}
+        isLoading={isBankingLoading}
+        error={bankingError}
+        canEdit={canEditBanking}
+        onEdit={onEditBanking}
+        onRetry={onRetryBanking}
+      />
     </div>
   );
 }
 
-export function EmergencyContactTab({ profile }) {
-  const { emergency } = getSections(profile);
-  return (
-    <SectionCard title="Emergency Contact" icon={UsersRound}>
-      <DetailRows rows={[
-        { label: "Contact Name", value: emergency.name },
-        { label: "Relationship", value: emergency.relationship },
-        { label: "Mobile Number", value: emergency.mobileNumber },
-      ]} />
-    </SectionCard>
-  );
-}
+// export function EmergencyContactTab({ profile }) {
+//   const { emergency } = getSections(profile);
+//   return (
+//     <SectionCard title="Emergency Contact" icon={UsersRound}>
+//       <DetailRows rows={[
+//         { label: "Contact Name", value: emergency.name },
+//         { label: "Relationship", value: emergency.relationship },
+//         { label: "Mobile Number", value: emergency.mobileNumber },
+//       ]} />
+//     </SectionCard>
+//   );
+// }
 
-export function DocumentsTab({ documents, isLoading, error, onRetry }) {
+export function DocumentsTab({
+  documents,
+  isLoading,
+  error,
+  onRetry,
+  onUpload,
+  onReupload,
+  onDelete,
+  deletingDocumentId,
+}) {
+  const statuses = documents.map((document) => documentStatus(document));
+  const pendingCount = statuses.filter((status) => status.tone === "pending").length;
+  const approvedCount = statuses.filter((status) => status.tone === "approved").length;
+
   return (
-    <SectionCard title="Documents" icon={FileText}>
-      <div className="overflow-hidden rounded-lg border border-border">
-        <Table>
-          <TableHeader className="bg-muted/50">
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="whitespace-nowrap px-4">Document Name</TableHead>
-              <TableHead className="whitespace-nowrap px-4">Document Type</TableHead>
-              <TableHead className="whitespace-nowrap px-4">File</TableHead>
-              <TableHead className="whitespace-nowrap px-4">Issued At</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={4} className="h-28 text-center text-xs text-muted-foreground">
-                  Loading documents...
-                </TableCell>
+    <section className="profile-documents-card">
+      <header className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <FileText className="mt-0.5 h-5 w-5 shrink-0 text-foreground" aria-hidden="true" />
+          <div>
+            <h2 className="text-sm font-semibold leading-5 text-foreground">Documents</h2>
+            <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+              Upload your documents for admin approval. Approved documents are view-only.
+            </p>
+          </div>
+        </div>
+        <button type="button" onClick={onUpload} className="profile-document-upload-button">
+          <UploadCloud className="h-4 w-4" aria-hidden="true" />
+          Upload Document
+        </button>
+      </header>
+
+      <div className="space-y-3 p-4">
+        <div className="grid gap-3 md:grid-cols-3">
+          <DocumentSummaryCard
+            icon={FileText}
+            label="Total Documents"
+            value={isLoading ? "--" : documents.length}
+            description="All uploaded documents"
+            tone="total"
+          />
+          <DocumentSummaryCard
+            icon={FileClock}
+            label="Pending Approval"
+            value={isLoading ? "--" : pendingCount}
+            description="Awaiting admin review"
+            tone="pending"
+          />
+          <DocumentSummaryCard
+            icon={FileCheck2}
+            label="Approved"
+            value={isLoading ? "--" : approvedCount}
+            description="Available for viewing"
+            tone="approved"
+          />
+        </div>
+
+        <div className="profile-document-notice">
+          <BadgeInfo className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>Once a document is approved by admin, it becomes view-only.</span>
+        </div>
+
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <Table className="min-w-[900px]">
+            <TableHeader className="bg-muted/50">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="whitespace-nowrap px-4 text-[11px] font-medium">Document Name</TableHead>
+                <TableHead className="whitespace-nowrap px-4 text-[11px] font-medium">Document Type</TableHead>
+                <TableHead className="whitespace-nowrap px-4 text-[11px] font-medium">Uploaded On</TableHead>
+                <TableHead className="whitespace-nowrap px-4 text-[11px] font-medium">Status</TableHead>
+                <TableHead className="whitespace-nowrap px-4 text-[11px] font-medium">Admin Review</TableHead>
+                <TableHead className="whitespace-nowrap px-4 text-right text-[11px] font-medium">File</TableHead>
               </TableRow>
-            ) : error ? (
-              <TableRow>
-                <TableCell colSpan={4} className="h-28 text-center">
-                  <p className="text-xs text-destructive">
-                    {String(error.response?.data?.message || error.response?.data?.msg || error.message || "Unable to load documents.").split("|")[0]}
-                  </p>
-                  <button type="button" onClick={onRetry} className="mt-3 text-xs font-medium text-primary hover:underline">
-                    Try again
-                  </button>
-                </TableCell>
-              </TableRow>
-            ) : documents.length ? (
-              documents.map((document) => (
-                <TableRow key={document._id}>
-                  <TableCell className="px-4 text-xs font-medium text-foreground">
-                    {displayText(document.documentName)}
-                  </TableCell>
-                  <TableCell className="px-4 text-xs text-foreground">
-                    {displayText(document.documentType)}
-                  </TableCell>
-                  <TableCell className="px-4">
-                    {document.file?.fileUrl ? (
-                      <a
-                        href={document.file.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex max-w-[220px] items-center gap-2 text-xs font-medium text-primary hover:underline"
-                      >
-                        <Eye className="h-4 w-4 shrink-0" />
-                        <span className="truncate">{displayText(document.documentName, "View File")}</span>
-                      </a>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">--</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap px-4 text-xs text-foreground">
-                    {formatDate(document.createdAt)}
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center text-xs text-muted-foreground">
+                    Loading documents...
                   </TableCell>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={4} className="h-28 text-center text-xs text-muted-foreground">
-                  No documents have been added for you.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              ) : error ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center">
+                    <p className="text-xs text-destructive">
+                      {String(error.response?.data?.message || error.response?.data?.msg || error.message || "Unable to load documents.").split("|")[0]}
+                    </p>
+                    <button type="button" onClick={onRetry} className="mt-3 text-xs font-medium text-primary hover:underline">
+                      Try again
+                    </button>
+                  </TableCell>
+                </TableRow>
+              ) : documents.length ? (
+                documents.map((document, index) => {
+                  const status = statuses[index];
+                  const DocumentIcon = documentIcon(document);
+                  const fileUrl =
+                    document.file?.fileUrl
+                    || document.file?.url
+                    || document.fileUrl
+                    || document.url;
+
+                  return (
+                    <TableRow key={document._id || `${document.documentName}-${index}`} className="hover:bg-muted/30">
+                      <TableCell className="px-4">
+                        <div className="flex items-center gap-3">
+                          <span className="profile-document-row-icon">
+                            <DocumentIcon className="h-4 w-4" aria-hidden="true" />
+                          </span>
+                          <span className="text-xs font-medium text-foreground">
+                            {displayText(document.documentName)}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-4 text-xs text-foreground">
+                        {displayText(document.documentType)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap px-4 text-xs text-foreground">
+                        {formatDateTime(document.uploadedAt || document.createdAt)}
+                      </TableCell>
+                      <TableCell className="px-4">
+                        <DocumentStatusPill status={status} />
+                      </TableCell>
+                      <TableCell className={`px-4 text-xs profile-document-review-${status.tone}`}>
+                        {documentReviewText(document, status)}
+                      </TableCell>
+                      <TableCell className="px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {status.tone === "rejected" ? (
+                            <button
+                              type="button"
+                              onClick={() => onReupload(document)}
+                              className="profile-document-reupload-button"
+                            >
+                              <UploadCloud className="h-3.5 w-3.5" aria-hidden="true" />
+                              Re-upload
+                            </button>
+                          ) : fileUrl ? (
+                            <a
+                              href={fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="profile-document-view-button"
+                            >
+                              <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                              View
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">--</span>
+                          )}
+                          {status.tone !== "approved" && (
+                            <button
+                              type="button"
+                              onClick={() => onDelete(document)}
+                              disabled={deletingDocumentId === document._id}
+                              className="profile-document-delete-button"
+                              aria-label={`Delete ${displayText(document.documentName, "document")}`}
+                            >
+                              {deletingDocumentId === document._id
+                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                                : <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />}
+                            </button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center text-xs text-muted-foreground">
+                    No documents have been added for you.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
-    </SectionCard>
+    </section>
   );
 }
 

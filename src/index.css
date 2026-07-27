@@ -423,6 +423,150 @@ body {
   .profile-tab-trigger[data-state="active"] {
     border-color: rgb(249 115 22);
   }
+
+  .profile-detail-card {
+    @apply h-full rounded-lg border border-border bg-card text-card-foreground shadow-sm;
+  }
+
+  .profile-detail-icon {
+    @apply grid h-11 w-11 shrink-0 place-items-center rounded-full;
+  }
+
+  .profile-detail-icon-personal {
+    @apply bg-blue-500/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300;
+  }
+
+  .profile-detail-icon-additional {
+    @apply bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300;
+  }
+
+  .profile-detail-icon-emergency {
+    @apply bg-orange-500/10 text-orange-600 dark:bg-orange-400/10 dark:text-orange-300;
+  }
+
+  .profile-detail-icon-bank {
+    @apply rounded-md bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300;
+  }
+
+  .profile-bank-notice {
+    @apply inline-flex max-w-full items-start gap-1.5 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] leading-4 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300;
+  }
+
+  .profile-bank-status {
+    @apply min-w-44 rounded-md border border-border bg-muted/50 px-4 py-3 text-muted-foreground;
+  }
+
+  .profile-bank-status-approved {
+    @apply border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300;
+  }
+
+  .profile-bank-status-rejected {
+    @apply border-red-200 bg-red-50 text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300;
+  }
+
+  .profile-bank-status-pending {
+    @apply border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300;
+  }
+
+  .profile-documents-card {
+    @apply overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm;
+  }
+
+  .profile-document-summary {
+    @apply flex min-h-24 items-center gap-4 rounded-lg border p-4;
+  }
+
+  .profile-document-summary-total {
+    @apply border-blue-200 bg-blue-50 dark:border-blue-400/30 dark:bg-blue-400/10;
+  }
+
+  .profile-document-summary-pending {
+    @apply border-violet-200 bg-violet-50 dark:border-violet-400/30 dark:bg-violet-400/10;
+  }
+
+  .profile-document-summary-approved {
+    @apply border-emerald-200 bg-emerald-50 dark:border-emerald-400/30 dark:bg-emerald-400/10;
+  }
+
+  .profile-document-summary-icon {
+    @apply grid h-10 w-10 shrink-0 place-items-center rounded-full;
+  }
+
+  .profile-document-summary-icon-total {
+    @apply bg-blue-500/15 text-blue-600 dark:text-blue-300;
+  }
+
+  .profile-document-summary-icon-pending {
+    @apply bg-violet-500/15 text-violet-600 dark:text-violet-300;
+  }
+
+  .profile-document-summary-icon-approved {
+    @apply bg-emerald-500/15 text-emerald-600 dark:text-emerald-300;
+  }
+
+  .profile-document-notice {
+    @apply flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50/50 px-3 py-2 text-[11px] text-blue-700 dark:border-blue-400/25 dark:bg-blue-400/5 dark:text-blue-300;
+  }
+
+  .profile-document-row-icon {
+    @apply grid h-8 w-8 shrink-0 place-items-center rounded-md border border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300;
+  }
+
+  .profile-document-status {
+    @apply inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-medium leading-none;
+  }
+
+  .profile-document-status-pending {
+    @apply border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300;
+  }
+
+  .profile-document-status-approved {
+    @apply border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300;
+  }
+
+  .profile-document-status-rejected {
+    @apply border-red-200 bg-red-50 text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300;
+  }
+
+  .profile-document-review-pending {
+    @apply text-muted-foreground;
+  }
+
+  .profile-document-review-approved {
+    @apply font-medium text-emerald-600 dark:text-emerald-300;
+  }
+
+  .profile-document-review-rejected {
+    @apply font-medium text-red-600 dark:text-red-300;
+  }
+
+  .profile-document-view-button {
+    @apply inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 text-[11px] font-medium text-foreground shadow-sm transition hover:bg-accent hover:text-accent-foreground;
+  }
+
+  .profile-document-upload-button {
+    @apply inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-4 text-xs font-medium text-primary-foreground shadow-sm transition hover:bg-primary/90;
+  }
+
+  .profile-document-reupload-button {
+    @apply inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 text-[11px] font-medium text-red-600 transition hover:bg-red-100 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300 dark:hover:bg-red-400/15;
+  }
+
+  .profile-document-delete-button {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 bg-background text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-400/30 dark:text-red-300 dark:hover:bg-red-400/10;
+  }
+
+  .profile-document-dropzone {
+    @apply flex min-h-36 w-full flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 px-4 py-5 text-center transition hover:border-primary/50 hover:bg-primary/5;
+  }
+
+  .profile-document-dropzone-active {
+    @apply border-primary bg-primary/5 ring-2 ring-primary/10;
+  }
+
+  .profile-document-upload-notice {
+    @apply flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50/60 px-3 py-3 text-[11px] leading-5 text-blue-700 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300;
+  }
 }
 
 /* SETTING_PAGE */

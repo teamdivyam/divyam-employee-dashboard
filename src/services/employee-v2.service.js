@@ -53,6 +53,12 @@ const EmployeeV2Service = {
 
     me: () => employeeV2Request.get("/employees/me"),
     getMyDocuments: (params = {}) => employeeV2Request.get("/employees/me/documents", { params }),
+    uploadMyDocument: (formData) =>
+        employeeV2Request.post("/employees/me/documents", formData, {
+            headers: { "Content-Type": undefined },
+        }),
+    deleteMyDocument: (documentId) =>
+        employeeV2Request.delete(`/employees/me/documents/${encodeURIComponent(documentId)}`),
     updateMyProfile: (formData) => employeeV2Request.patch(
         "/employees/me",
         formData,
@@ -182,6 +188,11 @@ const EmployeeV2Service = {
             remarks?.trim() ? { remarks: remarks.trim() } : {},
             { headers: { "Content-Type": "application/json" } },
         ),
+
+    getEmployeePaymentProfile: () =>
+        employeeV2Request.get(`/employees/me/payment-profile`),
+    saveEmployeePaymentProfile: (formData) =>
+        employeeV2Request.put(`/employees/me/payment-profile`, formData),
 };
 
 export default EmployeeV2Service;

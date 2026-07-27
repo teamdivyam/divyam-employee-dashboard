@@ -1,8 +1,20 @@
 /* eslint-disable react/prop-types */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertCircle, Camera, Eye, EyeOff, Loader2, LockKeyhole, Save } from "lucide-react";
+import {
+  AlertCircle,
+  Camera,
+  CloudUpload,
+  Eye,
+  EyeOff,
+  FileText,
+  Info,
+  Loader2,
+  LockKeyhole,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@components/components/ui/alert";
 import { Button } from "@components/components/ui/button";
 import {
@@ -15,6 +27,7 @@ import {
 } from "@components/components/ui/dialog";
 import { Input } from "@components/components/ui/input";
 import { Label } from "@components/components/ui/label";
+import { Textarea } from "@components/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -36,7 +49,7 @@ import { CURRENT_EMPLOYEE_QUERY_KEY } from "@/hooks/useCurrentEmployee";
 import {
   CompletionStrip,
   DocumentsTab,
-  EmergencyContactTab,
+  // EmergencyContactTab,
   OverviewTab,
   PersonalInformationTab,
   ProfileHero,
@@ -48,16 +61,43 @@ import {
 
 const profileQueryKey = ["employee-profile"];
 const profileDocumentsQueryKey = ["employee-profile-documents"];
+const employeePaymentProfileQueryKey = ["employee-payment-profile"];
 const profileGenderOptions = ["Male", "Female", "Other", "Prefer Not To Say"];
 const profileStateOptions = ["Uttar Pradesh", "Madhya Pradesh", "Bihar", "Rajasthan"];
+const paymentModeOptions = ["Bank Transfer", "UPI"];
+const employeeDocumentTypes = [
+  "ID Proof",
+  "Address Proof",
+  "Offer Letter",
+  "Employment Contract",
+  "Resume",
+  "Certificate",
+  "Legal",
+  "Bank Document",
+  "Tax Document",
+  "Other",
+];
+const employeeDocumentFileTypes = ["application/pdf", "image/png", "image/jpeg"];
+const maxEmployeeDocumentSize = 10 * 1024 * 1024;
 const profileImageTypes = ["image/png", "image/jpg", "image/jpeg", "image/heif", "image/heic"];
 const phoneNumberPattern = /^[6-9]\d{9}$/;
 const pincodePattern = /^[1-9]\d{5}$/;
+const accountNumberPattern = /^\d{8,18}$/;
+const ifscCodePattern = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+const upiIdPattern = /^[\w.-]{2,256}@[A-Za-z]{2,64}$/;
 const maxProfileImageSize = 5 * 1024 * 1024;
 const emptyPasswordForm = {
   currentPassword: "",
   newPassword: "",
   confirmPassword: "",
+};
+const emptyDocumentForm = {
+  documentType: "",
+  documentName: "",
+  documentNumber: "",
+  issuedAt: "",
+  notes: "",
+  file: null,
 };
 
 const validatePasswordForm = (form) => {
@@ -111,7 +151,11 @@ const joinAddress = (address = {}) =>
 
 const mapEmployeeToProfile = (employee = {}) => {
   const address = employee.address || {};
-  const emergencyContact = employee.emergencyContact || {};
+  const personalDetails = employee.personalInformation || employee.personalDetails || {};
+  const emergencyContact =
+    employee.emergencyContactInformation
+    || employee.emergencyContact
+    || {};
   const permissions = employee.permissionOverrides || {};
   const completionFields = [
     employee.name,
@@ -166,6 +210,19 @@ const mapEmployeeToProfile = (employee = {}) => {
       state: address.state,
       pinCode: address.pincode,
       country: address.country,
+      alternatePhone:
+        personalDetails.alternatePhone
+        || employee.alternatePhone
+        || employee.alternatePhoneNumber,
+      maritalStatus: personalDetails.maritalStatus || employee.maritalStatus,
+      aadhaarId:
+        personalDetails.aadhaarId
+        || personalDetails.aadhaarNumber
+        || personalDetails.aadharNumber
+        || employee.aadhaarId
+        || employee.aadhaarNumber
+        || employee.aadharNumber
+        || employee.governmentId,
     },
     roleAndAccess: {
       roleDesignation: employee.designation || employee.accessRole,
@@ -186,6 +243,14 @@ const mapEmployeeToProfile = (employee = {}) => {
       name: emergencyContact.name,
       relationship: emergencyContact.relationship,
       mobileNumber: emergencyContact.mobileNumber || emergencyContact.phoneNumber,
+      alternateMobileNumber:
+        emergencyContact.alternateMobileNumber
+        || emergencyContact.alternatePhoneNumber
+        || emergencyContact.alternatePhone,
+      address:
+        emergencyContact.address
+        || emergencyContact.contactAddress
+        || joinAddress(emergencyContact),
     },
     loginSecurity: {
       loginStatus: employee.accountStatus,
@@ -202,10 +267,132 @@ const mapEmployeeToProfile = (employee = {}) => {
   };
 };
 
+const mapPaymentProfile = (paymentProfile) => {
+  if (!paymentProfile) return null;
+  const bankAccount = paymentProfile.bankAccount || {};
+  const upiDetails = paymentProfile.upiDetails || {};
+
+  return {
+    id: paymentProfile._id,
+    preferredPaymentMode: paymentProfile.preferredPaymentMode,
+    accountHolderName: bankAccount.accountHolderName,
+    bankName: bankAccount.bankName,
+    accountNumber: bankAccount.accountNumberMasked || bankAccount.accountNumber,
+    ifscCode: bankAccount.ifscCode,
+    branch: bankAccount.branchName,
+    upiId: upiDetails.upiId || upiDetails.upiID || upiDetails.vpa,
+    verificationStatus: paymentProfile.verificationStatus,
+    verificationRemarks: paymentProfile.verificationRemarks,
+    verifiedAt: paymentProfile.verifiedAt,
+  };
+};
+
+const canEditPaymentProfile = (paymentProfile) => {
+  if (!paymentProfile) return true;
+  const status = String(paymentProfile.verificationStatus || "").trim().toLowerCase();
+  return ["pending verification", "pending", "rejected"].includes(status);
+};
+
+const bankFormFromPaymentProfile = (paymentProfile) => {
+  const bankAccount = paymentProfile?.bankAccount || {};
+  const upiDetails = paymentProfile?.upiDetails || {};
+  return {
+    preferredPaymentMode: paymentProfile?.preferredPaymentMode || "Bank Transfer",
+    accountHolderName: bankAccount.accountHolderName || "",
+    bankName: bankAccount.bankName || "",
+    accountNumber: "",
+    ifscCode: bankAccount.ifscCode || "",
+    branchName: bankAccount.branchName || "",
+    upiId: upiDetails.upiId || upiDetails.upiID || upiDetails.vpa || "",
+  };
+};
+
+const validateBankForm = (form, hasExistingAccount) => {
+  const errors = {};
+
+  if (!form.accountHolderName?.trim()) errors.accountHolderName = "Account holder name is required.";
+  if (!form.bankName?.trim()) errors.bankName = "Bank name is required.";
+  if (!hasExistingAccount && !form.accountNumber?.trim()) {
+    errors.accountNumber = "Account number is required.";
+  } else if (form.accountNumber && !accountNumberPattern.test(form.accountNumber)) {
+    errors.accountNumber = "Enter an 8–18 digit account number.";
+  }
+  if (!ifscCodePattern.test(form.ifscCode?.trim().toUpperCase() || "")) {
+    errors.ifscCode = "Enter a valid IFSC code.";
+  }
+  if (!form.branchName?.trim()) errors.branchName = "Branch name is required.";
+  if (form.preferredPaymentMode === "UPI" && !upiIdPattern.test(form.upiId?.trim() || "")) {
+    errors.upiId = "Enter a valid UPI ID.";
+  } else if (form.upiId && !upiIdPattern.test(form.upiId.trim())) {
+    errors.upiId = "Enter a valid UPI ID.";
+  }
+
+  return errors;
+};
+
+const bankFormToApi = (form) => {
+  const bankAccount = {
+    accountHolderName: form.accountHolderName.trim(),
+    bankName: form.bankName.trim(),
+    ifscCode: form.ifscCode.trim().toUpperCase(),
+    branchName: form.branchName.trim(),
+  };
+  if (form.accountNumber) bankAccount.accountNumber = form.accountNumber;
+
+  return {
+    preferredPaymentMode: form.preferredPaymentMode,
+    bankAccount,
+    upiDetails: form.upiId?.trim() ? { upiId: form.upiId.trim() } : null,
+  };
+};
+
 const dateInput = (value) => {
   if (!value) return "";
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toISOString().slice(0, 10);
+};
+
+const documentFormFromApi = (document) => ({
+  ...emptyDocumentForm,
+  documentType: document?.documentType || "",
+  documentName: document?.documentName || "",
+  documentNumber: document?.documentNumber || "",
+  issuedAt: dateInput(document?.issuedAt),
+  notes: document?.notes || "",
+});
+
+const validateDocumentForm = (form) => {
+  const errors = {};
+
+  if (!form.documentType) errors.documentType = "Document type is required.";
+  else if (!employeeDocumentTypes.includes(form.documentType)) errors.documentType = "Select a supported document type.";
+
+  if (!form.documentName?.trim()) errors.documentName = "Document name is required.";
+  else if (form.documentName.trim().length > 200) errors.documentName = "Document name cannot exceed 200 characters.";
+
+  if (form.documentNumber?.trim().length > 200) errors.documentNumber = "Document number cannot exceed 200 characters.";
+  if (form.notes?.trim().length > 1000) errors.notes = "Notes cannot exceed 1000 characters.";
+
+  if (!form.file) {
+    errors.file = "Select a document to upload.";
+  } else if (form.file.size > maxEmployeeDocumentSize) {
+    errors.file = "Document must be 10 MB or smaller.";
+  } else if (!employeeDocumentFileTypes.includes(form.file.type)) {
+    errors.file = "Use a PDF, JPG, JPEG, or PNG file.";
+  }
+
+  return errors;
+};
+
+const buildDocumentFormData = (form) => {
+  const formData = new FormData();
+  formData.append("documentName", form.documentName.trim());
+  formData.append("documentType", form.documentType);
+  if (form.documentNumber?.trim()) formData.append("documentNumber", form.documentNumber.trim());
+  if (form.issuedAt) formData.append("issuedAt", form.issuedAt);
+  if (form.notes?.trim()) formData.append("notes", form.notes.trim());
+  formData.append("file", form.file);
+  return formData;
 };
 
 const profileFormFromApi = (profile) => {
@@ -351,6 +538,16 @@ export default function MyProfilePage() {
   const [passwordErrors, setPasswordErrors] = useState({});
   const [passwordFormError, setPasswordFormError] = useState("");
   const [profileImage, setProfileImage] = useState(null);
+  const [bankForm, setBankForm] = useState(() => bankFormFromPaymentProfile(null));
+  const [bankErrors, setBankErrors] = useState({});
+  const [bankFormError, setBankFormError] = useState("");
+  const [isDocumentUploadOpen, setIsDocumentUploadOpen] = useState(false);
+  const [documentUploadMode, setDocumentUploadMode] = useState("upload");
+  const [replacementDocumentId, setReplacementDocumentId] = useState(null);
+  const [documentForm, setDocumentForm] = useState(emptyDocumentForm);
+  const [documentErrors, setDocumentErrors] = useState({});
+  const [documentFormError, setDocumentFormError] = useState("");
+  const [documentToDelete, setDocumentToDelete] = useState(null);
 
   const profileQuery = useQuery({
     queryKey: profileQueryKey,
@@ -375,6 +572,20 @@ export default function MyProfilePage() {
       return response.data?.data?.documents || [];
     },
     enabled: activeTab === "documents",
+  });
+
+  const paymentProfileQuery = useQuery({
+    queryKey: [...employeePaymentProfileQueryKey, profile.employeeId],
+    queryFn: async () => {
+      try {
+        const response = await EmployeeV2Service.getEmployeePaymentProfile();
+        return response.data?.data?.paymentProfile || null;
+      } catch (error) {
+        if (error.response?.status === 404) return null;
+        throw error;
+      }
+    },
+    enabled: activeTab === "personal" && Boolean(profile.employeeId),
   });
 
   const updateProfileMutation = useMutation({
@@ -404,6 +615,64 @@ export default function MyProfilePage() {
       window.location.replace("/login");
     },
     onError: (error) => setPasswordFormError(getPasswordErrorMessage(error)),
+  });
+
+  const savePaymentProfileMutation = useMutation({
+    mutationFn: (form) =>
+      EmployeeV2Service.saveEmployeePaymentProfile(bankFormToApi(form)),
+    onSuccess: (response) => {
+      toast.success(response.data?.message || "Banking details saved successfully");
+      queryClient.invalidateQueries({
+        queryKey: [...employeePaymentProfileQueryKey, profile.employeeId],
+      });
+      setBankErrors({});
+      setBankFormError("");
+      setSheetAction(null);
+    },
+    onError: (error) => setBankFormError(getProfileErrorMessage(error)),
+  });
+
+  const uploadDocumentMutation = useMutation({
+    mutationFn: async ({ form, replaceDocumentId }) => {
+      const uploadResponse = await EmployeeV2Service.uploadMyDocument(buildDocumentFormData(form));
+      let replacementCleanupError = null;
+
+      if (replaceDocumentId) {
+        try {
+          await EmployeeV2Service.deleteMyDocument(replaceDocumentId);
+        } catch (error) {
+          replacementCleanupError = error;
+        }
+      }
+
+      return { uploadResponse, replacementCleanupError };
+    },
+    onSuccess: ({ uploadResponse, replacementCleanupError }) => {
+      toast.success(uploadResponse.data?.message || "Document uploaded successfully");
+      if (replacementCleanupError) {
+        toast.warning("Replacement uploaded, but the old rejected document could not be removed.");
+      }
+      queryClient.invalidateQueries({ queryKey: profileDocumentsQueryKey });
+      setIsDocumentUploadOpen(false);
+      setReplacementDocumentId(null);
+      setDocumentForm(emptyDocumentForm);
+      setDocumentErrors({});
+      setDocumentFormError("");
+    },
+    onError: (error) => setDocumentFormError(getProfileErrorMessage(error)),
+  });
+
+  const deleteDocumentMutation = useMutation({
+    mutationFn: (documentId) => EmployeeV2Service.deleteMyDocument(documentId),
+    onSuccess: (response) => {
+      toast.success(response.data?.message || "Document deleted successfully");
+      queryClient.invalidateQueries({ queryKey: profileDocumentsQueryKey });
+      setDocumentToDelete(null);
+    },
+    onError: (error) => {
+      toast.error(getProfileErrorMessage(error));
+      setDocumentToDelete(null);
+    },
   });
 
   const downloadIdCardMutation = useMutation({
@@ -455,6 +724,68 @@ export default function MyProfilePage() {
     setSheetAction(action);
   };
 
+  const openBankEditor = () => {
+    if (!canEditPaymentProfile(paymentProfileQuery.data)) return;
+    setBankForm(bankFormFromPaymentProfile(paymentProfileQuery.data));
+    setBankErrors({});
+    setBankFormError("");
+    setSheetAction("bank");
+  };
+
+  const openDocumentUpload = (document = null) => {
+    setDocumentUploadMode(document ? "reupload" : "upload");
+    setReplacementDocumentId(document?._id || null);
+    setDocumentForm(documentFormFromApi(document));
+    setDocumentErrors({});
+    setDocumentFormError("");
+    setIsDocumentUploadOpen(true);
+  };
+
+  const updateDocumentField = (name, value) => {
+    setDocumentForm((current) => ({ ...current, [name]: value }));
+    setDocumentErrors((current) => {
+      const nextErrors = { ...current };
+      delete nextErrors[name];
+      return nextErrors;
+    });
+    setDocumentFormError("");
+  };
+
+  const submitDocument = () => {
+    const errors = validateDocumentForm(documentForm);
+    setDocumentErrors(errors);
+    setDocumentFormError("");
+    if (Object.keys(errors).length) return;
+
+    uploadDocumentMutation.mutate({
+      form: documentForm,
+      replaceDocumentId: replacementDocumentId,
+    });
+  };
+
+  const updateBankField = (name, value) => {
+    setBankForm((current) => ({ ...current, [name]: value }));
+    setBankErrors((current) => {
+      const nextErrors = { ...current };
+      delete nextErrors[name];
+      return nextErrors;
+    });
+    setBankFormError("");
+  };
+
+  const submitBankProfile = () => {
+    const hasExistingAccount = Boolean(
+      paymentProfileQuery.data?.bankAccount?.accountNumberMasked
+      || paymentProfileQuery.data?.bankAccount?.accountNumber,
+    );
+    const errors = validateBankForm(bankForm, hasExistingAccount);
+    setBankErrors(errors);
+    setBankFormError("");
+    if (Object.keys(errors).length) return;
+
+    savePaymentProfileMutation.mutate(bankForm);
+  };
+
   const updateField = (name, value) => {
     setProfileForm((current) => ({ ...current, [name]: value }));
     setProfileErrors((current) => {
@@ -496,6 +827,7 @@ export default function MyProfilePage() {
   const currentTitle = useMemo(() => {
     if (sheetAction === "edit") return ["Edit Profile", "Update personal details, address, emergency contact, and profile image."];
     if (sheetAction === "password") return ["Change Password", "Update your employee dashboard password."];
+    if (sheetAction === "bank") return ["Edit Banking Details", "Update the payment information sent to the Finance team for verification."];
     return ["Profile Action", "Manage employee profile details."];
   }, [sheetAction]);
 
@@ -581,20 +913,36 @@ export default function MyProfilePage() {
             <CompletionStrip profile={profile} />
           </TabsContent>
           <TabsContent value="personal" className="mt-4">
-            <PersonalInformationTab profile={profile} />
+            <PersonalInformationTab
+              profile={profile}
+              banking={mapPaymentProfile(paymentProfileQuery.data)}
+              isBankingLoading={paymentProfileQuery.isLoading}
+              bankingError={paymentProfileQuery.error}
+              canEditBanking={canEditPaymentProfile(paymentProfileQuery.data)}
+              onEditBanking={openBankEditor}
+              onRetryBanking={() => paymentProfileQuery.refetch()}
+            />
           </TabsContent>
           <TabsContent value="work" className="mt-4">
             <WorkInformationTab profile={profile} />
           </TabsContent>
-          <TabsContent value="emergency" className="mt-4">
+          {/* <TabsContent value="emergency" className="mt-4">
             <EmergencyContactTab profile={profile} />
-          </TabsContent>
+          </TabsContent> */}
           <TabsContent value="documents" className="mt-4">
             <DocumentsTab
               documents={documentsQuery.data || []}
               isLoading={documentsQuery.isLoading}
               error={documentsQuery.error}
               onRetry={() => documentsQuery.refetch()}
+              onUpload={() => openDocumentUpload()}
+              onReupload={openDocumentUpload}
+              onDelete={setDocumentToDelete}
+              deletingDocumentId={
+                deleteDocumentMutation.isPending
+                  ? deleteDocumentMutation.variables
+                  : null
+              }
             />
           </TabsContent>
         </Tabs>
@@ -631,6 +979,118 @@ export default function MyProfilePage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <Sheet open={sheetAction === "bank"} onOpenChange={(open) => !open && setSheetAction(null)}>
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
+          <SheetHeader>
+            <SheetTitle>{currentTitle[0]}</SheetTitle>
+            <SheetDescription>{currentTitle[1]}</SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">
+            <BankingDetailsForm
+              form={bankForm}
+              errors={bankErrors}
+              formError={bankFormError}
+              hasExistingAccount={Boolean(
+                paymentProfileQuery.data?.bankAccount?.accountNumberMasked
+                || paymentProfileQuery.data?.bankAccount?.accountNumber
+              )}
+              onFieldChange={updateBankField}
+              onSubmit={submitBankProfile}
+              onCancel={() => setSheetAction(null)}
+              isPending={savePaymentProfileMutation.isPending}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Dialog
+        open={isDocumentUploadOpen}
+        onOpenChange={(open) => {
+          if (!uploadDocumentMutation.isPending) setIsDocumentUploadOpen(open);
+        }}
+      >
+        <DialogContent className="max-h-[92vh] overflow-y-auto p-0 sm:max-w-[620px]">
+          <DialogHeader className="border-b border-border px-5 py-4 text-left">
+            <div className="flex items-start gap-3 pr-8">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                <CloudUpload className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <DialogTitle className="text-base font-semibold">
+                  {documentUploadMode === "reupload" ? "Re-upload Document" : "Upload Document"}
+                </DialogTitle>
+                <DialogDescription className="mt-1 text-xs leading-5">
+                  {documentUploadMode === "reupload"
+                    ? "Upload a replacement for admin approval. The rejected copy is removed after a successful upload."
+                    : "Submit a document for admin approval."}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <DocumentUploadForm
+            form={documentForm}
+            errors={documentErrors}
+            formError={documentFormError}
+            onFieldChange={updateDocumentField}
+            onSubmit={submitDocument}
+            onCancel={() => setIsDocumentUploadOpen(false)}
+            isPending={uploadDocumentMutation.isPending}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(documentToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !deleteDocumentMutation.isPending) setDocumentToDelete(null);
+        }}
+      >
+        <DialogContent className="p-0 sm:max-w-[440px]">
+          <DialogHeader className="border-b border-border px-5 py-4 text-left">
+            <div className="flex items-start gap-3 pr-8">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-destructive/10 text-destructive">
+                <Trash2 className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <DialogTitle className="text-base font-semibold">Delete Document</DialogTitle>
+                <DialogDescription className="mt-1 text-xs leading-5">
+                  This permanently removes the document and its uploaded file.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="px-5 py-4">
+            <p className="text-xs leading-5 text-foreground">
+              Delete <span className="font-medium">{documentToDelete?.documentName || "this document"}</span>?
+              This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter className="gap-2 border-t border-border px-5 py-4 sm:space-x-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDocumentToDelete(null)}
+              disabled={deleteDocumentMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="gap-2"
+              onClick={() => deleteDocumentMutation.mutate(documentToDelete._id)}
+              disabled={deleteDocumentMutation.isPending}
+            >
+              {deleteDocumentMutation.isPending
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Trash2 className="h-4 w-4" />}
+              {deleteDocumentMutation.isPending ? "Deleting" : "Delete Document"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={sheetAction === "password"}
@@ -897,6 +1357,279 @@ function ProfileEditForm({
   );
 }
 
+function DocumentUploadForm({
+  form,
+  errors,
+  formError,
+  onFieldChange,
+  onSubmit,
+  onCancel,
+  isPending,
+}) {
+  const fileInputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const selectFile = (file) => {
+    if (file) onFieldChange("file", file);
+  };
+
+  return (
+    <form
+      noValidate
+      className="space-y-5 px-5 pb-5 pt-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
+      {formError && (
+        <Alert variant="destructive" className="py-3">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-xs">{formError}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <ProfileSelectField
+          label="Document Type"
+          value={form.documentType}
+          options={employeeDocumentTypes}
+          error={errors.documentType}
+          required
+          placeholder="Select document type"
+          onChange={(value) => onFieldChange("documentType", value)}
+        />
+        <FormField
+          label="Document Name"
+          value={form.documentName}
+          error={errors.documentName}
+          required
+          maxLength={200}
+          placeholder="Enter document name"
+          onChange={(value) => onFieldChange("documentName", value)}
+        />
+        <FormField
+          label="Document Number (Optional)"
+          value={form.documentNumber}
+          error={errors.documentNumber}
+          maxLength={200}
+          placeholder="Enter document number"
+          onChange={(value) => onFieldChange("documentNumber", value)}
+        />
+        <FormField
+          label="Issue Date (Optional)"
+          value={form.issuedAt}
+          error={errors.issuedAt}
+          type="date"
+          max={new Date().toISOString().slice(0, 10)}
+          onChange={(value) => onFieldChange("issuedAt", value)}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs font-medium text-foreground">
+          Upload File<span className="ml-0.5 text-destructive">*</span>
+        </Label>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+          className="hidden"
+          onChange={(event) => selectFile(event.target.files?.[0])}
+        />
+        <button
+          type="button"
+          className={`profile-document-dropzone ${isDragging ? "profile-document-dropzone-active" : ""} ${errors.file ? "border-destructive" : ""}`}
+          onClick={() => fileInputRef.current?.click()}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragOver={(event) => event.preventDefault()}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            setIsDragging(false);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setIsDragging(false);
+            selectFile(event.dataTransfer.files?.[0]);
+          }}
+        >
+          <span className="grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-primary">
+            {form.file
+              ? <FileText className="h-5 w-5" aria-hidden="true" />
+              : <CloudUpload className="h-6 w-6" aria-hidden="true" />}
+          </span>
+          {form.file ? (
+            <>
+              <span className="mt-2 max-w-full truncate text-xs font-medium text-foreground">{form.file.name}</span>
+              <span className="mt-1 text-[10px] text-muted-foreground">
+                {(form.file.size / (1024 * 1024)).toFixed(2)} MB · Click or drop to replace
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="mt-2 text-xs font-medium text-foreground">
+                Drag &amp; drop your file here, or <span className="text-primary">click to browse</span>
+              </span>
+              <span className="mt-1 text-[10px] text-muted-foreground">PDF, JPG, PNG up to 10 MB</span>
+            </>
+          )}
+        </button>
+        {errors.file && <p className="text-[11px] leading-4 text-destructive">{errors.file}</p>}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="document-notes" className="text-xs font-medium text-foreground">Notes / Remark (Optional)</Label>
+        <Textarea
+          id="document-notes"
+          value={form.notes}
+          maxLength={1000}
+          rows={3}
+          placeholder="Add any additional notes or remarks..."
+          aria-invalid={Boolean(errors.notes)}
+          onChange={(event) => onFieldChange("notes", event.target.value)}
+          className={`min-h-20 resize-y rounded-md text-xs crm-input ${errors.notes ? "border-destructive focus-visible:ring-destructive" : ""}`}
+        />
+        {errors.notes && <p className="text-[11px] leading-4 text-destructive">{errors.notes}</p>}
+      </div>
+
+      <div className="profile-document-upload-notice">
+        <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <p>
+          After upload, the document will be reviewed by admin.
+          <span className="block">Approved documents become view-only.</span>
+        </p>
+      </div>
+
+      <DialogFooter className="gap-2 pt-1 sm:space-x-0">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>
+          Cancel
+        </Button>
+        <Button type="submit" className="gap-2" disabled={isPending}>
+          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
+          {isPending ? "Uploading" : "Upload Document"}
+        </Button>
+      </DialogFooter>
+    </form>
+  );
+}
+
+function BankingDetailsForm({
+  form,
+  errors,
+  formError,
+  hasExistingAccount,
+  onFieldChange,
+  onSubmit,
+  onCancel,
+  isPending,
+}) {
+  return (
+    <form
+      noValidate
+      className="space-y-5 px-5 pb-5"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
+      {formError && (
+        <Alert variant="destructive" className="py-3">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="text-xs">{formError}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="rounded-lg border border-border bg-muted/40 p-4">
+        <p className="text-xs font-medium text-foreground">Finance verification</p>
+        <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+          Saving changes sends the payment profile back to Finance for verification.
+        </p>
+      </div>
+
+      <ProfileSelectField
+        label="Preferred Payment Mode"
+        value={form.preferredPaymentMode}
+        options={paymentModeOptions}
+        onChange={(value) => onFieldChange("preferredPaymentMode", value)}
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField
+          label="Account Holder Name"
+          value={form.accountHolderName}
+          error={errors.accountHolderName}
+          required
+          maxLength={150}
+          onChange={(value) => onFieldChange("accountHolderName", value)}
+        />
+        <FormField
+          label="Bank Name"
+          value={form.bankName}
+          error={errors.bankName}
+          required
+          maxLength={150}
+          onChange={(value) => onFieldChange("bankName", value)}
+        />
+        <FormField
+          label="Account Number"
+          value={form.accountNumber}
+          error={errors.accountNumber}
+          required={!hasExistingAccount}
+          inputMode="numeric"
+          maxLength={18}
+          placeholder={hasExistingAccount ? "Enter only to change account" : "Enter account number"}
+          onChange={(value) => onFieldChange("accountNumber", value.replace(/\D/g, "").slice(0, 18))}
+        />
+        <FormField
+          label="IFSC Code"
+          value={form.ifscCode}
+          error={errors.ifscCode}
+          required
+          maxLength={11}
+          placeholder="e.g. SBIN0001234"
+          onChange={(value) => onFieldChange("ifscCode", value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 11))}
+        />
+        <FormField
+          label="Branch Name"
+          value={form.branchName}
+          error={errors.branchName}
+          required
+          maxLength={150}
+          onChange={(value) => onFieldChange("branchName", value)}
+        />
+        <FormField
+          label="UPI ID"
+          value={form.upiId}
+          error={errors.upiId}
+          required={form.preferredPaymentMode === "UPI"}
+          maxLength={320}
+          placeholder="name@bank"
+          onChange={(value) => onFieldChange("upiId", value)}
+        />
+      </div>
+
+      {hasExistingAccount && (
+        <p className="text-[11px] leading-4 text-muted-foreground">
+          The saved account number is masked for security. Leave this field empty to keep the existing account.
+        </p>
+      )}
+
+      <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+        <Button type="button" variant="outline" className="h-10" onClick={onCancel} disabled={isPending}>
+          Cancel
+        </Button>
+        <Button type="submit" className="h-10 gap-2" disabled={isPending}>
+          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {isPending ? "Saving Details" : "Save Banking Details"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function PasswordForm({ form, errors, formError, onFieldChange, onSubmit, onCancel, isPending }) {
   return (
     <form
@@ -994,12 +1727,15 @@ function PasswordField({ id, label, value, error, hint, autoComplete, onChange }
   );
 }
 
-function ProfileSelectField({ label, value, options, error, placeholder, onChange }) {
+function ProfileSelectField({ label, value, options, error, required = false, placeholder, onChange }) {
   const id = label.toLowerCase().replace(/\s+/g, "-");
 
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-xs font-medium text-foreground">{label}</Label>
+      <Label htmlFor={id} className="text-xs font-medium text-foreground">
+        {label}
+        {required && <span className="ml-0.5 text-destructive">*</span>}
+      </Label>
       <Select value={value || undefined} onValueChange={onChange}>
         <SelectTrigger
           id={id}
