@@ -567,6 +567,91 @@ body {
   .profile-document-upload-notice {
     @apply flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50/60 px-3 py-3 text-[11px] leading-5 text-blue-700 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300;
   }
+
+  .payroll-page {
+    @apply min-h-full bg-background text-foreground;
+    font-size: 14px;
+  }
+
+  .payroll-stat-card {
+    @apply rounded-lg border-border bg-card shadow-sm transition-colors;
+  }
+
+  .payroll-stat-icon {
+    @apply grid h-10 w-10 shrink-0 place-items-center rounded-full;
+  }
+
+  .payroll-stat-icon-blue {
+    @apply bg-blue-500/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300;
+  }
+
+  .payroll-stat-icon-emerald {
+    @apply bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300;
+  }
+
+  .payroll-stat-icon-orange {
+    @apply bg-orange-500/10 text-orange-600 dark:bg-orange-400/10 dark:text-orange-300;
+  }
+
+  .payroll-stat-icon-violet {
+    @apply bg-violet-500/10 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300;
+  }
+
+  .payroll-panel {
+    @apply overflow-hidden rounded-lg border-border bg-card shadow-sm;
+  }
+
+  .payroll-badge-success {
+    @apply border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-medium text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300;
+  }
+
+  .payroll-badge-warning {
+    @apply border-orange-200 bg-orange-50 px-1.5 py-0.5 text-[9px] font-medium text-orange-700 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-300;
+  }
+
+  .payroll-badge-neutral {
+    @apply border-border bg-muted/50 px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground;
+  }
+
+  .payroll-total {
+    @apply mt-3 flex items-center justify-between rounded px-3 py-2 text-xs font-medium;
+  }
+
+  .payroll-total-green {
+    @apply bg-emerald-500/10 text-emerald-700 dark:text-emerald-300;
+  }
+
+  .payroll-total-red {
+    @apply bg-red-500/10 text-red-600 dark:text-red-300;
+  }
+
+  .payroll-net-salary {
+    @apply mt-4 flex items-center justify-center gap-10 rounded-md border border-emerald-200 bg-emerald-50/70 px-4 py-2 text-xs font-medium text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300;
+  }
+
+  .payroll-net-salary strong {
+    @apply text-base font-semibold;
+  }
+
+  .payroll-loan-progress {
+    @apply grid h-28 w-28 shrink-0 place-items-center rounded-full;
+    background: conic-gradient(
+      hsl(var(--chart-2)) 0deg 144deg,
+      hsl(var(--muted)) 144deg 360deg
+    );
+  }
+
+  .payroll-loan-progress > div {
+    @apply grid h-20 w-20 place-content-center rounded-full bg-card text-center shadow-sm;
+  }
+
+  .payroll-loan-progress strong {
+    @apply text-lg font-semibold text-foreground;
+  }
+
+  .payroll-loan-progress span {
+    @apply mt-0.5 text-[9px] font-medium text-muted-foreground;
+  }
 }
 
 /* SETTING_PAGE */

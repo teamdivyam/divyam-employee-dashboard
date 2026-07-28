@@ -2623,7 +2623,7 @@ function LeaveRequestForm({
   );
 }
 
-function MonthFilterControl({ filters, onFilterChange }) {
+export function MonthFilterControl({ filters, onFilterChange }) {
   const label = useMemo(
     () => {
       if (filters.month === "All") return `All ${filters.year}`;
