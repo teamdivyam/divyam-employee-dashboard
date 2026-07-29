@@ -6,17 +6,21 @@ import {
   AlertCircle,
   Camera,
   CloudUpload,
+  Download,
   Eye,
   EyeOff,
   FileText,
   Info,
   Loader2,
   LockKeyhole,
+  PackageCheck,
   Save,
   Trash2,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@components/components/ui/alert";
+import { Badge } from "@components/components/ui/badge";
 import { Button } from "@components/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@components/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +46,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@components/components/ui/sheet";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@components/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/components/ui/tabs";
 import LegacyEmployeeService from "@/services/employee.service";
 import EmployeeV2Service from "@/services/employee-v2.service";
@@ -86,6 +98,52 @@ const accountNumberPattern = /^\d{8,18}$/;
 const ifscCodePattern = /^[A-Z]{4}0[A-Z0-9]{6}$/;
 const upiIdPattern = /^[\w.-]{2,256}@[A-Za-z]{2,64}$/;
 const maxProfileImageSize = 5 * 1024 * 1024;
+const assignedAssetRows = [
+  {
+    asset: "Apple MacBook Air M2",
+    assetId: "AST-LAP-00045",
+    assignedOn: "16 May 2026",
+    returnedOn: "--",
+    condition: "Good",
+    status: "Assigned",
+  },
+  {
+    asset: "iPhone 14 Pro",
+    assetId: "AST-MOB-00122",
+    assignedOn: "20 May 2026",
+    returnedOn: "--",
+    condition: "Good",
+    status: "Return Pending",
+  },
+  {
+    asset: "RFID Access Card",
+    assetId: "AST-ACC-00311",
+    assignedOn: "10 May 2026",
+    returnedOn: "--",
+    condition: "Good",
+    status: "Assigned",
+  },
+  {
+    asset: "Dell 24 Monitor",
+    assetId: "AST-MON-00078",
+    assignedOn: "10 Feb 2026",
+    returnedOn: "15 Mar 2026",
+    condition: "Good",
+    status: "Returned",
+  },
+  {
+    asset: "Logitech Wireless Headset",
+    assetId: "AST-AUD-00056",
+    assignedOn: "05 Jan 2026",
+    returnedOn: "28 Feb 2026",
+    condition: "Good",
+    status: "Returned",
+  },
+];
+const myProfileTabs = [
+  ...profileTabs,
+  { value: "assigned-assets", label: "Assigned Assets", icon: PackageCheck },
+];
 const emptyPasswordForm = {
   currentPassword: "",
   newPassword: "",
@@ -527,6 +585,110 @@ const validateProfileForm = (form, profileImage) => {
   return errors;
 };
 
+function AssignedAssetsTab() {
+  const statusClassName = (status) => {
+    if (status === "Assigned") {
+      return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300";
+    }
+    if (status === "Return Pending") {
+      return "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-300";
+    }
+    return "border-border bg-muted text-muted-foreground";
+  };
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 border-b border-border px-4 py-3">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <PackageCheck className="mt-0.5 h-4 w-4 shrink-0 text-foreground" aria-hidden="true" />
+          <div>
+            <CardTitle className="text-sm font-semibold">Assigned Assets</CardTitle>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
+              View company assets assigned to you. This page is view-only.
+            </p>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" className="h-8 shrink-0 gap-2 px-3 text-[10px] font-medium">
+          <Download className="h-3.5 w-3.5" aria-hidden="true" />
+          Download Asset Statement
+        </Button>
+      </CardHeader>
+
+      <CardContent className="p-4">
+        <div className="overflow-x-auto rounded-md border border-border">
+          <Table className="min-w-[900px]">
+            <TableHeader className="bg-muted/45">
+              <TableRow className="hover:bg-transparent">
+                {["Asset", "Asset ID", "Assigned On", "Returned On", "Condition", "Status", "Action"].map((heading) => (
+                  <TableHead key={heading} className="h-9 whitespace-nowrap px-3 text-[10px] font-medium">
+                    {heading}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {assignedAssetRows.map((asset) => (
+                <TableRow key={asset.assetId} className="hover:bg-muted/25">
+                  <TableCell className="px-3 py-2">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="grid h-9 w-11 shrink-0 place-items-center rounded border border-border bg-muted/70 text-muted-foreground"
+                        aria-label={`${asset.asset} image placeholder`}
+                      >
+                        <PackageCheck className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <span className="whitespace-nowrap text-[11px] font-medium text-foreground">{asset.asset}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap px-3 py-2 text-[10px] font-medium text-foreground">
+                    {asset.assetId}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap px-3 py-2 text-[10px] text-foreground">
+                    {asset.assignedOn}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap px-3 py-2 text-[10px] text-muted-foreground">
+                    {asset.returnedOn}
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-medium text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300"
+                    >
+                      {asset.condition}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    <Badge
+                      variant="outline"
+                      className={`px-2 py-0.5 text-[9px] font-medium ${statusClassName(asset.status)}`}
+                    >
+                      {asset.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 text-[10px] font-medium text-primary hover:underline"
+                    >
+                      <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                      View
+                    </button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50/70 px-3 py-2.5 text-[10px] text-blue-700 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300">
+          <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          All company assets are assigned and managed by the Admin/Inventory team. This page is view-only.
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function MyProfilePage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("overview");
@@ -892,7 +1054,7 @@ export default function MyProfilePage() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="h-auto w-full justify-start gap-4 overflow-x-auto rounded-lg border border-border bg-card px-3 py-0 text-card-foreground shadow-sm">
-            {profileTabs.map((tab) => {
+            {myProfileTabs.map((tab) => {
               const TabIcon = tab.icon;
 
               return (
@@ -944,6 +1106,9 @@ export default function MyProfilePage() {
                   : null
               }
             />
+          </TabsContent>
+          <TabsContent value="assigned-assets" className="mt-4">
+            <AssignedAssetsTab />
           </TabsContent>
         </Tabs>
       </div>

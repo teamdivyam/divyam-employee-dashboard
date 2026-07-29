@@ -193,6 +193,10 @@ const EmployeeV2Service = {
         employeeV2Request.get(`/employees/me/payment-profile`),
     saveEmployeePaymentProfile: (formData) =>
         employeeV2Request.put(`/employees/me/payment-profile`, formData),
+    getMyPayrollSalary: ({ month } = {}) =>
+        employeeV2Request.get("/employees/me/payroll-salary", {
+            params: { month },
+        }),
 };
 
 export default EmployeeV2Service;

@@ -652,6 +652,125 @@ body {
   .payroll-loan-progress span {
     @apply mt-0.5 text-[9px] font-medium text-muted-foreground;
   }
+
+  .payroll-request-button {
+    @apply border-0 text-white shadow-sm;
+    background: linear-gradient(90deg, #c16df1 0%, #1778f2 100%);
+  }
+
+  .payroll-request-button:hover {
+    background: linear-gradient(90deg, #b45fe6 0%, #116ee6 100%);
+  }
+
+  .payroll-request-submit {
+    @apply border-0 text-white shadow-sm;
+    background: linear-gradient(90deg, #ff6a00 0%, #ff4d00 100%);
+  }
+
+  .payroll-request-submit:hover {
+    background: linear-gradient(90deg, #f46000 0%, #ed4700 100%);
+  }
+
+  .payroll-request-value-emerald {
+    @apply text-emerald-600 dark:text-emerald-300;
+  }
+
+  .payroll-request-value-blue {
+    @apply text-blue-600 dark:text-blue-300;
+  }
+
+  .payroll-request-value-orange {
+    @apply text-orange-600 dark:text-orange-300;
+  }
+
+  .payroll-request-icon {
+    @apply grid h-9 w-9 shrink-0 place-items-center rounded-full border;
+  }
+
+  .payroll-request-icon-emerald {
+    @apply border-emerald-300 bg-emerald-100/80 text-emerald-700 dark:border-emerald-400/35 dark:bg-emerald-400/10 dark:text-emerald-300;
+  }
+
+  .payroll-request-icon-blue {
+    @apply border-blue-300 bg-blue-100/80 text-blue-700 dark:border-blue-400/35 dark:bg-blue-400/10 dark:text-blue-300;
+  }
+
+  .payroll-request-icon-orange {
+    @apply border-orange-300 bg-orange-100/80 text-orange-600 dark:border-orange-400/35 dark:bg-orange-400/10 dark:text-orange-300;
+  }
+
+  .payroll-request-step-blue {
+    @apply bg-blue-600 dark:bg-blue-500;
+  }
+
+  .payroll-request-step-emerald {
+    @apply bg-emerald-600 dark:bg-emerald-500;
+  }
+
+  .payroll-query-category {
+    @apply grid h-6 w-6 shrink-0 place-items-center rounded-md;
+  }
+
+  .payroll-query-category-blue {
+    @apply bg-blue-500/10 text-blue-600 dark:text-blue-300;
+  }
+
+  .payroll-query-category-emerald {
+    @apply bg-emerald-500/10 text-emerald-600 dark:text-emerald-300;
+  }
+
+  .payroll-query-category-violet {
+    @apply bg-violet-500/10 text-violet-600 dark:text-violet-300;
+  }
+
+  .payroll-query-category-orange {
+    @apply bg-orange-500/10 text-orange-600 dark:text-orange-300;
+  }
+
+  .payroll-query-category-rose {
+    @apply bg-rose-500/10 text-rose-600 dark:text-rose-300;
+  }
+
+  .payroll-query-summary-icon {
+    @apply grid h-9 w-9 shrink-0 place-items-center rounded-full;
+  }
+
+  .payroll-query-summary-icon-blue {
+    @apply bg-blue-500/10 text-blue-600 dark:text-blue-300;
+  }
+
+  .payroll-query-summary-icon-emerald {
+    @apply bg-emerald-500/10 text-emerald-600 dark:text-emerald-300;
+  }
+
+  .payroll-query-summary-icon-orange {
+    @apply bg-orange-500/10 text-orange-600 dark:text-orange-300;
+  }
+
+  .payroll-query-submit {
+    @apply border-0 text-white shadow-sm;
+    background: linear-gradient(90deg, #2563eb 0%, #315efb 100%);
+  }
+
+  .payroll-query-submit:hover {
+    background: linear-gradient(90deg, #1d4ed8 0%, #2951e8 100%);
+  }
+
+  .payroll-query-update {
+    @apply relative z-10 grid h-6 w-6 shrink-0 place-items-center rounded-full text-white;
+  }
+
+  .payroll-query-update-blue {
+    @apply bg-blue-600 dark:bg-blue-500;
+  }
+
+  .payroll-query-update-orange {
+    @apply bg-orange-500;
+  }
+
+  .payroll-query-update-violet {
+    @apply bg-violet-500;
+  }
 }
 
 /* SETTING_PAGE */
