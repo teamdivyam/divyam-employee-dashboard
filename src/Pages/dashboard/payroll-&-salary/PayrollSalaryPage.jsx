@@ -23,6 +23,7 @@ import {
   FileQuestion,
   FileText,
   Info,
+  IndianRupee,
   Landmark,
   MessageSquareMore,
   Minus,
@@ -83,8 +84,19 @@ const currencyFormatter = new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: 2,
 });
 
+const payrollFormCurrencyFormatter = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
 const currency = (amount) => (
   amount === null || amount === undefined ? '—' : currencyFormatter.format(Number(amount))
+);
+
+const payrollFormCurrency = (amount) => (
+  amount === null || amount === undefined ? '—' : payrollFormCurrencyFormatter.format(Number(amount))
 );
 
 const salaryBasisLabels = {
@@ -496,54 +508,57 @@ function PayrollRequestDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[calc(100vh-1rem)] w-[calc(100%-1rem)] gap-0 overflow-y-auto p-0 sm:max-w-[720px] [&>button]:right-4 [&>button]:top-4 [&>button]:opacity-100">
+      <DialogContent className="payroll-form-dialog max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] gap-0 overflow-y-auto p-0 sm:max-w-[600px] [&>button]:right-4 [&>button]:top-4 [&>button]:opacity-100 [&>button>svg]:h-5 [&>button>svg]:w-5">
         <form onSubmit={handleSubmit}>
-          <DialogHeader className="border-b border-border px-5 py-4 pr-12">
-            <DialogTitle className="text-lg font-semibold">Request {requestType}</DialogTitle>
-            <DialogDescription className="text-[11px]">
+          <DialogHeader className="px-5 pb-2 pt-4 pr-12">
+            <DialogTitle className="payroll-form-title">Request {requestType}</DialogTitle>
+            <DialogDescription className="payroll-form-description">
               Submit your {requestKey} request for Finance review and Admin approval.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3.5 px-5 py-4">
-            <div className="rounded-lg border border-border bg-muted/15 p-3.5">
-              <div className="grid gap-3 sm:grid-cols-3">
+          <div className="space-y-2.5 px-5 pb-3 pt-2">
+            <div className="payroll-request-summary rounded-lg border border-border p-3">
+              <div className="payroll-request-metrics grid gap-3">
                 {[
                   {
                     label: 'Salary Basis',
                     value: salaryBasisLabels[summary?.salaryBasis] || summary?.salaryBasis || '—',
                     Icon: BadgeIndianRupee,
-                    tone: 'emerald',
+                    iconClassName: 'payroll-request-icon-emerald',
+                    valueClassName: 'payroll-request-value-emerald',
                   },
                   {
                     label: 'Net Salary',
-                    value: currency(summary?.netSalary),
+                    value: payrollFormCurrency(summary?.netSalary),
                     Icon: WalletCards,
-                    tone: 'blue',
+                    iconClassName: 'payroll-request-icon-blue',
+                    valueClassName: 'payroll-request-value-blue',
                   },
                   {
                     label: currentRequestLabel,
-                    value: currency(currentRequestAmount),
-                    Icon: ReceiptIndianRupee,
-                    tone: 'orange',
+                    value: payrollFormCurrency(currentRequestAmount),
+                    Icon: BadgeIndianRupee,
+                    iconClassName: 'payroll-request-icon-orange',
+                    valueClassName: 'payroll-request-value-orange',
                   },
-                ].map(({ label, value, Icon, tone }, index) => (
+                ].map(({ label, value, Icon, iconClassName, valueClassName }, index) => (
                   <div
                     key={label}
-                    className={`flex items-center gap-2.5 ${index ? 'sm:border-l sm:border-border sm:pl-3' : ''}`}
+                    className={`flex min-w-0 items-center gap-2.5 ${index ? 'payroll-form-metric-divider' : ''}`}
                   >
-                    <span className={`payroll-request-icon payroll-request-icon-${tone}`}>
-                      <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                    <span className={`payroll-request-icon ${iconClassName}`}>
+                      <Icon className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
                     </span>
                     <div className="min-w-0">
-                      <p className="text-[10px] text-muted-foreground">{label}</p>
-                      <p className={`mt-0.5 truncate text-xs font-semibold payroll-request-value-${tone}`}>{value}</p>
+                      <p className="payroll-form-metric-label truncate">{label}</p>
+                      <p className={`payroll-form-metric-value mt-0.5 truncate ${valueClassName}`}>{value}</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5 text-[11px] text-foreground sm:gap-4">
+              <div className="payroll-request-flow mt-3 flex flex-wrap items-center justify-center gap-2.5 text-foreground min-[520px]:gap-4">
                 {[
                   ['1', 'Finance Review', 'blue'],
                   ['2', 'Admin Approval', 'blue'],
@@ -554,7 +569,7 @@ function PayrollRequestDialog({
                       <i className={`grid h-6 w-6 place-items-center rounded-full text-[10px] font-semibold text-white payroll-request-step-${tone}`}>
                         {step}
                       </i>
-                      <span className="font-medium">{label}</span>
+                      <span>{label}</span>
                     </span>
                     {index < 2 && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />}
                   </div>
@@ -562,22 +577,24 @@ function PayrollRequestDialog({
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold">Request Month</Label>
-                <div className="flex h-9 items-center gap-3 rounded-md border border-input bg-background px-3 text-[11px] shadow-sm">
+            <div className="grid gap-2.5 min-[520px]:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="payroll-form-label">Request Month</Label>
+                <div className="payroll-form-control flex h-9 items-center gap-3 rounded-md border border-input bg-background px-3 shadow-sm">
                   <CalendarDays className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <span className="flex-1 font-medium text-foreground">{monthLabel}</span>
                   <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor={`${requestKey}-request-amount`} className="text-[11px] font-semibold">
+              <div className="space-y-1">
+                <Label htmlFor={`${requestKey}-request-amount`} className="payroll-form-label">
                   Requested Amount
                 </Label>
                 <div className="flex h-9 overflow-hidden rounded-md border border-input bg-background shadow-sm focus-within:ring-1 focus-within:ring-ring">
-                  <span className="grid w-10 shrink-0 place-items-center bg-muted text-sm font-semibold">₹</span>
+                  <span className="grid w-10 shrink-0 place-items-center bg-muted/70">
+                    <IndianRupee className="h-4 w-4" aria-hidden="true" />
+                  </span>
                   <Input
                     id={`${requestKey}-request-amount`}
                     type="number"
@@ -587,15 +604,15 @@ function PayrollRequestDialog({
                     value={form.amount}
                     onChange={(event) => updateField('amount', event.target.value)}
                     placeholder="Enter amount"
-                    className="h-full border-0 shadow-none focus-visible:ring-0"
+                    className="payroll-form-control h-full border-0 shadow-none focus-visible:ring-0"
                     required
                   />
                 </div>
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor={`${requestKey}-request-reason`} className="text-[11px] font-semibold">
+            <div className="space-y-1">
+              <Label htmlFor={`${requestKey}-request-reason`} className="payroll-form-label">
                 Reason for {requestType}
               </Label>
               <div className="relative">
@@ -605,7 +622,7 @@ function PayrollRequestDialog({
                   onChange={(event) => updateField('reason', event.target.value)}
                   maxLength={300}
                   placeholder={`Enter reason for requesting ${requestKey}...`}
-                  className="min-h-[76px] resize-none pb-6 text-[11px]"
+                  className="payroll-form-control min-h-[62px] resize-none pb-6"
                   required
                 />
                 <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground">
@@ -614,8 +631,8 @@ function PayrollRequestDialog({
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor={`${requestKey}-supporting-note`} className="text-[11px] font-semibold">
+            <div className="space-y-1">
+              <Label htmlFor={`${requestKey}-supporting-note`} className="payroll-form-label">
                 Supporting Note <span className="font-normal text-muted-foreground">(Optional)</span>
               </Label>
               <div className="relative">
@@ -625,7 +642,7 @@ function PayrollRequestDialog({
                   onChange={(event) => updateField('supportingNote', event.target.value)}
                   maxLength={300}
                   placeholder="Additional information (optional)..."
-                  className="min-h-[68px] resize-none pb-6 text-[11px]"
+                  className="payroll-form-control min-h-[58px] resize-none pb-6"
                 />
                 <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground">
                   {form.supportingNote.length}/300
@@ -633,20 +650,20 @@ function PayrollRequestDialog({
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor={`${requestKey}-attachment`} className="text-[11px] font-semibold">
+            <div className="space-y-1">
+              <Label htmlFor={`${requestKey}-attachment`} className="payroll-form-label">
                 Attachment <span className="font-normal text-muted-foreground">(Optional)</span>
               </Label>
               <label
                 htmlFor={`${requestKey}-attachment`}
-                className="flex min-h-[78px] cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-primary/45 bg-primary/[0.02] px-4 py-3 text-center hover:bg-primary/5"
+                className="payroll-form-upload flex min-h-[66px] cursor-pointer flex-col items-center justify-center rounded-md border border-dashed px-4 py-2 text-center"
               >
-                <span className="flex items-center gap-2 text-xs">
+                <span className="flex items-center gap-2 text-[11px]">
                   <CloudUpload className="h-5 w-5 text-primary" aria-hidden="true" />
                   <strong className="font-semibold text-primary">Click to upload</strong>
                   <span className="text-foreground">or drag and drop</span>
                 </span>
-                <span className="mt-1 text-[10px] text-muted-foreground">
+                <span className="mt-0.5 text-[10px] text-muted-foreground">
                   {form.attachment?.name || 'JPG, PNG, PDF up to 5MB'}
                 </span>
                 <Input
@@ -659,17 +676,17 @@ function PayrollRequestDialog({
               </label>
             </div>
 
-            <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50/70 px-3 py-2.5 text-[10px] text-blue-700 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300">
+            <div className="payroll-form-notice payroll-request-notice flex items-center gap-2 rounded-md border px-3 py-2.5">
               <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
               {requestType} request is subject to Finance review and Admin approval.
             </div>
           </div>
 
-          <DialogFooter className="flex-row justify-between border-t border-border px-5 py-3 sm:space-x-0">
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} className="h-8 px-4 text-[11px]">
+          <DialogFooter className="flex-row justify-between px-5 pb-4 pt-1 sm:space-x-0">
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} className="h-9 px-4 text-[11px]">
               Cancel
             </Button>
-            <Button type="submit" className="payroll-request-submit h-8 px-4 text-[11px] font-semibold">
+            <Button type="submit" className="payroll-request-submit h-9 px-4 text-[11px] font-semibold">
               Submit {requestType} Request
             </Button>
           </DialogFooter>
@@ -1378,17 +1395,17 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[calc(100vh-1rem)] w-[calc(100%-1rem)] gap-0 overflow-y-auto p-0 sm:max-w-[680px] [&>button]:right-4 [&>button]:top-4 [&>button]:opacity-100">
+      <DialogContent className="payroll-form-dialog max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] gap-0 overflow-y-auto p-0 sm:max-w-[590px] [&>button]:right-4 [&>button]:top-4 [&>button]:opacity-100 [&>button>svg]:h-5 [&>button>svg]:w-5">
         <form onSubmit={handleSubmit}>
-          <DialogHeader className="border-b border-border px-5 py-4 pr-12">
-            <DialogTitle className="text-lg font-semibold">Raise Salary Query</DialogTitle>
-            <DialogDescription className="text-[11px]">
+          <DialogHeader className="px-5 pb-2 pt-4 pr-12">
+            <DialogTitle className="payroll-form-title">Raise Salary Query</DialogTitle>
+            <DialogDescription className="payroll-form-description">
               Submit your payroll-related concern for Finance review.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3.5 px-5 py-4">
-            <div className="grid gap-3 rounded-lg border border-blue-200 bg-blue-50/20 p-3 dark:border-blue-400/25 dark:bg-blue-400/5 sm:grid-cols-3">
+          <div className="space-y-2.5 px-5 pb-3 pt-2">
+            <div className="payroll-query-summary grid gap-3 rounded-lg border p-3 min-[520px]:grid-cols-3">
               {[
                 {
                   label: 'Payroll Month',
@@ -1398,8 +1415,8 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
                 },
                 {
                   label: 'Net Salary',
-                  value: currency(summary?.netSalary),
-                  Icon: BadgeIndianRupee,
+                  value: payrollFormCurrency(summary?.netSalary),
+                  Icon: IndianRupee,
                   tone: 'emerald',
                 },
                 {
@@ -1411,17 +1428,17 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
               ].map(({ label, value, Icon, tone }) => (
                 <div key={label} className="flex items-center gap-2.5">
                   <span className={`payroll-query-summary-icon payroll-query-summary-icon-${tone}`}>
-                    <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                    <Icon className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-[9px] text-muted-foreground">{label}</p>
-                    <p className={`mt-0.5 truncate text-xs font-semibold payroll-request-value-${tone}`}>{value}</p>
+                    <p className="payroll-form-metric-label truncate">{label}</p>
+                    <p className={`payroll-form-metric-value mt-0.5 truncate payroll-request-value-${tone}`}>{value}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-2 text-[10px] text-foreground sm:gap-3">
+            <div className="payroll-query-flow flex flex-wrap items-center justify-center gap-2 text-foreground min-[520px]:gap-3">
               {[
                 ['1', 'Finance Review', 'active'],
                 ['2', 'Admin Review, if required', 'idle'],
@@ -1442,13 +1459,13 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
               ))}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold">
+            <div className="grid gap-2.5 min-[520px]:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="payroll-form-label">
                   Query Related To <span className="text-red-500">*</span>
                 </Label>
                 <Select value={form.relatedTo} onValueChange={(value) => updateField('relatedTo', value)}>
-                  <SelectTrigger className="h-9 text-[11px]">
+                  <SelectTrigger className="payroll-form-control h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1468,23 +1485,23 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
                 </Select>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold">
+              <div className="space-y-1">
+                <Label className="payroll-form-label">
                   Payroll Month <span className="text-red-500">*</span>
                 </Label>
-                <div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-[11px] shadow-sm">
+                <div className="payroll-form-control flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 shadow-sm">
                   <CalendarDays className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <span className="flex-1 font-medium text-foreground">{monthLabel}</span>
                   <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold">
+              <div className="space-y-1">
+                <Label className="payroll-form-label">
                   Related Record <span className="font-normal text-muted-foreground">— Optional</span>
                 </Label>
                 <Select value={form.relatedRecord} onValueChange={(value) => updateField('relatedRecord', value)}>
-                  <SelectTrigger className="h-9 text-[11px]">
+                  <SelectTrigger className="payroll-form-control h-9">
                     <SelectValue placeholder="Select related record" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1495,8 +1512,8 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
                 </Select>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="salary-query-subject" className="text-[11px] font-semibold">
+              <div className="space-y-1">
+                <Label htmlFor="salary-query-subject" className="payroll-form-label">
                   Subject <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -1504,14 +1521,14 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
                   value={form.subject}
                   onChange={(event) => updateField('subject', event.target.value)}
                   placeholder="Enter a short subject for your query"
-                  className="h-9 text-[11px]"
+                  className="payroll-form-control h-9"
                   required
                 />
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="salary-query-details" className="text-[11px] font-semibold">
+            <div className="space-y-1">
+              <Label htmlFor="salary-query-details" className="payroll-form-label">
                 Query Details <span className="text-red-500">*</span>
               </Label>
               <Textarea
@@ -1519,26 +1536,26 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
                 value={form.details}
                 onChange={(event) => updateField('details', event.target.value)}
                 placeholder="Explain the issue clearly, including the amount or payroll entry concerned."
-                className="min-h-[78px] resize-none text-[11px]"
+                className="payroll-form-control min-h-[64px] resize-none"
                 required
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="salary-query-attachment" className="text-[11px] font-semibold">
+            <div className="space-y-1">
+              <Label htmlFor="salary-query-attachment" className="payroll-form-label">
                 Attachment <span className="font-normal text-muted-foreground">— Optional</span>
               </Label>
               <label
                 htmlFor="salary-query-attachment"
-                className="flex min-h-[76px] cursor-pointer items-center justify-center gap-3 rounded-md border border-dashed border-primary/45 bg-primary/[0.02] px-4 py-3 hover:bg-primary/5"
+                className="payroll-form-upload flex min-h-[66px] cursor-pointer items-center justify-center gap-3 rounded-md border border-dashed px-4 py-2"
               >
                 <CloudUpload className="h-6 w-6 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <span className="text-[11px]">
+                <span className="text-[11px] leading-4">
                   <span>
                     <strong className="font-semibold text-foreground">Click to upload</strong>
                     <span className="text-muted-foreground"> or drag and drop</span>
                   </span>
-                  <span className="mt-1 block text-[9px] text-muted-foreground">
+                  <span className="mt-0.5 block text-[10px] text-muted-foreground">
                     {form.attachment?.name || 'PDF, JPG, PNG up to 5MB'}
                   </span>
                 </span>
@@ -1552,18 +1569,18 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
               </label>
             </div>
 
-            <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50/70 px-3 py-2.5 text-[10px] leading-4 text-blue-700 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300">
+            <div className="payroll-form-notice flex items-start gap-2 rounded-md border px-3 py-2.5 leading-4">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               Your query will first be reviewed by Finance. It will be forwarded to Admin only when approval,
               correction or payroll recalculation is required.
             </div>
           </div>
 
-          <DialogFooter className="flex-row justify-end gap-2 border-t border-border px-5 py-3 sm:space-x-0">
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} className="h-8 px-4 text-[11px]">
+          <DialogFooter className="flex-row justify-end gap-2 px-5 pb-4 pt-1 sm:space-x-0">
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} className="h-9 px-4 text-[11px]">
               Cancel
             </Button>
-            <Button type="submit" className="payroll-query-submit h-8 px-4 text-[11px] font-semibold">
+            <Button type="submit" className="payroll-query-submit h-9 px-4 text-[11px] font-semibold">
               Submit Salary Query
             </Button>
           </DialogFooter>

@@ -671,6 +671,91 @@ body {
     background: linear-gradient(90deg, #f46000 0%, #ed4700 100%);
   }
 
+  .payroll-form-dialog {
+    @apply rounded-xl border-border bg-background text-foreground shadow-modal;
+  }
+
+  .payroll-form-title {
+    @apply text-base font-semibold leading-5 tracking-tight text-foreground;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    line-height: 1.25rem !important;
+  }
+
+  .payroll-form-description {
+    @apply text-[11px] leading-4 text-muted-foreground;
+    font-size: 0.6875rem !important;
+    line-height: 1rem !important;
+  }
+
+  .payroll-form-label {
+    @apply text-[11px] font-semibold leading-4 text-foreground;
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    line-height: 1rem !important;
+  }
+
+  .payroll-form-control {
+    @apply text-[11px] leading-4 text-foreground placeholder:text-muted-foreground;
+    font-size: 0.6875rem !important;
+    line-height: 1rem !important;
+  }
+
+  .payroll-form-metric-label {
+    @apply text-[10px] leading-4 text-muted-foreground;
+  }
+
+  .payroll-form-metric-value {
+    @apply text-xs font-semibold leading-4;
+  }
+
+  .payroll-request-summary {
+    @apply bg-muted/15;
+  }
+
+  .payroll-query-summary {
+    @apply border-blue-200 bg-blue-50/20 dark:border-blue-400/25 dark:bg-blue-400/5;
+  }
+
+  .payroll-form-metric-divider {
+    @apply border-border;
+  }
+
+  .payroll-request-flow {
+    @apply text-[11px] leading-4;
+  }
+
+  .payroll-query-flow {
+    @apply text-[10px] leading-4;
+  }
+
+  .payroll-form-upload {
+    @apply border-primary/45 bg-primary/[0.02] transition-colors hover:bg-primary/5;
+  }
+
+  .payroll-form-notice {
+    @apply border-blue-200 bg-blue-50/70 text-[11px] text-blue-600 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300;
+  }
+
+  .payroll-request-notice svg circle {
+    fill: #2563eb;
+    stroke: #2563eb;
+  }
+
+  .payroll-request-notice svg path {
+    stroke: #fff;
+  }
+
+  @media (min-width: 520px) {
+    .payroll-request-metrics {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 1.28fr);
+    }
+
+    .payroll-form-metric-divider {
+      @apply border-l pl-3;
+    }
+  }
+
   .payroll-request-value-emerald {
     @apply text-emerald-600 dark:text-emerald-300;
   }
@@ -688,15 +773,39 @@ body {
   }
 
   .payroll-request-icon-emerald {
-    @apply border-emerald-300 bg-emerald-100/80 text-emerald-700 dark:border-emerald-400/35 dark:bg-emerald-400/10 dark:text-emerald-300;
+    border-color: #86efac;
+    background-color: #dcfce7;
+    color: #059669;
   }
 
   .payroll-request-icon-blue {
-    @apply border-blue-300 bg-blue-100/80 text-blue-700 dark:border-blue-400/35 dark:bg-blue-400/10 dark:text-blue-300;
+    border-color: #bfdbfe;
+    background-color: #eff6ff;
+    color: #2563eb;
   }
 
   .payroll-request-icon-orange {
-    @apply border-orange-300 bg-orange-100/80 text-orange-600 dark:border-orange-400/35 dark:bg-orange-400/10 dark:text-orange-300;
+    border-color: #fdba74;
+    background-color: #fff7ed;
+    color: #f97316;
+  }
+
+  .dark .payroll-request-icon-emerald {
+    border-color: rgb(52 211 153 / 35%);
+    background-color: rgb(52 211 153 / 10%);
+    color: #6ee7b7;
+  }
+
+  .dark .payroll-request-icon-blue {
+    border-color: rgb(96 165 250 / 35%);
+    background-color: rgb(96 165 250 / 10%);
+    color: #93c5fd;
+  }
+
+  .dark .payroll-request-icon-orange {
+    border-color: rgb(251 146 60 / 35%);
+    background-color: rgb(251 146 60 / 10%);
+    color: #fdba74;
   }
 
   .payroll-request-step-blue {
