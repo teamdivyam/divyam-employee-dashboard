@@ -337,7 +337,7 @@ export default function MyTasksPage() {
           setTask={setNewTask}
         />
       </div>
-      <PageLocked className="z-[100]" />
+      {/* <PageLocked className="z-[100]" /> */}
     </div>
   );
 }

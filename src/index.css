@@ -713,6 +713,10 @@ body {
     @apply bg-muted/15;
   }
 
+  .payroll-allowance-summary {
+    @apply bg-secondary text-secondary-foreground;
+  }
+
   .payroll-query-summary {
     @apply border-blue-200 bg-blue-50/20 dark:border-blue-400/25 dark:bg-blue-400/5;
   }

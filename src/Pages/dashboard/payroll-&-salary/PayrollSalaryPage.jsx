@@ -37,6 +37,7 @@ import {
   UserRound,
   UserCheck,
   WalletCards,
+  MoveRight,
 } from 'lucide-react';
 import { Badge } from '@components/components/ui/badge';
 import { Button } from '@components/components/ui/button';
@@ -476,6 +477,7 @@ function PayrollRequestDialog({
   const summary = payrollSalary?.metricsSummary;
   const requestKey = requestType.toLowerCase();
   const isAdvanceRequest = requestType === 'Advance';
+  const dialogWidthClassName = isAdvanceRequest ? 'sm:max-w-[600px]' : 'sm:max-w-[560px]';
   const currentRequestAmount = isAdvanceRequest
     ? payrollSalary?.salaryBreakdown?.deductions?.advanceDeduction
     : payrollSalary?.salaryBreakdown?.earnings?.allowance;
@@ -508,7 +510,7 @@ function PayrollRequestDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="payroll-form-dialog max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] gap-0 overflow-y-auto p-0 sm:max-w-[600px] [&>button]:right-4 [&>button]:top-4 [&>button]:opacity-100 [&>button>svg]:h-5 [&>button>svg]:w-5">
+      <DialogContent className={`payroll-form-dialog max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] gap-0 overflow-y-auto p-0 ${dialogWidthClassName} [&>button]:right-4 [&>button]:top-4 [&>button]:opacity-100 [&>button>svg]:h-5 [&>button>svg]:w-5`}>
         <form onSubmit={handleSubmit}>
           <DialogHeader className="px-5 pb-2 pt-4 pr-12">
             <DialogTitle className="payroll-form-title">Request {requestType}</DialogTitle>
@@ -518,7 +520,7 @@ function PayrollRequestDialog({
           </DialogHeader>
 
           <div className="space-y-2.5 px-5 pb-3 pt-2">
-            <div className="payroll-request-summary rounded-lg border border-border p-3">
+            <div className={`payroll-request-summary rounded-lg border border-border p-3 ${isAdvanceRequest ? '' : 'payroll-allowance-summary'}`}>
               <div className="payroll-request-metrics grid gap-3">
                 {[
                   {
@@ -558,20 +560,25 @@ function PayrollRequestDialog({
                 ))}
               </div>
 
-              <div className="payroll-request-flow mt-3 flex flex-wrap items-center justify-center gap-2.5 text-foreground min-[520px]:gap-4">
+              <div
+                className="payroll-request-flow mt-6 flex items-center justify-center gap-2 text-foreground min-[520px]:gap-3"
+                aria-label={`${requestType} approval flow`}
+              >
                 {[
                   ['1', 'Finance Review', 'blue'],
                   ['2', 'Admin Approval', 'blue'],
                   ['3', 'Added in Payroll', 'emerald'],
                 ].map(([step, label, tone], index) => (
-                  <div key={step} className="contents">
-                    <span className="flex items-center gap-2">
-                      <i className={`grid h-6 w-6 place-items-center rounded-full text-[10px] font-semibold text-white payroll-request-step-${tone}`}>
+                  <div key={step} className="flex min-w-0 items-center gap-2">
+                    <span className="flex min-w-0 items-center gap-1.5 min-[520px]:gap-2">
+                      <i className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[9px] font-semibold bg- text-white bg-blue-500`}>
                         {step}
                       </i>
-                      <span>{label}</span>
+                      <span className="leading-tight">{label}</span>
                     </span>
-                    {index < 2 && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />}
+                    {index < 2 && (
+                      <MoveRight  className="h-3.5 w-3.5 shrink-0 text-muted-foreground"  aria-hidden="true"/>
+                    )}
                   </div>
                 ))}
               </div>

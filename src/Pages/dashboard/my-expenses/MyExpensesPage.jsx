@@ -309,7 +309,7 @@ export default function MyExpensesPage() {
           loading={submitMutation.isPending}
         />
       </div>
-      <PageLocked className="z-[100]" />
+      {/* <PageLocked className="z-[100]" /> */}
     </div>
   );
 }
