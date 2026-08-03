@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
   ArrowRight,
   BadgeIndianRupee,
@@ -25,6 +26,7 @@ import {
   Info,
   IndianRupee,
   Landmark,
+  Loader2,
   MessageSquareMore,
   Minus,
   Paperclip,
@@ -70,6 +72,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@components/components
 import { Textarea } from '@components/components/ui/textarea';
 import { MonthFilterControl } from '../attendence-leave/AttendenceLeavePage';
 import EmployeeV2Service from '@/services/employee-v2.service';
+import {
+  ADVANCE_REQUEST_STATUS,
+  advanceRequestFiltersSchema,
+  advanceRequestSchema,
+  canDeleteAdvanceRequest,
+  clarificationResponseSchema,
+  getApiErrorMessage,
+  getOpenClarification,
+} from './advance-request';
+import {
+  ALLOWANCE_REQUEST_STATUS,
+  allowanceClarificationResponseSchema,
+  allowanceRequestFiltersSchema,
+  allowanceRequestIdSchema,
+  canDeleteAllowanceRequest,
+  createAllowanceRequestSchema,
+  getAllowanceApiErrorMessage,
+  getOpenAllowanceClarification,
+} from './allowance-request';
 import {
   Table,
   TableBody,
@@ -129,6 +150,25 @@ const formatMonth = (month) => {
   });
 };
 
+const formatDateTime = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const getPayrollRequestReference = (request, requestType = 'Advance') => {
+  const id = request?._id || '';
+  const prefix = requestType === 'Allowance' ? 'ALL' : 'ADV';
+  return id ? `${prefix}-${id.slice(-8).toUpperCase()}` : '—';
+};
+
 const tabs = [
   ['summary', 'Salary Summary', BadgeIndianRupee],
   ['allowance', 'Allowance', WalletCards],
@@ -148,8 +188,6 @@ const progress = [
 ];
 
 const history = [];
-const allowanceRows = [];
-const advanceDeductionRows = [];
 const loanStatementRows = [];
 const reimbursementRows = [];
 const salaryQueryRows = [
@@ -212,7 +250,16 @@ const salaryQueryRows = [
 
 function StatusBadge({ value }) {
   const success = ['Paid', 'Active', 'Approved', 'Completed', 'Resolved', 'Applied', 'Closed', 'Assigned', 'Verified'].includes(value);
-  const warning = ['Pending', 'Under Review', 'Open', 'High', 'Not Generated'].includes(value);
+  const warning = [
+    'Pending',
+    'Under Review',
+    'Open',
+    'High',
+    'Not Generated',
+    ADVANCE_REQUEST_STATUS.PENDING_FINANCE_REVIEW,
+    ADVANCE_REQUEST_STATUS.CLARIFICATION_REQUESTED,
+    ADVANCE_REQUEST_STATUS.PENDING_ADMIN_APPROVAL,
+  ].includes(value);
   return (
     <Badge
       variant="outline"
@@ -465,18 +512,23 @@ function PayrollRequestDialog({
   open,
   onOpenChange,
   monthLabel,
+  requestMonth,
   payrollSalary,
   requestType,
+  onSubmit,
+  validationSchema,
+  isSubmitting = false,
 }) {
   const [form, setForm] = useState({
     amount: '',
     reason: '',
     supportingNote: '',
-    attachment: null,
+    attachments: [],
   });
   const summary = payrollSalary?.metricsSummary;
   const requestKey = requestType.toLowerCase();
   const isAdvanceRequest = requestType === 'Advance';
+  const isApiRequest = Boolean(onSubmit && validationSchema);
   const dialogWidthClassName = isAdvanceRequest ? 'sm:max-w-[600px]' : 'sm:max-w-[560px]';
   const currentRequestAmount = isAdvanceRequest
     ? payrollSalary?.salaryBreakdown?.deductions?.advanceDeduction
@@ -494,18 +546,40 @@ function PayrollRequestDialog({
       amount: '',
       reason: '',
       supportingNote: '',
-      attachment: null,
+      attachments: [],
     });
   };
 
   const handleOpenChange = (nextOpen) => {
+    if (isSubmitting) return;
     if (!nextOpen) resetForm();
     onOpenChange(nextOpen);
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    handleOpenChange(false);
+    if (!isApiRequest) {
+      handleOpenChange(false);
+      return;
+    }
+
+    try {
+      const values = await validationSchema.validate({
+        requestMonth,
+        requestedAmount: form.amount,
+        reason: form.reason,
+        supportingNote: form.supportingNote || null,
+        attachments: form.attachments,
+      }, { abortEarly: false, stripUnknown: true });
+      await onSubmit(values);
+      resetForm();
+      onOpenChange(false);
+    } catch (error) {
+      if (error?.name === 'ValidationError') {
+        toast.error(error.errors?.[0] || error.message);
+      }
+      // API errors are surfaced by the mutation's onError handler.
+    }
   };
 
   return (
@@ -568,7 +642,7 @@ function PayrollRequestDialog({
                   ['1', 'Finance Review', 'blue'],
                   ['2', 'Admin Approval', 'blue'],
                   ['3', 'Added in Payroll', 'emerald'],
-                ].map(([step, label, tone], index) => (
+                ].map(([step, label], index) => (
                   <div key={step} className="flex min-w-0 items-center gap-2">
                     <span className="flex min-w-0 items-center gap-1.5 min-[520px]:gap-2">
                       <i className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[9px] font-semibold bg- text-white bg-blue-500`}>
@@ -606,6 +680,7 @@ function PayrollRequestDialog({
                     id={`${requestKey}-request-amount`}
                     type="number"
                     min="1"
+                    max={isApiRequest ? 100000000 : undefined}
                     step="0.01"
                     inputMode="decimal"
                     value={form.amount}
@@ -627,13 +702,13 @@ function PayrollRequestDialog({
                   id={`${requestKey}-request-reason`}
                   value={form.reason}
                   onChange={(event) => updateField('reason', event.target.value)}
-                  maxLength={300}
+                  maxLength={isApiRequest ? 2000 : 300}
                   placeholder={`Enter reason for requesting ${requestKey}...`}
                   className="payroll-form-control min-h-[62px] resize-none pb-6"
                   required
                 />
                 <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground">
-                  {form.reason.length}/300
+                  {form.reason.length}/{isApiRequest ? 2000 : 300}
                 </span>
               </div>
             </div>
@@ -647,12 +722,12 @@ function PayrollRequestDialog({
                   id={`${requestKey}-supporting-note`}
                   value={form.supportingNote}
                   onChange={(event) => updateField('supportingNote', event.target.value)}
-                  maxLength={300}
+                  maxLength={isApiRequest ? 2000 : 300}
                   placeholder="Additional information (optional)..."
                   className="payroll-form-control min-h-[58px] resize-none pb-6"
                 />
                 <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground">
-                  {form.supportingNote.length}/300
+                  {form.supportingNote.length}/{isApiRequest ? 2000 : 300}
                 </span>
               </div>
             </div>
@@ -664,6 +739,12 @@ function PayrollRequestDialog({
               <label
                 htmlFor={`${requestKey}-attachment`}
                 className="payroll-form-upload flex min-h-[66px] cursor-pointer flex-col items-center justify-center rounded-md border border-dashed px-4 py-2 text-center"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const droppedFiles = Array.from(event.dataTransfer.files || []);
+                  updateField('attachments', isApiRequest ? droppedFiles : droppedFiles.slice(0, 1));
+                }}
               >
                 <span className="flex items-center gap-2 text-[11px]">
                   <CloudUpload className="h-5 w-5 text-primary" aria-hidden="true" />
@@ -671,14 +752,23 @@ function PayrollRequestDialog({
                   <span className="text-foreground">or drag and drop</span>
                 </span>
                 <span className="mt-0.5 text-[10px] text-muted-foreground">
-                  {form.attachment?.name || 'JPG, PNG, PDF up to 5MB'}
+                  {form.attachments.length === 1
+                    ? form.attachments[0].name
+                    : form.attachments.length > 1
+                      ? `${form.attachments.length} files selected`
+                      : `JPG, PNG, PDF up to 5MB${isApiRequest ? ' (max. 5 files)' : ''}`}
                 </span>
                 <Input
                   id={`${requestKey}-attachment`}
                   type="file"
                   accept=".jpg,.jpeg,.png,.pdf"
+                  multiple={isApiRequest}
                   className="sr-only"
-                  onChange={(event) => updateField('attachment', event.target.files?.[0] || null)}
+                  onChange={(event) => updateField(
+                    'attachments',
+                    Array.from(event.target.files || []),
+                  )}
+                  disabled={isSubmitting}
                 />
               </label>
             </div>
@@ -690,11 +780,12 @@ function PayrollRequestDialog({
           </div>
 
           <DialogFooter className="flex-row justify-between px-5 pb-4 pt-1 sm:space-x-0">
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} className="h-9 px-4 text-[11px]">
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} className="h-9 px-4 text-[11px]" disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" className="payroll-request-submit h-9 px-4 text-[11px] font-semibold">
-              Submit {requestType} Request
+            <Button type="submit" className="payroll-request-submit h-9 gap-2 px-4 text-[11px] font-semibold" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+              {isSubmitting ? 'Submitting...' : `Submit ${requestType} Request`}
             </Button>
           </DialogFooter>
         </form>
@@ -703,12 +794,163 @@ function PayrollRequestDialog({
   );
 }
 
+function PayrollRequestDeleteDialog({ request, requestType, onOpenChange, onConfirm, isPending }) {
+  return (
+    <Dialog
+      open={Boolean(request)}
+      onOpenChange={(open) => {
+        if (!open && !isPending) onOpenChange(false);
+      }}
+    >
+      <DialogContent className="p-0 sm:max-w-[440px]">
+        <DialogHeader className="border-b border-border px-5 py-4 text-left">
+          <div className="flex items-start gap-3 pr-8">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-destructive/10 text-destructive">
+              <Trash2 className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <DialogTitle className="text-base font-semibold">Cancel {requestType} Request</DialogTitle>
+              <DialogDescription className="mt-1 text-xs leading-5">
+                This audited action cancels the pending request.
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+        <div className="px-5 py-4">
+          <p className="text-xs leading-5 text-foreground">
+            Cancel <span className="font-medium">{getPayrollRequestReference(request, requestType)}</span> for{' '}
+            <span className="font-medium">{currency(request?.requestedAmount)}</span>?
+          </p>
+        </div>
+        <DialogFooter className="gap-2 border-t border-border px-5 py-4 sm:space-x-0">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+            Keep Request
+          </Button>
+          <Button type="button" variant="destructive" className="gap-2" onClick={onConfirm} disabled={isPending}>
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            {isPending ? 'Cancelling...' : 'Cancel Request'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PayrollAttachmentList({ attachments }) {
+  if (!Array.isArray(attachments) || !attachments.length) return null;
+
+  return (
+    <div className="space-y-1.5">
+      {attachments.map((attachment, index) => {
+        const fileName = attachment.fileName || attachment.name || `Attachment ${index + 1}`;
+        const content = (
+          <>
+            <span className="flex min-w-0 items-center gap-2">
+              <FileText className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+              <span className="min-w-0">
+                <span className="block truncate text-[9px] font-medium text-foreground">{fileName}</span>
+                <span className="block text-[8px] text-muted-foreground">{attachment.fileType || 'Document'}</span>
+              </span>
+            </span>
+            {attachment.fileUrl && <Eye className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />}
+          </>
+        );
+
+        return attachment.fileUrl ? (
+          <a
+            key={attachment._id || `${fileName}-${index}`}
+            href={attachment.fileUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-between gap-2 rounded-md border border-border bg-background px-2.5 py-2 hover:bg-muted/40"
+          >
+            {content}
+          </a>
+        ) : (
+          <div key={attachment._id || `${fileName}-${index}`} className="flex items-center justify-between gap-2 rounded-md border border-border bg-background px-2.5 py-2">
+            {content}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function AllowanceTab({ filters, onFilterChange, payrollSalary }) {
+  const queryClient = useQueryClient();
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
-  const monthLabel = new Date(filters.year, filters.month - 1, 1).toLocaleDateString('en-IN', {
-    month: 'long',
-    year: 'numeric',
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [requestToDelete, setRequestToDelete] = useState(null);
+  const [page, setPage] = useState(1);
+  const selectedMonth = `${filters.year}-${String(filters.month).padStart(2, '0')}`;
+  const monthLabel = formatMonth(selectedMonth);
+
+  const allowanceRequestsQuery = useQuery({
+    queryKey: ['employee-allowance-requests', selectedMonth, page],
+    queryFn: async () => {
+      const queryFilters = await allowanceRequestFiltersSchema.validate({
+        requestMonth: selectedMonth,
+        page,
+        limit: 20,
+      }, { abortEarly: false, stripUnknown: true });
+      const response = await EmployeeV2Service.getMyAllowanceRequests(queryFilters);
+      return response.data?.data || {};
+    },
   });
+
+  const invalidateAllowanceRequests = () => queryClient.invalidateQueries({
+    queryKey: ['employee-allowance-requests'],
+  });
+
+  const createAllowanceMutation = useMutation({
+    mutationFn: (values) => EmployeeV2Service.createAllowanceRequest(values),
+    onSuccess: (response) => {
+      toast.success(response.data?.message || 'Allowance request submitted successfully');
+      invalidateAllowanceRequests();
+    },
+    onError: (error) => toast.error(getAllowanceApiErrorMessage(error)),
+  });
+
+  const allowanceClarificationMutation = useMutation({
+    mutationFn: (values) => EmployeeV2Service.respondToAllowanceClarification(values),
+    onSuccess: (response) => {
+      const updatedRequest = response.data?.data?.allowanceRequest;
+      if (updatedRequest) setSelectedRequest(updatedRequest);
+      toast.success(response.data?.message || 'Clarification response submitted successfully');
+      invalidateAllowanceRequests();
+    },
+    onError: (error) => toast.error(getAllowanceApiErrorMessage(error, 'Unable to submit clarification response')),
+  });
+
+  const deleteAllowanceMutation = useMutation({
+    mutationFn: async (requestId) => {
+      const validated = await allowanceRequestIdSchema.validate({ requestId }, { abortEarly: false });
+      return EmployeeV2Service.deleteAllowanceRequest(validated.requestId);
+    },
+    onSuccess: (response) => {
+      toast.success(response.data?.message || 'Allowance request cancelled successfully');
+      setRequestToDelete(null);
+      setSelectedRequest(null);
+      invalidateAllowanceRequests();
+    },
+    onError: (error) => toast.error(getAllowanceApiErrorMessage(error, 'Unable to cancel allowance request')),
+  });
+
+  const allowanceRequests = Array.isArray(allowanceRequestsQuery.data?.allowanceRequests)
+    ? allowanceRequestsQuery.data.allowanceRequests
+    : [];
+  const pagination = allowanceRequestsQuery.data?.pagination || {};
+  const totalPages = Math.max(Number(pagination.totalPages) || 0, 1);
+  const total = Number(pagination.total) || allowanceRequests.length;
+  const limit = Number(pagination.limit) || 20;
+  const currentPage = Number(pagination.page) || page;
+  const firstResult = total ? ((currentPage - 1) * limit) + 1 : 0;
+  const lastResult = total ? Math.min(currentPage * limit, total) : 0;
+
+  const handleFilterChange = (updater) => {
+    setPage(1);
+    onFilterChange(updater);
+  };
 
   return (
     <Card className="payroll-panel">
@@ -720,7 +962,7 @@ function AllowanceTab({ filters, onFilterChange, payrollSalary }) {
           Allowance
         </CardTitle>
         <div className="flex flex-wrap items-center gap-2">
-          <MonthFilterControl filters={filters} onFilterChange={onFilterChange} />
+          <MonthFilterControl filters={filters} onFilterChange={handleFilterChange} />
           <Button variant="outline" size="sm" className="h-8 gap-2 px-3 text-xs font-medium">
             <Download className="h-3.5 w-3.5" aria-hidden="true" />
             Download
@@ -750,19 +992,45 @@ function AllowanceTab({ filters, onFilterChange, payrollSalary }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {!allowanceRows.length && <EmptyTableRow colSpan={7} />}
-              {allowanceRows.map(([name, frequency, amount, effectiveFrom, status]) => (
-                <TableRow key={name} className="hover:bg-muted/25">
-                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs font-semibold">{name}</TableCell>
-                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs">{frequency}</TableCell>
-                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs font-semibold">{amount}</TableCell>
-                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs">{effectiveFrom}</TableCell>
-                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs">{monthLabel}</TableCell>
+              {allowanceRequestsQuery.isPending && (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-20 text-center text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Loading allowance requests...
+                    </span>
+                  </TableCell>
+                </TableRow>
+              )}
+              {allowanceRequestsQuery.isError && (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-20 text-center text-xs text-red-600 dark:text-red-300">
+                    {getAllowanceApiErrorMessage(allowanceRequestsQuery.error, 'Unable to load allowance requests')}
+                  </TableCell>
+                </TableRow>
+              )}
+              {!allowanceRequestsQuery.isPending && !allowanceRequestsQuery.isError && !allowanceRequests.length && (
+                <EmptyTableRow colSpan={7} />
+              )}
+              {allowanceRequests.map((request) => (
+                <TableRow key={request._id} className="hover:bg-muted/25">
+                  <TableCell className="max-w-[240px] px-3 py-3 text-xs font-semibold" title={request.reason || undefined}>
+                    <span className="block truncate">{request.reason || getPayrollRequestReference(request, 'Allowance')}</span>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs">—</TableCell>
+                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs font-semibold">{currency(request.requestedAmount)}</TableCell>
+                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs">{formatMonth(request.requestMonth)}</TableCell>
                   <TableCell className="whitespace-nowrap px-3 py-3 text-xs">
-                    <StatusBadge value={status || '—'} />
+                    {request.status === ALLOWANCE_REQUEST_STATUS.APPLIED ? formatMonth(request.requestMonth) : '—'}
                   </TableCell>
                   <TableCell className="whitespace-nowrap px-3 py-3 text-xs">
-                    <button type="button" className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline">
+                    <StatusBadge value={request.status || '—'} />
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
+                      onClick={() => setSelectedRequest(request)}
+                    >
                       <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                       View
                     </button>
@@ -771,35 +1039,393 @@ function AllowanceTab({ filters, onFilterChange, payrollSalary }) {
               ))}
             </TableBody>
           </Table>
+          {Number(pagination.totalPages) > 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-3 py-2">
+              <p className="text-[10px] text-muted-foreground">
+                Showing {firstResult} to {lastResult} of {total} requests
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  aria-label="Previous page"
+                  onClick={() => setPage((current) => Math.max(current - 1, 1))}
+                  disabled={page <= 1 || allowanceRequestsQuery.isFetching}
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                </Button>
+                <Button type="button" size="icon" className="h-7 w-7 text-[10px]" disabled>
+                  {currentPage}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  aria-label="Next page"
+                  onClick={() => setPage((current) => Math.min(current + 1, totalPages))}
+                  disabled={page >= totalPages || allowanceRequestsQuery.isFetching}
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-3 flex items-center justify-center gap-16 rounded-md border border-emerald-200 bg-emerald-50/70 px-4 py-2.5 text-sm font-medium text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300">
           <span>Total Allowance Included</span>
-          <strong className="text-lg font-semibold">—</strong>
+          <strong className="text-lg font-semibold">{currency(payrollSalary?.salaryBreakdown?.earnings?.allowance)}</strong>
         </div>
 
         <div className="mt-3 flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50/70 px-3 py-2.5 text-[11px] text-blue-700 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300">
           <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          Allowance information will appear here when available.
+          Approved requests are added to payroll only after their status changes to Applied.
         </div>
       </CardContent>
       <PayrollRequestDialog
         open={isRequestDialogOpen}
         onOpenChange={setIsRequestDialogOpen}
         monthLabel={monthLabel}
+        requestMonth={selectedMonth}
         payrollSalary={payrollSalary}
         requestType="Allowance"
+        onSubmit={(values) => createAllowanceMutation.mutateAsync(values)}
+        validationSchema={createAllowanceRequestSchema}
+        isSubmitting={createAllowanceMutation.isPending}
+      />
+      <PayrollRequestDetailSheet
+        request={selectedRequest}
+        requestType="Allowance"
+        requestStatus={ALLOWANCE_REQUEST_STATUS}
+        responseSchema={allowanceClarificationResponseSchema}
+        canDeleteRequest={canDeleteAllowanceRequest}
+        getOpenClarificationForRequest={getOpenAllowanceClarification}
+        onOpenChange={(open) => !open && setSelectedRequest(null)}
+        onDelete={setRequestToDelete}
+        onRespond={(values) => allowanceClarificationMutation.mutateAsync(values)}
+        isDeleting={deleteAllowanceMutation.isPending}
+        isResponding={allowanceClarificationMutation.isPending}
+      />
+      <PayrollRequestDeleteDialog
+        request={requestToDelete}
+        requestType="Allowance"
+        onOpenChange={(open) => !open && setRequestToDelete(null)}
+        onConfirm={() => deleteAllowanceMutation.mutate(requestToDelete?._id)}
+        isPending={deleteAllowanceMutation.isPending}
       />
     </Card>
   );
 }
 
+function PayrollRequestDetailSheet({
+  request,
+  requestType = 'Advance',
+  requestStatus = ADVANCE_REQUEST_STATUS,
+  responseSchema = clarificationResponseSchema,
+  canDeleteRequest = canDeleteAdvanceRequest,
+  getOpenClarificationForRequest = getOpenClarification,
+  onOpenChange,
+  onDelete,
+  onRespond,
+  isDeleting,
+  isResponding,
+}) {
+  const [response, setResponse] = useState('');
+  const [attachments, setAttachments] = useState([]);
+  const requestKey = requestType.toLowerCase();
+  const openClarification = getOpenClarificationForRequest(request);
+  const clarificationHistory = Array.isArray(request?.clarificationHistory)
+    ? request.clarificationHistory
+    : [];
+
+  const resetResponse = () => {
+    setResponse('');
+    setAttachments([]);
+  };
+
+  const handleOpenChange = (open) => {
+    if (!open && (isDeleting || isResponding)) return;
+    if (!open) resetResponse();
+    onOpenChange(open);
+  };
+
+  const handleRespond = async (event) => {
+    event.preventDefault();
+    try {
+      const values = await responseSchema.validate({
+        requestId: request?._id,
+        clarificationId: openClarification?._id,
+        response,
+        attachments,
+      }, { abortEarly: false, stripUnknown: true });
+      await onRespond(values);
+      resetResponse();
+    } catch (error) {
+      if (error?.name === 'ValidationError') {
+        toast.error(error.errors?.[0] || error.message);
+      }
+      // API errors are surfaced by the mutation's onError handler.
+    }
+  };
+
+  return (
+    <Sheet open={Boolean(request)} onOpenChange={handleOpenChange}>
+      <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-[440px]">
+        {request && (
+          <>
+            <SheetHeader className="border-b border-border px-4 py-4 text-left">
+              <div className="flex items-start justify-between gap-3 pr-8">
+                <div>
+                  <SheetTitle className="text-base font-semibold">{requestType} Request Detail</SheetTitle>
+                  <SheetDescription className="mt-1 text-[11px] font-semibold text-foreground">
+                    {getPayrollRequestReference(request, requestType)}
+                  </SheetDescription>
+                </div>
+                <StatusBadge value={request.status || '—'} />
+              </div>
+            </SheetHeader>
+
+            <div className="space-y-3 p-4">
+              <Card className="shadow-none">
+                <CardHeader className="border-b border-border px-3 py-2.5">
+                  <CardTitle className="text-[11px] font-semibold">Request Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 px-3 py-3">
+                  {[
+                    ['Request Month', formatMonth(request.requestMonth)],
+                    ['Requested Amount', currency(request.requestedAmount)],
+                    ['Submitted On', formatDateTime(request.createdAt)],
+                    ['Last Updated', formatDateTime(request.updatedAt)],
+                    ['Attachments', `${request.attachments?.length || 0}`],
+                  ].map(([label, value]) => (
+                    <div key={label} className="grid grid-cols-[104px_8px_minmax(0,1fr)] gap-1 text-[10px]">
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className="text-muted-foreground">:</span>
+                      <span className="font-medium text-foreground">{value}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-border pt-2 text-[10px]">
+                    <p className="text-muted-foreground">Reason</p>
+                    <p className="mt-1 whitespace-pre-wrap leading-4 text-foreground">{request.reason || '—'}</p>
+                  </div>
+                  {request.supportingNote && (
+                    <div className="text-[10px]">
+                      <p className="text-muted-foreground">Supporting Note</p>
+                      <p className="mt-1 whitespace-pre-wrap leading-4 text-foreground">{request.supportingNote}</p>
+                    </div>
+                  )}
+                  {request.attachments?.length > 0 && (
+                    <div className="border-t border-border pt-2 text-[10px]">
+                      <p className="mb-1.5 text-muted-foreground">Attachments</p>
+                      <PayrollAttachmentList attachments={request.attachments} />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-none">
+                <CardHeader className="border-b border-border px-3 py-2.5">
+                  <CardTitle className="text-[11px] font-semibold">Review &amp; Decision</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 px-3 py-3">
+                  {[
+                    ['Finance Recommendation', request.financeReview?.recommendation || 'Pending'],
+                    ['Recommended Amount', currency(request.financeReview?.recommendedAmount)],
+                    ['Finance Note', request.financeReview?.note || '—'],
+                    ['Admin Decision', request.adminDecision?.decision || 'Pending'],
+                    ['Approved Amount', currency(request.adminDecision?.approvedAmount)],
+                    ['Admin Note', request.adminDecision?.note || '—'],
+                  ].map(([label, value]) => (
+                    <div key={label} className="grid grid-cols-[122px_8px_minmax(0,1fr)] gap-1 text-[10px]">
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className="text-muted-foreground">:</span>
+                      <span className="break-words font-medium text-foreground">{value}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {clarificationHistory.length > 0 && (
+                <Card className="shadow-none">
+                  <CardHeader className="border-b border-border px-3 py-2.5">
+                    <CardTitle className="text-[11px] font-semibold">Finance Clarifications</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 px-3 py-3">
+                    {clarificationHistory.map((clarification) => (
+                      <div key={clarification._id} className="rounded-md border border-border bg-muted/20 p-2.5 text-[10px]">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-foreground">Finance Question</span>
+                          <StatusBadge value={clarification.status || '—'} />
+                        </div>
+                        <p className="mt-1.5 whitespace-pre-wrap leading-4 text-foreground">{clarification.question || '—'}</p>
+                        <p className="mt-1 text-[9px] text-muted-foreground">Requested {formatDateTime(clarification.requestedAt)}</p>
+                        {clarification.response && (
+                          <div className="mt-2 border-t border-border pt-2">
+                            <p className="font-semibold text-foreground">Your Response</p>
+                            <p className="mt-1 whitespace-pre-wrap leading-4 text-muted-foreground">{clarification.response}</p>
+                            {clarification.attachments?.length > 0 && (
+                              <div className="mt-2">
+                                <PayrollAttachmentList attachments={clarification.attachments} />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {request.status === requestStatus.CLARIFICATION_REQUESTED && openClarification && (
+                <form onSubmit={handleRespond} className="rounded-md border border-emerald-200 bg-emerald-50/40 p-3 dark:border-emerald-400/25 dark:bg-emerald-400/5">
+                  <Label htmlFor={`${requestKey}-clarification-response`} className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                    Respond to Finance
+                  </Label>
+                  <Textarea
+                    id={`${requestKey}-clarification-response`}
+                    value={response}
+                    onChange={(event) => setResponse(event.target.value)}
+                    maxLength={2000}
+                    placeholder="Provide the requested clarification..."
+                    className="mt-2 min-h-[72px] resize-none bg-background text-[10px]"
+                    disabled={isResponding}
+                    required
+                  />
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                    <label htmlFor={`${requestKey}-clarification-attachments`} className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-2 text-[9px] font-medium text-primary">
+                      <Paperclip className="h-3 w-3" aria-hidden="true" />
+                      {attachments.length ? `${attachments.length} selected` : 'Attach Files'}
+                      <Input
+                        id={`${requestKey}-clarification-attachments`}
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.pdf"
+                        multiple
+                        className="sr-only"
+                        onChange={(event) => setAttachments(Array.from(event.target.files || []))}
+                        disabled={isResponding}
+                      />
+                    </label>
+                    <Button type="submit" size="sm" className="h-7 gap-1 bg-emerald-600 px-2 text-[9px] text-white hover:bg-emerald-700" disabled={isResponding}>
+                      {isResponding ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                      {isResponding ? 'Sending...' : 'Send Response'}
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-[8px] text-muted-foreground">JPG, PNG, or PDF; up to 5 files and 5MB each.</p>
+                </form>
+              )}
+
+              {request.status === requestStatus.CLARIFICATION_REQUESTED && !openClarification && (
+                <div className="flex items-start gap-2 rounded-md border border-orange-200 bg-orange-50/60 px-3 py-2 text-[10px] text-orange-700 dark:border-orange-400/25 dark:bg-orange-400/10 dark:text-orange-300">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  This request is waiting for clarification, but no open clarification was returned by the API.
+                </div>
+              )}
+
+              {request.status === requestStatus.APPROVED && (
+                <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50/60 px-3 py-2 text-[10px] text-blue-700 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  {requestType === 'Advance'
+                    ? 'Approval does not indicate that the advance has been disbursed or scheduled for salary recovery.'
+                    : 'Approval does not indicate that the allowance has been added to payroll.'}
+                </div>
+              )}
+
+              {canDeleteRequest(request) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-full gap-2 border-red-200 text-[10px] text-red-600 hover:bg-red-50 dark:border-red-400/30 dark:text-red-300 dark:hover:bg-red-400/10"
+                  onClick={() => onDelete(request)}
+                  disabled={isDeleting || isResponding}
+                >
+                  {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  Cancel {requestType} Request
+                </Button>
+              )}
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 function AdvanceDeductionTab({ filters, onFilterChange, payrollSalary }) {
+  const queryClient = useQueryClient();
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
-  const monthLabel = new Date(filters.year, filters.month - 1, 1).toLocaleDateString('en-IN', {
-    month: 'long',
-    year: 'numeric',
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [requestToDelete, setRequestToDelete] = useState(null);
+  const [page, setPage] = useState(1);
+  const selectedMonth = `${filters.year}-${String(filters.month).padStart(2, '0')}`;
+  const monthLabel = formatMonth(selectedMonth);
+
+  const advanceRequestsQuery = useQuery({
+    queryKey: ['employee-advance-requests', selectedMonth, page],
+    queryFn: async () => {
+      const queryFilters = await advanceRequestFiltersSchema.validate({
+        requestMonth: selectedMonth,
+        page,
+        limit: 20,
+      }, { stripUnknown: true });
+      const response = await EmployeeV2Service.getMyAdvanceRequests(queryFilters);
+      return response.data?.data || {};
+    },
   });
+
+  const invalidateAdvanceRequests = () => queryClient.invalidateQueries({
+    queryKey: ['employee-advance-requests'],
+  });
+
+  const createAdvanceMutation = useMutation({
+    mutationFn: (values) => EmployeeV2Service.createAdvanceRequest(values),
+    onSuccess: (response) => {
+      toast.success(response.data?.message || 'Advance request submitted successfully');
+      invalidateAdvanceRequests();
+    },
+    onError: (error) => toast.error(getApiErrorMessage(error, 'Unable to submit advance request')),
+  });
+
+  const clarificationMutation = useMutation({
+    mutationFn: (values) => EmployeeV2Service.respondToAdvanceClarification(values),
+    onSuccess: (response) => {
+      const updatedRequest = response.data?.data?.advanceRequest;
+      if (updatedRequest) setSelectedRequest(updatedRequest);
+      toast.success(response.data?.message || 'Clarification response submitted successfully');
+      invalidateAdvanceRequests();
+    },
+    onError: (error) => toast.error(getApiErrorMessage(error, 'Unable to submit clarification response')),
+  });
+
+  const deleteAdvanceMutation = useMutation({
+    mutationFn: (requestId) => EmployeeV2Service.deleteAdvanceRequest(requestId),
+    onSuccess: (response) => {
+      toast.success(response.data?.message || 'Advance request cancelled successfully');
+      setRequestToDelete(null);
+      setSelectedRequest(null);
+      invalidateAdvanceRequests();
+    },
+    onError: (error) => toast.error(getApiErrorMessage(error, 'Unable to cancel advance request')),
+  });
+
+  const advanceRequests = Array.isArray(advanceRequestsQuery.data?.advanceRequests)
+    ? advanceRequestsQuery.data.advanceRequests
+    : [];
+  const pagination = advanceRequestsQuery.data?.pagination || {};
+  const totalPages = Math.max(Number(pagination.totalPages) || 0, 1);
+  const total = Number(pagination.total) || advanceRequests.length;
+  const limit = Number(pagination.limit) || 20;
+  const currentPage = Number(pagination.page) || page;
+  const firstResult = total ? ((currentPage - 1) * limit) + 1 : 0;
+  const lastResult = total ? Math.min(currentPage * limit, total) : 0;
+
+  const handleFilterChange = (updater) => {
+    setPage(1);
+    onFilterChange(updater);
+  };
 
   return (
     <Card className="payroll-panel">
@@ -811,7 +1437,7 @@ function AdvanceDeductionTab({ filters, onFilterChange, payrollSalary }) {
           Advance &amp; Deduction
         </CardTitle>
         <div className="flex flex-wrap items-center gap-2">
-          <MonthFilterControl filters={filters} onFilterChange={onFilterChange} />
+          <MonthFilterControl filters={filters} onFilterChange={handleFilterChange} />
           <Button variant="outline" size="sm" className="h-8 gap-2 px-3 text-xs font-medium">
             <Download className="h-3.5 w-3.5" aria-hidden="true" />
             Download
@@ -841,33 +1467,48 @@ function AdvanceDeductionTab({ filters, onFilterChange, payrollSalary }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {!advanceDeductionRows.length && <EmptyTableRow colSpan={8} />}
-              {advanceDeductionRows.map(([category, name, type, amount, effectiveFrom, status]) => (
-                <TableRow key={name} className="hover:bg-muted/25">
+              {advanceRequestsQuery.isPending && (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-20 text-center text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Loading advance requests...
+                    </span>
+                  </TableCell>
+                </TableRow>
+              )}
+              {advanceRequestsQuery.isError && (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-20 text-center text-xs text-red-600 dark:text-red-300">
+                    {getApiErrorMessage(advanceRequestsQuery.error, 'Unable to load advance requests')}
+                  </TableCell>
+                </TableRow>
+              )}
+              {!advanceRequestsQuery.isPending && !advanceRequestsQuery.isError && !advanceRequests.length && (
+                <EmptyTableRow colSpan={8} />
+              )}
+              {advanceRequests.map((request) => (
+                <TableRow key={request._id} className="hover:bg-muted/25">
                   <TableCell className="whitespace-nowrap px-3 py-3 text-xs">
-                    <Badge
-                      variant="outline"
-                      className={category === 'Advance'
-                        ? 'border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[9px] font-medium text-blue-700 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-300'
-                        : 'border-orange-200 bg-orange-50 px-1.5 py-0.5 text-[9px] font-medium text-orange-700 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-300'}
-                    >
-                      {category}
+                    <Badge variant="outline" className="border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[9px] font-medium text-blue-700 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-300">
+                      Advance
                     </Badge>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs font-semibold">{name}</TableCell>
-                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs">{type}</TableCell>
-                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs font-semibold">{amount}</TableCell>
-                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs">{effectiveFrom}</TableCell>
-                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs">{monthLabel}</TableCell>
+                  <TableCell className="max-w-[220px] px-3 py-3 text-xs font-semibold" title={request.reason || undefined}>
+                    <span className="block truncate">{request.reason || getPayrollRequestReference(request)}</span>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs">Employee Request</TableCell>
+                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs font-semibold">{currency(request.requestedAmount)}</TableCell>
+                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs">{formatMonth(request.requestMonth)}</TableCell>
+                  <TableCell className="whitespace-nowrap px-3 py-3 text-xs">—</TableCell>
                   <TableCell className="whitespace-nowrap px-3 py-3 text-xs">
-                    {status === 'Applied' ? (
-                      <Badge variant="outline" className="border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[9px] font-medium text-blue-700 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-300">
-                        Applied
-                      </Badge>
-                    ) : <StatusBadge value={status} />}
+                    <StatusBadge value={request.status || '—'} />
                   </TableCell>
                   <TableCell className="whitespace-nowrap px-3 py-3 text-xs">
-                    <button type="button" className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
+                      onClick={() => setSelectedRequest(request)}
+                    >
                       <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                       View
                     </button>
@@ -876,24 +1517,77 @@ function AdvanceDeductionTab({ filters, onFilterChange, payrollSalary }) {
               ))}
             </TableBody>
           </Table>
+          {Number(pagination.totalPages) > 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-3 py-2">
+              <p className="text-[10px] text-muted-foreground">
+                Showing {firstResult} to {lastResult} of {total} requests
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  aria-label="Previous page"
+                  onClick={() => setPage((current) => Math.max(current - 1, 1))}
+                  disabled={page <= 1 || advanceRequestsQuery.isFetching}
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                </Button>
+                <Button type="button" size="icon" className="h-7 w-7 text-[10px]" disabled>
+                  {currentPage}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  aria-label="Next page"
+                  onClick={() => setPage((current) => Math.min(current + 1, totalPages))}
+                  disabled={page >= totalPages || advanceRequestsQuery.isFetching}
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-3 flex items-center justify-center gap-16 rounded-md border border-emerald-200 bg-emerald-50/70 px-4 py-2.5 text-sm font-medium text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300">
           <span>Total Advance &amp; Deduction Included</span>
-          <strong className="text-lg font-semibold">—</strong>
+          <strong className="text-lg font-semibold">{currency(payrollSalary?.salaryBreakdown?.deductions?.advanceDeduction)}</strong>
         </div>
 
         <div className="mt-3 flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50/70 px-3 py-2.5 text-[11px] text-blue-700 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300">
           <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          Advance and deduction information will appear here when available.
+          Approved requests are shown as approved only; payment and salary recovery are tracked separately when available.
         </div>
       </CardContent>
       <PayrollRequestDialog
         open={isRequestDialogOpen}
         onOpenChange={setIsRequestDialogOpen}
         monthLabel={monthLabel}
+        requestMonth={selectedMonth}
         payrollSalary={payrollSalary}
         requestType="Advance"
+        onSubmit={(values) => createAdvanceMutation.mutateAsync(values)}
+        validationSchema={advanceRequestSchema}
+        isSubmitting={createAdvanceMutation.isPending}
+      />
+      <PayrollRequestDetailSheet
+        request={selectedRequest}
+        onOpenChange={(open) => !open && setSelectedRequest(null)}
+        onDelete={setRequestToDelete}
+        onRespond={(values) => clarificationMutation.mutateAsync(values)}
+        isDeleting={deleteAdvanceMutation.isPending}
+        isResponding={clarificationMutation.isPending}
+      />
+      <PayrollRequestDeleteDialog
+        request={requestToDelete}
+        requestType="Advance"
+        onOpenChange={(open) => !open && setRequestToDelete(null)}
+        onConfirm={() => deleteAdvanceMutation.mutate(requestToDelete?._id)}
+        isPending={deleteAdvanceMutation.isPending}
       />
     </Card>
   );

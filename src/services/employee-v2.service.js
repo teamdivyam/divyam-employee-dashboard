@@ -197,6 +197,76 @@ const EmployeeV2Service = {
         employeeV2Request.get("/employees/me/payroll-salary", {
             params: { month },
         }),
+
+    getMyAdvanceRequests: ({ requestMonth, status, page = 1, limit = 20 } = {}) =>
+        employeeV2Request.get("/payroll/me/advance-requests", {
+            params: {
+                requestMonth,
+                page: Math.max(Number(page) || 1, 1),
+                limit: Math.min(Math.max(Number(limit) || 20, 1), 100),
+                ...(status ? { status } : {}),
+            },
+        }),
+    createAdvanceRequest: ({ requestMonth, requestedAmount, reason, supportingNote, attachments = [] } = {}) => {
+        const formData = new FormData();
+        formData.append("requestMonth", requestMonth);
+        formData.append("requestedAmount", String(requestedAmount));
+        formData.append("reason", reason.trim());
+        if (supportingNote?.trim()) formData.append("supportingNote", supportingNote.trim());
+        attachments.forEach((file) => formData.append("attachments", file));
+
+        return employeeV2Request.post("/payroll/me/advance-requests", formData, {
+            headers: { "Content-Type": undefined },
+        });
+    },
+    respondToAdvanceClarification: ({ requestId, clarificationId, response, attachments = [] } = {}) => {
+        const formData = new FormData();
+        formData.append("response", response.trim());
+        attachments.forEach((file) => formData.append("attachments", file));
+
+        return employeeV2Request.patch(
+            `/payroll/me/advance-requests/${encodeURIComponent(requestId)}/clarifications/${encodeURIComponent(clarificationId)}/respond`,
+            formData,
+            { headers: { "Content-Type": undefined } },
+        );
+    },
+    deleteAdvanceRequest: (requestId) =>
+        employeeV2Request.delete(`/payroll/me/advance-requests/${encodeURIComponent(requestId)}`),
+
+    getMyAllowanceRequests: ({ requestMonth, status, page = 1, limit = 20 } = {}) =>
+        employeeV2Request.get("/payroll/me/allowance-requests", {
+            params: {
+                requestMonth,
+                page: Math.max(Number(page) || 1, 1),
+                limit: Math.min(Math.max(Number(limit) || 20, 1), 100),
+                ...(status ? { status } : {}),
+            },
+        }),
+    createAllowanceRequest: ({ requestMonth, requestedAmount, reason, supportingNote, attachments = [] } = {}) => {
+        const formData = new FormData();
+        formData.append("requestMonth", requestMonth);
+        formData.append("requestedAmount", String(requestedAmount));
+        formData.append("reason", reason.trim());
+        if (supportingNote?.trim()) formData.append("supportingNote", supportingNote.trim());
+        attachments.forEach((file) => formData.append("attachments", file));
+
+        return employeeV2Request.post("/payroll/me/allowance-requests", formData, {
+            headers: { "Content-Type": undefined },
+        });
+    },
+    respondToAllowanceClarification: ({ requestId, clarificationId, response, attachments = [] } = {}) => {
+        const formData = new FormData();
+        formData.append("response", response.trim());
+        attachments.forEach((file) => formData.append("attachments", file));
+
+        return employeeV2Request.patch(
+            `/payroll/me/allowance-requests/${encodeURIComponent(requestId)}/clarifications/${encodeURIComponent(clarificationId)}/respond`,
+            formData,
+            { headers: { "Content-Type": undefined } },
+        );
+    },
+    deleteAllowanceRequest: (requestId) =>
+        employeeV2Request.delete(`/payroll/me/allowance-requests/${encodeURIComponent(requestId)}`),
 };
 
 export default EmployeeV2Service;
