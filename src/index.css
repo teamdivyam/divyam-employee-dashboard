@@ -636,8 +636,8 @@ body {
   .payroll-loan-progress {
     @apply grid h-28 w-28 shrink-0 place-items-center rounded-full;
     background: conic-gradient(
-      hsl(var(--chart-2)) 0deg 144deg,
-      hsl(var(--muted)) 144deg 360deg
+      hsl(var(--chart-2)) 0deg var(--loan-progress-angle, 0deg),
+      hsl(var(--muted)) var(--loan-progress-angle, 0deg) 360deg
     );
   }
 

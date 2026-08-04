@@ -197,6 +197,37 @@ const EmployeeV2Service = {
         employeeV2Request.get("/employees/me/payroll-salary", {
             params: { month },
         }),
+    createMyPayrollQuery: ({ employeePayrollId, queryType, subject, message, attachment } = {}) => {
+        const formData = new FormData();
+        if (employeePayrollId) formData.append("employeePayrollId", employeePayrollId);
+        formData.append("queryType", queryType);
+        formData.append("subject", subject.trim());
+        formData.append("message", message.trim());
+        if (attachment) formData.append("attachment", attachment);
+
+        return employeeV2Request.post("/payroll/me/queries", formData, {
+            headers: { "Content-Type": undefined },
+        });
+    },
+    getMyPayrollQueries: ({ page = 1, limit = 20, period } = {}) =>
+        employeeV2Request.get("/payroll/me/queries", {
+            params: {
+                page: Math.max(Number(page) || 1, 1),
+                limit: Math.min(Math.max(Number(limit) || 20, 1), 100),
+                ...(period ? { period } : {}),
+            },
+        }),
+    getMyLoans: ({ page = 1, limit = 20, status, issuedPeriod } = {}) =>
+        employeeV2Request.get("/payroll/me/loans", {
+            params: {
+                page: Math.max(Number(page) || 1, 1),
+                limit: Math.min(Math.max(Number(limit) || 20, 1), 100),
+                ...(status ? { status } : {}),
+                ...(issuedPeriod ? { issuedPeriod } : {}),
+            },
+        }),
+    getMyLoan: (loanId) =>
+        employeeV2Request.get(`/payroll/me/loans/${encodeURIComponent(loanId)}`),
 
     getMyAdvanceRequests: ({ requestMonth, status, page = 1, limit = 20 } = {}) =>
         employeeV2Request.get("/payroll/me/advance-requests", {

@@ -1,12 +1,11 @@
 /* eslint-disable react/prop-types */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   ArrowRight,
   BadgeIndianRupee,
   Banknote,
-  Calculator,
   CalendarDays,
   Check,
   ChevronDown,
@@ -28,7 +27,6 @@ import {
   Landmark,
   Loader2,
   MessageSquareMore,
-  Minus,
   Paperclip,
   Plus,
   ReceiptIndianRupee,
@@ -37,7 +35,6 @@ import {
   Headphones,
   Trash2,
   UserRound,
-  UserCheck,
   WalletCards,
   MoveRight,
 } from 'lucide-react';
@@ -135,6 +132,26 @@ const rateSuffixes = {
   Hourly: '/ hour',
 };
 
+const payrollQueryTypes = [
+  'Wrong Deduction',
+  'Reimbursement Missing',
+  'Payslip Issue',
+  'Salary Not Received',
+  'Other',
+];
+
+const objectIdPattern = /^[a-f\d]{24}$/i;
+
+const getEmployeePayrollId = (payrollSalary) => {
+  const candidates = [
+    payrollSalary?.employeePayrollId,
+    payrollSalary?.employeePayroll?._id,
+    payrollSalary?.payroll?._id,
+    payrollSalary?._id,
+  ];
+  return candidates.find((value) => objectIdPattern.test(value || '')) || '';
+};
+
 const formatRate = (amount, salaryBasis) => {
   if (amount === null || amount === undefined) return '—';
   const suffix = rateSuffixes[salaryBasis];
@@ -188,71 +205,25 @@ const progress = [
 ];
 
 const history = [];
-const loanStatementRows = [];
 const reimbursementRows = [];
-const salaryQueryRows = [
-  {
-    id: 'SQ-2026-0012',
-    relatedTo: 'Attendance Deduction',
-    subject: 'Incorrect attendance deduction',
-    payrollMonth: 'July 2026',
-    raisedOn: '28 Jul 2026',
-    lastUpdated: '29 Jul 2026',
-    status: 'Under Review',
-    Icon: UserCheck,
-    tone: 'blue',
-  },
-  {
-    id: 'SQ-2026-0011',
-    relatedTo: 'Allowance',
-    subject: 'Mobile allowance not included',
-    payrollMonth: 'July 2026',
-    raisedOn: '27 Jul 2026',
-    lastUpdated: '28 Jul 2026',
-    status: 'Resolved',
-    Icon: BadgeIndianRupee,
-    tone: 'emerald',
-  },
-  {
-    id: 'SQ-2026-0010',
-    relatedTo: 'Salary Calculation',
-    subject: 'Basic salary mismatch',
-    payrollMonth: 'July 2026',
-    raisedOn: '25 Jul 2026',
-    lastUpdated: '27 Jul 2026',
-    status: 'Resolved',
-    Icon: Calculator,
-    tone: 'violet',
-  },
-  {
-    id: 'SQ-2026-0009',
-    relatedTo: 'Payment',
-    subject: 'Salary not credited to bank',
-    payrollMonth: 'June 2026',
-    raisedOn: '10 Jul 2026',
-    lastUpdated: '12 Jul 2026',
-    status: 'Closed',
-    Icon: WalletCards,
-    tone: 'orange',
-  },
-  {
-    id: 'SQ-2026-0008',
-    relatedTo: 'Deduction',
-    subject: 'Professional tax deducted twice',
-    payrollMonth: 'June 2026',
-    raisedOn: '06 Jul 2026',
-    lastUpdated: '08 Jul 2026',
-    status: 'Resolved',
-    Icon: Minus,
-    tone: 'rose',
-  },
-];
+
+const formatQueryDate = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date).replaceAll('/', '-');
+};
 
 function StatusBadge({ value }) {
   const success = ['Paid', 'Active', 'Approved', 'Completed', 'Resolved', 'Applied', 'Closed', 'Assigned', 'Verified'].includes(value);
   const warning = [
     'Pending',
     'Under Review',
+    'In Review',
     'Open',
     'High',
     'Not Generated',
@@ -1593,23 +1564,208 @@ function AdvanceDeductionTab({ filters, onFilterChange, payrollSalary }) {
   );
 }
 
-function LoanTab() {
-  const primaryDetails = [
-    ['Loan For', '—'],
-    ['Loan ID', '—'],
-    ['Approved Amount', '—'],
-    ['Issued Month', '—'],
-    ['Recovery Start Month', '—'],
-    ['Monthly Deduction', '—'],
+function LoanDetailDialog({ loanId, onOpenChange }) {
+  const loanDetailQuery = useQuery({
+    queryKey: ['employee-payroll-loan', loanId],
+    queryFn: async () => {
+      const response = await EmployeeV2Service.getMyLoan(loanId);
+      return response.data?.data || {};
+    },
+    enabled: Boolean(loanId),
+  });
+  const loan = loanDetailQuery.data?.loan;
+  const transactions = Array.isArray(loanDetailQuery.data?.transactions)
+    ? loanDetailQuery.data.transactions
+    : [];
+  const percentage = Math.min(Math.max(Number(loan?.recoveryPercentage) || 0, 0), 100);
+  const monthlyInstallment = Number(loan?.monthlyInstallment) || 0;
+  const installmentsPaid = monthlyInstallment
+    ? Math.floor((Number(loan?.recoveredAmount) || 0) / monthlyInstallment)
+    : 0;
+  const nextRecoveryMonth = useMemo(() => {
+    if (!(Number(loan?.outstandingBalance) > 0)) return '—';
+    const nextMonth = new Date();
+    nextMonth.setDate(1);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    return `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
+  }, [loan?.outstandingBalance]);
+  const summaryDetails = [
+    ['Loan Reference', loan?.recoveryId || '—'],
+    ['Employee', loan?.employee?.name || '—'],
+    ['Loan For', loan?.title || '—'],
+    ['Issued Month', loan?.issuedPeriod || '—'],
+    ['Approved By', loan?.createdBy?.name || '—'],
+  ];
+  const amountDetails = [
+    ['Approved Amount', currency(loan?.principalAmount)],
+    ['Total Recovered', currency(loan?.recoveredAmount)],
+    ['Outstanding Balance', currency(loan?.outstandingBalance)],
   ];
   const recoveryDetails = [
-    ['Total Installments', '—'],
-    ['Installments Paid', '—'],
-    ['Total Recovered', '—'],
-    ['Outstanding Balance', '—'],
-    ['Next Recovery Month', '—'],
-    ['Approved By', '—'],
-    ['Status', <StatusBadge key="status" value="—" />],
+    ['Monthly Deduction', currency(loan?.monthlyInstallment)],
+    ['Recovery Start Month', loan?.recoveryStartPeriod || '—'],
+    ['Next Recovery Month', nextRecoveryMonth],
+    ['Installments Paid', loan ? `${installmentsPaid} of ${loan.installmentCount ?? '—'}` : '—'],
+    ['Total Installments', loan?.installmentCount ?? '—'],
+    ['Current Status', <StatusBadge key="loan-detail-status" value={loan?.status || '—'} />],
+  ];
+
+  return (
+    <Dialog open={Boolean(loanId)} onOpenChange={onOpenChange}>
+      <DialogContent className="payroll-form-dialog max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] gap-0 overflow-y-auto p-0 sm:max-w-[780px] [&>button]:right-4 [&>button]:top-4">
+        <DialogHeader className="border-b border-border px-5 pb-3 pt-4 pr-12">
+          <div className="flex items-start justify-between gap-3 pr-5">
+            <div>
+              <DialogTitle className="payroll-form-title">Loan Recovery Details</DialogTitle>
+              <DialogDescription className="payroll-form-description mt-1">
+                {loan?.recoveryId || 'View loan and payroll recovery information.'}
+              </DialogDescription>
+            </div>
+            {loan && <StatusBadge value={loan.status || '—'} />}
+          </div>
+        </DialogHeader>
+
+        {loanDetailQuery.isPending && (
+          <div className="grid min-h-60 place-items-center text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />Loading loan details...</span>
+          </div>
+        )}
+        {loanDetailQuery.isError && (
+          <div className="grid min-h-60 place-items-center px-5 text-center text-xs text-red-600 dark:text-red-300">
+            {getApiErrorMessage(loanDetailQuery.error, 'Unable to load loan details')}
+          </div>
+        )}
+        {loan && (
+          <div className="space-y-3 p-4">
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(240px,0.9fr)]">
+              <Card className="shadow-none">
+                <CardHeader className="border-b border-border px-4 py-2.5">
+                  <CardTitle className="text-xs font-semibold">Loan Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-x-5 gap-y-2 px-4 py-3 sm:grid-cols-2">
+                  {[...summaryDetails, ...amountDetails].map(([label, value]) => (
+                    <div key={label} className="grid grid-cols-[105px_minmax(0,1fr)] gap-2 text-[10px]">
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className="font-semibold text-foreground">{value}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-none">
+                <CardHeader className="border-b border-border px-4 py-2.5">
+                  <CardTitle className="text-xs font-semibold">Recovery Progress</CardTitle>
+                </CardHeader>
+                <CardContent className="flex items-center gap-4 px-4 py-3">
+                  <div className="payroll-loan-progress h-24 w-24" style={{ '--loan-progress-angle': `${percentage * 3.6}deg` }}>
+                    <div className="h-[4.5rem] w-[4.5rem]">
+                      <strong className="text-base">{percentage.toFixed(2)}%</strong>
+                      <span>Recovered</span>
+                    </div>
+                  </div>
+                  <div className="min-w-0 text-[10px]">
+                    <p className="font-semibold text-emerald-600 dark:text-emerald-400">{currency(loan.recoveredAmount)} recovered</p>
+                    <p className="mt-1 text-muted-foreground">from {currency(loan.principalAmount)}</p>
+                    <p className="mt-2 font-medium text-foreground">{currency(loan.outstandingBalance)} outstanding</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="shadow-none">
+              <CardHeader className="border-b border-border px-4 py-2.5">
+                <CardTitle className="text-xs font-semibold">Recovery Details</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-x-6 gap-y-2 px-4 py-3 sm:grid-cols-2 lg:grid-cols-3">
+                {recoveryDetails.map(([label, value]) => (
+                  <div key={label} className="grid grid-cols-[110px_minmax(0,1fr)] gap-2 text-[10px]">
+                    <span className="text-muted-foreground">{label}</span>
+                    <span className="font-semibold text-foreground">{value}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="overflow-hidden shadow-none">
+              <CardHeader className="border-b border-border px-4 py-2.5">
+                <CardTitle className="text-xs font-semibold">Recovery History</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto p-0">
+                <Table className="min-w-[600px]">
+                  <TableHeader>
+                    <TableRow className="bg-muted/45 hover:bg-muted/45">
+                      {['Payroll Month', 'Deducted Amount', 'Balance', 'Status'].map((heading) => (
+                        <TableHead key={heading} className="h-8 whitespace-nowrap px-4 text-[9px]">{heading}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {!transactions.length && <EmptyTableRow colSpan={4} />}
+                    {transactions.map((transaction) => (
+                      <TableRow key={transaction._id} className="hover:bg-muted/25">
+                        <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-medium">{transaction.employeePayroll?.period || '—'}</TableCell>
+                        <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-semibold">{currency(transaction.employeePayroll?.totalDeductions)}</TableCell>
+                        <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-semibold">{currency(transaction.amount)}</TableCell>
+                        <TableCell className="whitespace-nowrap px-4 py-2 text-[10px]"><StatusBadge value={transaction.employeePayroll?.status || '—'} /></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function LoanTab() {
+  const [page, setPage] = useState(1);
+  const [selectedLoanId, setSelectedLoanId] = useState(null);
+  const loansQuery = useQuery({
+    queryKey: ['employee-payroll-loans', page],
+    queryFn: async () => {
+      const response = await EmployeeV2Service.getMyLoans({ page, limit: 20 });
+      return response.data?.data || {};
+    },
+  });
+  const activeLoanQuery = useQuery({
+    queryKey: ['employee-payroll-loans', 'active'],
+    queryFn: async () => {
+      const response = await EmployeeV2Service.getMyLoans({ page: 1, limit: 1, status: 'Active' });
+      return response.data?.data?.loans?.[0] || null;
+    },
+  });
+  const loans = Array.isArray(loansQuery.data?.loans) ? loansQuery.data.loans : [];
+  const activeLoan = activeLoanQuery.data;
+  const percentage = Math.min(Math.max(Number(activeLoan?.recoveryPercentage) || 0, 0), 100);
+  const monthlyInstallment = Number(activeLoan?.monthlyInstallment) || 0;
+  const installmentsPaid = monthlyInstallment
+    ? Math.floor((Number(activeLoan?.recoveredAmount) || 0) / monthlyInstallment)
+    : 0;
+  const installmentCount = activeLoan?.installmentCount ?? '—';
+  const pagination = loansQuery.data?.pagination || {};
+  const currentPage = Number(pagination.page) || page;
+  const limit = Number(pagination.limit) || 20;
+  const total = Number(pagination.total) || 0;
+  const totalPages = Math.max(Number(pagination.totalPages) || 0, 1);
+  const firstResult = total ? ((currentPage - 1) * limit) + 1 : 0;
+  const lastResult = total ? Math.min(currentPage * limit, total) : 0;
+  const primaryDetails = [
+    ['Loan For', activeLoan?.title || '—'],
+    ['Approved Amount', currency(activeLoan?.principalAmount)],
+    ['Issued Month', activeLoan?.issuedPeriod || '—'],
+    ['Recovery Start Month', activeLoan?.recoveryStartPeriod || '—'],
+    ['Monthly Deduction', currency(activeLoan?.monthlyInstallment)],
+  ];
+  const recoveryDetails = [
+    ['Total Installments', installmentCount],
+    ['Installments Paid', activeLoan ? installmentsPaid : '—'],
+    ['Total Recovered', currency(activeLoan?.recoveredAmount)],
+    ['Outstanding Balance', currency(activeLoan?.outstandingBalance)],
+    ['Approved By', activeLoan?.createdBy?.name || '—'],
+    ['Status', <StatusBadge key="status" value={activeLoan?.status || '—'} />],
   ];
 
   return (
@@ -1618,7 +1774,7 @@ function LoanTab() {
         <Card className="payroll-panel">
           <CardHeader className="flex flex-row items-center gap-2 space-y-0 border-b border-border px-4 py-3">
             <CardTitle className="text-sm font-semibold">Loan &amp; Recovery</CardTitle>
-            <StatusBadge value="—" />
+            <StatusBadge value={activeLoan?.status || '—'} />
           </CardHeader>
           <CardContent className="p-4">
             <div className="grid gap-5 sm:grid-cols-2">
@@ -1637,7 +1793,13 @@ function LoanTab() {
             </div>
             <div className="mt-4 flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50/70 px-3 py-2 text-[10px] text-blue-700 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300">
               <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              Loan and recovery information will appear here when available.
+              {activeLoanQuery.isPending
+                ? 'Loading current loan recovery...'
+                : activeLoanQuery.isError
+                  ? getApiErrorMessage(activeLoanQuery.error, 'Unable to load loan recovery')
+                  : activeLoan
+                    ? 'This summary shows your current active loan recovery.'
+                    : 'No active loan recovery is currently available.'}
             </div>
           </CardContent>
         </Card>
@@ -1648,9 +1810,12 @@ function LoanTab() {
           </CardHeader>
           <CardContent className="p-4">
             <div className="grid items-center gap-5 sm:grid-cols-[150px_minmax(0,1fr)]">
-              <div className="payroll-loan-progress mx-auto">
+              <div
+                className="payroll-loan-progress mx-auto"
+                style={{ '--loan-progress-angle': `${percentage * 3.6}deg` }}
+              >
                 <div>
-                  <strong>—</strong>
+                  <strong>{percentage.toFixed(2)}%</strong>
                   <span>Recovered</span>
                 </div>
               </div>
@@ -1660,39 +1825,37 @@ function LoanTab() {
                     <i className="h-2 w-2 rounded-full bg-emerald-500" />
                     Recovered
                   </span>
-                  <strong className="text-foreground">—</strong>
+                  <strong className="text-foreground">{currency(activeLoan?.recoveredAmount)}</strong>
                   <span className="flex items-center gap-2 font-medium text-muted-foreground">
                     <i className="h-2 w-2 rounded-full bg-orange-400" />
                     Outstanding
                   </span>
-                  <strong className="text-foreground">—</strong>
+                  <strong className="text-foreground">{currency(activeLoan?.outstandingBalance)}</strong>
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-md border border-border bg-muted/30 text-[10px]">
+            <div className="mt-4 overflow-hidden rounded-md border border-border bg-muted/30 text-[10px]">
               <div className="flex items-start gap-2 p-3">
                 <Info className="mt-0.5 h-3.5 w-3.5 text-primary" aria-hidden="true" />
                 <div>
                   <p className="text-muted-foreground">Installments Paid</p>
-                  <p className="mt-1 font-semibold text-foreground">—</p>
+                  <p className="mt-1 font-semibold text-foreground">
+                    {activeLoan ? `${installmentsPaid} of ${installmentCount}` : '—'}
+                  </p>
                 </div>
-              </div>
-              <div className="border-l border-border p-3">
-                <p className="text-muted-foreground">Next Recovery</p>
-                <p className="mt-1 font-semibold text-foreground">—</p>
               </div>
             </div>
 
             <div className="mt-4">
               <div className="mb-1.5 flex justify-between text-[9px] font-medium">
-                <span className="text-emerald-600 dark:text-emerald-400">Recovered —</span>
-                <span className="text-orange-600 dark:text-orange-400">Outstanding —</span>
+                <span className="text-emerald-600 dark:text-emerald-400">Recovered {currency(activeLoan?.recoveredAmount)}</span>
+                <span className="text-orange-600 dark:text-orange-400">Outstanding {currency(activeLoan?.outstandingBalance)}</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-orange-200 dark:bg-orange-400/25">
-                <div className="h-full w-0 rounded-full bg-emerald-500" />
+                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${percentage}%` }} />
               </div>
-              <p className="mt-1 text-center text-[9px] font-semibold text-foreground">—</p>
+              <p className="mt-1 text-center text-[9px] font-semibold text-foreground">{percentage.toFixed(2)}% recovered</p>
             </div>
           </CardContent>
         </Card>
@@ -1702,49 +1865,71 @@ function LoanTab() {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border px-4 py-3">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold">
             <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
-            Loan Statement
+            Loan Recovery History
           </CardTitle>
-          <Button variant="outline" size="sm" className="h-8 gap-2 px-3 text-[10px] font-medium">
-            <Download className="h-3.5 w-3.5" aria-hidden="true" />
-            Download Loan Statement
-          </Button>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
+          <div className="overflow-x-auto">
+          <Table className="min-w-[1020px]">
             <TableHeader>
               <TableRow className="bg-muted/45 hover:bg-muted/45">
-                {['Date', 'Particulars', 'Debit (₹)', 'Credit (₹)', 'Balance (₹)', 'Type / Status'].map((heading) => (
+                {['Recovery ID', 'Title', 'Principal Amount', 'Issue Period', 'Status', 'Outstanding Balance', 'Recovery Percentage', 'Created By', 'Action'].map((heading) => (
                   <TableHead key={heading} className="h-8 whitespace-nowrap px-4 text-[9px]">{heading}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {!loanStatementRows.length && <EmptyTableRow colSpan={6} />}
-              {loanStatementRows.map(([date, particulars, debit, credit, balance, status]) => (
-                <TableRow key={`${date}-${particulars}`} className="hover:bg-muted/25">
-                  <TableCell className="whitespace-nowrap px-4 py-1.5 text-[10px] font-medium">{date}</TableCell>
-                  <TableCell className="whitespace-nowrap px-4 py-1.5 text-[10px] font-medium">{particulars}</TableCell>
-                  <TableCell className={`whitespace-nowrap px-4 py-1.5 text-[10px] ${debit !== '-' ? 'font-semibold text-red-600 dark:text-red-400' : ''}`}>{debit}</TableCell>
-                  <TableCell className={`whitespace-nowrap px-4 py-1.5 text-[10px] ${credit !== '-' ? 'font-semibold text-emerald-600 dark:text-emerald-400' : ''}`}>{credit}</TableCell>
-                  <TableCell className="whitespace-nowrap px-4 py-1.5 text-[10px] font-semibold">{balance}</TableCell>
-                  <TableCell className="whitespace-nowrap px-4 py-1.5 text-[10px]">
-                    <Badge
-                      variant="outline"
-                      className={status.startsWith('Credit')
-                        ? 'border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[8px] font-medium text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300'
-                        : status.startsWith('Debit')
-                          ? 'border-orange-200 bg-orange-50 px-1.5 py-0.5 text-[8px] font-medium text-orange-700 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-300'
-                          : 'border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[8px] font-medium text-blue-700 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-300'}
+              {loansQuery.isPending && (
+                <TableRow><TableCell colSpan={9} className="h-20 text-center text-xs text-muted-foreground"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" />Loading loans...</TableCell></TableRow>
+              )}
+              {loansQuery.isError && (
+                <TableRow><TableCell colSpan={9} className="h-20 text-center text-xs text-red-600 dark:text-red-300">{getApiErrorMessage(loansQuery.error, 'Unable to load loans')}</TableCell></TableRow>
+              )}
+              {!loansQuery.isPending && !loansQuery.isError && !loans.length && <EmptyTableRow colSpan={9} />}
+              {loans.map((loan) => (
+                <TableRow key={loan._id} className="hover:bg-muted/25">
+                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-semibold">{loan.recoveryId || '—'}</TableCell>
+                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-medium">{loan.title || '—'}</TableCell>
+                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-semibold">{currency(loan.principalAmount)}</TableCell>
+                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-medium">{loan.issuedPeriod || '—'}</TableCell>
+                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px]"><StatusBadge value={loan.status || '—'} /></TableCell>
+                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-semibold">{currency(loan.outstandingBalance)}</TableCell>
+                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-medium">{Number(loan.recoveryPercentage || 0).toFixed(2)}%</TableCell>
+                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-medium">{loan.createdBy?.name || '—'}</TableCell>
+                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px]">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                      onClick={() => setSelectedLoanId(loan.recoveryId || loan._id)}
                     >
-                      {status}
-                    </Badge>
+                      <Eye className="h-3 w-3" aria-hidden="true" />
+                      View
+                    </button>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-2">
+            <p className="text-[10px] text-muted-foreground">Showing {firstResult} to {lastResult} of {total} loans</p>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="icon" className="h-7 w-7" aria-label="Previous page" disabled={currentPage <= 1 || loansQuery.isFetching} onClick={() => setPage((value) => Math.max(value - 1, 1))}>
+                <ChevronLeft className="h-3 w-3" />
+              </Button>
+              <Button size="icon" className="h-7 w-7 text-[10px]" disabled>{currentPage}</Button>
+              <Button variant="outline" size="icon" className="h-7 w-7" aria-label="Next page" disabled={currentPage >= totalPages || loansQuery.isFetching} onClick={() => setPage((value) => Math.min(value + 1, totalPages))}>
+                <ChevronRight className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
+
+      <LoanDetailDialog
+        loanId={selectedLoanId}
+        onOpenChange={(open) => !open && setSelectedLoanId(null)}
+      />
 
       <p className="flex items-center justify-center gap-2 text-[9px] text-muted-foreground">
         <ShieldCheck className="h-3 w-3" aria-hidden="true" />
@@ -1848,14 +2033,33 @@ function ReimbursementsTab() {
 }
 
 function SalaryQueryDetailSheet({ query, onOpenChange }) {
-  const [reply, setReply] = useState('');
   const isResolved = ['Resolved', 'Closed'].includes(query?.status);
-  const relatedRecord = query?.relatedTo === 'Attendance Deduction'
-    ? 'Attendance Deduction • ₹850'
-    : query?.relatedTo || '—';
+  const isInReview = query?.status === 'In Review';
+  const messages = Array.isArray(query?.messages) ? query.messages : [];
+  const firstMessage = messages[0];
+  const firstMessageAttachments = Array.isArray(firstMessage?.attachments)
+    ? firstMessage.attachments
+    : firstMessage?.attachment ? [firstMessage.attachment] : [];
+  const queryAttachments = Array.isArray(query?.attachments)
+    ? query.attachments
+    : query?.attachment ? [query.attachment] : [];
+  const attachments = [...queryAttachments, ...firstMessageAttachments];
+  const payroll = query?.employeePayroll;
+  const assignedTo = query?.assignedTo?.name
+    || query?.assignedTo?.employeeId
+    || query?.assignedTo
+    || '—';
+  const relatedRecord = payroll?._id
+    ? `${payroll.period || 'Payroll'}${payroll.status ? ` • ${payroll.status}` : ''}`
+    : '—';
+  const reviewSteps = [
+    ['Submitted', 'done'],
+    ['Finance Review', isResolved || isInReview ? 'done' : 'current'],
+    ['Admin Review', isResolved ? 'done' : isInReview ? 'current' : 'idle'],
+    ['Resolved', isResolved ? 'done' : 'idle'],
+  ];
 
   const handleOpenChange = (open) => {
-    if (!open) setReply('');
     onOpenChange(open);
   };
 
@@ -1869,7 +2073,7 @@ function SalaryQueryDetailSheet({ query, onOpenChange }) {
                 <div>
                   <SheetTitle className="text-base font-semibold">Salary Query Detail</SheetTitle>
                   <SheetDescription className="mt-1 text-[11px] font-semibold text-foreground">
-                    {query.id}
+                    {query.queryType || 'Payroll Query'}
                   </SheetDescription>
                 </div>
                 <StatusBadge value={query.status} />
@@ -1878,12 +2082,7 @@ function SalaryQueryDetailSheet({ query, onOpenChange }) {
 
             <div className="space-y-3 p-4">
               <div className="grid grid-cols-4">
-                {[
-                  ['Submitted', 'done'],
-                  ['Finance Review', isResolved ? 'done' : 'current'],
-                  ['Admin Review\nIf Required', isResolved ? 'done' : 'idle'],
-                  ['Resolved', isResolved ? 'done' : 'idle'],
-                ].map(([label, state], index) => (
+                {reviewSteps.map(([label, state], index) => (
                   <div key={label} className="relative flex flex-col items-center px-1 text-center">
                     {index < 3 && (
                       <span className={`absolute left-1/2 top-3 h-px w-full ${
@@ -1912,13 +2111,13 @@ function SalaryQueryDetailSheet({ query, onOpenChange }) {
                 </CardHeader>
                 <CardContent className="space-y-2 px-3 py-3">
                   {[
-                    ['Query Related To', query.relatedTo],
-                    ['Payroll Month', query.payrollMonth],
+                    ['Query Related To', query.queryType || '—'],
+                    ['Payroll Month', payroll?.period || '—'],
                     ['Related Record', relatedRecord],
-                    ['Subject', query.subject],
-                    ['Raised On', `${query.raisedOn} • 03:45 PM`],
-                    ['Assigned To', 'Finance Team'],
-                    ['Last Updated', `${query.lastUpdated} • 11:20 AM`],
+                    ['Subject', query.subject || '—'],
+                    ['Raised On', formatDateTime(query.createdAt)],
+                    ['Assigned To', assignedTo],
+                    ['Last Updated', formatDateTime(query.updatedAt)],
                   ].map(([label, value]) => (
                     <div key={label} className="grid grid-cols-[98px_8px_minmax(0,1fr)] gap-1 text-[10px]">
                       <span className="text-muted-foreground">{label}</span>
@@ -1926,9 +2125,6 @@ function SalaryQueryDetailSheet({ query, onOpenChange }) {
                       <span className="font-medium text-foreground">{value}</span>
                     </div>
                   ))}
-                  <button type="button" className="ml-auto block text-[9px] font-medium text-primary hover:underline">
-                    View Record
-                  </button>
                 </CardContent>
               </Card>
 
@@ -1938,23 +2134,16 @@ function SalaryQueryDetailSheet({ query, onOpenChange }) {
                 </CardHeader>
                 <CardContent className="px-3 py-3">
                   <p className="text-[10px] leading-4 text-foreground">
-                    {query.subject}. Please review the payroll entry and share an update on the required correction.
+                    {firstMessage?.message || '—'}
                   </p>
-                  <div className="mt-3 flex items-center justify-between rounded-md border border-blue-200 bg-background px-3 py-2 dark:border-blue-400/25">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <i className="grid h-7 w-7 shrink-0 place-items-center rounded bg-red-500/10 text-red-600">
-                        <FileText className="h-3.5 w-3.5" />
-                      </i>
-                      <span className="min-w-0">
-                        <span className="block truncate text-[9px] font-medium">Payroll_Query_Attachment.pdf</span>
-                        <span className="block text-[8px] text-muted-foreground">128 KB</span>
-                      </span>
-                    </span>
-                    <button type="button" className="text-primary" aria-label="Download attachment">
-                      <Download className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <p className="mt-2 text-[8px] text-muted-foreground">Submitted on {query.raisedOn} • 03:45 PM</p>
+                  {attachments.length > 0 && (
+                    <div className="mt-3">
+                      <PayrollAttachmentList attachments={attachments} />
+                    </div>
+                  )}
+                  <p className="mt-2 text-[8px] text-muted-foreground">
+                    Submitted on {formatDateTime(firstMessage?.addedAt || query.createdAt)}
+                  </p>
                 </CardContent>
               </Card>
 
@@ -1963,78 +2152,35 @@ function SalaryQueryDetailSheet({ query, onOpenChange }) {
                   <CardTitle className="text-[11px] font-semibold">Conversation &amp; Updates</CardTitle>
                 </CardHeader>
                 <CardContent className="px-3 py-3">
+                  {!messages.length && (
+                    <p className="py-3 text-center text-[10px] text-muted-foreground">No messages available.</p>
+                  )}
                   <div className="space-y-3">
-                    {[
-                      {
-                        name: 'Employee',
-                        date: '28 Jul 2026 • 03:45 PM',
-                        message: 'Query submitted regarding the payroll concern.',
-                        tone: 'blue',
-                      },
-                      {
-                        name: 'Finance Team',
-                        date: '29 Jul 2026 • 10:15 AM',
-                        message: 'We are reviewing the attendance and payroll records.',
-                        tone: 'orange',
-                      },
-                      {
-                        name: 'Finance Team',
-                        date: '29 Jul 2026 • 11:20 AM',
-                        message: 'The request has been forwarded to Admin for verification.',
-                        tone: 'orange',
-                      },
-                      {
-                        name: 'Admin',
-                        date: '30 Jul 2026 • 09:30 AM',
-                        message: 'Attendance correction verified. Payroll recalculation has been initiated.',
-                        tone: 'violet',
-                      },
-                    ].map((item, index) => (
-                      <div key={`${item.name}-${item.date}`} className="relative flex gap-2.5">
-                        {index < 3 && <span className="absolute left-3 top-6 h-[calc(100%+12px)] border-l border-border" />}
-                        <span className={`payroll-query-update payroll-query-update-${item.tone}`}>
-                          {item.name === 'Employee' ? <UserRound className="h-3 w-3" /> : <Headphones className="h-3 w-3" />}
+                    {messages.map((item, index) => {
+                      const isEmployee = item.addedBy?._id === query.employee?._id
+                        || item.addedBy?.accessRole === 'Employee';
+                      const name = item.addedBy?.name || item.addedBy?.employeeId || 'Team member';
+                      const messageAttachments = Array.isArray(item.attachments) ? item.attachments : [];
+                      return (
+                      <div key={item._id || `${name}-${item.addedAt}-${index}`} className="relative flex gap-2.5">
+                        {index < messages.length - 1 && <span className="absolute left-3 top-6 h-[calc(100%+12px)] border-l border-border" />}
+                        <span className={`payroll-query-update payroll-query-update-${isEmployee ? 'blue' : 'orange'}`}>
+                          {isEmployee ? <UserRound className="h-3 w-3" /> : <Headphones className="h-3 w-3" />}
                         </span>
                         <div className="min-w-0 pt-0.5">
                           <p className="text-[9px] font-semibold text-foreground">
-                            {item.name} <span className="ml-2 font-normal text-muted-foreground">{item.date}</span>
+                            {name} <span className="ml-2 font-normal text-muted-foreground">{formatDateTime(item.addedAt)}</span>
                           </p>
                           <p className="mt-0.5 text-[9px] leading-4 text-muted-foreground">{item.message}</p>
+                          {messageAttachments.length > 0 && (
+                            <div className="mt-2">
+                              <PayrollAttachmentList attachments={messageAttachments} />
+                            </div>
+                          )}
                         </div>
                       </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50/40 p-2.5 dark:border-emerald-400/25 dark:bg-emerald-400/5">
-                    <Label htmlFor="salary-query-reply" className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
-                      Add Reply
-                    </Label>
-                    <Textarea
-                      id="salary-query-reply"
-                      value={reply}
-                      onChange={(event) => setReply(event.target.value)}
-                      placeholder="Type your reply or additional information..."
-                      className="mt-2 min-h-[64px] resize-none bg-background text-[10px]"
-                    />
-                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                      <span className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="h-7 gap-1 px-2 text-[9px] text-primary">
-                          <Paperclip className="h-3 w-3" />
-                          Attach File
-                        </Button>
-                        <span className="text-[8px] text-muted-foreground">PDF, JPG, PNG (Max. 5MB)</span>
-                      </span>
-                      <span className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="h-7 gap-1 px-2 text-[9px] text-red-600">
-                          <Trash2 className="h-3 w-3" />
-                          Cancel Query
-                        </Button>
-                        <Button size="sm" className="h-7 gap-1 bg-emerald-600 px-2 text-[9px] text-white hover:bg-emerald-700">
-                          <Send className="h-3 w-3" />
-                          Send Reply
-                        </Button>
-                      </span>
-                    </div>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -2060,15 +2206,35 @@ function SalaryQueryDetailSheet({ query, onOpenChange }) {
   );
 }
 
-function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary }) {
+function RaiseSalaryQueryDialog({
+  open,
+  onOpenChange,
+  payrollMonth,
+  onPayrollMonthChange,
+  payrollSalary,
+  onSubmit,
+  isSubmitting,
+}) {
   const [form, setForm] = useState({
-    relatedTo: 'Salary Calculation',
+    queryType: 'Other',
+    payrollMonth,
     relatedRecord: '',
     subject: '',
-    details: '',
+    message: '',
     attachment: null,
   });
   const summary = payrollSalary?.metricsSummary;
+  const employeePayrollId = payrollSalary?.month === form.payrollMonth
+    ? getEmployeePayrollId(payrollSalary)
+    : '';
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      payrollMonth,
+      relatedRecord: current.payrollMonth === payrollMonth ? current.relatedRecord : '',
+    }));
+  }, [payrollMonth]);
 
   const updateField = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -2076,22 +2242,67 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
 
   const resetForm = () => {
     setForm({
-      relatedTo: 'Salary Calculation',
+      queryType: 'Other',
+      payrollMonth,
       relatedRecord: '',
       subject: '',
-      details: '',
+      message: '',
       attachment: null,
     });
   };
 
   const handleOpenChange = (nextOpen) => {
+    if (isSubmitting) return;
     if (!nextOpen) resetForm();
     onOpenChange(nextOpen);
   };
 
-  const handleSubmit = (event) => {
+  const handlePayrollMonthChange = (event) => {
+    const value = event.target.value;
+    updateField('payrollMonth', value);
+    updateField('relatedRecord', '');
+    if (/^\d{4}-\d{2}$/.test(value)) onPayrollMonthChange(value);
+  };
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    handleOpenChange(false);
+    const subject = form.subject.trim();
+    const message = form.message.trim();
+
+    if (!payrollQueryTypes.includes(form.queryType)) {
+      toast.error('Select a valid payroll query type');
+      return;
+    }
+    if (!/^\d{4}-\d{2}$/.test(form.payrollMonth)) {
+      toast.error('Select a valid payroll month');
+      return;
+    }
+    if (!subject || subject.length > 200) {
+      toast.error('Subject must be between 1 and 200 characters');
+      return;
+    }
+    if (!message || message.length > 5000) {
+      toast.error('Query details must be between 1 and 5000 characters');
+      return;
+    }
+    if (form.attachment && form.attachment.size > 5 * 1024 * 1024) {
+      toast.error('Attachment must be 5MB or smaller');
+      return;
+    }
+
+    try {
+      await onSubmit({
+        ...(form.relatedRecord ? { employeePayrollId: form.relatedRecord } : {}),
+        queryType: form.queryType,
+        subject,
+        message,
+        attachment: form.attachment,
+      });
+      resetForm();
+      onOpenChange(false);
+    } catch {
+      // API errors are displayed by the mutation's onError handler.
+    }
   };
 
   return (
@@ -2110,7 +2321,7 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
               {[
                 {
                   label: 'Payroll Month',
-                  value: monthLabel,
+                  value: formatMonth(form.payrollMonth),
                   Icon: CalendarDays,
                   tone: 'blue',
                 },
@@ -2165,21 +2376,12 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
                 <Label className="payroll-form-label">
                   Query Related To <span className="text-red-500">*</span>
                 </Label>
-                <Select value={form.relatedTo} onValueChange={(value) => updateField('relatedTo', value)}>
+                <Select value={form.queryType} onValueChange={(value) => updateField('queryType', value)}>
                   <SelectTrigger className="payroll-form-control h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {[
-                      'Salary Calculation',
-                      'Attendance Deduction',
-                      'Allowance',
-                      'Deduction',
-                      'Payment',
-                      'Payslip',
-                      'Reimbursement',
-                      'Loan',
-                    ].map((option) => (
+                    {payrollQueryTypes.map((option) => (
                       <SelectItem key={option} value={option} className="text-xs">{option}</SelectItem>
                     ))}
                   </SelectContent>
@@ -2190,10 +2392,15 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
                 <Label className="payroll-form-label">
                   Payroll Month <span className="text-red-500">*</span>
                 </Label>
-                <div className="payroll-form-control flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 shadow-sm">
-                  <CalendarDays className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                  <span className="flex-1 font-medium text-foreground">{monthLabel}</span>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <div className="relative">
+                  <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                  <Input
+                    type="month"
+                    value={form.payrollMonth}
+                    onChange={handlePayrollMonthChange}
+                    className="payroll-form-control h-9 pl-9"
+                    required
+                  />
                 </div>
               </div>
 
@@ -2201,14 +2408,20 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
                 <Label className="payroll-form-label">
                   Related Record <span className="font-normal text-muted-foreground">— Optional</span>
                 </Label>
-                <Select value={form.relatedRecord} onValueChange={(value) => updateField('relatedRecord', value)}>
+                <Select
+                  value={form.relatedRecord || 'none'}
+                  onValueChange={(value) => updateField('relatedRecord', value === 'none' ? '' : value)}
+                >
                   <SelectTrigger className="payroll-form-control h-9">
                     <SelectValue placeholder="Select related record" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="payroll-summary" className="text-xs">Payroll summary</SelectItem>
-                    <SelectItem value="attendance-record" className="text-xs">Attendance record</SelectItem>
-                    <SelectItem value="salary-breakdown" className="text-xs">Salary breakdown</SelectItem>
+                    <SelectItem value="none" className="text-xs">No related record</SelectItem>
+                    {employeePayrollId && (
+                      <SelectItem value={employeePayrollId} className="text-xs">
+                        {formatMonth(form.payrollMonth)} payroll
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -2223,6 +2436,7 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
                   onChange={(event) => updateField('subject', event.target.value)}
                   placeholder="Enter a short subject for your query"
                   className="payroll-form-control h-9"
+                  maxLength={200}
                   required
                 />
               </div>
@@ -2234,10 +2448,11 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
               </Label>
               <Textarea
                 id="salary-query-details"
-                value={form.details}
-                onChange={(event) => updateField('details', event.target.value)}
+                value={form.message}
+                onChange={(event) => updateField('message', event.target.value)}
                 placeholder="Explain the issue clearly, including the amount or payroll entry concerned."
                 className="payroll-form-control min-h-[64px] resize-none"
+                maxLength={5000}
                 required
               />
             </div>
@@ -2278,11 +2493,12 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
           </div>
 
           <DialogFooter className="flex-row justify-end gap-2 px-5 pb-4 pt-1 sm:space-x-0">
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} className="h-9 px-4 text-[11px]">
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={isSubmitting} className="h-9 px-4 text-[11px]">
               Cancel
             </Button>
-            <Button type="submit" className="payroll-query-submit h-9 px-4 text-[11px] font-semibold">
-              Submit Salary Query
+            <Button type="submit" disabled={isSubmitting} className="payroll-query-submit h-9 px-4 text-[11px] font-semibold">
+              {isSubmitting && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+              {isSubmitting ? 'Submitting...' : 'Submit Salary Query'}
             </Button>
           </DialogFooter>
         </form>
@@ -2292,8 +2508,52 @@ function RaiseSalaryQueryDialog({ open, onOpenChange, monthLabel, payrollSalary 
 }
 
 function SalaryQueriesTab({ filters, onFilterChange, payrollSalary }) {
+  const queryClient = useQueryClient();
   const [isRaiseQueryOpen, setIsRaiseQueryOpen] = useState(false);
   const [selectedQuery, setSelectedQuery] = useState(null);
+  const [page, setPage] = useState(1);
+  const selectedMonth = `${filters.year}-${String(filters.month).padStart(2, '0')}`;
+  const payrollQueriesQuery = useQuery({
+    queryKey: ['employee-payroll-queries', selectedMonth, page],
+    queryFn: async () => {
+      const response = await EmployeeV2Service.getMyPayrollQueries({
+        page,
+        limit: 20,
+        period: selectedMonth,
+      });
+      return response.data?.data || {};
+    },
+  });
+  const createPayrollQueryMutation = useMutation({
+    mutationFn: (values) => EmployeeV2Service.createMyPayrollQuery(values),
+    onSuccess: (response) => {
+      toast.success(response.data?.message || 'Payroll query created successfully');
+      queryClient.invalidateQueries({ queryKey: ['employee-payroll-queries'] });
+    },
+    onError: (error) => toast.error(getApiErrorMessage(error, 'Unable to submit payroll query')),
+  });
+  const queries = Array.isArray(payrollQueriesQuery.data?.queries)
+    ? payrollQueriesQuery.data.queries
+    : [];
+  const pagination = payrollQueriesQuery.data?.pagination || {};
+  const currentPage = Number(pagination.page) || page;
+  const limit = Number(pagination.limit) || 20;
+  const total = Number(pagination.total) || 0;
+  const totalPages = Math.max(Number(pagination.totalPages) || 0, 1);
+  const firstResult = total ? ((currentPage - 1) * limit) + 1 : 0;
+  const lastResult = total ? Math.min(currentPage * limit, total) : 0;
+
+  const handlePayrollMonthChange = (month) => {
+    const [year, monthNumber] = month.split('-').map(Number);
+    setPage(1);
+    onFilterChange({ year, month: monthNumber });
+  };
+
+  const handleFilterChange = (updater) => {
+    setPage(1);
+    onFilterChange(updater);
+  };
+
   return (
     <div className="grid gap-3 xl:grid-cols-[minmax(0,3fr)_minmax(260px,1fr)]">
       <Card className="payroll-panel">
@@ -2309,7 +2569,7 @@ function SalaryQueriesTab({ filters, onFilterChange, payrollSalary }) {
               </p>
             </div>
           </div>
-          <MonthFilterControl filters={filters} onFilterChange={onFilterChange} />
+          <MonthFilterControl filters={filters} onFilterChange={handleFilterChange} />
         </CardHeader>
 
         <CardContent className="p-3">
@@ -2317,7 +2577,7 @@ function SalaryQueriesTab({ filters, onFilterChange, payrollSalary }) {
             <Table className="min-w-[820px]">
               <TableHeader>
                 <TableRow className="bg-muted/45 hover:bg-muted/45">
-                  {['Query ID', 'Related To', 'Subject', 'Payroll Month', 'Raised On', 'Last Updated', 'Status', 'Action'].map((heading) => (
+                  {['Query Type', 'Subject', 'Payroll Month', 'Raised On', 'Last Updated', 'Status', 'Action'].map((heading) => (
                     <TableHead key={heading} className="h-8 whitespace-nowrap px-3 text-[10px] font-medium">
                       {heading}
                     </TableHead>
@@ -2325,23 +2585,39 @@ function SalaryQueriesTab({ filters, onFilterChange, payrollSalary }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {salaryQueryRows.map((query) => {
-                  const QueryIcon = query.Icon;
-                  return (
-                    <TableRow key={query.id} className="hover:bg-muted/25">
-                      <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] font-semibold">{query.id}</TableCell>
+                {payrollQueriesQuery.isPending && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-20 text-center text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Loading salary queries...
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {payrollQueriesQuery.isError && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-20 text-center text-xs text-red-600 dark:text-red-300">
+                      {getApiErrorMessage(payrollQueriesQuery.error, 'Unable to load salary queries')}
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!payrollQueriesQuery.isPending && !payrollQueriesQuery.isError && !queries.length && (
+                  <EmptyTableRow colSpan={7} />
+                )}
+                {queries.map((query) => (
+                    <TableRow key={query._id} className="hover:bg-muted/25">
                       <TableCell className="whitespace-nowrap px-3 py-2.5">
                         <span className="flex items-center gap-2 text-[10px] font-medium">
-                          <i className={`payroll-query-category payroll-query-category-${query.tone}`}>
-                            <QueryIcon className="h-3 w-3" aria-hidden="true" />
+                          <i className="payroll-query-category payroll-query-category-blue">
+                            <FileQuestion className="h-3 w-3" aria-hidden="true" />
                           </i>
-                          {query.relatedTo}
+                          {query.queryType || '—'}
                         </span>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] font-medium">{query.subject}</TableCell>
-                      <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] text-muted-foreground">{query.payrollMonth}</TableCell>
-                      <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] font-medium">{query.raisedOn}</TableCell>
-                      <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] font-medium">{query.lastUpdated}</TableCell>
+                      <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] font-medium">{query.subject || '—'}</TableCell>
+                      <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] text-muted-foreground">{query.employeePayroll?.period || '—'}</TableCell>
+                      <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] font-medium">{formatQueryDate(query.createdAt)}</TableCell>
+                      <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] font-medium">{formatQueryDate(query.updatedAt)}</TableCell>
                       <TableCell className="whitespace-nowrap px-3 py-2.5">
                         <StatusBadge value={query.status} />
                       </TableCell>
@@ -2356,20 +2632,34 @@ function SalaryQueriesTab({ filters, onFilterChange, payrollSalary }) {
                         </button>
                       </TableCell>
                     </TableRow>
-                  );
-                })}
+                ))}
               </TableBody>
             </Table>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-3 py-2">
-              <p className="text-[10px] text-muted-foreground">Showing 1 to 5 of 10 queries</p>
+              <p className="text-[10px] text-muted-foreground">
+                Showing {firstResult} to {lastResult} of {total} queries
+              </p>
               <div className="flex items-center gap-1">
-                <Button variant="outline" size="icon" className="h-7 w-7" aria-label="Previous page">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  aria-label="Previous page"
+                  disabled={currentPage <= 1 || payrollQueriesQuery.isFetching}
+                  onClick={() => setPage((value) => Math.max(value - 1, 1))}
+                >
                   <ChevronLeft className="h-3 w-3" />
                 </Button>
-                <Button size="icon" className="h-7 w-7 text-[10px]">1</Button>
-                <Button variant="outline" size="icon" className="h-7 w-7 text-[10px]">2</Button>
-                <Button variant="outline" size="icon" className="h-7 w-7" aria-label="Next page">
+                <Button size="icon" className="h-7 w-7 text-[10px]" disabled>{currentPage}</Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  aria-label="Next page"
+                  disabled={currentPage >= totalPages || payrollQueriesQuery.isFetching}
+                  onClick={() => setPage((value) => Math.min(value + 1, totalPages))}
+                >
                   <ChevronRight className="h-3 w-3" />
                 </Button>
               </div>
@@ -2449,11 +2739,11 @@ function SalaryQueriesTab({ filters, onFilterChange, payrollSalary }) {
       <RaiseSalaryQueryDialog
         open={isRaiseQueryOpen}
         onOpenChange={setIsRaiseQueryOpen}
-        monthLabel={new Date(filters.year, filters.month - 1, 1).toLocaleDateString('en-IN', {
-          month: 'long',
-          year: 'numeric',
-        })}
+        payrollMonth={selectedMonth}
+        onPayrollMonthChange={handlePayrollMonthChange}
         payrollSalary={payrollSalary}
+        onSubmit={(values) => createPayrollQueryMutation.mutateAsync(values)}
+        isSubmitting={createPayrollQueryMutation.isPending}
       />
       <SalaryQueryDetailSheet query={selectedQuery} onOpenChange={(open) => !open && setSelectedQuery(null)} />
     </div>
