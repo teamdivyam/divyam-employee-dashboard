@@ -74,14 +74,14 @@ export function MetricCard({ label, value, subLabel, icon: Icon, tone = "blue" }
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <div className="flex items-center gap-4">
-        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${tones[tone] || tones.blue}`}>
-          <Icon className="h-5 w-5" />
+    <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
+      <div className="flex items-center gap-3">
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tones[tone] || tones.blue}`}>
+          <Icon className="h-4 w-4" />
         </span>
         <div>
           <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-          <p className="mt-1 text-2xl font-semibold text-foreground">{value}</p>
+          <p className="mt-0.5 text-xl font-semibold text-foreground">{value}</p>
           <p className="text-xs text-muted-foreground">{subLabel}</p>
         </div>
       </div>
@@ -147,7 +147,7 @@ export function DataTable({ headers, rows, emptyText }) {
         <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground">
           <tr>
             {headers.map((header) => (
-              <th key={header} className="px-4 py-3">{header}</th>
+              <th key={header} className="px-3 py-2">{header}</th>
             ))}
           </tr>
         </thead>
@@ -155,12 +155,12 @@ export function DataTable({ headers, rows, emptyText }) {
           {rows.length ? rows.map((row, rowIndex) => (
             <tr key={rowIndex} className="hover:bg-muted/30">
               {row.map((cell, cellIndex) => (
-                <td key={cellIndex} className="px-4 py-3 align-middle text-foreground">{cell}</td>
+                <td key={cellIndex} className="px-3 py-2 align-middle text-foreground">{cell}</td>
               ))}
             </tr>
           )) : (
             <tr>
-              <td colSpan={headers.length} className="px-4 py-12 text-center text-muted-foreground">{emptyText}</td>
+              <td colSpan={headers.length} className="px-4 py-8 text-center text-muted-foreground">{emptyText}</td>
             </tr>
           )}
         </tbody>
