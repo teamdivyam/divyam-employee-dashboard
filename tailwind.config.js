@@ -167,6 +167,12 @@ export default {
             backgroundPosition: "200% 0",
           },
         },
+
+        wiggle: {
+          "0%, 100%": { transform: "rotate(0deg)" },
+          "25%": { transform: "rotate(-12deg)" },
+          "75%": { transform: "rotate(12deg)" },
+        },
       },
 
       animation: {
@@ -184,6 +190,9 @@ export default {
 
         shimmer:
           "shimmer 2s linear infinite",
+
+        wiggle:
+          "wiggle 0.5s ease-in-out 1",
       },
     },
   },

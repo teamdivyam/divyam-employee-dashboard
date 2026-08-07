@@ -369,6 +369,15 @@ const EmployeeV2Service = {
             headers: { "Content-Type": undefined },
         });
     },
+
+    getMyNotifications: ({ isRead, page = 1, limit = 20 } = {}) =>
+        employeeV2Request.get("/notifications", {
+            params: { isRead, page, limit },
+        }),
+    markNotificationRead: (notificationId) =>
+        employeeV2Request.patch(`/notifications/${encodeURIComponent(notificationId)}/read`),
+    markAllNotificationsRead: () =>
+        employeeV2Request.patch("/notifications/read-all"),
 };
 
 export default EmployeeV2Service;
