@@ -52,6 +52,14 @@ const EmployeeV2Service = {
     sessions: () => employeeV2Request.get("/auth/session"),
 
     me: () => employeeV2Request.get("/employees/me"),
+    getMyAssets: ({ status, page = 1, limit = 25 } = {}) =>
+        employeeV2Request.get("/employees/me/assets", {
+            params: {
+                ...(status ? { status } : {}),
+                page: Math.max(Number(page) || 1, 1),
+                limit: Math.min(Math.max(Number(limit) || 25, 1), 100),
+            },
+        }),
     getMyDocuments: (params = {}) => employeeV2Request.get("/employees/me/documents", { params }),
     uploadMyDocument: (formData) =>
         employeeV2Request.post("/employees/me/documents", formData, {

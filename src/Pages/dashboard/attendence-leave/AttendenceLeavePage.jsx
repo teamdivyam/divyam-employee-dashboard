@@ -424,7 +424,7 @@ export default function AttendenceLeavePage() {
   const historyFilters = useMemo(
     () => ({
       page: 1,
-      limit: 25,
+      // limit: 25,
       fromDate: toDateInputValue(new Date(filters.year, filters.month - 1, 1)),
       toDate: toDateInputValue(new Date(filters.year, filters.month, 0)),
       sortOrder: "desc",
@@ -2139,7 +2139,7 @@ function RecentCorrectionsList({
   isLoadingDetail,
 }) {
   const currentPage = Number(pagination?.page) || 1;
-  const pageLimit = Number(pagination?.limit) || 20;
+  const pageLimit = Number(pagination?.limit) || 31;
   const total = Number(pagination?.total) || 0;
   const totalPages = Number(pagination?.totalPages) || 0;
   const firstRecord = total ? (currentPage - 1) * pageLimit + 1 : 0;
@@ -2753,7 +2753,7 @@ function LeaveRequestsList({
 }) {
   const [selectedLeaveId, setSelectedLeaveId] = useState("");
   const currentPage = Number(pagination?.page) || 1;
-  const pageSize = Number(pagination?.limit) || 20;
+  const pageSize = Number(pagination?.limit) || 31;
   const totalRecords = Number(pagination?.total) || 0;
   const totalPages = Number(pagination?.totalPages) || 0;
   const rangeStart = totalRecords ? (currentPage - 1) * pageSize + 1 : 0;

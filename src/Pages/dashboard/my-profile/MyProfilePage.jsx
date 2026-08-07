@@ -6,7 +6,6 @@ import {
   AlertCircle,
   Camera,
   CloudUpload,
-  Download,
   Eye,
   EyeOff,
   FileText,
@@ -31,6 +30,16 @@ import {
 } from "@components/components/ui/dialog";
 import { Input } from "@components/components/ui/input";
 import { Label } from "@components/components/ui/label";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@components/components/ui/pagination";
+import { Skeleton } from "@components/components/ui/skeleton";
 import { Textarea } from "@components/components/ui/textarea";
 import {
   Select,
@@ -74,6 +83,7 @@ import {
 const profileQueryKey = ["employee-profile"];
 const profileDocumentsQueryKey = ["employee-profile-documents"];
 const employeePaymentProfileQueryKey = ["employee-payment-profile"];
+const assignedAssetsQueryKey = ["employee-assigned-assets"];
 const profileGenderOptions = ["Male", "Female", "Other", "Prefer Not To Say"];
 const profileStateOptions = ["Uttar Pradesh", "Madhya Pradesh", "Bihar", "Rajasthan"];
 const paymentModeOptions = ["Bank Transfer", "UPI"];
@@ -98,48 +108,6 @@ const accountNumberPattern = /^\d{8,18}$/;
 const ifscCodePattern = /^[A-Z]{4}0[A-Z0-9]{6}$/;
 const upiIdPattern = /^[\w.-]{2,256}@[A-Za-z]{2,64}$/;
 const maxProfileImageSize = 5 * 1024 * 1024;
-const assignedAssetRows = [
-  {
-    asset: "Apple MacBook Air M2",
-    assetId: "AST-LAP-00045",
-    assignedOn: "16 May 2026",
-    returnedOn: "--",
-    condition: "Good",
-    status: "Assigned",
-  },
-  {
-    asset: "iPhone 14 Pro",
-    assetId: "AST-MOB-00122",
-    assignedOn: "20 May 2026",
-    returnedOn: "--",
-    condition: "Good",
-    status: "Return Pending",
-  },
-  {
-    asset: "RFID Access Card",
-    assetId: "AST-ACC-00311",
-    assignedOn: "10 May 2026",
-    returnedOn: "--",
-    condition: "Good",
-    status: "Assigned",
-  },
-  {
-    asset: "Dell 24 Monitor",
-    assetId: "AST-MON-00078",
-    assignedOn: "10 Feb 2026",
-    returnedOn: "15 Mar 2026",
-    condition: "Good",
-    status: "Returned",
-  },
-  {
-    asset: "Logitech Wireless Headset",
-    assetId: "AST-AUD-00056",
-    assignedOn: "05 Jan 2026",
-    returnedOn: "28 Feb 2026",
-    condition: "Good",
-    status: "Returned",
-  },
-];
 const myProfileTabs = [
   ...profileTabs,
   { value: "assigned-assets", label: "Assigned Assets", icon: PackageCheck },
@@ -585,100 +553,297 @@ const validateProfileForm = (form, profileImage) => {
   return errors;
 };
 
-function AssignedAssetsTab() {
+const formatAssetDate = (value) => {
+  if (!value) return "--";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+};
+
+const getAssetPaginationItems = (currentPage, totalPages) => {
+  if (totalPages <= 5) return Array.from({ length: totalPages }, (_, index) => index + 1);
+  if (currentPage <= 3) return [1, 2, 3, 4, "end-ellipsis", totalPages];
+  if (currentPage >= totalPages - 2) {
+    return [1, "start-ellipsis", totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  }
+  return [1, "start-ellipsis", currentPage - 1, currentPage, currentPage + 1, "end-ellipsis", totalPages];
+};
+
+function AssignedAssetsTab({ isActive }) {
+  const [status, setStatus] = useState("Assigned");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+
+  const assetsQuery = useQuery({
+    queryKey: [...assignedAssetsQueryKey, status, page, limit],
+    queryFn: async () => {
+      const response = await EmployeeV2Service.getMyAssets({
+        status: status === "all" ? undefined : status,
+        page,
+        limit,
+      });
+      return response.data?.data || { assets: [], pagination: {} };
+    },
+    enabled: isActive,
+    placeholderData: (previousData) => previousData,
+  });
+
+  const assets = assetsQuery.data?.assets || [];
+  const pagination = assetsQuery.data?.pagination || {};
+  const currentPage = Number(pagination.page) || page;
+  const pageLimit = Number(pagination.limit) || limit;
+  const total = Number(pagination.total) || 0;
+  const totalPages = Math.max(Number(pagination.pages) || 1, 1);
+  const firstRow = assets.length ? (currentPage - 1) * pageLimit + 1 : 0;
+  const lastRow = assets.length ? Math.min(firstRow + assets.length - 1, total) : 0;
+  const paginationItems = getAssetPaginationItems(currentPage, totalPages);
+
   const statusClassName = (status) => {
     if (status === "Assigned") {
       return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300";
     }
-    if (status === "Return Pending") {
+    if (status === "Return Requested") {
       return "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-300";
+    }
+    if (status === "Lost") {
+      return "border-destructive/30 bg-destructive/10 text-destructive";
     }
     return "border-border bg-muted text-muted-foreground";
   };
 
+  const changePage = (nextPage) => {
+    if (nextPage < 1 || nextPage > totalPages || nextPage === currentPage) return;
+    setPage(nextPage);
+  };
+
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 border-b border-border px-4 py-3">
+      <CardHeader className="flex flex-col gap-3 space-y-0 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-start gap-2.5">
           <PackageCheck className="mt-0.5 h-4 w-4 shrink-0 text-foreground" aria-hidden="true" />
           <div>
             <CardTitle className="text-sm font-semibold">Assigned Assets</CardTitle>
             <p className="mt-0.5 text-[10px] text-muted-foreground">
-              View company assets assigned to you. This page is view-only.
+              View company assets assigned to you and their return status.
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" className="h-8 shrink-0 gap-2 px-3 text-[10px] font-medium">
-          <Download className="h-3.5 w-3.5" aria-hidden="true" />
-          Download Asset Statement
-        </Button>
+        <Select
+          value={status}
+          onValueChange={(value) => {
+            setStatus(value);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="h-8 w-full text-[10px] sm:w-[165px]" aria-label="Filter assets by status">
+            <SelectValue placeholder="Select status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All assets</SelectItem>
+            <SelectItem value="Assigned">Assigned</SelectItem>
+            <SelectItem value="Return Requested">Return requested</SelectItem>
+            <SelectItem value="Returned">Returned</SelectItem>
+            <SelectItem value="Lost">Lost</SelectItem>
+          </SelectContent>
+        </Select>
       </CardHeader>
 
       <CardContent className="p-4">
-        <div className="overflow-x-auto rounded-md border border-border">
-          <Table className="min-w-[900px]">
-            <TableHeader className="bg-muted/45">
-              <TableRow className="hover:bg-transparent">
-                {["Asset", "Asset ID", "Assigned On", "Returned On", "Condition", "Status", "Action"].map((heading) => (
-                  <TableHead key={heading} className="h-9 whitespace-nowrap px-3 text-[10px] font-medium">
-                    {heading}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {assignedAssetRows.map((asset) => (
-                <TableRow key={asset.assetId} className="hover:bg-muted/25">
-                  <TableCell className="px-3 py-2">
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="grid h-9 w-11 shrink-0 place-items-center rounded border border-border bg-muted/70 text-muted-foreground"
-                        aria-label={`${asset.asset} image placeholder`}
-                      >
-                        <PackageCheck className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                      <span className="whitespace-nowrap text-[11px] font-medium text-foreground">{asset.asset}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap px-3 py-2 text-[10px] font-medium text-foreground">
-                    {asset.assetId}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap px-3 py-2 text-[10px] text-foreground">
-                    {asset.assignedOn}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap px-3 py-2 text-[10px] text-muted-foreground">
-                    {asset.returnedOn}
-                  </TableCell>
-                  <TableCell className="px-3 py-2">
-                    <Badge
-                      variant="outline"
-                      className="border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-medium text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300"
-                    >
-                      {asset.condition}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="px-3 py-2">
-                    <Badge
-                      variant="outline"
-                      className={`px-2 py-0.5 text-[9px] font-medium ${statusClassName(asset.status)}`}
-                    >
-                      {asset.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="px-3 py-2">
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1.5 text-[10px] font-medium text-primary hover:underline"
-                    >
-                      <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                      View
-                    </button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        {assetsQuery.isError ? (
+          <Alert variant="destructive" className="items-start">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex flex-col gap-3 text-xs sm:flex-row sm:items-center sm:justify-between">
+              <span>{getProfileErrorMessage(assetsQuery.error) || "Unable to load assigned assets."}</span>
+              <Button variant="outline" size="sm" className="h-8 w-fit text-[10px]" onClick={() => assetsQuery.refetch()}>
+                Try again
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <>
+            <div className="relative overflow-x-auto rounded-md border border-border">
+              {assetsQuery.isFetching && !assetsQuery.isLoading && (
+                <div className="absolute right-3 top-2.5 z-10 flex items-center gap-1.5 rounded bg-background/90 px-2 py-1 text-[9px] text-muted-foreground shadow-sm">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Updating
+                </div>
+              )}
+              <Table className="min-w-[960px]">
+                <TableHeader className="bg-muted/45">
+                  <TableRow className="hover:bg-transparent">
+                    {["Asset", "Serial Number", "Assigned On", "Return Date", "Condition", "Status", "Assigned By"].map((heading) => (
+                      <TableHead key={heading} className="h-9 whitespace-nowrap px-3 text-[10px] font-medium">
+                        {heading}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {assetsQuery.isLoading ? (
+                    Array.from({ length: 5 }, (_, index) => (
+                      <TableRow key={index}>
+                        {Array.from({ length: 7 }, (__, cellIndex) => (
+                          <TableCell key={cellIndex} className="px-3 py-3">
+                            <Skeleton className="h-5 w-full max-w-28" />
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : assets.length ? (
+                    assets.map((asset) => {
+                      const imageUrl = asset.image?.small || asset.image?.medium || asset.image?.original;
+                      const returnDate = asset.returnedOn || asset.expectedReturnOn;
+
+                      return (
+                        <TableRow key={asset._id} className="hover:bg-muted/25">
+                          <TableCell className="px-3 py-2">
+                            <div className="flex items-center gap-3">
+                              <span className="grid h-10 w-12 shrink-0 place-items-center overflow-hidden rounded border border-border bg-muted/70 text-muted-foreground">
+                                {imageUrl ? (
+                                  <img src={imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                                ) : (
+                                  <PackageCheck className="h-4 w-4" aria-hidden="true" />
+                                )}
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block max-w-56 truncate text-[11px] font-medium text-foreground">
+                                  {asset.assetName || "Unnamed asset"}
+                                </span>
+                                <span className="block max-w-56 truncate text-[9px] text-muted-foreground">
+                                  {[asset.brand, asset.model, asset.category].filter(Boolean).join(" · ") || "--"}
+                                </span>
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap px-3 py-2 text-[10px] font-medium text-foreground">
+                            {asset.serialNumber || "--"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap px-3 py-2 text-[10px] text-foreground">
+                            {formatAssetDate(asset.assignedOn)}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap px-3 py-2 text-[10px] text-foreground">
+                            {formatAssetDate(returnDate)}
+                            {returnDate && (
+                              <span className="block text-[9px] text-muted-foreground">
+                                {asset.returnedOn ? "Returned" : "Expected"}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="px-3 py-2">
+                            <Badge variant="outline" className="bg-muted/50 px-2 py-0.5 text-[9px] font-medium text-foreground">
+                              {asset.condition || "--"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="px-3 py-2">
+                            <Badge variant="outline" className={`px-2 py-0.5 text-[9px] font-medium ${statusClassName(asset.status)}`}>
+                              {asset.status || "--"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="px-3 py-2">
+                            <span className="block whitespace-nowrap text-[10px] font-medium text-foreground">
+                              {asset.assignedBy?.name || "--"}
+                            </span>
+                            {asset.assignedBy?.employeeId && (
+                              <span className="block text-[9px] text-muted-foreground">{asset.assignedBy.employeeId}</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-40 text-center">
+                        <PackageCheck className="mx-auto h-7 w-7 text-muted-foreground/60" aria-hidden="true" />
+                        <p className="mt-2 text-xs font-medium text-foreground">No assets found</p>
+                        <p className="mt-1 text-[10px] text-muted-foreground">There are no assets matching this status.</p>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {!assetsQuery.isLoading && (
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                  <span>Showing {firstRow}–{lastRow} of {total}</span>
+                  <Select
+                    value={String(limit)}
+                    onValueChange={(value) => {
+                      setLimit(Number(value));
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-[108px] text-[10px]" aria-label="Assets per page">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[10, 25, 50, 100].map((size) => (
+                        <SelectItem key={size} value={String(size)}>{size} per page</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {totalPages > 1 && (
+                  <Pagination className="mx-0 w-auto justify-start sm:justify-end">
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          href="#"
+                          className={`h-8 text-[10px] ${currentPage <= 1 ? "pointer-events-none opacity-50" : ""}`}
+                          aria-disabled={currentPage <= 1}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            changePage(currentPage - 1);
+                          }}
+                        />
+                      </PaginationItem>
+                      {paginationItems.map((item) => (
+                        typeof item === "number" ? (
+                          <PaginationItem key={item}>
+                            <PaginationLink
+                              href="#"
+                              size="icon"
+                              isActive={item === currentPage}
+                              className="h-8 w-8 text-[10px]"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                changePage(item);
+                              }}
+                            >
+                              {item}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ) : (
+                          <PaginationItem key={item}>
+                            <PaginationEllipsis className="h-8 w-8" />
+                          </PaginationItem>
+                        )
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          href="#"
+                          className={`h-8 text-[10px] ${currentPage >= totalPages ? "pointer-events-none opacity-50" : ""}`}
+                          aria-disabled={currentPage >= totalPages}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            changePage(currentPage + 1);
+                          }}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                )}
+              </div>
+            )}
+          </>
+        )}
 
         <div className="mt-3 flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50/70 px-3 py-2.5 text-[10px] text-blue-700 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300">
           <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -1108,7 +1273,7 @@ export default function MyProfilePage() {
             />
           </TabsContent>
           <TabsContent value="assigned-assets" className="mt-4">
-            <AssignedAssetsTab />
+            <AssignedAssetsTab isActive={activeTab === "assigned-assets"} />
           </TabsContent>
         </Tabs>
       </div>
