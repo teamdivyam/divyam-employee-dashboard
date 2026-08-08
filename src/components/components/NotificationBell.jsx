@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   MessageSquare,
   Send,
+  Trash2,
   Undo2,
   XCircle,
 } from "lucide-react";
@@ -64,6 +65,11 @@ export function NotificationBell() {
 
   const markAllReadMutation = useMutation({
     mutationFn: () => EmployeeV2Service.markAllNotificationsRead(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY }),
+  });
+
+  const clearAllMutation = useMutation({
+    mutationFn: () => EmployeeV2Service.clearAllNotifications(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY }),
   });
 
@@ -143,15 +149,27 @@ export function NotificationBell() {
                 </span>
               )}
             </div>
-            {unreadCount > 0 && (
-              <button
-                className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
-                onClick={() => markAllReadMutation.mutate()}
-              >
-                <CheckCheck className="h-3 w-3" />
-                Mark all read
-              </button>
-            )}
+            <div className="flex items-center gap-1">
+              {unreadCount > 0 && (
+                <button
+                  className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
+                  onClick={() => markAllReadMutation.mutate()}
+                >
+                  <CheckCheck className="h-3 w-3" />
+                  Mark all read
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button
+                  className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
+                  onClick={() => clearAllMutation.mutate()}
+                  disabled={clearAllMutation.isPending}
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Clear all
+                </button>
+              )}
+            </div>
           </div>
           <div className="h-px bg-border" />
           <div className="max-h-72 overflow-y-auto">

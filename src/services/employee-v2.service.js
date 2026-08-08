@@ -382,6 +382,8 @@ const EmployeeV2Service = {
         employeeV2Request.patch(`/notifications/${encodeURIComponent(notificationId)}/read`),
     markAllNotificationsRead: () =>
         employeeV2Request.patch("/notifications/read-all"),
+    clearAllNotifications: () =>
+        employeeV2Request.delete("/notifications/clear-all"),
 };
 
 export default EmployeeV2Service;
