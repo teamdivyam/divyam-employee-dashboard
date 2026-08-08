@@ -43,8 +43,7 @@ import {
   SidebarRail,
 } from "@components/components/ui/sidebar";
 import { useQueryClient } from "@tanstack/react-query";
-import { AUTH_SESSION_QUERY_KEY } from "../../hooks/useAuthSession";
-import useCurrentEmployee, { CURRENT_EMPLOYEE_QUERY_KEY } from "../../hooks/useCurrentEmployee";
+import useCurrentEmployee from "../../hooks/useCurrentEmployee";
 import EmployeeV2Service from "../../services/employee-v2.service";
 import { toast } from "sonner";
 
@@ -198,8 +197,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
     try {
       const response = await EmployeeV2Service.logout();
-      queryClient.removeQueries({ queryKey: AUTH_SESSION_QUERY_KEY });
-      queryClient.removeQueries({ queryKey: CURRENT_EMPLOYEE_QUERY_KEY });
+      queryClient.clear();
       toast.success(response.data?.message || "Logout successful");
       navigate("/login", { replace: true });
     } catch (error: any) {

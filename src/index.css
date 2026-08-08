@@ -953,6 +953,16 @@ input[type="number"]::-webkit-outer-spin-button {
   transform-origin: center center;
 }
 
+/* Hide scrollbars everywhere while keeping scroll behavior intact */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes rotate {
   0% {
     rotate: 0deg;

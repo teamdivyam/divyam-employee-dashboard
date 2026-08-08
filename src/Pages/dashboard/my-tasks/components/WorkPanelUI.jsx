@@ -74,15 +74,17 @@ export function MetricCard({ label, value, subLabel, icon: Icon, tone = "blue" }
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <div className="flex items-center gap-4">
-        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${tones[tone] || tones.blue}`}>
+    <div className="rounded-lg border border-border bg-card p-2.5 shadow-sm">
+      <div className="flex items-center gap-2">
+        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${tones[tone] || tones.blue}`}>
           <Icon className="h-5 w-5" />
         </span>
         <div>
           <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-          <p className="mt-1 text-2xl font-semibold text-foreground">{value}</p>
-          <p className="text-xs text-muted-foreground">{subLabel}</p>
+          <div className="mt-0.5 flex items-baseline gap-1">
+            <p className="text-xl font-semibold text-foreground">{value}</p>
+            <p className="text-xl font-semibold text-foreground">{subLabel}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -140,27 +142,27 @@ export function TableButton({ children, onClick }) {
   );
 }
 
-export function DataTable({ headers, rows, emptyText }) {
+export function DataTable({ headers, rows, emptyText, compact = false, zebra = false }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[980px] text-left text-sm">
+      <table className={`w-full min-w-[980px] text-left ${compact ? "text-xs" : "text-sm"}`}>
         <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground">
           <tr>
             {headers.map((header) => (
-              <th key={header} className="px-4 py-3">{header}</th>
+              <th key={header} className={compact ? "px-2.5 py-1.5" : "px-3 py-2"}>{header}</th>
             ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
           {rows.length ? rows.map((row, rowIndex) => (
-            <tr key={rowIndex} className="hover:bg-muted/30">
+            <tr key={rowIndex} className={`hover:bg-muted/30 ${zebra && rowIndex % 2 === 1 ? "bg-muted/20" : ""}`}>
               {row.map((cell, cellIndex) => (
-                <td key={cellIndex} className="px-4 py-3 align-middle text-foreground">{cell}</td>
+                <td key={cellIndex} className={`align-middle text-foreground ${compact ? "px-2.5 py-1.5 text-xs" : "px-3 py-2.5 text-sm"}`}>{cell}</td>
               ))}
             </tr>
           )) : (
             <tr>
-              <td colSpan={headers.length} className="px-4 py-12 text-center text-muted-foreground">{emptyText}</td>
+              <td colSpan={headers.length} className={`text-center text-muted-foreground ${compact ? "px-4 py-6" : "px-4 py-8"}`}>{emptyText}</td>
             </tr>
           )}
         </tbody>

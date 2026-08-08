@@ -306,6 +306,92 @@ const EmployeeV2Service = {
     },
     deleteAllowanceRequest: (requestId) =>
         employeeV2Request.delete(`/payroll/me/allowance-requests/${encodeURIComponent(requestId)}`),
+
+    getTaskAssignmentEmployees: ({ search, limit = 25 } = {}) =>
+        employeeV2Request.get("/tasks/employees", {
+            params: { search, limit },
+        }),
+    createTask: ({
+        taskType = "Self Task",
+        taskTitle,
+        description,
+        relatedTo,
+        dueDate,
+        dueTime,
+        priority,
+        visibility,
+        requestTo,
+        acceptanceRequired,
+    } = {}) =>
+        employeeV2Request.post("/tasks", {
+            taskType,
+            taskTitle,
+            description,
+            relatedTo,
+            dueDate,
+            dueTime,
+            priority,
+            visibility,
+            requestTo,
+            acceptanceRequired,
+        }),
+    getMyTasksV2: ({ scope, status, priority, search, relatedType, taskType, page = 1, limit = 25, sortBy, sortOrder } = {}) =>
+        employeeV2Request.get("/tasks", {
+            params: { scope, status, priority, search, relatedType, taskType, page, limit, sortBy, sortOrder },
+        }),
+    getMyTaskV2Detail: (taskId) =>
+        employeeV2Request.get(`/tasks/${encodeURIComponent(taskId)}`),
+    getTaskAnalyticsV2: () =>
+        employeeV2Request.get("/tasks/analytics"),
+    updateTaskProgress: ({ taskId, status, progressPercent, note, attachments = [] } = {}) => {
+        if (!attachments.length) {
+            return employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/progress`, {
+                status,
+                progressPercent,
+                note,
+            });
+        }
+
+        const formData = new FormData();
+        if (status) formData.append("status", status);
+        if (progressPercent !== undefined) formData.append("progressPercent", String(progressPercent));
+        if (note) formData.append("note", note);
+        attachments.forEach((file) => formData.append("attachments", file));
+
+        return employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/progress`, formData, {
+            headers: { "Content-Type": undefined },
+        });
+    },
+    respondToWorkRequest: ({ taskId, action, note } = {}) =>
+        employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/respond`, { action, note }),
+    requestDueDateChange: ({ taskId, requestedDueDate, reason } = {}) =>
+        employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/due-date-change`, { requestedDueDate, reason }),
+    respondToDueDateChange: ({ taskId, action, note } = {}) =>
+        employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/due-date-change/respond`, { action, note }),
+    withdrawWorkRequest: (taskId) =>
+        employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/withdraw`),
+    sendTaskReminder: (taskId) =>
+        employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/reminder`),
+    addTaskDiscussionMessage: ({ taskId, message, attachments = [] } = {}) => {
+        const formData = new FormData();
+        if (message) formData.append("message", message);
+        attachments.forEach((file) => formData.append("attachments", file));
+
+        return employeeV2Request.post(`/tasks/${encodeURIComponent(taskId)}/discussion`, formData, {
+            headers: { "Content-Type": undefined },
+        });
+    },
+
+    getMyNotifications: ({ isRead, page = 1, limit = 20 } = {}) =>
+        employeeV2Request.get("/notifications", {
+            params: { isRead, page, limit },
+        }),
+    markNotificationRead: (notificationId) =>
+        employeeV2Request.patch(`/notifications/${encodeURIComponent(notificationId)}/read`),
+    markAllNotificationsRead: () =>
+        employeeV2Request.patch("/notifications/read-all"),
+    clearAllNotifications: () =>
+        employeeV2Request.delete("/notifications/clear-all"),
 };
 
 export default EmployeeV2Service;

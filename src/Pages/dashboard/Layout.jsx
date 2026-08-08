@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@components/components/ui//dropdown-menu";
 import { AppSidebar } from "@components/components/app-sidebar";
+import { NotificationBell } from "@components/components/NotificationBell";
 import { Separator } from "@components/components/ui/separator";
 import { UserRound, Settings, LogOut, Moon, Sun } from "lucide-react";
 import {
@@ -95,13 +96,13 @@ export default function Layout() {
       <AppSidebar />
       <SidebarInset>
         <header
-          className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-background/95 backdrop-blur px-4 lg:px-6">
-          <div className="flex items-center gap-3">
-            <SidebarTrigger className="h-8 w-8" />
+          className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-background/95 backdrop-blur px-3 lg:px-4">
+          <div className="flex items-center gap-2">
+            <SidebarTrigger className="h-7 w-7" />
 
             <Separator
               orientation="vertical"
-              className="h-5"
+              className="h-4"
             />
 
             <div>
@@ -109,19 +110,21 @@ export default function Layout() {
                 Dashboard
               </h1>
 
-              <p className="hidden md:block text-xs text-muted-foreground">
+              <p className="hidden md:block text-[11px] leading-tight text-muted-foreground">
                 Manage products, inventory and operations
               </p>
             </div>
           </div>
 
-          <div className="adminProfile pr-8 cursor-pointer">
+          <div className="flex items-center gap-2 pr-4">
+            <NotificationBell />
+            <div className="adminProfile cursor-pointer">
             <DropdownMenu>
               <DropdownMenuTrigger>
                 <div
-                  className="flex items-center gap-3 rounded-xl border-border bg-card px-3 py-2 transition-colors hover:bg-accent"
+                  className="flex items-center gap-2 rounded-xl border-border bg-card px-2 py-1 transition-colors hover:bg-accent"
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary" >
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary" >
                     {avatarUrl ? (
                       <img
                         src={avatarUrl}
@@ -205,6 +208,7 @@ export default function Layout() {
 
               </DropdownMenuContent>
             </DropdownMenu>
+            </div>
           </div>
         </header>
         <main

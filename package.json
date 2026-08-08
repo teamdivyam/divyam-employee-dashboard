@@ -55,6 +55,7 @@
     "react-router-dom": "^7.0.2",
     "recharts": "^2.15.0",
     "rollup-plugin-visualizer": "^6.0.3",
+    "socket.io-client": "^4.8.3",
     "sonner": "^0.4.0",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
