@@ -356,6 +356,10 @@ const EmployeeV2Service = {
     },
     respondToWorkRequest: ({ taskId, action, note } = {}) =>
         employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/respond`, { action, note }),
+    requestDueDateChange: ({ taskId, requestedDueDate, reason } = {}) =>
+        employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/due-date-change`, { requestedDueDate, reason }),
+    respondToDueDateChange: ({ taskId, action, note } = {}) =>
+        employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/due-date-change/respond`, { action, note }),
     withdrawWorkRequest: (taskId) =>
         employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/withdraw`),
     sendTaskReminder: (taskId) =>
