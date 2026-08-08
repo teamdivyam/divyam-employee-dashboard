@@ -904,73 +904,97 @@ function TaskDetailDialog({
         ) : (
           <div className="space-y-1.5">
             <SectionHeader index={2} tone="green" title="Progress Update" />
+            {!isRecipient && (
+              <div className="flex items-start gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>Only {task.assignedToName} can update progress, status, or due date for this task.</span>
+              </div>
+            )}
+
             <div className="grid gap-2 sm:grid-cols-3">
               <div className="space-y-1">
                 <Label className="text-xs font-semibold text-foreground">Current Progress</Label>
-                <div className="flex items-center gap-2">
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-7 w-7 shrink-0"
-                      onClick={() => setProgressPercent((value) => Math.max(0, value - 10))}
-                    >
-                      −
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-7 w-7 shrink-0"
-                      onClick={() => setProgressPercent((value) => Math.min(100, value + 10))}
-                    >
-                      +
-                    </Button>
+                {isRecipient ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7 shrink-0"
+                        onClick={() => setProgressPercent((value) => Math.max(0, value - 10))}
+                      >
+                        −
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7 shrink-0"
+                        onClick={() => setProgressPercent((value) => Math.min(100, value + 10))}
+                      >
+                        +
+                      </Button>
+                    </div>
+                    <div className="h-1.5 w-1/3 rounded-full bg-muted">
+                      <div className="h-1.5 rounded-full bg-primary" style={{ width: `${progressPercent}%` }} />
+                    </div>
+                    <span className="w-9 text-right text-xs font-medium text-foreground">{progressPercent}%</span>
                   </div>
-                  <div className="h-1.5 w-1/3 rounded-full bg-muted">
-                    <div className="h-1.5 rounded-full bg-primary" style={{ width: `${progressPercent}%` }} />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-1/3 rounded-full bg-muted">
+                      <div className="h-1.5 rounded-full bg-primary" style={{ width: `${progressPercent}%` }} />
+                    </div>
+                    <span className="w-9 text-right text-xs font-medium text-foreground">{progressPercent}%</span>
                   </div>
-                  <span className="w-9 text-right text-xs font-medium text-foreground">{progressPercent}%</span>
-                </div>
+                )}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs font-semibold text-foreground">Task Status</Label>
-                <Select
-                  value={status}
-                  onValueChange={(value) => {
-                    setStatus(value);
-                    if (value === "Completed") setProgressPercent(100);
-                    if (value === "Rework") setProgressPercent(0);
-                  }}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EDITABLE_TASK_STATUSES.map((option) => (
-                      <SelectItem key={option} value={option}>{option}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {isRecipient ? (
+                  <Select
+                    value={status}
+                    onValueChange={(value) => {
+                      setStatus(value);
+                      if (value === "Completed") setProgressPercent(100);
+                      if (value === "Rework") setProgressPercent(0);
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EDITABLE_TASK_STATUSES.map((option) => (
+                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="flex h-8 items-center rounded-md border border-border bg-muted/30 px-2.5 text-xs font-medium text-foreground">
+                    {status}
+                  </div>
+                )}
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-foreground">Due Date Change</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 w-full gap-2 text-xs text-blue-600 hover:text-blue-700"
-                  disabled={isPendingDueDateChange}
-                  onClick={() => setIsDueDateFormOpen((value) => !value)}
-                >
-                  <CalendarCheck className="h-3.5 w-3.5" />
-                  {isPendingDueDateChange ? "Request Pending" : "Request Due Date Change"}
-                </Button>
-              </div>
+              {isRecipient && (
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-foreground">Due Date Change</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-full gap-2 text-xs text-blue-600 hover:text-blue-700"
+                    disabled={isPendingDueDateChange}
+                    onClick={() => setIsDueDateFormOpen((value) => !value)}
+                  >
+                    <CalendarCheck className="h-3.5 w-3.5" />
+                    {isPendingDueDateChange ? "Request Pending" : "Request Due Date Change"}
+                  </Button>
+                </div>
+              )}
             </div>
 
-            {isDueDateFormOpen && (
+            {isRecipient && isDueDateFormOpen && (
               <div className="space-y-2 rounded-md border border-border p-2">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div className="space-y-1">
@@ -1054,11 +1078,12 @@ function TaskDetailDialog({
               <Textarea
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
-                placeholder="Share a quick update on this task..."
+                placeholder={isRecipient ? "Share a quick update on this task..." : "Only the assignee can add a work update note."}
                 maxLength={500}
+                disabled={!isRecipient}
                 className="h-32 min-h-32 resize-none text-xs"
               />
-              <p className="text-right text-[10px] text-muted-foreground">{note.length}/500</p>
+              {isRecipient && <p className="text-right text-[10px] text-muted-foreground">{note.length}/500</p>}
             </div>
 
             <div className="space-y-1.5">
@@ -1086,7 +1111,7 @@ function TaskDetailDialog({
                 }) : !proofFiles.length ? (
                   <p className="text-xs text-muted-foreground">No attachments yet.</p>
                 ) : null}
-                {proofFiles.length ? (
+                {isRecipient && proofFiles.length ? (
                   <div className="flex flex-wrap gap-1">
                     {proofFiles.map((file, index) => (
                       <span key={index} className="flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs text-foreground dark:bg-blue-400/10">
@@ -1099,18 +1124,20 @@ function TaskDetailDialog({
                     ))}
                   </div>
                 ) : null}
-                <Button type="button" variant="outline" size="sm" className="gap-2" asChild>
-                  <label className="cursor-pointer">
-                    <Plus className="h-4 w-4" />
-                    Add More Files
-                    <input
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={(event) => setProofFiles((files) => [...files, ...Array.from(event.target.files || [])])}
-                    />
-                  </label>
-                </Button>
+                {isRecipient && (
+                  <Button type="button" variant="outline" size="sm" className="gap-2" asChild>
+                    <label className="cursor-pointer">
+                      <Plus className="h-4 w-4" />
+                      Add More Files
+                      <input
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(event) => setProofFiles((files) => [...files, ...Array.from(event.target.files || [])])}
+                      />
+                    </label>
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -1290,10 +1317,12 @@ function TaskDetailDialog({
         </div>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button type="button" size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={handleSaveUpdate} disabled={updateProgressMutation.isPending}>
-            {updateProgressMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Save Update
-          </Button>
+          {isRecipient && (
+            <Button type="button" size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={handleSaveUpdate} disabled={updateProgressMutation.isPending}>
+              {updateProgressMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save Update
+            </Button>
+          )}
         </div>
       </DialogFooter>
     </div>
