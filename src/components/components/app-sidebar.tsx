@@ -72,7 +72,6 @@ const navMain: NavItem[] = [
     title: "Dashboard",
     url: "/dashboard",
     icon: LayoutDashboard,
-    isActive: true,
     items: [],
   },
   {
@@ -91,7 +90,6 @@ const navMain: NavItem[] = [
     title: "Assigned Events",
     url: "/dashboard/assigned-events",
     icon: CalendarDays,
-    isActive: true,
     items: [],
   },
   {

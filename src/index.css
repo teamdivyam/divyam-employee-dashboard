@@ -41,6 +41,7 @@
     --chart-5: 350 89% 60%;
 
     --radius: 0.5rem;
+    --tab-accent: 24 95% 53%;
 
     --sidebar-background: 222 47% 7%;
     --sidebar-foreground: 210 20% 98%;
@@ -411,17 +412,42 @@ body {
     @apply bg-violet-500 text-white dark:bg-violet-500;
   }
 
-  .profile-tab-trigger {
-    @apply text-xs font-medium text-foreground;
+  .tab-comp-list {
+    height: 2.75rem !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    background-color: hsl(var(--card)) !important;
+    padding: 0 0.75rem !important;
+    color: hsl(var(--card-foreground));
+    box-shadow: 0 1px 3px 0 rgb(15 23 42 / 0.08);
   }
 
-  .profile-tab-trigger:hover,
-  .profile-tab-trigger[data-state="active"] {
-    color: rgb(249 115 22);
+  .tab-comp-trigger {
+    height: 2.75rem !important;
+    flex-shrink: 0;
+    gap: 0.5rem;
+    border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+    padding: 0 0.75rem !important;
+    color: hsl(var(--foreground)) !important;
+    font-size: 8px;
+    font-weight: 400;
+    box-shadow: none !important;
+    transition: color 150ms ease, border-color 150ms ease;
   }
 
-  .profile-tab-trigger[data-state="active"] {
-    border-color: rgb(249 115 22);
+  .tab-comp-trigger:hover,
+  .tab-comp-trigger[data-state="active"] {
+    color: hsl(var(--tab-accent)) !important;
+  }
+
+  .tab-comp-trigger[data-state="active"] {
+    border-bottom-color: hsl(var(--tab-accent)) !important;
   }
 
   .profile-detail-card {

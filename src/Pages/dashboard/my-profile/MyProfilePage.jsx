@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -63,7 +64,7 @@ import {
   TableHeader,
   TableRow,
 } from "@components/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/components/ui/tabs";
+import TabComp, { TabsContent } from "@components/components/tab-comp";
 import LegacyEmployeeService from "@/services/employee.service";
 import EmployeeV2Service from "@/services/employee-v2.service";
 import { CURRENT_EMPLOYEE_QUERY_KEY } from "@/hooks/useCurrentEmployee";
@@ -112,6 +113,7 @@ const myProfileTabs = [
   ...profileTabs,
   { value: "assigned-assets", label: "Assigned Assets", icon: PackageCheck },
 ];
+const myProfileTabValues = new Set(myProfileTabs.map(({ value }) => value));
 const emptyPasswordForm = {
   currentPassword: "",
   newPassword: "",
@@ -856,7 +858,17 @@ function AssignedAssetsTab({ isActive }) {
 
 export default function MyProfilePage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const activeTab = myProfileTabValues.has(requestedTab) ? requestedTab : "overview";
+  const setActiveTab = (tab) => {
+    if (!myProfileTabValues.has(tab)) return;
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+    if (tab === "overview") nextSearchParams.delete("tab");
+    else nextSearchParams.set("tab", tab);
+    setSearchParams(nextSearchParams, { replace: true });
+  };
   const [sheetAction, setSheetAction] = useState(null);
   const [profileForm, setProfileForm] = useState({});
   const [profileErrors, setProfileErrors] = useState({});
@@ -1217,23 +1229,12 @@ export default function MyProfilePage() {
       <div className="mx-auto max-w-[1500px] space-y-4">
         <ProfileHero profile={profile} onAction={openAction} />
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="h-auto w-full justify-start gap-4 overflow-x-auto rounded-lg border border-border bg-card px-3 py-0 text-card-foreground shadow-sm">
-            {myProfileTabs.map((tab) => {
-              const TabIcon = tab.icon;
-
-              return (
-                <TabsTrigger
-                  key={tab.value}
-                  value={tab.value}
-                  className="profile-tab-trigger shrink-0 gap-2 rounded-none border-b-2 border-transparent bg-transparent px-3 py-3 shadow-none transition data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                >
-                  <TabIcon className="h-4 w-4" aria-hidden="true" />
-                  {tab.label}
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
+        <TabComp
+          tabs={myProfileTabs}
+          value={activeTab}
+          onValueChange={setActiveTab}
+          ariaLabel="Profile sections"
+        >
 
           <TabsContent value="overview" className="mt-4 space-y-4">
             <OverviewTab profile={profile} onAction={openAction} />
@@ -1275,7 +1276,7 @@ export default function MyProfilePage() {
           <TabsContent value="assigned-assets" className="mt-4">
             <AssignedAssetsTab isActive={activeTab === "assigned-assets"} />
           </TabsContent>
-        </Tabs>
+        </TabComp>
       </div>
 
       <Sheet open={sheetAction === "edit"} onOpenChange={(open) => !open && setSheetAction(null)}>

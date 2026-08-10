@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -65,7 +66,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@components/components/ui/sheet';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@components/components/ui/tabs';
+import TabComp, { TabsContent } from '@components/components/tab-comp';
 import { Textarea } from '@components/components/ui/textarea';
 import { MonthFilterControl } from '../attendence-leave/AttendenceLeavePage';
 import EmployeeV2Service from '@/services/employee-v2.service';
@@ -187,13 +188,14 @@ const getPayrollRequestReference = (request, requestType = 'Advance') => {
 };
 
 const tabs = [
-  ['summary', 'Salary Summary', BadgeIndianRupee],
-  ['allowance', 'Allowance', WalletCards],
-  ['advance', 'Advance & Deduction', ReceiptIndianRupee],
-  ['reimbursements', 'Reimbursements', FileCheck2],
-  ['loan', 'Loan', Landmark],
-  ['queries', 'Salary Queries', FileQuestion],
+  { value: 'summary', label: 'Salary Summary', icon: BadgeIndianRupee },
+  { value: 'allowance', label: 'Allowance', icon: WalletCards },
+  { value: 'advance', label: 'Advance & Deduction', icon: ReceiptIndianRupee },
+  { value: 'reimbursements', label: 'Reimbursements', icon: FileCheck2 },
+  { value: 'loan', label: 'Loan', icon: Landmark },
+  { value: 'queries', label: 'Salary Queries', icon: FileQuestion },
 ];
+const payrollTabValues = new Set(tabs.map(({ value }) => value));
 
 const progress = [
   ['Attendance Verified', '—', 'idle'],
@@ -419,13 +421,12 @@ function PayrollProgress() {
               {index < progress.length - 1 && (
                 <span className="absolute left-1/2 top-3 hidden h-px w-full bg-border sm:block" />
               )}
-              <span className={`relative z-10 grid h-7 w-7 place-items-center rounded-full border ${
-                state === 'done'
+              <span className={`relative z-10 grid h-7 w-7 place-items-center rounded-full border ${state === 'done'
                   ? 'border-emerald-500 bg-emerald-500 text-white'
                   : state === 'current'
                     ? 'border-border bg-background text-muted-foreground ring-4 ring-muted'
                     : 'border-border bg-muted text-muted-foreground'
-              }`}>
+                }`}>
                 {state === 'done' ? <Check size={13} /> : state === 'current' ? <Clock3 size={12} /> : <Circle size={8} fill="currentColor" />}
               </span>
               <p className="mt-2 text-[9px] font-medium leading-3 text-foreground">{label}</p>
@@ -622,7 +623,7 @@ function PayrollRequestDialog({
                       <span className="leading-tight">{label}</span>
                     </span>
                     {index < 2 && (
-                      <MoveRight  className="h-3.5 w-3.5 shrink-0 text-muted-foreground"  aria-hidden="true"/>
+                      <MoveRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                     )}
                   </div>
                 ))}
@@ -867,6 +868,8 @@ function AllowanceTab({ filters, onFilterChange, payrollSalary }) {
       const response = await EmployeeV2Service.getMyAllowanceRequests(queryFilters);
       return response.data?.data || {};
     },
+    refetchInterval: 30_000,  // Poll every 10 seconds    
+    refetchIntervalInBackground: false, // Keep false to pause polling when the browser tab is inactive
   });
 
   const invalidateAllowanceRequests = () => queryClient.invalidateQueries({
@@ -1344,7 +1347,9 @@ function AdvanceDeductionTab({ filters, onFilterChange, payrollSalary }) {
       }, { stripUnknown: true });
       const response = await EmployeeV2Service.getMyAdvanceRequests(queryFilters);
       return response.data?.data || {};
-    },
+    },    
+    refetchInterval: 30_000,  // Poll every 10 seconds    
+    refetchIntervalInBackground: false, // Keep false to pause polling when the browser tab is inactive
   });
 
   const invalidateAdvanceRequests = () => queryClient.invalidateQueries({
@@ -1572,6 +1577,8 @@ function LoanDetailDialog({ loanId, onOpenChange }) {
       return response.data?.data || {};
     },
     enabled: Boolean(loanId),
+    refetchInterval: 30_000,  // Poll every 10 seconds    
+    refetchIntervalInBackground: false, // Keep false to pause polling when the browser tab is inactive
   });
   const loan = loanDetailQuery.data?.loan;
   const transactions = Array.isArray(loanDetailQuery.data?.transactions)
@@ -1736,6 +1743,8 @@ function LoanTab() {
       const response = await EmployeeV2Service.getMyLoans({ page: 1, limit: 1, status: 'Active' });
       return response.data?.data?.loans?.[0] || null;
     },
+    refetchInterval: 30_000,  // Poll every 10 seconds    
+    refetchIntervalInBackground: false, // Keep false to pause polling when the browser tab is inactive
   });
   const loans = Array.isArray(loansQuery.data?.loans) ? loansQuery.data.loans : [];
   const activeLoan = activeLoanQuery.data;
@@ -1870,46 +1879,46 @@ function LoanTab() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-          <Table className="min-w-[1020px]">
-            <TableHeader>
-              <TableRow className="bg-muted/45 hover:bg-muted/45">
-                {['Recovery ID', 'Title', 'Principal Amount', 'Issue Period', 'Status', 'Outstanding Balance', 'Recovery Percentage', 'Created By', 'Action'].map((heading) => (
-                  <TableHead key={heading} className="h-8 whitespace-nowrap px-4 text-[9px]">{heading}</TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loansQuery.isPending && (
-                <TableRow><TableCell colSpan={9} className="h-20 text-center text-xs text-muted-foreground"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" />Loading loans...</TableCell></TableRow>
-              )}
-              {loansQuery.isError && (
-                <TableRow><TableCell colSpan={9} className="h-20 text-center text-xs text-red-600 dark:text-red-300">{getApiErrorMessage(loansQuery.error, 'Unable to load loans')}</TableCell></TableRow>
-              )}
-              {!loansQuery.isPending && !loansQuery.isError && !loans.length && <EmptyTableRow colSpan={9} />}
-              {loans.map((loan) => (
-                <TableRow key={loan._id} className="hover:bg-muted/25">
-                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-semibold">{loan.recoveryId || '—'}</TableCell>
-                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-medium">{loan.title || '—'}</TableCell>
-                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-semibold">{currency(loan.principalAmount)}</TableCell>
-                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-medium">{loan.issuedPeriod || '—'}</TableCell>
-                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px]"><StatusBadge value={loan.status || '—'} /></TableCell>
-                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-semibold">{currency(loan.outstandingBalance)}</TableCell>
-                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-medium">{Number(loan.recoveryPercentage || 0).toFixed(2)}%</TableCell>
-                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-medium">{loan.createdBy?.name || '—'}</TableCell>
-                  <TableCell className="whitespace-nowrap px-4 py-2 text-[10px]">
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
-                      onClick={() => setSelectedLoanId(loan.recoveryId || loan._id)}
-                    >
-                      <Eye className="h-3 w-3" aria-hidden="true" />
-                      View
-                    </button>
-                  </TableCell>
+            <Table className="min-w-[1020px]">
+              <TableHeader>
+                <TableRow className="bg-muted/45 hover:bg-muted/45">
+                  {['Recovery ID', 'Title', 'Principal Amount', 'Issue Period', 'Status', 'Outstanding Balance', 'Recovery Percentage', 'Created By', 'Action'].map((heading) => (
+                    <TableHead key={heading} className="h-8 whitespace-nowrap px-4 text-[9px]">{heading}</TableHead>
+                  ))}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {loansQuery.isPending && (
+                  <TableRow><TableCell colSpan={9} className="h-20 text-center text-xs text-muted-foreground"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" />Loading loans...</TableCell></TableRow>
+                )}
+                {loansQuery.isError && (
+                  <TableRow><TableCell colSpan={9} className="h-20 text-center text-xs text-red-600 dark:text-red-300">{getApiErrorMessage(loansQuery.error, 'Unable to load loans')}</TableCell></TableRow>
+                )}
+                {!loansQuery.isPending && !loansQuery.isError && !loans.length && <EmptyTableRow colSpan={9} />}
+                {loans.map((loan) => (
+                  <TableRow key={loan._id} className="hover:bg-muted/25">
+                    <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-semibold">{loan.recoveryId || '—'}</TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-medium">{loan.title || '—'}</TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-semibold">{currency(loan.principalAmount)}</TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-medium">{loan.issuedPeriod || '—'}</TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-2 text-[10px]"><StatusBadge value={loan.status || '—'} /></TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-semibold">{currency(loan.outstandingBalance)}</TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-medium">{Number(loan.recoveryPercentage || 0).toFixed(2)}%</TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-medium">{loan.createdBy?.name || '—'}</TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-2 text-[10px]">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                        onClick={() => setSelectedLoanId(loan.recoveryId || loan._id)}
+                      >
+                        <Eye className="h-3 w-3" aria-hidden="true" />
+                        View
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-2">
             <p className="text-[10px] text-muted-foreground">Showing {firstResult} to {lastResult} of {total} loans</p>
@@ -2085,17 +2094,15 @@ function SalaryQueryDetailSheet({ query, onOpenChange }) {
                 {reviewSteps.map(([label, state], index) => (
                   <div key={label} className="relative flex flex-col items-center px-1 text-center">
                     {index < 3 && (
-                      <span className={`absolute left-1/2 top-3 h-px w-full ${
-                        state === 'done' ? 'bg-emerald-400' : 'bg-border'
-                      }`} />
+                      <span className={`absolute left-1/2 top-3 h-px w-full ${state === 'done' ? 'bg-emerald-400' : 'bg-border'
+                        }`} />
                     )}
-                    <span className={`relative z-10 grid h-6 w-6 place-items-center rounded-full border text-[9px] font-semibold ${
-                      state === 'done'
+                    <span className={`relative z-10 grid h-6 w-6 place-items-center rounded-full border text-[9px] font-semibold ${state === 'done'
                         ? 'border-emerald-500 bg-emerald-500 text-white'
                         : state === 'current'
                           ? 'border-orange-400 bg-orange-50 text-orange-600 dark:bg-orange-400/10'
                           : 'border-border bg-muted text-muted-foreground'
-                    }`}>
+                      }`}>
                       {state === 'done' ? <Check className="h-3 w-3" /> : index + 1}
                     </span>
                     <span className="mt-1.5 whitespace-pre-line text-[9px] font-medium leading-3 text-foreground">
@@ -2162,23 +2169,23 @@ function SalaryQueryDetailSheet({ query, onOpenChange }) {
                       const name = item.addedBy?.name || item.addedBy?.employeeId || 'Team member';
                       const messageAttachments = Array.isArray(item.attachments) ? item.attachments : [];
                       return (
-                      <div key={item._id || `${name}-${item.addedAt}-${index}`} className="relative flex gap-2.5">
-                        {index < messages.length - 1 && <span className="absolute left-3 top-6 h-[calc(100%+12px)] border-l border-border" />}
-                        <span className={`payroll-query-update payroll-query-update-${isEmployee ? 'blue' : 'orange'}`}>
-                          {isEmployee ? <UserRound className="h-3 w-3" /> : <Headphones className="h-3 w-3" />}
-                        </span>
-                        <div className="min-w-0 pt-0.5">
-                          <p className="text-[9px] font-semibold text-foreground">
-                            {name} <span className="ml-2 font-normal text-muted-foreground">{formatDateTime(item.addedAt)}</span>
-                          </p>
-                          <p className="mt-0.5 text-[9px] leading-4 text-muted-foreground">{item.message}</p>
-                          {messageAttachments.length > 0 && (
-                            <div className="mt-2">
-                              <PayrollAttachmentList attachments={messageAttachments} />
-                            </div>
-                          )}
+                        <div key={item._id || `${name}-${item.addedAt}-${index}`} className="relative flex gap-2.5">
+                          {index < messages.length - 1 && <span className="absolute left-3 top-6 h-[calc(100%+12px)] border-l border-border" />}
+                          <span className={`payroll-query-update payroll-query-update-${isEmployee ? 'blue' : 'orange'}`}>
+                            {isEmployee ? <UserRound className="h-3 w-3" /> : <Headphones className="h-3 w-3" />}
+                          </span>
+                          <div className="min-w-0 pt-0.5">
+                            <p className="text-[9px] font-semibold text-foreground">
+                              {name} <span className="ml-2 font-normal text-muted-foreground">{formatDateTime(item.addedAt)}</span>
+                            </p>
+                            <p className="mt-0.5 text-[9px] leading-4 text-muted-foreground">{item.message}</p>
+                            {messageAttachments.length > 0 && (
+                              <div className="mt-2">
+                                <PayrollAttachmentList attachments={messageAttachments} />
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
                       );
                     })}
                   </div>
@@ -2523,6 +2530,8 @@ function SalaryQueriesTab({ filters, onFilterChange, payrollSalary }) {
       });
       return response.data?.data || {};
     },
+    refetchInterval: 30_000,  // Poll every 10 seconds    
+    refetchIntervalInBackground: false, // Keep false to pause polling when the browser tab is inactive
   });
   const createPayrollQueryMutation = useMutation({
     mutationFn: (values) => EmployeeV2Service.createMyPayrollQuery(values),
@@ -2605,33 +2614,33 @@ function SalaryQueriesTab({ filters, onFilterChange, payrollSalary }) {
                   <EmptyTableRow colSpan={7} />
                 )}
                 {queries.map((query) => (
-                    <TableRow key={query._id} className="hover:bg-muted/25">
-                      <TableCell className="whitespace-nowrap px-3 py-2.5">
-                        <span className="flex items-center gap-2 text-[10px] font-medium">
-                          <i className="payroll-query-category payroll-query-category-blue">
-                            <FileQuestion className="h-3 w-3" aria-hidden="true" />
-                          </i>
-                          {query.queryType || '—'}
-                        </span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] font-medium">{query.subject || '—'}</TableCell>
-                      <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] text-muted-foreground">{query.employeePayroll?.period || '—'}</TableCell>
-                      <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] font-medium">{formatQueryDate(query.createdAt)}</TableCell>
-                      <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] font-medium">{formatQueryDate(query.updatedAt)}</TableCell>
-                      <TableCell className="whitespace-nowrap px-3 py-2.5">
-                        <StatusBadge value={query.status} />
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap px-3 py-2.5">
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 text-[10px] font-medium text-primary hover:underline"
-                          onClick={() => setSelectedQuery(query)}
-                        >
-                          <Eye className="h-3 w-3" aria-hidden="true" />
-                          View
-                        </button>
-                      </TableCell>
-                    </TableRow>
+                  <TableRow key={query._id} className="hover:bg-muted/25">
+                    <TableCell className="whitespace-nowrap px-3 py-2.5">
+                      <span className="flex items-center gap-2 text-[10px] font-medium">
+                        <i className="payroll-query-category payroll-query-category-blue">
+                          <FileQuestion className="h-3 w-3" aria-hidden="true" />
+                        </i>
+                        {query.queryType || '—'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] font-medium">{query.subject || '—'}</TableCell>
+                    <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] text-muted-foreground">{query.employeePayroll?.period || '—'}</TableCell>
+                    <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] font-medium">{formatQueryDate(query.createdAt)}</TableCell>
+                    <TableCell className="whitespace-nowrap px-3 py-2.5 text-[10px] font-medium">{formatQueryDate(query.updatedAt)}</TableCell>
+                    <TableCell className="whitespace-nowrap px-3 py-2.5">
+                      <StatusBadge value={query.status} />
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap px-3 py-2.5">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 text-[10px] font-medium text-primary hover:underline"
+                        onClick={() => setSelectedQuery(query)}
+                      >
+                        <Eye className="h-3 w-3" aria-hidden="true" />
+                        View
+                      </button>
+                    </TableCell>
+                  </TableRow>
                 ))}
               </TableBody>
             </Table>
@@ -2751,7 +2760,17 @@ function SalaryQueriesTab({ filters, onFilterChange, payrollSalary }) {
 }
 
 export default function PayrollSalaryPage() {
-  const [activeTab, setActiveTab] = useState('summary');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const activeTab = payrollTabValues.has(requestedTab) ? requestedTab : 'summary';
+  const setActiveTab = (tab) => {
+    if (!payrollTabValues.has(tab)) return;
+
+    const nextSearchParams = new URLSearchParams(searchParams);
+    if (tab === 'summary') nextSearchParams.delete('tab');
+    else nextSearchParams.set('tab', tab);
+    setSearchParams(nextSearchParams, { replace: true });
+  };
   const [monthFilters, setMonthFilters] = useState(() => {
     const dateParts = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Kolkata',
@@ -2771,6 +2790,8 @@ export default function PayrollSalaryPage() {
       const response = await EmployeeV2Service.getMyPayrollSalary({ month: selectedMonth });
       return response.data?.data?.payrollSalary || null;
     },
+    refetchInterval: 30_000,  // Poll every 10 seconds    
+    refetchIntervalInBackground: false, // Keep false to pause polling when the browser tab is inactive
   });
   const payrollSalary = payrollSalaryQuery.data;
   const stats = useMemo(() => {
@@ -2816,19 +2837,13 @@ export default function PayrollSalaryPage() {
           {stats.map((stat) => <StatCard key={stat[0]} data={stat} />)}
         </section>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4 w-full">
-          <TabsList className="h-auto w-full justify-start gap-4 overflow-x-auto rounded-lg border border-border bg-card px-3 py-0 text-card-foreground shadow-sm">
-            {tabs.map(([value, label, Icon]) => (
-              <TabsTrigger
-                key={value}
-                value={value}
-                className="profile-tab-trigger shrink-0 gap-2 rounded-none border-b-2 border-transparent bg-transparent px-3 py-3 shadow-none transition data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-              >
-                <Icon className="h-4 w-4" aria-hidden="true" />
-                {label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+        <TabComp
+          tabs={tabs}
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="mt-4"
+          ariaLabel="Payroll sections"
+        >
 
           <TabsContent value="summary" className="mt-4">
             <div className="grid gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
@@ -2876,7 +2891,7 @@ export default function PayrollSalaryPage() {
               payrollSalary={payrollSalary}
             />
           </TabsContent>
-        </Tabs>
+        </TabComp>
       </div>
     </main>
   );
