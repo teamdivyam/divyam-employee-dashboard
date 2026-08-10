@@ -12,7 +12,7 @@ import {
   StatusPill,
   SummaryCard,
   TodayPanel,
-  TopTabs,
+  tabs as attendanceTabs,
   displayText,
   formatShortDate,
   formatTime,
@@ -21,6 +21,7 @@ import {
   summaryIcons,
 } from "./components/AttendanceLeaveComponents";
 import EmployeeV2Service from "@/services/employee-v2.service";
+import TabComp from "@components/components/tab-comp";
 import {
   HALF_DAY_PERIODS,
   LEAVE_DURATIONS,
@@ -1185,7 +1186,12 @@ export default function AttendenceLeavePage() {
 
       <div className="mt-5 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
         <main className="min-w-0 space-y-4">
-          <TopTabs activeTab={activeTab} onChange={setActiveTab} />
+          <TabComp
+            tabs={attendanceTabs}
+            value={activeTab}
+            onValueChange={setActiveTab}
+            ariaLabel="Attendance and leave sections"
+          />
           {summaryQuery.isLoading || historyQuery.isLoading || todayAttendanceQuery.isLoading ? (
             <div className="atl-card p-8 text-center text-sm text-muted-foreground">Loading attendance details...</div>
           ) : (

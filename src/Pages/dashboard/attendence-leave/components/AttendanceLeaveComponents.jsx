@@ -54,12 +54,12 @@ export const DEFAULT_SHIFT_START_TIME = "11:00 AM";
 export const DEFAULT_SHIFT_END_TIME = "07:30 PM";
 
 export const tabs = [
-  { id: "today", label: "Today", icon: CalendarDays },
-  { id: "monthly", label: "Monthly Attendance", icon: CalendarCheck },
-  { id: "leaves", label: "Leave Requests", icon: Umbrella },
-  { id: "duty", label: "Event Duty", icon: BriefcaseBusiness },
-  { id: "corrections", label: "Correction Requests", icon: FilePenLine },
-  { id: "rules", label: "Attendance Rules", icon: FileText },
+  { value: "today", label: "Today", icon: CalendarDays },
+  { value: "monthly", label: "Monthly Attendance", icon: CalendarCheck },
+  { value: "leaves", label: "Leave Requests", icon: Umbrella },
+  { value: "duty", label: "Event Duty", icon: BriefcaseBusiness },
+  { value: "corrections", label: "Correction Requests", icon: FilePenLine },
+  { value: "rules", label: "Attendance Rules", icon: FileText },
 ];
 
 export function displayText(value, fallback = "--") {
@@ -212,27 +212,6 @@ export function SummaryCard({ icon: Icon, label, value, sub, tone = "green" }) {
         <p className="text-xs font-medium text-foreground">{displayText(label)}</p>
         <p className="mt-1 truncate text-lg font-semibold text-foreground">{displayText(value)}</p>
         <p className={`mt-1 text-xs ${tone === "red" ? "text-red-600" : "text-muted-foreground"}`}>{displayText(sub)}</p>
-      </div>
-    </Panel>
-  );
-}
-
-export function TopTabs({ activeTab, onChange }) {
-  return (
-    <Panel className="overflow-x-auto">
-      <div className="flex min-w-max items-center gap-4 px-3">
-        {tabs.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => onChange(id)}
-            className={`flex items-center gap-2 border-b-2 px-3 py-3 text-xs font-medium transition ${
-              activeTab === id ? "border-[#f97316] text-[#f97316]" : "border-transparent text-foreground hover:text-[#f97316]"
-            }`}
-          >
-            <Icon className="h-4 w-4" />
-            {label}
-          </button>
-        ))}
       </div>
     </Panel>
   );

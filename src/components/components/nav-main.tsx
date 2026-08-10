@@ -36,7 +36,7 @@ const linkClass = (isActive: boolean) =>
     "text-slate-100 hover:border-[#d59b2d]/70 hover:bg-[#d59b2d]/12 hover:text-white",
     "group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
     isActive
-      ? "border-[#b88227] bg-[#d59b2d]/18 text-white shadow-[inset_0_0_0_1px_rgba(213,155,45,0.18)]"
+      ? "!border-0 !bg-white !text-slate-950 !shadow-none"
       : "border-transparent"
   );
 
@@ -44,8 +44,19 @@ const subLinkClass = (isActive: boolean) =>
   cn(
     "h-7 rounded-md px-2 text-[11px] font-medium transition-all",
     "text-slate-200 hover:bg-[#d59b2d]/12 hover:text-white",
-    isActive && "bg-[#d59b2d]/18 text-white"
+    isActive && "!bg-white !text-slate-950 !shadow-none"
   );
+
+const normalizePath = (path: string) =>
+  path.length > 1 ? path.replace(/\/+$/, "") : path;
+
+const isPathActive = (pathname: string, url: string, exact = false) => {
+  const currentPath = normalizePath(pathname);
+  const targetPath = normalizePath(url);
+
+  return currentPath === targetPath ||
+    (!exact && currentPath.startsWith(`${targetPath}/`));
+};
 
 export function NavMain({ items }: { items: NavItem[] }) {
   const location = useLocation();
@@ -55,9 +66,11 @@ export function NavMain({ items }: { items: NavItem[] }) {
       <SidebarMenu className="mt-1 gap-1">
         {items.map((item) => {
           const hasChildren = Boolean(item.items?.length);
-          const isParentActive =
-            location.pathname === item.url ||
-            (item.url !== "/dashboard" && location.pathname.startsWith(item.url));
+          const isParentActive = isPathActive(
+            location.pathname,
+            item.url,
+            item.url === "/dashboard"
+          );
 
           if (hasChildren) {
             return (
@@ -71,6 +84,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton
                       tooltip={item.title}
+                      isActive={isParentActive}
                       className={linkClass(isParentActive)}
                     >
                       {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
@@ -82,18 +96,25 @@ export function NavMain({ items }: { items: NavItem[] }) {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub className="ml-5 mt-1 border-l border-[#d59b2d]/25 pl-2">
-                      {item.items?.map((subItem) => (
-                        <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton asChild>
-                            <NavLink
-                              to={subItem.url}
-                              className={({ isActive }) => subLinkClass(isActive)}
+                      {item.items?.map((subItem) => {
+                        const isSubActive = isPathActive(location.pathname, subItem.url);
+
+                        return (
+                          <SidebarMenuSubItem key={subItem.title}>
+                            <SidebarMenuSubButton
+                              asChild
+                              isActive={isSubActive}
+                              className={subLinkClass(isSubActive)}
                             >
-                              <span className="truncate text-xs text-white hover:text-black">{subItem.title}</span>
-                            </NavLink>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
+                              <NavLink to={subItem.url}>
+                                <span className="truncate text-xs text-inherit">
+                                  {subItem.title}
+                                </span>
+                              </NavLink>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        );
+                      })}
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </SidebarMenuItem>
@@ -122,11 +143,15 @@ export function NavMain({ items }: { items: NavItem[] }) {
 
           return (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild tooltip={item.title}>
+              <SidebarMenuButton
+                asChild
+                tooltip={item.title}
+                isActive={isParentActive}
+                className={linkClass(isParentActive)}
+              >
                 <NavLink
                   to={item.url}
                   end={item.url === "/dashboard"}
-                  className={({ isActive }) => linkClass(isActive)}
                 >
                   {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
                   <span className="text-[12px] truncate group-data-[collapsible=icon]:hidden">
