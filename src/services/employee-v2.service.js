@@ -335,11 +335,12 @@ const EmployeeV2Service = {
         employeeV2Request.get(`/tasks/${encodeURIComponent(taskId)}`),
     getTaskAnalyticsV2: () =>
         employeeV2Request.get("/tasks/analytics"),
-    updateTaskProgress: ({ taskId, status, progressPercent, note, attachments = [] } = {}) => {
+    updateTaskProgress: ({ taskId, status, progressPercent, priority, note, attachments = [] } = {}) => {
         if (!attachments.length) {
             return employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/progress`, {
                 status,
                 progressPercent,
+                priority,
                 note,
             });
         }
@@ -347,6 +348,7 @@ const EmployeeV2Service = {
         const formData = new FormData();
         if (status) formData.append("status", status);
         if (progressPercent !== undefined) formData.append("progressPercent", String(progressPercent));
+        if (priority) formData.append("priority", priority);
         if (note) formData.append("note", note);
         attachments.forEach((file) => formData.append("attachments", file));
 
@@ -354,8 +356,20 @@ const EmployeeV2Service = {
             headers: { "Content-Type": undefined },
         });
     },
+    updateTaskDetails: ({ taskId, taskTitle, description, relatedTo, dueDate, dueTime, priority, visibility } = {}) =>
+        employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/details`, {
+            taskTitle,
+            description,
+            relatedTo,
+            dueDate,
+            dueTime,
+            priority,
+            visibility,
+        }),
     respondToWorkRequest: ({ taskId, action, note } = {}) =>
         employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/respond`, { action, note }),
+    reviewTask: ({ taskId, decision } = {}) =>
+        employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/review`, { decision }),
     requestDueDateChange: ({ taskId, requestedDueDate, reason } = {}) =>
         employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/due-date-change`, { requestedDueDate, reason }),
     respondToDueDateChange: ({ taskId, action, note } = {}) =>
