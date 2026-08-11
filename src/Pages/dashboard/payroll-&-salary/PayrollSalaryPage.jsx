@@ -68,7 +68,7 @@ import {
 } from '@components/components/ui/sheet';
 import TabComp, { TabsContent } from '@components/components/tab-comp';
 import { Textarea } from '@components/components/ui/textarea';
-import { MonthFilterControl } from '../attendence-leave/AttendenceLeavePage';
+import MonthFilterControl from '@components/components/MonthFilterControl';
 import EmployeeV2Service from '@/services/employee-v2.service';
 import {
   ADVANCE_REQUEST_STATUS,
@@ -1581,9 +1581,11 @@ function LoanDetailDialog({ loanId, onOpenChange }) {
     refetchIntervalInBackground: false, // Keep false to pause polling when the browser tab is inactive
   });
   const loan = loanDetailQuery.data?.loan;
-  const transactions = Array.isArray(loanDetailQuery.data?.transactions)
-    ? loanDetailQuery.data.transactions
-    : [];
+  const recoveryHistory = Array.isArray(loan?.recoveryHistory)
+    ? loan.recoveryHistory
+    : Array.isArray(loanDetailQuery.data?.recoveryHistory)
+      ? loanDetailQuery.data.recoveryHistory
+      : [];
   const percentage = Math.min(Math.max(Number(loan?.recoveryPercentage) || 0, 0), 100);
   const monthlyInstallment = Number(loan?.monthlyInstallment) || 0;
   const installmentsPaid = monthlyInstallment
@@ -1695,7 +1697,7 @@ function LoanDetailDialog({ loanId, onOpenChange }) {
 
             <Card className="overflow-hidden shadow-none">
               <CardHeader className="border-b border-border px-4 py-2.5">
-                <CardTitle className="text-xs font-semibold">Recovery History</CardTitle>
+                <CardTitle className="text-xs font-semibold">Recent Recovery History</CardTitle>
               </CardHeader>
               <CardContent className="overflow-x-auto p-0">
                 <Table className="min-w-[600px]">
@@ -1707,13 +1709,13 @@ function LoanDetailDialog({ loanId, onOpenChange }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {!transactions.length && <EmptyTableRow colSpan={4} />}
-                    {transactions.map((transaction) => (
-                      <TableRow key={transaction._id} className="hover:bg-muted/25">
-                        <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-medium">{transaction.employeePayroll?.period || '—'}</TableCell>
-                        <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-semibold">{currency(transaction.employeePayroll?.totalDeductions)}</TableCell>
-                        <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-semibold">{currency(transaction.amount)}</TableCell>
-                        <TableCell className="whitespace-nowrap px-4 py-2 text-[10px]"><StatusBadge value={transaction.employeePayroll?.status || '—'} /></TableCell>
+                    {!recoveryHistory.length && <EmptyTableRow colSpan={4} />}
+                    {recoveryHistory.map((recovery, index) => (
+                      <TableRow key={`${recovery.payrollMonth || 'recovery'}-${index}`} className="hover:bg-muted/25">
+                        <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-medium">{formatMonth(recovery.payrollMonth)}</TableCell>
+                        <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-semibold">{currency(recovery.deductedAmount)}</TableCell>
+                        <TableCell className="whitespace-nowrap px-4 py-2 text-[10px] font-semibold">{currency(recovery.balance)}</TableCell>
+                        <TableCell className="whitespace-nowrap px-4 py-2 text-[10px]"><StatusBadge value={recovery.status || '—'} /></TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

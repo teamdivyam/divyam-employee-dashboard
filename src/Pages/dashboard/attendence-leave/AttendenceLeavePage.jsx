@@ -22,6 +22,7 @@ import {
 } from "./components/AttendanceLeaveComponents";
 import EmployeeV2Service from "@/services/employee-v2.service";
 import TabComp from "@components/components/tab-comp";
+import MonthFilterControl from "@components/components/MonthFilterControl";
 import {
   HALF_DAY_PERIODS,
   LEAVE_DURATIONS,
@@ -2626,53 +2627,6 @@ function LeaveRequestForm({
         </Button>
       </div>
     </form>
-  );
-}
-
-export function MonthFilterControl({ filters, onFilterChange }) {
-  const label = useMemo(
-    () => {
-      if (filters.month === "All") return `All ${filters.year}`;
-      return new Date(filters.year, filters.month - 1, 1).toLocaleDateString("en-IN", {
-        month: "short",
-        year: "numeric",
-      });
-    },
-    [filters.month, filters.year]
-  );
-
-  const shiftMonth = (direction) => {
-    const baseMonth = filters.month === "All" ? now.getMonth() : filters.month - 1;
-    const date = new Date(filters.year, baseMonth + direction, 1);
-    onFilterChange((current) => ({
-      ...current,
-      year: date.getFullYear(),
-      month: date.getMonth() + 1,
-    }));
-  };
-
-  return (
-    <div className="flex h-8 overflow-hidden rounded-md border border-border bg-background text-xs">
-      <button
-        type="button"
-        onClick={() => shiftMonth(-1)}
-        className="grid w-8 place-items-center text-foreground hover:bg-muted"
-        aria-label="Previous month"
-      >
-        <ChevronLeft className="h-3.5 w-3.5" />
-      </button>
-      <span className="grid min-w-[104px] place-items-center border-x border-border px-3 text-xs font-medium text-foreground">
-        {label}
-      </span>
-      <button
-        type="button"
-        onClick={() => shiftMonth(1)}
-        className="grid w-8 place-items-center text-foreground hover:bg-muted"
-        aria-label="Next month"
-      >
-        <ChevronRight className="h-3.5 w-3.5" />
-      </button>
-    </div>
   );
 }
 
