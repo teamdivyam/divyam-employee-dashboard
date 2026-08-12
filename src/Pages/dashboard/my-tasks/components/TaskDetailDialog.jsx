@@ -90,6 +90,7 @@ export default function TaskDetailDialog({
   const isPendingDueDateChange = task?.dueDateChangeRequest?.status === "Pending";
   const isLocked = task?.status === "Completed";
   const isWorkLocked = isLocked || isPendingAcceptance;
+  const isDiscussionLocked = isLocked;
   const workLockedMessage = isLocked
     ? "This task is completed and locked."
     : "Accept the work request before updating work.";
@@ -934,12 +935,10 @@ export default function TaskDetailDialog({
               </div>
 
               <div className="space-y-2 border-t border-border bg-muted/20 p-2">
-                {isWorkLocked && (
+                {isDiscussionLocked && (
                   <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <Info className="h-3.5 w-3.5 shrink-0" />
-                    {isLocked
-                      ? <>This task is completed and locked. {isRequester ? "Click Rework above to reopen it and send messages." : "Ask the requester to reopen it via Rework to send messages."}</>
-                      : "Accept the work request before sending messages."}
+                    This task is completed and locked. {isRequester ? "Click Rework above to reopen it and send messages." : "Ask the requester to reopen it via Rework to send messages."}
                   </p>
                 )}
                 {discussionFiles.length ? (
@@ -956,12 +955,12 @@ export default function TaskDetailDialog({
                 ) : null}
 
                 <div className="flex items-center gap-1 rounded-full border border-border bg-background pl-1 pr-1.5">
-                  <label className={`cursor-pointer rounded-full p-1.5 text-muted-foreground hover:bg-muted ${isWorkLocked ? "pointer-events-none opacity-40" : ""}`}>
+                  <label className={`cursor-pointer rounded-full p-1.5 text-muted-foreground hover:bg-muted ${isDiscussionLocked ? "pointer-events-none opacity-40" : ""}`}>
                     <Paperclip className="h-3.5 w-3.5" />
                     <input
                       type="file"
                       multiple
-                      disabled={isWorkLocked}
+                      disabled={isDiscussionLocked}
                       className="hidden"
                       onChange={(event) => setDiscussionFiles((files) => [...files, ...Array.from(event.target.files || [])])}
                     />
@@ -975,13 +974,13 @@ export default function TaskDetailDialog({
                         handleSendDiscussion();
                       }
                     }}
-                    placeholder={isWorkLocked ? workLockedMessage : "Write an update or ask a question..."}
-                    disabled={discussionMutation.isPending || isWorkLocked}
+                    placeholder={isDiscussionLocked ? "This task is completed and locked." : "Write an update or ask a question..."}
+                    disabled={discussionMutation.isPending || isDiscussionLocked}
                     className="h-7 border-0 bg-transparent px-1 text-xs shadow-none focus-visible:ring-0"
                   />
                   <Popover>
                     <PopoverTrigger asChild>
-                      <button type="button" disabled={isWorkLocked} className="rounded-full p-1.5 text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-40">
+                      <button type="button" disabled={isDiscussionLocked} className="rounded-full p-1.5 text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-40">
                         <Smile className="h-3.5 w-3.5" />
                       </button>
                     </PopoverTrigger>
@@ -1005,7 +1004,7 @@ export default function TaskDetailDialog({
                     size="sm"
                     className="h-7 shrink-0 gap-1.5 rounded-full bg-blue-600 px-3 text-xs hover:bg-blue-700"
                     onClick={handleSendDiscussion}
-                    disabled={discussionMutation.isPending || isWorkLocked}
+                    disabled={discussionMutation.isPending || isDiscussionLocked}
                   >
                     {discussionMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                     Send
