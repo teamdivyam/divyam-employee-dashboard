@@ -59,7 +59,7 @@ export const tabs = [
   { value: "leaves", label: "Leave Requests", icon: Umbrella },
   { value: "duty", label: "Event Duty", icon: BriefcaseBusiness },
   { value: "corrections", label: "Correction Requests", icon: FilePenLine },
-  { value: "rules", label: "Attendance Rules", icon: FileText },
+  // { value: "rules", label: "Attendance Rules", icon: FileText },
 ];
 
 export function displayText(value, fallback = "--") {
