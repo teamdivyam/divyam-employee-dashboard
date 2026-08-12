@@ -456,10 +456,56 @@ export default function MyTasksPage() {
                   zebra
                   headerAlign="center"
                   emptyText="No tasks found."
-                  headers={["Task Name", "Task Type", "Linked To", filters.tab === "requests_sent" ? "Assigned To" : "Assigned By", "Due Date", "Priority", "Progress", "Status", "Action"]}
+                  headers={[
+                    "Task Name",
+                    "Task Type",
+                    "Linked To",
+                    ...(filters.tab === "completed" ? ["Assigned By", "Assigned To"] : [filters.tab === "requests_sent" ? "Assigned To" : "Assigned By"]),
+                    "Due Date",
+                    "Priority",
+                    "Progress",
+                    "Status",
+                    "Action",
+                  ]}
                   rows={tasks.map((task) => {
                     const dueDateNote = getDueDateNote(task.dueDate, task.status, task.completedOn);
+                    const isSelfTask = task.taskType === "Self Task";
                     const showAssignedTo = filters.tab === "requests_sent";
+
+                    const assignedByCell = (
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-7 w-7">
+                          <AvatarImage
+                            src={getAvatarUrl(task.createdByProfileImage?.smallUrl)}
+                            alt={task.createdByName}
+                          />
+                          <AvatarFallback className="bg-blue-900 text-xs font-semibold text-white">
+                            {getInitials(task.createdByName) || "A"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <p className="font-medium">
+                          {isSelfTask ? "Self" : task.createdByName}
+                        </p>
+                      </div>
+                    );
+
+                    const assignedToCell = (
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-7 w-7">
+                          <AvatarImage
+                            src={getAvatarUrl(task.assignedToProfileImage?.smallUrl)}
+                            alt={task.assignedToName}
+                          />
+                          <AvatarFallback className="bg-blue-900 text-xs font-semibold text-white">
+                            {getInitials(task.assignedToName) || "A"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <p className="font-medium">
+                          {isSelfTask ? "Self" : task.assignedToName}
+                        </p>
+                      </div>
+                    );
+
                     return [
                       <button type="button" className="flex items-center gap-3 text-left" onClick={() => openTaskDetail(task)}>
                         <IconPill icon={ClipboardList} tone={getTaskStatusTone(task.status)} />
@@ -470,20 +516,7 @@ export default function MyTasksPage() {
                         <p className="font-semibold">{task.relatedTo?.name || "—"}</p>
                         <p className="text-xs text-muted-foreground">{task.relatedTo?.type}</p>
                       </div>,
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-7 w-7">
-                          <AvatarImage
-                            src={getAvatarUrl((showAssignedTo ? task.assignedToProfileImage : task.createdByProfileImage)?.smallUrl)}
-                            alt={showAssignedTo ? task.assignedToName : task.createdByName}
-                          />
-                          <AvatarFallback className="bg-blue-900 text-xs font-semibold text-white">
-                            {getInitials(showAssignedTo ? task.assignedToName : task.createdByName) || "A"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <p className="font-medium">
-                          {showAssignedTo ? task.assignedToName : task.taskType === "Self Task" ? "Self" : task.createdByName}
-                        </p>
-                      </div>,
+                      ...(filters.tab === "completed" ? [assignedByCell, assignedToCell] : [showAssignedTo ? assignedToCell : assignedByCell]),
                       <div>
                         <p className="font-medium">{formatDate(task.dueDate)}</p>
                         {dueDateNote ? <p className={`text-xs ${dueDateNote.tone}`}>{dueDateNote.text}</p> : null}
