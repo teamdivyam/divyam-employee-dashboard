@@ -35,6 +35,7 @@ import {
   PRIORITY_BADGE_CLASS,
   TaskStatusPill,
   getAvatarUrl,
+  getDisplayTaskStatus,
   getDueDateNote,
   getInitials,
   getTaskStatusTone,
@@ -252,6 +253,15 @@ export default function MyTasksPage() {
       invalidateTaskQueries();
     },
     onError: (error) => toast.error(error.response?.data?.message || "Unable to send message"),
+  });
+
+  const escalateMutation = useMutation({
+    mutationFn: (payload) => EmployeeV2Service.escalateTask(payload),
+    onSuccess: () => {
+      toast.success("Task escalated to admin");
+      invalidateTaskQueries();
+    },
+    onError: (error) => toast.error(error.response?.data?.message || "Unable to escalate task"),
   });
 
   const setFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value, page: key === "page" ? value : 1 }));
@@ -546,7 +556,7 @@ export default function MyTasksPage() {
                         </div>
                         <span className="text-xs text-muted-foreground">{task.progressPercent ?? 0}%</span>
                       </div>,
-                      <TaskStatusPill status={task.status} />,
+                      <TaskStatusPill status={getDisplayTaskStatus(task)} />,
                       <TableButton compact onClick={() => openTaskDetail(task)}>
                         {["Completed", "Cancelled", "Rejected"].includes(task.status) ? "View" : "Update"}
                       </TableButton>,
@@ -593,6 +603,7 @@ export default function MyTasksPage() {
             discussionMutation={discussionMutation}
             dueDateChangeMutation={dueDateChangeMutation}
             dueDateChangeRespondMutation={dueDateChangeRespondMutation}
+            escalateMutation={escalateMutation}
           />
         </DialogContent>
       </Dialog>
