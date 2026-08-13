@@ -45,6 +45,7 @@ import {
   TaskStatusPill,
   formatFileSize,
   getAvatarUrl,
+  getDisplayTaskStatus,
   getDueDateNote,
   getFileIconStyle,
   getInitials,
@@ -53,6 +54,28 @@ import {
 
 const WORK_REQUEST_EDITABLE_STATUSES = ["In Progress", "Submitted"];
 const SELF_TASK_EDITABLE_STATUSES = ["In Progress", "Completed"];
+
+const ESCALATION_TYPES = [
+  "Clarification Required",
+  "No Response / Delay",
+  "Due Date Issue",
+  "Reassignment Required",
+  "Approval Required",
+  "Resource / Dependency Issue",
+  "Responsibility Conflict",
+  "Priority Conflict",
+];
+
+const ESCALATION_REQUESTED_ACTIONS = [
+  "Admin Review",
+  "Provide Clarification",
+  "Approve Due Date Change",
+  "Reassign Task",
+  "Provide Approval",
+  "Resolve Responsibility",
+  "Change Priority",
+  "Close / Resolve Issue",
+];
 
 export default function TaskDetailDialog({
   task,
@@ -67,6 +90,7 @@ export default function TaskDetailDialog({
   discussionMutation,
   dueDateChangeMutation,
   dueDateChangeRespondMutation,
+  escalateMutation,
 }) {
   const [status, setStatus] = useState(task?.status || "Pending");
   const [progressPercent, setProgressPercent] = useState(task?.progressPercent ?? 0);
@@ -81,7 +105,13 @@ export default function TaskDetailDialog({
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [editTaskTitle, setEditTaskTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [escalationType, setEscalationType] = useState("");
+  const [escalationAction, setEscalationAction] = useState("");
+  const [escalationPriority, setEscalationPriority] = useState("High");
+  const [escalationReason, setEscalationReason] = useState("");
+  const [showEscalationForm, setShowEscalationForm] = useState(false);
   const discussionListRef = useRef(null);
+  const escalationSectionRef = useRef(null);
   const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
   const isRecipient = task && currentEmployee && task.assignedTo === currentEmployee._id;
@@ -91,6 +121,10 @@ export default function TaskDetailDialog({
   const isLocked = task?.status === "Completed";
   const isWorkLocked = isLocked || isPendingAcceptance;
   const isDiscussionLocked = isLocked;
+  const isTaskFromAdmin = task?.taskType !== "Self Task" && ["Admin", "Super Admin"].includes(task?.createdByRole);
+  const isViewerSuperAdmin = currentEmployee?.accessRole === "Super Admin";
+  const hideEscalateButton = isTaskFromAdmin || isViewerSuperAdmin;
+  const displayStatus = getDisplayTaskStatus({ ...task, status });
   const workLockedMessage = isLocked
     ? "This task is completed and locked."
     : "Accept the work request before updating work.";
@@ -109,6 +143,10 @@ export default function TaskDetailDialog({
     setIsEditingInfo(false);
     setEditTaskTitle(task?.taskTitle || "");
     setEditDescription(task?.description || "");
+    setEscalationType("");
+    setEscalationAction("");
+    setEscalationPriority("High");
+    setEscalationReason("");
   }, [task?._id]);
 
   useEffect(() => {
@@ -347,10 +385,10 @@ export default function TaskDetailDialog({
               <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                 <span
                   className={`h-2 w-2 shrink-0 rounded-full ${
-                    TASK_STATUS_DOT_CLASS[getTaskStatusTone(status)] || "bg-muted-foreground"
+                    TASK_STATUS_DOT_CLASS[getTaskStatusTone(displayStatus)] || "bg-muted-foreground"
                   }`}
                 />
-                {status}
+                {displayStatus}
               </p>
             </div>
           </div>
@@ -653,7 +691,7 @@ export default function TaskDetailDialog({
                 </div>
                 <div className="space-y-1">
                   <p className="text-[11px] text-muted-foreground">Task Status</p>
-                  <TaskStatusPill status={status} />
+                  <TaskStatusPill status={displayStatus} />
                 </div>
                 <div className="space-y-1">
                   <p className="text-[11px] text-muted-foreground">Last Updated</p>
@@ -846,7 +884,7 @@ export default function TaskDetailDialog({
           </div>
         </div>
 
-        {task.taskType !== "Self Task" && (
+        {(task.taskType !== "Self Task" || task.isEscalated || showEscalationForm) && (
         <div className="space-y-1.5">
           <SectionHeader
             index={4}
@@ -1015,14 +1053,146 @@ export default function TaskDetailDialog({
           </div>
         </div>
         )}
+
+        {(task.isEscalated || showEscalationForm) && (
+        <div ref={escalationSectionRef} className="space-y-1.5">
+          <SectionHeader
+            index={5}
+            tone="orange"
+            title="Escalation"
+            trailing={
+              !task.isEscalated && showEscalationForm ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEscalationForm(false);
+                    setEscalationType("");
+                    setEscalationAction("");
+                    setEscalationReason("");
+                  }}
+                  className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                >
+                  <XCircle className="h-3 w-3" />
+                  Cancel
+                </button>
+              ) : null
+            }
+          />
+          {task.isEscalated ? (
+            <div className="flex items-start gap-1.5 rounded-md border border-orange-200 bg-orange-50/60 px-2.5 py-1.5 text-[11px] text-orange-700 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-300">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>This task has been escalated to admin and is under review.</span>
+            </div>
+          ) : (
+            <div className="space-y-2 rounded-md border border-orange-200 bg-orange-50/40 p-2 dark:border-orange-400/30 dark:bg-orange-400/10">
+              <p className="text-[11px] text-orange-700 dark:text-orange-300">Escalation helps Admin resolve blockers faster.</p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-foreground">Escalation Type</Label>
+                  <Select value={escalationType} onValueChange={setEscalationType} disabled={isLocked}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select escalation type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ESCALATION_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-foreground">Requested Action</Label>
+                  <Select value={escalationAction} onValueChange={setEscalationAction} disabled={isLocked}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select requested action" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ESCALATION_REQUESTED_ACTIONS.map((action) => (
+                        <SelectItem key={action} value={action}>{action}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-foreground">Priority (Escalation)</Label>
+                  <Select value={escalationPriority} onValueChange={setEscalationPriority} disabled={isLocked}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="High">High</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="Low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-foreground">Reason for Escalation <span className="text-red-600">*</span></Label>
+                <Textarea
+                  value={escalationReason}
+                  onChange={(event) => setEscalationReason(event.target.value)}
+                  maxLength={500}
+                  disabled={isLocked}
+                  placeholder="Explain why admin intervention is required..."
+                  className="h-20 min-h-20 resize-none text-xs"
+                />
+                <p className="text-right text-[10px] text-muted-foreground">{escalationReason.length}/500</p>
+              </div>
+              <p className="flex items-center gap-1.5 text-[11px] text-orange-700 dark:text-orange-300">
+                <Info className="h-3.5 w-3.5 shrink-0" />
+                Your escalation will be reviewed by Admin and you will be notified.
+              </p>
+            </div>
+          )}
+        </div>
+        )}
       </div>
       </div>
 
       <DialogFooter className="flex-row items-center justify-between sm:justify-between border-t border-border p-3">
-        <Button type="button" variant="outline" size="sm" className="gap-2 border-orange-300 text-orange-600 hover:bg-orange-50 dark:border-orange-400/40" onClick={notAvailable}>
-          <AlertTriangle className="h-4 w-4" />
-          Escalate to Admin
+        {hideEscalateButton ? <div /> : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-2 border-orange-300 text-orange-600 hover:bg-orange-50 dark:border-orange-400/40"
+          disabled={task.isEscalated || isLocked || escalateMutation.isPending}
+          onClick={() => {
+            if (!showEscalationForm) {
+              setShowEscalationForm(true);
+              requestAnimationFrame(() => {
+                escalationSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              });
+              return;
+            }
+            if (!escalationType || !escalationAction || !escalationReason.trim()) {
+              toast.error("Fill in escalation type, requested action, and reason");
+              return;
+            }
+            escalateMutation.mutate(
+              {
+                taskId: task.taskId || task._id,
+                escalationType,
+                requestedAction: escalationAction,
+                priority: escalationPriority,
+                reason: escalationReason.trim(),
+              },
+              {
+                onSuccess: () => {
+                  setShowEscalationForm(false);
+                  setEscalationType("");
+                  setEscalationAction("");
+                  setEscalationReason("");
+                },
+              }
+            );
+          }}
+        >
+          {escalateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+          {task.isEscalated ? "Escalated" : showEscalationForm ? "Submit Escalation" : "Escalate to Admin"}
         </Button>
+        )}
         <div className="flex justify-end gap-2">
           {isRequester && !isPendingAcceptance ? (
             <>

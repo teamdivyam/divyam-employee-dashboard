@@ -9,6 +9,7 @@ export const TASK_STATUS_TONE = {
   "Pending Acceptance": "amber",
   Submitted: "navy",
   "Pending Approval": "violet",
+  "Under Admin Review": "red",
   Completed: "green",
   Rework: "red",
   Cancelled: "gray",
@@ -38,6 +39,14 @@ export const TASK_STATUS_BADGE_CLASS = {
 };
 
 export const getTaskStatusTone = (status) => TASK_STATUS_TONE[status] || "slate";
+
+export const getDisplayTaskStatus = (task) => {
+  const isAdminAssigned = task?.taskType !== "Self Task" && ["Admin", "Super Admin"].includes(task?.createdByRole);
+  if (isAdminAssigned && ["Submitted", "Pending Approval"].includes(task?.status)) {
+    return "Under Admin Review";
+  }
+  return task?.status;
+};
 
 export function TaskStatusPill({ status }) {
   return (
@@ -114,18 +123,21 @@ export function SectionHeader({ index, tone, title, badge, trailing }) {
     green: "bg-emerald-600 text-white",
     violet: "bg-violet-600 text-white",
     grey: "bg-slate-500 text-white",
+    orange: "bg-orange-600 text-white",
   }[tone];
   const barClasses = {
     blue: "bg-blue-50 dark:bg-blue-400/10",
     green: "bg-emerald-50 dark:bg-emerald-400/10",
     violet: "bg-violet-50 dark:bg-violet-400/10",
     grey: "bg-slate-100 dark:bg-slate-400/10",
+    orange: "bg-orange-50 dark:bg-orange-400/10",
   }[tone];
   const titleClasses = {
     blue: "text-blue-700 dark:text-blue-300",
     green: "text-emerald-700 dark:text-emerald-300",
     violet: "text-violet-700 dark:text-violet-300",
     grey: "text-slate-700 dark:text-slate-300",
+    orange: "text-orange-700 dark:text-orange-300",
   }[tone];
 
   return (

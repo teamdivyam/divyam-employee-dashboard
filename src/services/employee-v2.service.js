@@ -400,6 +400,8 @@ const EmployeeV2Service = {
             headers: { "Content-Type": undefined },
         });
     },
+    escalateTask: ({ taskId, escalationType, requestedAction, priority, reason } = {}) =>
+        employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/escalate`, { escalationType, requestedAction, priority, reason }),
 
     getMyNotifications: ({ isRead, page = 1, limit = 20 } = {}) =>
         employeeV2Request.get("/notifications", {
