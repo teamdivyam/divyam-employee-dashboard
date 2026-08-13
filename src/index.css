@@ -701,6 +701,22 @@ body {
     @apply rounded-xl border-border bg-background text-foreground shadow-modal;
   }
 
+  .payroll-query-detail-dialog {
+    @apply rounded-xl border-border bg-background text-foreground shadow-modal;
+  }
+
+  .payroll-query-detail-card {
+    @apply overflow-hidden rounded-lg border-border bg-card text-card-foreground;
+  }
+
+  .payroll-query-detail-attachments .text-\[8px\] {
+    font-size: 10px !important;
+  }
+
+  .payroll-query-detail-attachments .text-\[9px\] {
+    font-size: 11px !important;
+  }
+
   .payroll-form-title {
     @apply text-base font-semibold leading-5 tracking-tight text-foreground;
     font-size: 1rem !important;

@@ -35,7 +35,6 @@ import {
   ShieldCheck,
   Headphones,
   Trash2,
-  UserRound,
   WalletCards,
   MoveRight,
 } from 'lucide-react';
@@ -2043,9 +2042,8 @@ function ReimbursementsTab() {
   );
 }
 
-function SalaryQueryDetailSheet({ query, onOpenChange }) {
-  const isResolved = ['Resolved', 'Closed'].includes(query?.status);
-  const isInReview = query?.status === 'In Review';
+function SalaryQueryDetailDialog({ query, onOpenChange, onSendReply, isSendingReply }) {
+  const [reply, setReply] = useState('');
   const messages = Array.isArray(query?.messages) ? query.messages : [];
   const firstMessage = messages[0];
   const firstMessageAttachments = Array.isArray(firstMessage?.attachments)
@@ -2063,62 +2061,97 @@ function SalaryQueryDetailSheet({ query, onOpenChange }) {
   const relatedRecord = payroll?._id
     ? `${payroll.period || 'Payroll'}${payroll.status ? ` • ${payroll.status}` : ''}`
     : '—';
-  const reviewSteps = [
-    ['Submitted', 'done'],
-    ['Finance Review', isResolved || isInReview ? 'done' : 'current'],
-    ['Admin Review', isResolved ? 'done' : isInReview ? 'current' : 'idle'],
-    ['Resolved', isResolved ? 'done' : 'idle'],
-  ];
+  const employee = query?.employee || firstMessage?.addedBy || {};
+  const employeeName = employee.name || employee.employeeId || 'Employee';
+  const employeeImage = employee.profileImage?.smallUrl
+    || employee.profileImage?.mediumUrl
+    || employee.profileImage?.small
+    || employee.profileImage?.medium
+    || employee.avatar
+    || '';
+  const employeeInitials = employeeName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+  const normalizedStatus = query?.status === 'Under Review' ? 'In Review' : query?.status || 'Open';
+  const statusOrder = ['Open', 'In Review', 'Resolved', 'Closed'];
+  const currentStatusIndex = Math.max(statusOrder.indexOf(normalizedStatus), 0);
+  const reviewSteps = statusOrder.map((label, index) => ({
+    label,
+    complete: index <= currentStatusIndex,
+  }));
 
   const handleOpenChange = (open) => {
+    if (!open) {
+      setReply('');
+    }
     onOpenChange(open);
   };
 
+  const handleSendReply = async () => {
+    const message = reply.trim();
+    if (!query?._id || !message || isSendingReply) return;
+
+    try {
+      await onSendReply({ queryId: query._id, message });
+      setReply('');
+    } catch {
+      // The mutation displays the API error and keeps the reply available to retry.
+    }
+  };
+
   return (
-    <Sheet open={Boolean(query)} onOpenChange={handleOpenChange}>
-      <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-[440px]">
+    <Dialog open={Boolean(query)} onOpenChange={handleOpenChange}>
+      <DialogContent className="payroll-query-detail-dialog max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:max-w-[560px] [&>button]:right-4 [&>button]:top-4 [&>button]:grid [&>button]:h-8 [&>button]:w-8 [&>button]:place-items-center [&>button]:rounded-md [&>button]:border [&>button]:border-blue-200 [&>button]:text-blue-600 [&>button]:opacity-100 dark:[&>button]:border-blue-400/30 dark:[&>button]:text-blue-300">
         {query && (
           <>
-            <SheetHeader className="border-b border-border px-4 py-4 text-left">
-              <div className="flex items-start justify-between gap-3 pr-8">
-                <div>
-                  <SheetTitle className="text-base font-semibold">Salary Query Detail</SheetTitle>
-                  <SheetDescription className="mt-1 text-[11px] font-semibold text-foreground">
-                    {query.queryType || 'Payroll Query'}
-                  </SheetDescription>
+            <DialogHeader className="shrink-0 border-b border-border px-5 pb-4 pt-5 text-left">
+              <div className="flex items-start justify-between gap-3 pr-11">
+                <div className="min-w-0">
+                  <DialogTitle className="text-lg font-semibold leading-6">Salary Query Detail</DialogTitle>
+                  <DialogDescription asChild>
+                    <div className="mt-2 flex items-center gap-2.5 text-foreground">
+                      <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
+                        {employeeImage ? <img src={employeeImage} alt="" className="h-full w-full object-cover" /> : employeeInitials}
+                      </span>
+                      <span className="truncate text-xs font-semibold">{employeeName}</span>
+                    </div>
+                  </DialogDescription>
                 </div>
                 <StatusBadge value={query.status} />
               </div>
-            </SheetHeader>
+            </DialogHeader>
 
-            <div className="space-y-3 p-4">
-              <div className="grid grid-cols-4">
-                {reviewSteps.map(([label, state], index) => (
+            <div className="space-y-3 overflow-y-auto p-5">
+              <div className="grid grid-cols-4 px-3 py-1">
+                {reviewSteps.map(({ label, complete }, index) => (
                   <div key={label} className="relative flex flex-col items-center px-1 text-center">
                     {index < 3 && (
-                      <span className={`absolute left-1/2 top-3 h-px w-full ${state === 'done' ? 'bg-emerald-400' : 'bg-border'
-                        }`} />
+                      <span className={`absolute left-1/2 top-4 h-0.5 w-full ${index < currentStatusIndex ? 'bg-emerald-400' : 'bg-border'}`} />
                     )}
-                    <span className={`relative z-10 grid h-6 w-6 place-items-center rounded-full border text-[9px] font-semibold ${state === 'done'
-                        ? 'border-emerald-500 bg-emerald-500 text-white'
-                        : state === 'current'
-                          ? 'border-orange-400 bg-orange-50 text-orange-600 dark:bg-orange-400/10'
-                          : 'border-border bg-muted text-muted-foreground'
-                      }`}>
-                      {state === 'done' ? <Check className="h-3 w-3" /> : index + 1}
+                    <span className={`relative z-10 grid h-8 w-8 place-items-center rounded-full border text-[10px] font-semibold ${complete
+                      ? 'border-emerald-500 bg-emerald-500 text-white'
+                      : 'border-border bg-muted/60 text-muted-foreground'
+                    }`}>
+                      {complete ? <Check className="h-4 w-4" strokeWidth={2.5} /> : index + 1}
                     </span>
-                    <span className="mt-1.5 whitespace-pre-line text-[9px] font-medium leading-3 text-foreground">
+                    <span className="mt-2 text-[11px] font-medium leading-4 text-foreground">
                       {label}
                     </span>
                   </div>
                 ))}
               </div>
 
-              <Card className="shadow-none">
-                <CardHeader className="border-b border-border px-3 py-2.5">
-                  <CardTitle className="text-[11px] font-semibold">Query Summary</CardTitle>
+              <Card className="payroll-query-detail-card shadow-none">
+                <CardHeader className="border-b border-border px-4 py-3">
+                  <CardTitle className="flex items-center gap-2 text-xs font-semibold">
+                    <CircleHelp className="h-4 w-4 text-blue-600 dark:text-blue-300" />
+                    Query Summary
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 px-3 py-3">
+                <CardContent className="grid gap-x-10 gap-y-3 px-4 py-3 min-[440px]:grid-cols-2">
                   {[
                     ['Query Related To', query.queryType || '—'],
                     ['Payroll Month', payroll?.period || '—'],
@@ -2128,41 +2161,51 @@ function SalaryQueryDetailSheet({ query, onOpenChange }) {
                     ['Assigned To', assignedTo],
                     ['Last Updated', formatDateTime(query.updatedAt)],
                   ].map(([label, value]) => (
-                    <div key={label} className="grid grid-cols-[98px_8px_minmax(0,1fr)] gap-1 text-[10px]">
-                      <span className="text-muted-foreground">{label}</span>
-                      <span className="text-muted-foreground">:</span>
-                      <span className="font-medium text-foreground">{value}</span>
+                    <div key={label} className="min-w-0 text-[11px]">
+                      <span className="block text-[10px] font-medium text-muted-foreground">{label}</span>
+                      <span className="mt-1 block truncate font-semibold text-foreground">{value}</span>
                     </div>
                   ))}
+                  <div className="flex items-end justify-end min-[440px]:col-start-2">
+                    <Button type="button" variant="outline" size="sm" className="h-7 border-blue-300 px-2 text-[11px] text-blue-600 dark:border-blue-400/35 dark:text-blue-300">
+                      View Record
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-blue-200 bg-blue-50/35 shadow-none dark:border-blue-400/25 dark:bg-blue-400/5">
-                <CardHeader className="border-b border-blue-200 px-3 py-2.5 dark:border-blue-400/20">
-                  <CardTitle className="text-[11px] font-semibold">Your Query</CardTitle>
+              <Card className="payroll-query-detail-card border-blue-200 bg-blue-50/20 shadow-none dark:border-blue-400/25 dark:bg-blue-400/5">
+                <CardHeader className="border-b border-blue-200 px-4 py-3 dark:border-blue-400/20">
+                  <CardTitle className="flex items-center gap-2 text-xs font-semibold">
+                    <FileText className="h-4 w-4 text-blue-600 dark:text-blue-300" />
+                    Employee Query
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="px-3 py-3">
-                  <p className="text-[10px] leading-4 text-foreground">
+                <CardContent className="px-4 py-3">
+                  <p className="text-xs leading-5 text-foreground">
                     {firstMessage?.message || '—'}
                   </p>
                   {attachments.length > 0 && (
-                    <div className="mt-3">
+                    <div className="payroll-query-detail-attachments mt-3">
                       <PayrollAttachmentList attachments={attachments} />
                     </div>
                   )}
-                  <p className="mt-2 text-[8px] text-muted-foreground">
+                  <p className="mt-2 text-[10px] text-muted-foreground">
                     Submitted on {formatDateTime(firstMessage?.addedAt || query.createdAt)}
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="shadow-none">
-                <CardHeader className="border-b border-border px-3 py-2.5">
-                  <CardTitle className="text-[11px] font-semibold">Conversation &amp; Updates</CardTitle>
+              <Card className="payroll-query-detail-card shadow-none">
+                <CardHeader className="border-b border-border px-4 py-3">
+                  <CardTitle className="flex items-center gap-2 text-xs font-semibold">
+                    <MessageSquareMore className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                    Conversation &amp; Updates
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="px-3 py-3">
+                <CardContent className="px-4 py-3">
                   {!messages.length && (
-                    <p className="py-3 text-center text-[10px] text-muted-foreground">No messages available.</p>
+                    <p className="py-3 text-center text-xs text-muted-foreground">No messages available.</p>
                   )}
                   <div className="space-y-3">
                     {messages.map((item, index) => {
@@ -2171,18 +2214,17 @@ function SalaryQueryDetailSheet({ query, onOpenChange }) {
                       const name = item.addedBy?.name || item.addedBy?.employeeId || 'Team member';
                       const messageAttachments = Array.isArray(item.attachments) ? item.attachments : [];
                       return (
-                        <div key={item._id || `${name}-${item.addedAt}-${index}`} className="relative flex gap-2.5">
-                          {index < messages.length - 1 && <span className="absolute left-3 top-6 h-[calc(100%+12px)] border-l border-border" />}
-                          <span className={`payroll-query-update payroll-query-update-${isEmployee ? 'blue' : 'orange'}`}>
-                            {isEmployee ? <UserRound className="h-3 w-3" /> : <Headphones className="h-3 w-3" />}
-                          </span>
-                          <div className="min-w-0 pt-0.5">
-                            <p className="text-[9px] font-semibold text-foreground">
-                              {name} <span className="ml-2 font-normal text-muted-foreground">{formatDateTime(item.addedAt)}</span>
-                            </p>
-                            <p className="mt-0.5 text-[9px] leading-4 text-muted-foreground">{item.message}</p>
+                        <div key={item._id || `${name}-${item.addedAt}-${index}`} className="relative flex gap-3">
+                          {index < messages.length - 1 && <span className="absolute left-1.5 top-4 h-[calc(100%+12px)] border-l border-border" />}
+                          <span className={`relative z-10 mt-1 h-3 w-3 shrink-0 rounded-full ${isEmployee ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="truncate text-[11px] font-semibold text-foreground">{name}</p>
+                              <time className="shrink-0 text-[10px] text-muted-foreground">{formatDateTime(item.addedAt)}</time>
+                            </div>
+                            <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">{item.message}</p>
                             {messageAttachments.length > 0 && (
-                              <div className="mt-2">
+                              <div className="payroll-query-detail-attachments mt-2">
                                 <PayrollAttachmentList attachments={messageAttachments} />
                               </div>
                             )}
@@ -2191,27 +2233,41 @@ function SalaryQueryDetailSheet({ query, onOpenChange }) {
                       );
                     })}
                   </div>
+
+                  <div className="mt-4 border-t border-border pt-3">
+                    <Label htmlFor="salary-query-reply" className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-300">Add Reply</Label>
+                    <Textarea
+                      id="salary-query-reply"
+                      value={reply}
+                      onChange={(event) => setReply(event.target.value)}
+                      placeholder="Type your reply or additional information..."
+                      disabled={isSendingReply}
+                      className="mt-2 min-h-12 resize-none text-xs"
+                    />
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <Button type="button" variant="outline" disabled={['Resolved', 'Closed'].includes(query.status)} className="h-9 gap-2 border-emerald-300 text-[11px] text-emerald-600 dark:border-emerald-400/35 dark:text-emerald-300">
+                        <Check className="h-3.5 w-3.5 rounded-full border border-current p-0.5" />
+                        Resolve Query
+                      </Button>
+                      <Button
+                        type="button"
+                        disabled={!reply.trim() || !query?._id || isSendingReply}
+                        className="h-9 gap-2 bg-emerald-500 text-[11px] text-white hover:bg-emerald-600"
+                        onClick={handleSendReply}
+                      >
+                        {isSendingReply ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                        {isSendingReply ? 'Sending...' : 'Send Reply'}
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
-              <div className="flex items-center justify-between gap-3 rounded-md border border-blue-200 bg-blue-50/50 px-3 py-2.5 dark:border-blue-400/25 dark:bg-blue-400/5">
-                <span className="flex items-center gap-2">
-                  <Headphones className="h-4 w-4 text-blue-600 dark:text-blue-300" />
-                  <span>
-                    <span className="block text-[9px] font-semibold">Need Help?</span>
-                    <span className="block text-[8px] text-muted-foreground">Still need help? Contact HR or Finance team.</span>
-                  </span>
-                </span>
-                <Button variant="outline" size="sm" className="h-7 gap-1.5 px-2 text-[9px] text-primary">
-                  <Headphones className="h-3 w-3" />
-                  Contact Support
-                </Button>
-              </div>
             </div>
           </>
         )}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -2543,6 +2599,40 @@ function SalaryQueriesTab({ filters, onFilterChange, payrollSalary }) {
     },
     onError: (error) => toast.error(getApiErrorMessage(error, 'Unable to submit payroll query')),
   });
+  const replyToPayrollQueryMutation = useMutation({
+    mutationFn: (values) => EmployeeV2Service.replyToMyPayrollQuery(values),
+    onSuccess: (response, values) => {
+      const responseData = response.data?.data;
+      const updatedQuery = responseData?.query
+        || responseData?.payrollQuery
+        || (responseData?._id ? responseData : null);
+
+      setSelectedQuery((current) => {
+        if (!current || current._id !== values.queryId) return current;
+        if (updatedQuery) return { ...current, ...updatedQuery };
+
+        return {
+          ...current,
+          updatedAt: new Date().toISOString(),
+          messages: [
+            ...(Array.isArray(current.messages) ? current.messages : []),
+            {
+              _id: `local-${Date.now()}`,
+              message: values.message,
+              addedAt: new Date().toISOString(),
+              addedBy: {
+                ...(current.employee || {}),
+                accessRole: 'Employee',
+              },
+            },
+          ],
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: ['employee-payroll-queries'] });
+      toast.success(response.data?.message || 'Reply sent successfully');
+    },
+    onError: (error) => toast.error(getApiErrorMessage(error, 'Unable to send reply')),
+  });
   const queries = Array.isArray(payrollQueriesQuery.data?.queries)
     ? payrollQueriesQuery.data.queries
     : [];
@@ -2756,7 +2846,12 @@ function SalaryQueriesTab({ filters, onFilterChange, payrollSalary }) {
         onSubmit={(values) => createPayrollQueryMutation.mutateAsync(values)}
         isSubmitting={createPayrollQueryMutation.isPending}
       />
-      <SalaryQueryDetailSheet query={selectedQuery} onOpenChange={(open) => !open && setSelectedQuery(null)} />
+      <SalaryQueryDetailDialog
+        query={selectedQuery}
+        onOpenChange={(open) => !open && setSelectedQuery(null)}
+        onSendReply={(values) => replyToPayrollQueryMutation.mutateAsync(values)}
+        isSendingReply={replyToPayrollQueryMutation.isPending}
+      />
     </div>
   );
 }

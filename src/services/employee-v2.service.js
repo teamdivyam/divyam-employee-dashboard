@@ -225,6 +225,11 @@ const EmployeeV2Service = {
                 ...(period ? { period } : {}),
             },
         }),
+    replyToMyPayrollQuery: ({ queryId, message } = {}) =>
+        employeeV2Request.patch(
+            `/payroll/me/queries/${encodeURIComponent(queryId)}`,
+            { message: message.trim() },
+        ),
     getMyLoans: ({ page = 1, limit = 20, status, issuedPeriod } = {}) =>
         employeeV2Request.get("/payroll/me/loans", {
             params: {
