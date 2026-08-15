@@ -3,6 +3,7 @@ node_modules/
 
 # Vite build output
 dist/
+stats.html
 vite.config.ts.timestamp-*
 
 # Logs

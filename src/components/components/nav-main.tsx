@@ -24,6 +24,7 @@ type NavItem = {
   icon?: LucideIcon;
   isActive?: boolean;
   target?: string;
+  notificationCount?: number;
   items?: {
     title: string;
     url: string;
@@ -32,7 +33,7 @@ type NavItem = {
 
 const linkClass = (isActive: boolean) =>
   cn(
-    "h-9 rounded-[7px] border px-2 text-[12px] font-medium leading-none transition-all",
+    "relative h-9 rounded-[7px] border px-2 text-[12px] font-medium leading-none transition-all",
     "text-slate-100 hover:border-[#d59b2d]/70 hover:bg-[#d59b2d]/12 hover:text-white",
     "group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
     isActive
@@ -157,6 +158,11 @@ export function NavMain({ items }: { items: NavItem[] }) {
                   <span className="text-[12px] truncate group-data-[collapsible=icon]:hidden">
                     {item.title}
                   </span>
+                  {Number(item.notificationCount) > 0 && (
+                    <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:right-0 group-data-[collapsible=icon]:top-0 group-data-[collapsible=icon]:min-w-3 group-data-[collapsible=icon]:px-1">
+                      {Number(item.notificationCount) > 99 ? "99+" : item.notificationCount}
+                    </span>
+                  )}
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>

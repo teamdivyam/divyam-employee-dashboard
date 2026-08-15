@@ -34,6 +34,8 @@ const NOTIFICATION_STYLES = {
   due_date_change_responded: { icon: CalendarClock, className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
   task_marked_completed: { icon: CheckCircle2, className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
   task_sent_for_rework: { icon: RotateCcw, className: "bg-rose-500/10 text-rose-600 dark:text-rose-400" },
+  task_updated: { icon: RotateCcw, className: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
+  task_deleted: { icon: Trash2, className: "bg-rose-500/10 text-rose-600 dark:text-rose-400" },
 };
 
 const getNotificationStyle = (type) => NOTIFICATION_STYLES[type] || NOTIFICATION_STYLES.task_message;

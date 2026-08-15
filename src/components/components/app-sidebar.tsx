@@ -42,7 +42,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@components/components/ui/sidebar";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import useCurrentEmployee from "../../hooks/useCurrentEmployee";
 import EmployeeV2Service from "../../services/employee-v2.service";
 import { toast } from "sonner";
@@ -61,6 +61,7 @@ type NavItem = {
   icon?: LucideIcon;
   isActive?: boolean;
   target?: string;
+  notificationCount?: number;
   items?: {
     title: string;
     url: string;
@@ -187,6 +188,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const employeeName = employee?.name || "Employee";
   const employeeRole = employee?.accessRole || "Employee";
   const avatarUrl = getAvatarUrl(employee?.profileImage?.smallUrl ?? undefined);
+  const { data: notificationsData } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: async () => {
+      const response = await EmployeeV2Service.getMyNotifications({ limit: 20 });
+      return response.data?.data;
+    },
+    enabled: Boolean(employee?._id),
+    staleTime: 0,
+  });
+  const taskUnreadCount = Number(notificationsData?.taskUnreadCount) || 0;
+  const navItems = React.useMemo(
+    () => navMain.map((item) => item.title === "My Tasks"
+      ? { ...item, notificationCount: taskUnreadCount }
+      : item),
+    [taskUnreadCount],
+  );
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -235,7 +252,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent className="px-2 pb-2 group-data-[collapsible=icon]:px-1">
-        <NavMain items={navMain} />
+        <NavMain items={navItems} />
       </SidebarContent>
 
       <div className="mx-3 mb-2 mt-auto h-px bg-white/10 group-data-[collapsible=icon]:hidden" />

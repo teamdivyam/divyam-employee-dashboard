@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -69,6 +69,30 @@ export default function MyTasksPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const markedNotificationIdsRef = useRef(new Set());
+
+  const { data: notificationsData } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: async () => {
+      const response = await EmployeeV2Service.getMyNotifications({ limit: 20 });
+      return response.data?.data;
+    },
+    staleTime: 0,
+  });
+  const unreadTaskNotifications = notificationsData?.unreadTaskNotifications
+    || (notificationsData?.notifications || []).filter((notification) => !notification.isRead && notification.task);
+  const unreadCountByTask = useMemo(() => {
+    const counts = new Map();
+    unreadTaskNotifications.forEach((notification) => {
+      [notification.task, notification.taskId]
+        .filter(Boolean)
+        .forEach((taskKey) => {
+          const key = String(taskKey);
+          counts.set(key, (counts.get(key) || 0) + 1);
+        });
+    });
+    return counts;
+  }, [unreadTaskNotifications]);
 
   useEffect(() => {
     const taskIdFromLink = searchParams.get("taskId");
@@ -82,6 +106,21 @@ export default function MyTasksPage() {
       return next;
     }, { replace: true });
   }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!isDetailOpen || !selectedTaskId) return;
+
+    const selectedKey = String(selectedTaskId);
+    const unreadForTask = unreadTaskNotifications.filter((notification) => (
+      String(notification.task) === selectedKey || String(notification.taskId) === selectedKey
+    ) && !markedNotificationIdsRef.current.has(String(notification._id)));
+    if (!unreadForTask.length) return;
+
+    unreadForTask.forEach((notification) => markedNotificationIdsRef.current.add(String(notification._id)));
+    void Promise.allSettled(
+      unreadForTask.map((notification) => EmployeeV2Service.markNotificationRead(notification._id)),
+    ).then(() => queryClient.invalidateQueries({ queryKey: ["notifications"] }));
+  }, [isDetailOpen, queryClient, selectedTaskId, unreadTaskNotifications]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -557,9 +596,14 @@ export default function MyTasksPage() {
                         <span className="text-xs text-muted-foreground">{task.progressPercent ?? 0}%</span>
                       </div>,
                       <TaskStatusPill status={getDisplayTaskStatus(task)} />,
-                      <TableButton compact onClick={() => openTaskDetail(task)}>
-                        {["Completed", "Cancelled", "Rejected"].includes(task.status) ? "View" : "Update"}
-                      </TableButton>,
+                      <div className="relative">
+                        <TableButton compact onClick={() => openTaskDetail(task)}>
+                          {["Completed", "Cancelled", "Rejected"].includes(task.status) ? "View" : "Update"}
+                        </TableButton>
+                        {Math.max(unreadCountByTask.get(String(task._id)) || 0, unreadCountByTask.get(String(task.taskId)) || 0) > 0 ? (
+                          <span className="pointer-events-none absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-background bg-red-500" />
+                        ) : null}
+                      </div>,
                     ];
                   })}
                 />
