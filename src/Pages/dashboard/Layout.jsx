@@ -1,12 +1,8 @@
-import React, { useEffect } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-} from "@components/components/ui/breadcrumb";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   SidebarInset,
   SidebarProvider,
@@ -29,6 +25,7 @@ import {
   setLightTheme,
 } from "@/store/Theme/themeSlice";
 import useCurrentEmployee from "../../hooks/useCurrentEmployee";
+import EmployeeV2Service from "../../services/employee-v2.service";
 
 const getInitials = (name = "") => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -51,8 +48,11 @@ const getAvatarUrl = (avatar) => {
 
 export default function Layout() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const theme = useSelector((state) => state.theme);
   const { data: employee } = useCurrentEmployee();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     if (!["light", "dark"].includes(theme)) return;
@@ -83,6 +83,27 @@ export default function Layout() {
     } else {
       dispatch(setDarkTheme());
       localStorage.setItem("theme", "dark");
+    }
+  };
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+
+    try {
+      const response = await EmployeeV2Service.logout();
+      queryClient.clear();
+      localStorage.removeItem("AppID");
+      toast.success(response.data?.message || "Logout successful");
+      navigate("/login", { replace: true });
+    } catch (error) {
+      const message = error.response?.data?.error?.message
+        || error.response?.data?.message
+        || error.response?.data?.msg
+        || "Unable to logout. Please try again.";
+      toast.error(message);
+      setIsLoggingOut(false);
     }
   };
 
@@ -120,8 +141,9 @@ export default function Layout() {
             <NotificationBell />
             <div className="adminProfile cursor-pointer">
             <DropdownMenu>
-              <DropdownMenuTrigger>
-                <div
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
                   className="flex items-center gap-2 rounded-xl border-border bg-card px-2 py-1 transition-colors hover:bg-accent"
                 >
                   <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary" >
@@ -144,9 +166,9 @@ export default function Layout() {
                       {employeeRole}
                     </p>
                   </div>
-                </div>
+                </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuContent align="end" className="z-[110] w-40">
                 <DropdownMenuLabel>
                   <div className="space-y-1">
                     <p className="font-medium">
@@ -161,21 +183,19 @@ export default function Layout() {
 
                 <DropdownMenuSeparator />
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <NavLink to={"settings?tab=my-profile"} className="w-full">
-                    <span className="flex items-center justify-start gap-2">
-                      <UserRound className="size-4 " />
-                      <span className="">Profile</span>
-                    </span>
-                  </NavLink>
+                <DropdownMenuItem
+                  onSelect={() => navigate("/dashboard/settings?tab=my-profile")}
+                  className="cursor-pointer"
+                >
+                  <UserRound className="size-4" />
+                  <span>Profile</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <NavLink to="settings?tab=account-settings" className="w-full">
-                    <span className="flex items-center justify-start gap-2">
-                      <Settings className="size-4 " />
-                      <span className="">Account</span>
-                    </span>
-                  </NavLink>
+                <DropdownMenuItem
+                  onSelect={() => navigate("/dashboard/settings?tab=account-settings")}
+                  className="cursor-pointer"
+                >
+                  <Settings className="size-4" />
+                  <span>Account</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={handleToggleTheme}
@@ -196,14 +216,12 @@ export default function Layout() {
                   </span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
+                  onSelect={handleLogout}
+                  disabled={isLoggingOut}
+                  className="cursor-pointer text-destructive focus:text-destructive"
                 >
-                  <NavLink to="/dashboard/logout" className="w-full">
-                    <span className="flex items-center justify-start gap-2 ">
-                      <LogOut className="size-4" />
-                      <span className="">Logout</span>
-                    </span>
-                  </NavLink>
+                  <LogOut className="size-4" />
+                  <span>{isLoggingOut ? "Logging out..." : "Logout"}</span>
                 </DropdownMenuItem>
 
               </DropdownMenuContent>
