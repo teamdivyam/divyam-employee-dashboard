@@ -49,6 +49,7 @@ import {
   getDueDateNote,
   getFileIconStyle,
   getInitials,
+  getTaskTitleValidationError,
   getTaskStatusTone,
 } from "./taskHelpers";
 
@@ -264,9 +265,12 @@ export default function TaskDetailDialog({
       return;
     }
 
-    if (infoChanged && !editTaskTitle.trim()) {
-      toast.error("Task name is required");
-      return;
+    if (infoChanged) {
+      const taskTitleError = getTaskTitleValidationError(editTaskTitle);
+      if (taskTitleError) {
+        toast.error(taskTitleError);
+        return;
+      }
     }
 
     if (infoChanged) {
@@ -444,8 +448,8 @@ export default function TaskDetailDialog({
             {isEditingInfo ? (
               <>
                 <div className="space-y-1">
-                  <Label className="text-[11px] text-muted-foreground">Task Name</Label>
-                  <Input value={editTaskTitle} onChange={(event) => setEditTaskTitle(event.target.value)} className="h-8 text-xs" />
+                  <Label className="text-[11px] text-muted-foreground">Task Title</Label>
+                  <Input value={editTaskTitle} maxLength={50} onChange={(event) => setEditTaskTitle(event.target.value)} className="h-8 text-xs" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[11px] text-muted-foreground">Expected Outcome</Label>
