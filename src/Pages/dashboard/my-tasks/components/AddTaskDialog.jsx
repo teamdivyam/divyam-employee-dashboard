@@ -34,7 +34,7 @@ import EmployeeV2Service from "@/services/employee-v2.service";
 import useCurrentEmployee from "@/hooks/useCurrentEmployee";
 
 import { formatDate } from "./WorkPanelUI";
-import { SectionHeader, getAvatarUrl, getInitials } from "./taskHelpers";
+import { SectionHeader, getAvatarUrl, getInitials, getTaskTitleValidationError } from "./taskHelpers";
 
 export default function AddTaskDialog({ open, onOpenChange, task, setTask, createTaskMutation }) {
   const setField = (key, value) => setTask((current) => ({ ...current, [key]: value }));
@@ -55,8 +55,14 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
   const handleSubmit = (event) => {
     event.preventDefault();
 
-    if (!task.taskTitle.trim() || !task.dueDate) {
-      toast.error("Task title and due date are required");
+    if (!task.dueDate) {
+      toast.error("Due date is required");
+      return;
+    }
+
+    const taskTitleError = getTaskTitleValidationError(task.taskTitle);
+    if (taskTitleError) {
+      toast.error(taskTitleError);
       return;
     }
 
@@ -297,7 +303,7 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
             <SectionHeader index={3} tone="violet" title="Task Details" />
 
             <div className="grid gap-2 rounded-md border border-violet-200 p-2 dark:border-violet-400/30 sm:grid-cols-2">
-              <FormInput label="Task Name" required value={task.taskTitle} onChange={(value) => setField("taskTitle", value)} />
+              <FormInput label="Task Title" required maxLength={50} helper="Maximum 50 characters" value={task.taskTitle} onChange={(value) => setField("taskTitle", value)} />
               <FormInput label="Linked To" value={task.relatedTo} onChange={(value) => setField("relatedTo", value)} />
               <FormInput label="Due Date" type="date" required min={new Date().toISOString().slice(0, 10)} value={task.dueDate} onChange={(value) => setField("dueDate", value)} />
               <FormInput label="Due Time (Optional)" type="time" value={task.dueTime} onChange={(value) => setField("dueTime", value)} />
@@ -357,14 +363,15 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
   );
 }
 
-function FormInput({ label, value, onChange, type = "text", required = false, min }) {
+function FormInput({ label, value, onChange, type = "text", required = false, min, maxLength, helper }) {
   return (
     <div className="space-y-1">
       <label className="text-xs font-semibold text-foreground">
         {label}
         {required && <span className="text-red-600"> *</span>}
       </label>
-      <Input type={type} value={value || ""} onChange={(event) => onChange(event.target.value)} min={min} className="h-8 text-xs" />
+      <Input type={type} value={value || ""} onChange={(event) => onChange(event.target.value)} min={min} maxLength={maxLength} className="h-8 text-xs" />
+      {helper ? <p className="text-[10px] text-muted-foreground">{helper}</p> : null}
     </div>
   );
 }
