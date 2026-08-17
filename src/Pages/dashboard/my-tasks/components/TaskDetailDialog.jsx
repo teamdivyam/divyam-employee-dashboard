@@ -45,6 +45,7 @@ import {
   TaskStatusPill,
   formatFileSize,
   getAvatarUrl,
+  getDisplayTaskTitle,
   getDisplayTaskStatus,
   getDueDateNote,
   getFileIconStyle,
@@ -55,6 +56,13 @@ import {
 
 const WORK_REQUEST_EDITABLE_STATUSES = ["In Progress", "Submitted"];
 const SELF_TASK_EDITABLE_STATUSES = ["In Progress", "Completed"];
+const TASK_ROLE_RANK = {
+  Employee: 1,
+  Finance: 1,
+  Inventory: 1,
+  Admin: 2,
+  "Super Admin": 3,
+};
 
 const ESCALATION_TYPES = [
   "Clarification Required",
@@ -124,6 +132,12 @@ export default function TaskDetailDialog({
   const isDiscussionLocked = isLocked;
   const isTaskFromAdmin = task?.taskType !== "Self Task" && ["Admin", "Super Admin"].includes(task?.createdByRole);
   const isViewerSuperAdmin = currentEmployee?.accessRole === "Super Admin";
+  const isHigherHierarchyRecipient = isRecipient
+    && TASK_ROLE_RANK[task?.assignedToRole || currentEmployee?.accessRole]
+      > TASK_ROLE_RANK[task?.createdByRole];
+  const isReadyForReview = ["Submitted", "Pending Approval", "Under Admin Review"].includes(status);
+  const canParticipantMarkCompleted = (isRequester || isHigherHierarchyRecipient)
+    && !isPendingAcceptance && isReadyForReview;
   const hideEscalateButton = isTaskFromAdmin || isViewerSuperAdmin;
   const displayStatus = getDisplayTaskStatus({ ...task, status });
   const workLockedMessage = isLocked
@@ -292,6 +306,28 @@ export default function TaskDetailDialog({
     }
   };
 
+  const handleMarkAsCompleted = () => {
+    const taskId = task.taskId || task._id;
+    const onSuccess = (response) => {
+      const updated = response?.data?.data?.task;
+      setStatus(updated?.status || "Completed");
+      setProgressPercent(updated?.progressPercent ?? 100);
+    };
+
+    if (isRequester) {
+      reviewTaskMutation.mutate(
+        { taskId, decision: "approve" },
+        { onSuccess }
+      );
+      return;
+    }
+
+    updateProgressMutation.mutate(
+      { taskId, status: "Completed", progressPercent: 100 },
+      { onSuccess }
+    );
+  };
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-b border-border bg-background p-4">
@@ -449,7 +485,7 @@ export default function TaskDetailDialog({
               <>
                 <div className="space-y-1">
                   <Label className="text-[11px] text-muted-foreground">Task Title</Label>
-                  <Input value={editTaskTitle} maxLength={50} onChange={(event) => setEditTaskTitle(event.target.value)} className="h-8 text-xs" />
+                  <Input value={editTaskTitle} maxLength={30} onChange={(event) => setEditTaskTitle(event.target.value)} className="h-8 text-xs" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[11px] text-muted-foreground">Expected Outcome</Label>
@@ -463,7 +499,7 @@ export default function TaskDetailDialog({
               <div className="space-y-1">
                 <p className="text-[11px] text-muted-foreground">Task Name</p>
                 <div className="truncate rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-xs font-medium text-foreground">
-                  {task.taskTitle}
+                  {getDisplayTaskTitle(task.taskTitle)}
                 </div>
               </div>
               <div className="space-y-1">
@@ -1198,33 +1234,22 @@ export default function TaskDetailDialog({
         </Button>
         )}
         <div className="flex justify-end gap-2">
+          {(isRequester || isHigherHierarchyRecipient) && task.taskType === "Work Request" && status !== "Completed" && !isPendingAcceptance && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2 border-emerald-300 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-400/40"
+              disabled={reviewTaskMutation.isPending || updateProgressMutation.isPending || !canParticipantMarkCompleted}
+              title={!canParticipantMarkCompleted ? "Available after the task is submitted" : undefined}
+              onClick={handleMarkAsCompleted}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Mark As Completed
+            </Button>
+          )}
           {isRequester && !isPendingAcceptance ? (
             <>
-              {task.taskType === "Work Request" && status !== "Completed" && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 border-emerald-300 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-400/40"
-                  disabled={reviewTaskMutation.isPending || !["Submitted", "Pending Approval"].includes(status)}
-                  title={!["Submitted", "Pending Approval"].includes(status) ? "Available once the assignee submits their work" : undefined}
-                  onClick={() => {
-                    reviewTaskMutation.mutate(
-                      { taskId: task.taskId || task._id, decision: "approve" },
-                      {
-                        onSuccess: (response) => {
-                          const updated = response.data?.data?.task;
-                          setStatus(updated?.status || "Completed");
-                          setProgressPercent(updated?.progressPercent ?? 100);
-                        },
-                      }
-                    );
-                  }}
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  Mark As Completed
-                </Button>
-              )}
               <Button
                 type="button"
                 variant="outline"

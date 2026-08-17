@@ -303,7 +303,7 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
             <SectionHeader index={3} tone="violet" title="Task Details" />
 
             <div className="grid gap-2 rounded-md border border-violet-200 p-2 dark:border-violet-400/30 sm:grid-cols-2">
-              <FormInput label="Task Title" required maxLength={50} helper="Maximum 50 characters" value={task.taskTitle} onChange={(value) => setField("taskTitle", value)} />
+              <FormInput label="Task Title" required maxLength={30} helper="Maximum 30 characters" value={task.taskTitle} onChange={(value) => setField("taskTitle", value)} />
               <FormInput label="Linked To" value={task.relatedTo} onChange={(value) => setField("relatedTo", value)} />
               <FormInput label="Due Date" type="date" required min={new Date().toISOString().slice(0, 10)} value={task.dueDate} onChange={(value) => setField("dueDate", value)} />
               <FormInput label="Due Time (Optional)" type="time" value={task.dueTime} onChange={(value) => setField("dueTime", value)} />

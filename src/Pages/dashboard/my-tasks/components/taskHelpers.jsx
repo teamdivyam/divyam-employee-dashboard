@@ -43,15 +43,14 @@ export const getTaskStatusTone = (status) => TASK_STATUS_TONE[status] || "slate"
 export const getTaskTitleValidationError = (value) => {
   const title = String(value || "").trim();
   if (!title) return "Task title is required";
-  if (title.length > 50) return "Task title must be 50 characters or fewer";
+  if (title.length > 30) return "Task title must be 30 characters or fewer";
   return "";
 };
 
+export const getDisplayTaskTitle = (value) =>
+  String(value || "").slice(0, 30);
+
 export const getDisplayTaskStatus = (task) => {
-  const isAdminAssigned = task?.taskType !== "Self Task" && ["Admin", "Super Admin"].includes(task?.createdByRole);
-  if (isAdminAssigned && ["Submitted", "Pending Approval"].includes(task?.status)) {
-    return "Under Admin Review";
-  }
   return task?.status;
 };
 

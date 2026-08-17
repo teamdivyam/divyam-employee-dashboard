@@ -35,6 +35,7 @@ import {
   PRIORITY_BADGE_CLASS,
   TaskStatusPill,
   getAvatarUrl,
+  getDisplayTaskTitle,
   getDisplayTaskStatus,
   getDueDateNote,
   getInitials,
@@ -558,7 +559,7 @@ export default function MyTasksPage() {
                     return [
                       <button type="button" className="flex items-center gap-3 text-left" onClick={() => openTaskDetail(task)}>
                         <IconPill icon={ClipboardList} tone={getTaskStatusTone(task.status)} />
-                        <p className="font-semibold text-foreground">{task.taskTitle}</p>
+                        <p className="font-semibold text-foreground">{getDisplayTaskTitle(task.taskTitle)}</p>
                       </button>,
                       <span className="text-xs text-muted-foreground">{task.taskType}</span>,
                       <div>
