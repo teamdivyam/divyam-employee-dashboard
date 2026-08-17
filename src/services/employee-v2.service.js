@@ -44,7 +44,7 @@ employeeV2Request.interceptors.response.use(
 );
 
 const EmployeeV2Service = {
-    login: (formData) => employeeV2Request.post("/auth/login", formData),
+    login: (formData) => employeeV2Request.post("/auth/loginAndRedirect", formData),
     refresh: () => employeeV2Request.post("/auth/refresh"),
     logout: () => employeeV2Request.post("/auth/logout"),
     logoutAll: () => employeeV2Request.post("/auth/logout-all"),

@@ -28,7 +28,7 @@ axiosRequest.interceptors.response.use(
     (error) => {
         if (error.response && error.response.status === 401) {
             const errorMessage = error.response.data.message;
-            window.location.href = config.PRODUCTION_MODE === "production" ? "https://admin.divyam.com/login" : "http://localhost:5173/login";
+            window.location.href = config.PRODUCTION_MODE === "production" ? "https://admin.divyam.com/login" : "http://localhost:5174/login";
 
         }
 

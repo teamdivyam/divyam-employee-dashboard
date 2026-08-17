@@ -385,7 +385,6 @@
 
 // export default LoginPage;
 
-import { config } from "../../../config.js";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@components/components/ui/button";
 import {
@@ -398,37 +397,33 @@ import {
 import { Input } from "@components/components/ui/input";
 import { Label } from "@components/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@components/components/ui/avatar";
-import { Navigate, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, NavLink } from "react-router-dom";
 
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 
 import { LoginFormSchema } from "@/validator/auth.validator.js";
-import { useGoogleReCaptcha } from "react-google-recaptcha-v3";
 import { toast } from "sonner";
 import { Eye, EyeOff, Mail, Lock, Loader2 } from "lucide-react";
 import EmployeeV2Service from "../../services/employee-v2.service.js";
-import useAuthSession, { AUTH_SESSION_QUERY_KEY } from "../../hooks/useAuthSession.js";
+import useAuthSession from "../../hooks/useAuthSession.js";
 import SuspenseLoader from "../../components/components/SuspenseLoader.jsx";
 
 /* ---------------- API FUNCTIONS ---------------- */
 
-const fetchLogin = async ({ email, password, recaptchaToken }) => {
+const fetchLogin = async ({ email, password }) => {
   const response = await EmployeeV2Service.login({
-    email, password, recaptchaToken
+    email,
+    password,
   });
-  
+
   return response.data;
 };
 
 /* ---------------- COMPONENT ---------------- */
 
 const LoginPage = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const queryClient = useQueryClient();
-  const { executeRecaptcha } = useGoogleReCaptcha();
   const { data: session, isPending: isCheckingSession } = useAuthSession();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -460,20 +455,20 @@ const LoginPage = () => {
     onMutate: () => {
       setIsSubmitting(true);
     },
-    onSuccess: (data) => {
-      const employee = data.data?.employee;
-      queryClient.setQueryData(AUTH_SESSION_QUERY_KEY, employee || {});
-      toast.success(data.message || "Login successful");
+    onSuccess: (result) => {
+      const redirectUrl = result.data?.redirectUrl;
 
-      const requestedPath = location.state?.from?.pathname;
-      const destination = employee?.mustChangePassword
-        ? "/dashboard/setting/change-password"
-        : requestedPath || "/dashboard";
+      if (!redirectUrl) {
+        throw new Error("Login succeeded, but no portal redirect was provided.");
+      }
 
-      navigate(destination, { replace: true });
+      toast.success(result.message || "Login successful");
+      window.location.assign(redirectUrl);
     },
     onError: (error) => {
-      const errorMsg = error.response?.data?.message || "Login failed. Please check your credentials.";
+      const errorMsg = error.response?.data?.message
+        || error.message
+        || "Login failed. Please check your credentials.";
       toast.error(errorMsg, {
         duration: 4000,
         position: "top-center",
@@ -486,23 +481,8 @@ const LoginPage = () => {
 
   /* ---------------- SUBMIT HANDLER ---------------- */
 
-  const onSubmit = async (data) => {
-    if (!executeRecaptcha) {
-      toast.error("reCAPTCHA not ready. Please refresh the page.");
-      return;
-    }
-
-    let recaptchaToken = undefined;
-    if (config.PRODUCTION_MODE === "production") {
-      try {
-        recaptchaToken = await executeRecaptcha("employee_login");
-      } catch {
-        toast.error("reCAPTCHA verification failed. Please try again.");
-        return;
-      }
-    }
-
-    loginMutation.mutate({ ...data, recaptchaToken });
+  const onSubmit = ({ email, password }) => {
+    loginMutation.mutate({ email, password });
   };
 
   /* ---------------- AUTH CHECK ---------------- */
@@ -755,7 +735,7 @@ const LoginPage = () => {
                         </p>
 
                         <p className="text-xs text-muted-foreground mt-1">
-                          Protected by reCAPTCHA verification and encrypted
+                          Protected by secure HTTP-only cookies and encrypted
                           transmission.
                         </p>
                       </div>
