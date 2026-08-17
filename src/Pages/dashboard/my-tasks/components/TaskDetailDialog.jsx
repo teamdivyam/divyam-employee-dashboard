@@ -312,6 +312,7 @@ export default function TaskDetailDialog({
       const updated = response?.data?.data?.task;
       setStatus(updated?.status || "Completed");
       setProgressPercent(updated?.progressPercent ?? 100);
+      onClose();
     };
 
     if (isRequester) {
@@ -562,6 +563,7 @@ export default function TaskDetailDialog({
                                 setStatus(updated.status);
                                 setProgressPercent(updated.progressPercent ?? 0);
                               }
+                              onClose();
                             },
                           }
                         )}
@@ -817,7 +819,10 @@ export default function TaskDetailDialog({
                       size="sm"
                       className="gap-2 text-xs text-red-600"
                       disabled={dueDateChangeRespondMutation.isPending}
-                      onClick={() => dueDateChangeRespondMutation.mutate({ taskId: task.taskId || task._id, action: "reject" })}
+                      onClick={() => dueDateChangeRespondMutation.mutate(
+                        { taskId: task.taskId || task._id, action: "reject" },
+                        { onSuccess: () => onClose() }
+                      )}
                     >
                       Decline
                     </Button>
@@ -826,7 +831,10 @@ export default function TaskDetailDialog({
                       size="sm"
                       className="gap-2 bg-blue-600 text-xs text-white hover:bg-blue-700"
                       disabled={dueDateChangeRespondMutation.isPending}
-                      onClick={() => dueDateChangeRespondMutation.mutate({ taskId: task.taskId || task._id, action: "approve" })}
+                      onClick={() => dueDateChangeRespondMutation.mutate(
+                        { taskId: task.taskId || task._id, action: "approve" },
+                        { onSuccess: () => onClose() }
+                      )}
                     >
                       Approve New Date
                     </Button>
@@ -1224,6 +1232,7 @@ export default function TaskDetailDialog({
                   setEscalationType("");
                   setEscalationAction("");
                   setEscalationReason("");
+                  onClose();
                 },
               }
             );
@@ -1264,6 +1273,7 @@ export default function TaskDetailDialog({
                         const updated = response.data?.data?.task;
                         setStatus(updated?.status || "Rework");
                         setProgressPercent(updated?.progressPercent ?? 0);
+                        onClose();
                       },
                     }
                   );
