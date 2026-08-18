@@ -86,6 +86,16 @@ const ESCALATION_REQUESTED_ACTIONS = [
   "Close / Resolve Issue",
 ];
 
+const scrollTimelineHorizontally = (event) => {
+  if (!event.deltaY) return;
+  const container = event.currentTarget;
+  const maxScrollLeft = container.scrollWidth - container.clientWidth;
+  const nextScrollLeft = Math.min(maxScrollLeft, Math.max(0, container.scrollLeft + event.deltaY));
+  if (nextScrollLeft === container.scrollLeft) return;
+  event.preventDefault();
+  container.scrollLeft = nextScrollLeft;
+};
+
 export default function TaskDetailDialog({
   task,
   detailLoading,
@@ -113,6 +123,7 @@ export default function TaskDetailDialog({
   const [dueDateReason, setDueDateReason] = useState("");
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [editTaskTitle, setEditTaskTitle] = useState("");
+  const [editRelatedToName, setEditRelatedToName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [escalationType, setEscalationType] = useState("");
   const [escalationAction, setEscalationAction] = useState("");
@@ -120,6 +131,7 @@ export default function TaskDetailDialog({
   const [escalationReason, setEscalationReason] = useState("");
   const [showEscalationForm, setShowEscalationForm] = useState(false);
   const discussionListRef = useRef(null);
+  const discussionInputRef = useRef(null);
   const escalationSectionRef = useRef(null);
   const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
@@ -161,6 +173,7 @@ export default function TaskDetailDialog({
     setDueDateReason("");
     setIsEditingInfo(false);
     setEditTaskTitle(task?.taskTitle || "");
+    setEditRelatedToName(task?.relatedTo?.name || "");
     setEditDescription(task?.description || "");
     setEscalationType("");
     setEscalationAction("");
@@ -221,6 +234,7 @@ export default function TaskDetailDialog({
         onSuccess: () => {
           setDiscussionMessage("");
           setDiscussionFiles([]);
+          window.requestAnimationFrame(() => discussionInputRef.current?.focus());
         },
       }
     );
@@ -232,6 +246,7 @@ export default function TaskDetailDialog({
     const noteEntered = note.trim().length > 0;
     const infoChanged = isEditingInfo && (
       editTaskTitle.trim() !== task.taskTitle
+      || editRelatedToName.trim() !== (task.relatedTo?.name || "")
       || editDescription.trim() !== (task.description || "")
     );
     const dueDateRequested = isDueDateFormOpen && Boolean(newDueDate);
@@ -296,6 +311,12 @@ export default function TaskDetailDialog({
         {
           taskId: task.taskId || task._id,
           taskTitle: editTaskTitle.trim(),
+          relatedTo: {
+            type: task.relatedTo?.type || "Internal",
+            refId: task.relatedTo?.refId || null,
+            refModel: task.relatedTo?.refModel || null,
+            name: editRelatedToName.trim(),
+          },
           description: editDescription.trim(),
         },
         {
@@ -465,6 +486,7 @@ export default function TaskDetailDialog({
                     onClick={() => {
                       setIsEditingInfo(false);
                       setEditTaskTitle(task?.taskTitle || "");
+                      setEditRelatedToName(task?.relatedTo?.name || "");
                       setEditDescription(task?.description || "");
                     }}
                     className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
@@ -488,15 +510,21 @@ export default function TaskDetailDialog({
           <div className="space-y-2 rounded-md border border-border p-2">
             {isEditingInfo ? (
               <>
-                <div className="space-y-1">
-                  <Label className="text-[11px] text-muted-foreground">Task Title</Label>
-                  <Input value={editTaskTitle} maxLength={30} onChange={(event) => setEditTaskTitle(event.target.value)} className="h-8 text-xs" />
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">Task Title</Label>
+                    <Input value={editTaskTitle} maxLength={30} onChange={(event) => setEditTaskTitle(event.target.value)} className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">Linked To</Label>
+                    <Input value={editRelatedToName} onChange={(event) => setEditRelatedToName(event.target.value)} className="h-8 text-xs" />
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[11px] text-muted-foreground">Expected Outcome</Label>
-                  <Textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} className="h-20 min-h-20 resize-none text-xs" />
+                  <Textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} className="h-16 min-h-16 resize-none text-xs" />
                 </div>
-                <p className="text-[11px] text-muted-foreground">Edits apply when you click Save Update below.</p>
+                <p className="text-[10px] leading-none text-muted-foreground">Edits apply when you click Save Update below.</p>
               </>
             ) : (
               <>
@@ -936,29 +964,48 @@ export default function TaskDetailDialog({
           </div>
         </div>
 
-        {(task.taskType !== "Self Task" || task.isEscalated || showEscalationForm) && (
         <div className="space-y-1.5">
           <SectionHeader
             index={4}
             tone="grey"
-            title="Activity & Discussion"
+            title={task.taskType === "Self Task" ? "Activity Timeline" : "Activity & Discussion"}
             trailing={
-              <button
+              task.taskType !== "Self Task" ? <button
                 type="button"
                 onClick={notAvailable}
                 className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
               >
                 Show: All Messages
-              </button>
+              </button> : null
             }
           />
-          <div className="grid items-stretch overflow-hidden rounded-md border border-border sm:grid-cols-3">
-            <div className="flex h-64 flex-col overflow-hidden">
+          <div className={`grid items-stretch overflow-hidden rounded-md border border-border ${task.taskType === "Self Task" ? "grid-cols-1" : "sm:grid-cols-3"}`}>
+            <div className={`flex flex-col overflow-hidden ${task.taskType === "Self Task" ? "min-h-32" : "h-64"}`}>
               <p className="border-b border-border px-2.5 pb-2 pt-2.5 text-xs font-semibold text-foreground">
                 Activity Timeline
               </p>
-              <div className="flex-1 overflow-y-auto p-2.5">
-                {(task.activity || []).length ? [...task.activity].reverse().map((entry, index, arr) => (
+              <div
+                className={task.taskType === "Self Task" ? "task-timeline-scroll flex-1 overflow-x-auto px-2.5 py-2" : "flex-1 overflow-y-auto p-2.5"}
+                onWheel={task.taskType === "Self Task" ? scrollTimelineHorizontally : undefined}
+                tabIndex={task.taskType === "Self Task" ? 0 : undefined}
+              >
+                {(task.activity || []).length ? (task.taskType === "Self Task" ? (
+                  <div className="flex min-w-max items-start">
+                    {[...task.activity].reverse().map((entry, index, arr) => (
+                      <div key={entry._id} className="w-44 shrink-0 pr-2 text-xs">
+                        <div className="flex items-center">
+                          <span className="relative z-10 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-primary bg-background" />
+                          {index < arr.length - 1 && <span className="h-px flex-1 bg-border" />}
+                        </div>
+                        <div className="mt-1.5 pr-2">
+                          <p className="text-[11px] text-muted-foreground">{formatDateTime(entry.createdAt)}</p>
+                          <p className="font-medium text-foreground">{entry.action}{entry.note ? ` — ${entry.note}` : ""}</p>
+                          <p className="text-[11px] text-muted-foreground">by {entry.performedByName}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : [...task.activity].reverse().map((entry, index, arr) => (
                   <div key={entry._id} className="relative flex gap-2.5 pb-3 text-xs last:pb-0">
                     {index < arr.length - 1 && (
                       <span className="absolute left-[5px] top-3 h-full w-px bg-border" />
@@ -970,10 +1017,11 @@ export default function TaskDetailDialog({
                       <p className="text-[11px] text-muted-foreground">by {entry.performedByName}</p>
                     </div>
                   </div>
-                )) : <p className="text-xs text-muted-foreground">No activity yet.</p>}
+                ))) : <p className="text-xs text-muted-foreground">No activity yet.</p>}
               </div>
             </div>
 
+            {task.taskType !== "Self Task" && (
             <div className="flex h-64 flex-col overflow-hidden border-t border-border sm:col-span-2 sm:border-l sm:border-t-0">
               <p className="flex items-center gap-1 border-b border-border px-2.5 pb-2 pt-2.5 text-xs font-semibold text-foreground">
                 <MessageSquare className="h-3.5 w-3.5" /> Discussion
@@ -1056,6 +1104,7 @@ export default function TaskDetailDialog({
                     />
                   </label>
                   <Input
+                    ref={discussionInputRef}
                     value={discussionMessage}
                     onChange={(event) => setDiscussionMessage(event.target.value)}
                     onKeyDown={(event) => {
@@ -1102,9 +1151,9 @@ export default function TaskDetailDialog({
                 </div>
               </div>
             </div>
+            )}
           </div>
         </div>
-        )}
 
         {(task.isEscalated || showEscalationForm) && (
         <div ref={escalationSectionRef} className="space-y-1.5">
