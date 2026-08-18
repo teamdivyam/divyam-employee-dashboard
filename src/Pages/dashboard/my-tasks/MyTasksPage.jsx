@@ -45,12 +45,16 @@ import TaskDetailDialog from "./components/TaskDetailDialog";
 import AddTaskDialog from "./components/AddTaskDialog";
 
 const tabs = [
-  ["my_work", "My Work", CalendarCheck],
-  ["requests_sent", "Requests Sent", Send],
-  ["pending_acceptance", "Pending Acceptance", FileText],
-  ["awaiting_review", "Awaiting Review", Eye],
-  ["completed", "Completed", CheckSquare],
+  ["my_work", "My Work", CalendarCheck, "my_work"],
+  ["requests_sent", "Requests Sent", Send, "employee_requests_sent"],
+  ["pending_acceptance", "Pending Acceptance", FileText, "employee_pending_acceptance"],
+  ["awaiting_review", "Awaiting Review", Eye, "awaiting_review"],
+  ["completed", "Completed", CheckSquare, "completed"],
 ];
+
+const SCOPE_BY_TAB = Object.fromEntries(
+  tabs.map(([tab, , , scope]) => [tab, scope]),
+);
 
 
 export default function MyTasksPage() {
@@ -128,6 +132,7 @@ export default function MyTasksPage() {
     const handleTaskUpdated = () => {
       queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["my-task-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["my-task-counters"] });
       queryClient.invalidateQueries({ queryKey: ["my-task-detail"] });
     };
     socket.on("task:updated", handleTaskUpdated);
@@ -157,11 +162,35 @@ export default function MyTasksPage() {
     },
   });
 
+  const pendingAcceptanceCountQuery = useQuery({
+    queryKey: ["my-task-counters", "employee_pending_acceptance"],
+    queryFn: async () => {
+      const response = await EmployeeV2Service.getMyTasksV2({
+        scope: "employee_pending_acceptance",
+        page: 1,
+        limit: 1,
+      });
+      return response.data?.data?.pagination?.total ?? 0;
+    },
+  });
+
+  const requestsSentCountQuery = useQuery({
+    queryKey: ["my-task-counters", "employee_requests_sent"],
+    queryFn: async () => {
+      const response = await EmployeeV2Service.getMyTasksV2({
+        scope: "employee_requests_sent",
+        page: 1,
+        limit: 1,
+      });
+      return response.data?.data?.pagination?.total ?? 0;
+    },
+  });
+
   const tasksQuery = useQuery({
     queryKey: ["my-tasks", filters],
     queryFn: async () => {
       const response = await EmployeeV2Service.getMyTasksV2({
-        scope: filters.tab,
+        scope: SCOPE_BY_TAB[filters.tab] || filters.tab,
         page: filters.page,
         limit: 8,
         search: filters.search || undefined,
@@ -204,6 +233,8 @@ export default function MyTasksPage() {
       setIsAddTaskOpen(false);
       setNewTask(emptyNewTask);
       queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["my-task-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["my-task-counters"] });
     },
     onError: (error) => toast.error(error.response?.data?.message || "Unable to create task"),
   });
@@ -212,6 +243,7 @@ export default function MyTasksPage() {
     queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
     queryClient.invalidateQueries({ queryKey: ["my-task-detail", selectedTaskId] });
     queryClient.invalidateQueries({ queryKey: ["my-task-analytics"] });
+    queryClient.invalidateQueries({ queryKey: ["my-task-counters"] });
   };
 
   const updateProgressMutation = useMutation({
@@ -330,11 +362,15 @@ export default function MyTasksPage() {
   };
 
   const analytics = analyticsQuery.data || {};
+  const employeeTabCounts = {
+    pending_acceptance: pendingAcceptanceCountQuery.data ?? 0,
+    requests_sent: requestsSentCountQuery.data ?? 0,
+  };
   const metricCards = [
     ["Due Today", analytics.dueToday || 0, "Tasks", CalendarCheck, "blue"],
     ["In Progress", analytics.inProgress || 0, "Tasks", RotateCcw, "orange"],
     ["Overdue", analytics.overdue || 0, "Tasks", AlertTriangle, "red"],
-    ["Pending Acceptance", analytics.pendingAcceptance || 0, "Tasks", ClipboardList, "violet"],
+    ["Pending Acceptance", employeeTabCounts.pending_acceptance, "Tasks", ClipboardList, "violet"],
     ["Awaiting Review", analytics.awaitingReview || 0, "Tasks", Eye, "blue"],
     ["Completed This Month", analytics.completedThisMonth || 0, "Tasks", CheckSquare, "green"],
   ];
@@ -358,7 +394,7 @@ export default function MyTasksPage() {
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-2">
                 <div className="flex flex-wrap gap-5">
                   {tabs.map(([value, label, Icon]) => {
-                    const count = analytics.tabCounts?.[value] || 0;
+                    const count = employeeTabCounts[value] ?? analytics.tabCounts?.[value] ?? 0;
                     const isActive = filters.tab === value;
                     return (
                       <button
@@ -510,7 +546,11 @@ export default function MyTasksPage() {
                     "Task Name",
                     "Task Type",
                     "Linked To",
-                    ...(filters.tab === "completed" ? ["Assigned By", "Assigned To"] : [filters.tab === "requests_sent" ? "Assigned To" : "Assigned By"]),
+                    ...(filters.tab === "completed"
+                      ? ["Assigned By", "Assigned To"]
+                      : [filters.tab === "pending_acceptance"
+                        ? "Request With"
+                        : filters.tab === "requests_sent" ? "Assigned To" : "Assigned By"]),
                     "Due Date",
                     "Priority",
                     "Progress",
@@ -520,7 +560,9 @@ export default function MyTasksPage() {
                   rows={tasks.map((task) => {
                     const dueDateNote = getDueDateNote(task.dueDate, task.status, task.completedOn);
                     const isSelfTask = task.taskType === "Self Task";
-                    const showAssignedTo = filters.tab === "requests_sent";
+                    const isTaskCreator = String(task.createdBy) === String(currentEmployee?._id);
+                    const showAssignedTo = filters.tab === "requests_sent"
+                      || (filters.tab === "pending_acceptance" && isTaskCreator);
 
                     const assignedByCell = (
                       <div className="flex items-center gap-2">

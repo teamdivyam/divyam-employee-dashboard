@@ -127,7 +127,9 @@ export default function TaskDetailDialog({
   const isRequester = task && currentEmployee && task.createdBy === currentEmployee._id;
   const isPendingAcceptance = task?.taskType === "Work Request" && task?.acceptanceStatus === "Pending";
   const isPendingDueDateChange = task?.dueDateChangeRequest?.status === "Pending";
-  const isLocked = task?.status === "Completed";
+  const isCompleted = task?.status === "Completed";
+  const isRejected = task?.status === "Rejected";
+  const isLocked = isCompleted || isRejected;
   const isWorkLocked = isLocked || isPendingAcceptance;
   const isDiscussionLocked = isLocked;
   const isTaskFromAdmin = task?.taskType !== "Self Task" && ["Admin", "Super Admin"].includes(task?.createdByRole);
@@ -140,8 +142,10 @@ export default function TaskDetailDialog({
     && !isPendingAcceptance && isReadyForReview;
   const hideEscalateButton = isTaskFromAdmin || isViewerSuperAdmin;
   const displayStatus = getDisplayTaskStatus({ ...task, status });
-  const workLockedMessage = isLocked
-    ? "This task is completed and locked."
+  const workLockedMessage = isRejected
+    ? "This request was rejected and is view-only."
+    : isCompleted
+      ? "This task is completed and locked."
     : "Accept the work request before updating work.";
 
   useEffect(() => {
@@ -645,7 +649,7 @@ export default function TaskDetailDialog({
             {isLocked && (
               <div className="flex items-start gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>This task is completed and locked. {isRequester ? "Click Rework above to reopen it." : "Ask the requester to reopen it via Rework."}</span>
+                <span>{isRejected ? "This request was rejected and is view-only." : `This task is completed and locked. ${isRequester ? "Click Rework above to reopen it." : "Ask the requester to reopen it via Rework."}`}</span>
               </div>
             )}
 
@@ -1024,7 +1028,7 @@ export default function TaskDetailDialog({
                 {isDiscussionLocked && (
                   <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <Info className="h-3.5 w-3.5 shrink-0" />
-                    This task is completed and locked. {isRequester ? "Click Rework above to reopen it and send messages." : "Ask the requester to reopen it via Rework to send messages."}
+                    {isRejected ? "This request was rejected and is view-only." : `This task is completed and locked. ${isRequester ? "Click Rework above to reopen it and send messages." : "Ask the requester to reopen it via Rework to send messages."}`}
                   </p>
                 )}
                 {discussionFiles.length ? (
@@ -1060,7 +1064,7 @@ export default function TaskDetailDialog({
                         handleSendDiscussion();
                       }
                     }}
-                    placeholder={isDiscussionLocked ? "This task is completed and locked." : "Write an update or ask a question..."}
+                    placeholder={isDiscussionLocked ? (isRejected ? "This request was rejected and is view-only." : "This task is completed and locked.") : "Write an update or ask a question..."}
                     disabled={discussionMutation.isPending || isDiscussionLocked}
                     className="h-7 border-0 bg-transparent px-1 text-xs shadow-none focus-visible:ring-0"
                   />
@@ -1243,7 +1247,7 @@ export default function TaskDetailDialog({
         </Button>
         )}
         <div className="flex justify-end gap-2">
-          {(isRequester || isHigherHierarchyRecipient) && task.taskType === "Work Request" && status !== "Completed" && !isPendingAcceptance && (
+          {(isRequester || isHigherHierarchyRecipient) && task.taskType === "Work Request" && status !== "Completed" && !isRejected && !isPendingAcceptance && (
             <Button
               type="button"
               variant="outline"
@@ -1257,7 +1261,7 @@ export default function TaskDetailDialog({
               Mark As Completed
             </Button>
           )}
-          {isRequester && !isPendingAcceptance ? (
+          {isRequester && !isPendingAcceptance && !isRejected ? (
             <>
               <Button
                 type="button"
