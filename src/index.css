@@ -450,6 +450,15 @@ body {
     border-bottom-color: hsl(var(--tab-accent)) !important;
   }
 
+  .employee-task-tab-list {
+    gap: 8px !important;
+  }
+
+  .employee-task-tabs .tab-comp-trigger {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
   .profile-detail-card {
     @apply h-full rounded-lg border border-border bg-card text-card-foreground shadow-sm;
   }
@@ -1003,6 +1012,26 @@ input[type="number"]::-webkit-outer-spin-button {
 
 *::-webkit-scrollbar {
   display: none;
+}
+
+/* Compact self-task timeline keeps its horizontal scrollbar visible. */
+.task-timeline-scroll {
+  scrollbar-width: thin !important;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+.task-timeline-scroll::-webkit-scrollbar {
+  display: block !important;
+  height: 5px;
+}
+
+.task-timeline-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.task-timeline-scroll::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: hsl(var(--border));
 }
 
 @keyframes rotate {

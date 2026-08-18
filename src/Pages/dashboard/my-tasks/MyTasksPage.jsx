@@ -6,6 +6,7 @@ import { Button } from "@components/components/ui/button";
 import { Input } from "@components/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/components/ui/select";
 import { Dialog, DialogContent } from "@components/components/ui/dialog";
+import TabComp from "@components/components/tab-comp";
 import {
   AlertTriangle,
   CalendarCheck,
@@ -374,61 +375,44 @@ export default function MyTasksPage() {
     ["Awaiting Review", analytics.awaitingReview || 0, "Tasks", Eye, "blue"],
     ["Completed This Month", analytics.completedThisMonth || 0, "Tasks", CheckSquare, "green"],
   ];
+  const taskTabs = tabs.map(([value, label, icon]) => ({
+    value,
+    label,
+    icon,
+    notificationCount: employeeTabCounts[value] ?? analytics.tabCounts?.[value],
+  }));
 
   return (
     <div className="relative min-h-[calc(100vh-4rem)]">
       <div className="min-h-[calc(100vh-4rem)] bg-background p-2 text-foreground md:p-3">
-        <div className="mx-auto max-w-[1500px] space-y-2">
+        <div className="mx-auto max-w-[1500px] space-y-3">
         <PageHeader
           title="My Tasks"
           subtitle="View, manage and complete your assigned work and requests."
         />
 
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {metricCards.map(([label, value, subLabel, Icon, tone]) => (
             <MetricCard key={label} label={label} value={value} subLabel={subLabel} icon={Icon} tone={tone} />
           ))}
         </div>
 
-        <section className="rounded-lg border border-border bg-card shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-2">
-                <div className="flex flex-wrap gap-5">
-                  {tabs.map(([value, label, Icon]) => {
-                    const count = employeeTabCounts[value] ?? analytics.tabCounts?.[value] ?? 0;
-                    const isActive = filters.tab === value;
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setFilter("tab", value)}
-                        className={`flex items-center gap-1.5 border-b-2 pb-1 text-xs font-medium transition ${
-                          isActive
-                            ? "border-orange-500 text-orange-600 dark:text-orange-400"
-                            : "border-transparent text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        <Icon className="h-3.5 w-3.5" />
-                        {label}
-                        {count > 0 && (
-                          <span
-                            className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold ${
-                              isActive
-                                ? "bg-orange-500 text-white"
-                                : "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            {count > 99 ? "99+" : count}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-                <Button size="sm" className="gap-1.5 bg-blue-500 text-white hover:bg-blue-600" onClick={() => setIsAddTaskOpen(true)}>
-                  <Plus className="h-3.5 w-3.5" />
-                  Create Task
-                </Button>
-              </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <TabComp
+            tabs={taskTabs}
+            value={filters.tab}
+            onValueChange={(value) => setFilter("tab", value)}
+            className="employee-task-tabs min-w-0 flex-1"
+            listClassName="employee-task-tab-list"
+            ariaLabel="Employee task sections"
+          />
+          <Button size="sm" className="gap-1.5 bg-blue-500 text-white hover:bg-blue-600" onClick={() => setIsAddTaskOpen(true)}>
+            <Plus className="h-3.5 w-3.5" />
+            Create Task
+          </Button>
+        </div>
+
+        <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
 
               <div className="flex flex-wrap items-center gap-2 border-b border-border p-2">
                 <div className="relative min-w-[200px] flex-1">
@@ -541,9 +525,10 @@ export default function MyTasksPage() {
                   compact
                   zebra
                   headerAlign="center"
+                  bodyAlign="center"
                   emptyText="No tasks found."
                   headers={[
-                    "Task Name",
+                    "Task Title",
                     "Task Type",
                     "Linked To",
                     ...(filters.tab === "completed"
@@ -565,7 +550,7 @@ export default function MyTasksPage() {
                       || (filters.tab === "pending_acceptance" && isTaskCreator);
 
                     const assignedByCell = (
-                      <div className="flex items-center gap-2">
+                      <div className="ml-3 flex w-fit items-center gap-2 text-left">
                         <Avatar className="h-7 w-7">
                           <AvatarImage
                             src={getAvatarUrl(task.createdByProfileImage?.smallUrl)}
@@ -582,7 +567,7 @@ export default function MyTasksPage() {
                     );
 
                     const assignedToCell = (
-                      <div className="flex items-center gap-2">
+                      <div className="ml-3 flex w-fit items-center gap-2 text-left">
                         <Avatar className="h-7 w-7">
                           <AvatarImage
                             src={getAvatarUrl(task.assignedToProfileImage?.smallUrl)}
@@ -599,7 +584,7 @@ export default function MyTasksPage() {
                     );
 
                     return [
-                      <button type="button" className="flex items-center gap-3 text-left" onClick={() => openTaskDetail(task)}>
+                      <button type="button" className="ml-3 flex w-fit items-center gap-3 text-left" onClick={() => openTaskDetail(task)}>
                         <IconPill icon={ClipboardList} tone={getTaskStatusTone(task.status)} />
                         <p className="font-semibold text-foreground">{getDisplayTaskTitle(task.taskTitle)}</p>
                       </button>,
@@ -618,7 +603,7 @@ export default function MyTasksPage() {
                           value={task.priority}
                           onValueChange={(value) => updateProgressMutation.mutate({ taskId: task.taskId || task._id, priority: value })}
                         >
-                          <SelectTrigger className={`h-6 w-fit gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium shadow-none ${PRIORITY_BADGE_CLASS[task.priority] || ""}`}>
+                          <SelectTrigger className={`mx-auto h-6 w-fit gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium shadow-none ${PRIORITY_BADGE_CLASS[task.priority] || ""}`}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -632,14 +617,14 @@ export default function MyTasksPage() {
                           {task.priority}
                         </span>
                       ),
-                      <div className="flex items-center gap-2">
+                      <div className="mx-auto flex w-fit items-center gap-2">
                         <div className="h-1.5 w-16 rounded-full bg-muted">
                           <div className="h-1.5 rounded-full bg-primary" style={{ width: `${task.progressPercent ?? 0}%` }} />
                         </div>
                         <span className="text-xs text-muted-foreground">{task.progressPercent ?? 0}%</span>
                       </div>,
                       <TaskStatusPill status={getDisplayTaskStatus(task)} />,
-                      <div className="relative">
+                      <div className="relative mx-auto w-fit">
                         <TableButton compact onClick={() => openTaskDetail(task)}>
                           {["Completed", "Cancelled", "Rejected"].includes(task.status) ? "View" : "Update"}
                         </TableButton>

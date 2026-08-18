@@ -108,6 +108,9 @@ export const getDueDateNote = (dueDate, status, completedOn) => {
     return completedOn ? { text: `Completed on ${formatDate(completedOn)}`, tone: "text-emerald-600" } : null;
   }
   if (status === "Cancelled" || status === "Rejected") return null;
+  if (["Submitted", "Pending Approval", "Under Admin Review"].includes(status)) {
+    return { text: "Submitted", tone: "text-blue-600" };
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);

@@ -141,7 +141,7 @@ export function TableButton({ children, onClick, compact = false }) {
       onClick={onClick}
       className={`rounded-md font-semibold transition ${
         compact
-          ? "border border-sky-200 bg-white px-2 py-0.5 text-xs text-sky-600 hover:bg-sky-50 dark:border-sky-900/20 dark:bg-background dark:text-sky-300"
+          ? "inline-flex h-7 min-w-[4.5rem] items-center justify-center border border-sky-200 bg-white px-3 py-1 text-xs text-sky-600 hover:bg-sky-50 dark:border-sky-900/20 dark:bg-background dark:text-sky-300"
           : "border border-border bg-background px-4 py-2 text-xs text-foreground hover:bg-muted"
       }`}
     >
@@ -150,7 +150,15 @@ export function TableButton({ children, onClick, compact = false }) {
   );
 }
 
-export function DataTable({ headers, rows, emptyText, compact = false, zebra = false, headerAlign = "left" }) {
+export function DataTable({
+  headers,
+  rows,
+  emptyText,
+  compact = false,
+  zebra = false,
+  headerAlign = "left",
+  bodyAlign = "left",
+}) {
   return (
     <div className="overflow-x-auto">
       <table className={`w-full min-w-[980px] text-left ${compact ? "text-xs" : "text-sm"}`}>
@@ -158,10 +166,10 @@ export function DataTable({ headers, rows, emptyText, compact = false, zebra = f
           <tr>
             {headers.map((header, columnIndex) => (
               <th
-                key={header}
+                key={typeof header === "string" ? header : columnIndex}
                 className={`${compact ? "py-1.5" : "py-2"} ${
                   headerAlign === "center"
-                    ? `text-center ${compact ? "pl-1.5 pr-12" : "pl-2 pr-14"}`
+                    ? `text-center ${compact ? "px-1.5" : "px-2"}`
                     : `text-left ${compact ? "px-1.5" : "px-2"}`
                 }`}
               >
@@ -174,7 +182,12 @@ export function DataTable({ headers, rows, emptyText, compact = false, zebra = f
           {rows.length ? rows.map((row, rowIndex) => (
             <tr key={rowIndex} className={`hover:bg-muted/30 ${zebra && rowIndex % 2 === 1 ? "bg-muted/20" : ""}`}>
               {row.map((cell, cellIndex) => (
-                <td key={cellIndex} className={`align-middle text-foreground ${compact ? "px-2.5 py-1.5 text-xs" : "px-3 py-2.5 text-sm"}`}>{cell}</td>
+                <td
+                  key={cellIndex}
+                  className={`align-middle text-foreground ${bodyAlign === "center" ? "text-center" : "text-left"} ${compact ? "px-2.5 py-1.5 text-xs" : "px-3 py-2.5 text-sm"}`}
+                >
+                  {cell}
+                </td>
               ))}
             </tr>
           )) : (
