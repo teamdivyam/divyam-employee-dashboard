@@ -45,7 +45,12 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
     queryKey: ["task-assignable-employees"],
     queryFn: async () => {
       const response = await EmployeeV2Service.getTaskAssignmentEmployees({ limit: 50 });
-      return response.data?.data?.employees || [];
+      return [...(response.data?.data?.employees || [])].sort((first, second) =>
+        String(first.name || "").localeCompare(String(second.name || ""), undefined, {
+          sensitivity: "base",
+          numeric: true,
+        })
+      );
     },
     enabled: open && isWorkRequest,
   });
@@ -303,7 +308,7 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
             <SectionHeader index={3} tone="violet" title="Task Details" />
 
             <div className="grid gap-2 rounded-md border border-violet-200 p-2 dark:border-violet-400/30 sm:grid-cols-2">
-              <FormInput label="Task Title" required maxLength={30} helper="Maximum 30 characters" value={task.taskTitle} onChange={(value) => setField("taskTitle", value)} />
+              <FormInput label="Task Title" required maxLength={30} showRemainingCount value={task.taskTitle} onChange={(value) => setField("taskTitle", value)} />
               <FormInput label="Linked To" value={task.relatedTo} onChange={(value) => setField("relatedTo", value)} />
               <FormInput label="Due Date" type="date" required min={new Date().toISOString().slice(0, 10)} value={task.dueDate} onChange={(value) => setField("dueDate", value)} />
               <FormInput label="Due Time (Optional)" type="time" value={task.dueTime} onChange={(value) => setField("dueTime", value)} />
@@ -363,7 +368,9 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
   );
 }
 
-function FormInput({ label, value, onChange, type = "text", required = false, min, maxLength, helper }) {
+function FormInput({ label, value, onChange, type = "text", required = false, min, maxLength, helper, showRemainingCount = false }) {
+  const characterCount = String(value || "").length;
+
   return (
     <div className="space-y-1">
       <label className="text-xs font-semibold text-foreground">
@@ -371,6 +378,7 @@ function FormInput({ label, value, onChange, type = "text", required = false, mi
         {required && <span className="text-red-600"> *</span>}
       </label>
       <Input type={type} value={value || ""} onChange={(event) => onChange(event.target.value)} min={min} maxLength={maxLength} className="h-8 text-xs" />
+      {showRemainingCount ? <p className="text-right text-[10px] text-muted-foreground">{characterCount} / {maxLength}</p> : null}
       {helper ? <p className="text-[10px] text-muted-foreground">{helper}</p> : null}
     </div>
   );

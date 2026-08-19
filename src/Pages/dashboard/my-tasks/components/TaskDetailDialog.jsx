@@ -86,16 +86,6 @@ const ESCALATION_REQUESTED_ACTIONS = [
   "Close / Resolve Issue",
 ];
 
-const scrollTimelineHorizontally = (event) => {
-  if (!event.deltaY) return;
-  const container = event.currentTarget;
-  const maxScrollLeft = container.scrollWidth - container.clientWidth;
-  const nextScrollLeft = Math.min(maxScrollLeft, Math.max(0, container.scrollLeft + event.deltaY));
-  if (nextScrollLeft === container.scrollLeft) return;
-  event.preventDefault();
-  container.scrollLeft = nextScrollLeft;
-};
-
 export default function TaskDetailDialog({
   task,
   detailLoading,
@@ -514,6 +504,7 @@ export default function TaskDetailDialog({
                   <div className="space-y-1">
                     <Label className="text-[11px] text-muted-foreground">Task Title</Label>
                     <Input value={editTaskTitle} maxLength={30} onChange={(event) => setEditTaskTitle(event.target.value)} className="h-8 text-xs" />
+                    <p className="text-right text-[10px] text-muted-foreground">{editTaskTitle.length} / 30</p>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-[11px] text-muted-foreground">Linked To</Label>
@@ -888,22 +879,36 @@ export default function TaskDetailDialog({
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="space-y-1">
               <Label className="text-xs font-semibold text-foreground">Work Update Note</Label>
-              <Textarea
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                placeholder={
-                  isLocked
-                    ? workLockedMessage
-                    : isPendingAcceptance
-                      ? isRecipient
-                        ? "Add a note (e.g. reason for rejection)..."
-                        : "Only the assignee can add a note before the request is accepted."
-                      : "Share a quick update on this task..."
-                }
-                maxLength={500}
-                disabled={isLocked || (isPendingAcceptance && !isRecipient)}
-                className="h-32 min-h-32 resize-none text-xs"
-              />
+              <div className="flex h-32 flex-col overflow-hidden rounded-md border border-input bg-background">
+                {(() => {
+                  const savedWorkUpdateNotes = [...(task.activity || [])]
+                    .reverse()
+                    .filter((entry) => ['Work Update Note', 'Commented'].includes(entry.action) && entry.note);
+                  return savedWorkUpdateNotes.length ? (
+                    <ul className="min-h-0 flex-1 list-disc space-y-1 overflow-y-auto px-3 pt-2 pl-6 text-xs font-medium leading-4 text-foreground">
+                      {savedWorkUpdateNotes.map((entry) => <li key={entry._id}>{entry.note}</li>)}
+                    </ul>
+                  ) : null;
+                })()}
+                <div className="relative mt-auto h-8 shrink-0 border-t border-input">
+                  <Textarea
+                    value={note}
+                    onChange={(event) => setNote(event.target.value)}
+                    placeholder={
+                      isLocked
+                        ? workLockedMessage
+                        : isPendingAcceptance
+                          ? isRecipient
+                            ? "Add a note (e.g. reason for rejection)..."
+                            : "Only the assignee can add a note before the request is accepted."
+                          : "Share update..."
+                    }
+                    maxLength={500}
+                    disabled={isLocked || (isPendingAcceptance && !isRecipient)}
+                    className="h-full min-h-0 resize-none overflow-y-auto rounded-none border-0 px-3 py-1 text-xs shadow-none focus-visible:ring-0"
+                  />
+                </div>
+              </div>
               {!isLocked && <p className="text-right text-[10px] text-muted-foreground">{note.length}/500</p>}
             </div>
 
@@ -980,32 +985,12 @@ export default function TaskDetailDialog({
             }
           />
           <div className={`grid items-stretch overflow-hidden rounded-md border border-border ${task.taskType === "Self Task" ? "grid-cols-1" : "sm:grid-cols-3"}`}>
-            <div className={`flex flex-col overflow-hidden ${task.taskType === "Self Task" ? "min-h-32" : "h-64"}`}>
+            <div className="flex h-64 flex-col overflow-hidden">
               <p className="border-b border-border px-2.5 pb-2 pt-2.5 text-xs font-semibold text-foreground">
                 Activity Timeline
               </p>
-              <div
-                className={task.taskType === "Self Task" ? "task-timeline-scroll flex-1 overflow-x-auto px-2.5 py-2" : "flex-1 overflow-y-auto p-2.5"}
-                onWheel={task.taskType === "Self Task" ? scrollTimelineHorizontally : undefined}
-                tabIndex={task.taskType === "Self Task" ? 0 : undefined}
-              >
-                {(task.activity || []).length ? (task.taskType === "Self Task" ? (
-                  <div className="flex min-w-max items-start">
-                    {[...task.activity].reverse().map((entry, index, arr) => (
-                      <div key={entry._id} className="w-44 shrink-0 pr-2 text-xs">
-                        <div className="flex items-center">
-                          <span className="relative z-10 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-primary bg-background" />
-                          {index < arr.length - 1 && <span className="h-px flex-1 bg-border" />}
-                        </div>
-                        <div className="mt-1.5 pr-2">
-                          <p className="text-[11px] text-muted-foreground">{formatDateTime(entry.createdAt)}</p>
-                          <p className="font-medium text-foreground">{entry.action}{entry.note ? ` — ${entry.note}` : ""}</p>
-                          <p className="text-[11px] text-muted-foreground">by {entry.performedByName}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : [...task.activity].reverse().map((entry, index, arr) => (
+              <div className="flex-1 overflow-y-auto p-2.5">
+                {(task.activity || []).length ? [...task.activity].reverse().map((entry, index, arr) => (
                   <div key={entry._id} className="relative flex gap-2.5 pb-3 text-xs last:pb-0">
                     {index < arr.length - 1 && (
                       <span className="absolute left-[5px] top-3 h-full w-px bg-border" />
@@ -1013,11 +998,12 @@ export default function TaskDetailDialog({
                     <span className="relative z-10 mt-1 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-primary bg-background" />
                     <div>
                       <p className="text-[11px] text-muted-foreground">{formatDateTime(entry.createdAt)}</p>
-                      <p className="font-medium text-foreground">{entry.action}{entry.note ? ` — ${entry.note}` : ""}</p>
+                      <p className="font-medium text-foreground">{entry.action === "Created" ? "Task Created" : entry.action}</p>
+                      {entry.note && !["Work Update Note", "Created", "Task Created"].includes(entry.action) ? <p className="mt-0.5 flex gap-1 text-[11px] text-muted-foreground"><span>•</span><span>{entry.note}</span></p> : null}
                       <p className="text-[11px] text-muted-foreground">by {entry.performedByName}</p>
                     </div>
                   </div>
-                ))) : <p className="text-xs text-muted-foreground">No activity yet.</p>}
+                )) : <p className="text-xs text-muted-foreground">No activity yet.</p>}
               </div>
             </div>
 

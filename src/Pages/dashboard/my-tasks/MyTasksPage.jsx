@@ -193,7 +193,7 @@ export default function MyTasksPage() {
       const response = await EmployeeV2Service.getMyTasksV2({
         scope: SCOPE_BY_TAB[filters.tab] || filters.tab,
         page: filters.page,
-        limit: 8,
+        limit: 10,
         search: filters.search || undefined,
         taskType: filters.taskType !== "all" ? filters.taskType : undefined,
         status: filters.status !== "all" ? filters.status : undefined,
@@ -420,7 +420,7 @@ export default function MyTasksPage() {
                   <Input
                     value={filters.search}
                     onChange={(event) => setFilter("search", event.target.value)}
-                    placeholder="Search task..."
+                    placeholder="Search employee name…"
                     className="h-8 rounded-md pl-9 text-xs"
                   />
                 </div>
