@@ -429,14 +429,14 @@ function PayrollProgress() {
                 {state === 'done' ? <Check size={13} /> : state === 'current' ? <Clock3 size={12} /> : <Circle size={8} fill="currentColor" />}
               </span>
               <p className="mt-2 text-[9px] font-medium leading-3 text-foreground">{label}</p>
-              <p className="mt-1 text-[8px] text-muted-foreground">{date}</p>
+              {/* <p className="mt-1 text-[8px] text-muted-foreground">{date}</p> */}
             </div>
           ))}
         </div>
-        <div className="mt-5 flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50/70 px-3 py-2 text-[10px] text-blue-700 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300">
+        {/* <div className="mt-5 flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50/70 px-3 py-2 text-[10px] text-blue-700 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300">
           <Info size={13} />
           Payroll progress information will appear here when available.
-        </div>
+        </div> */}
       </CardContent>
     </Card>
   );
@@ -445,25 +445,25 @@ function PayrollProgress() {
 function SalaryHistory() {
   return (
     <Card className="payroll-panel">
-      <PanelHeader icon={FileText} title="Previous Salary & Payslip History" />
+      <PanelHeader icon={FileText} title="Salary & Payment History" />
       <CardContent className="p-0">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/45 hover:bg-muted/45">
-              {['Month', 'Gross Earnings', 'Deductions', 'Net Salary', 'Payment Status', 'Paid On', 'Payslip'].map((heading) => (
-                <TableHead key={heading} className="h-8 whitespace-nowrap px-3 text-[9px]">{heading}</TableHead>
+              {['Month', 'Gross Earnings', 'Deductions', 'Net Salary', 'Amount Paid', 'Payment Status', 'Paid On', 'Payslip'].map((heading) => (
+                <TableHead key={heading} className="h-8 whitespace-nowrap px-3 text-[10px]">{heading}</TableHead>
               ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!history.length && <EmptyTableRow colSpan={7} />}
+            {!history.length && <EmptyTableRow colSpan={8} />}
             {history.map((row) => (
               <TableRow key={row[0]} className="hover:bg-muted/25">
                 {row.map((value, index) => (
                   <TableCell key={`${row[0]}-${index}`} className="whitespace-nowrap px-3 py-2 text-[10px] font-medium">
-                    {index === 4 ? (
+                    {index === 5 ? (
                       <StatusBadge value={value} />
-                    ) : index === 6 ? (
+                    ) : index === 7 ? (
                       value === 'View'
                         ? <button type="button" className="inline-flex items-center gap-1 text-primary"><Eye size={12} /> View</button>
                         : <StatusBadge value={value} />
