@@ -179,6 +179,7 @@ export default function TaskDetailDialog({
   const [showEscalationForm, setShowEscalationForm] = useState(false);
   const discussionListRef = useRef(null);
   const discussionInputRef = useRef(null);
+  const shouldRestoreDiscussionFocusRef = useRef(false);
   const escalationSectionRef = useRef(null);
   const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
@@ -319,6 +320,22 @@ export default function TaskDetailDialog({
     if (container) container.scrollTop = container.scrollHeight;
   }, [task?.discussion?.length]);
 
+  useEffect(() => {
+    if (discussionMutation.isPending || isDiscussionLocked || !shouldRestoreDiscussionFocusRef.current) {
+      return undefined;
+    }
+
+    const focusTimer = window.setTimeout(() => {
+      const input = discussionInputRef.current;
+      if (input) {
+        input.focus({ preventScroll: true });
+        shouldRestoreDiscussionFocusRef.current = false;
+      }
+    }, 0);
+
+    return () => window.clearTimeout(focusTimer);
+  }, [discussionMutation.isPending, isDiscussionLocked, task?._id]);
+
   if (!task) {
     return (
       <div className="p-6 text-center text-sm text-muted-foreground">
@@ -341,7 +358,7 @@ export default function TaskDetailDialog({
         onSuccess: () => {
           setDiscussionMessage("");
           setDiscussionFiles([]);
-          window.requestAnimationFrame(() => discussionInputRef.current?.focus());
+          shouldRestoreDiscussionFocusRef.current = true;
         },
       }
     );
@@ -542,7 +559,7 @@ export default function TaskDetailDialog({
               <p className="text-[11px] text-muted-foreground">Due Date</p>
               <p className="break-words text-xs font-semibold text-foreground">{formatDate(task.dueDate)}</p>
               {(() => {
-                const dueDateNote = getDueDateNote(task.dueDate, task.status, task.completedOn);
+                const dueDateNote = getDueDateNote(task.dueDate, task.status, task.completedOn, task.submittedOn);
                 return dueDateNote ? <p className={`text-[11px] font-medium ${dueDateNote.tone}`}>{dueDateNote.text}</p> : null;
               })()}
             </div>
@@ -919,7 +936,7 @@ export default function TaskDetailDialog({
                     <CalendarCheck className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-blue-600" />
                     <Input value={formatDate(task.dueDate)} readOnly className="h-8 pl-8 text-xs font-semibold" />
                   </div>
-                  {getDueDateNote(task.dueDate, task.status, task.completedOn) ? <p className="text-[10px] font-medium text-orange-600">{getDueDateNote(task.dueDate, task.status, task.completedOn).text}</p> : null}
+                  {getDueDateNote(task.dueDate, task.status, task.completedOn, task.submittedOn) ? <p className="text-[10px] font-medium text-orange-600">{getDueDateNote(task.dueDate, task.status, task.completedOn, task.submittedOn).text}</p> : null}
                 </div>
                 {(isRecipient || isCollaborator) ? (
                   <div className="space-y-0.5">

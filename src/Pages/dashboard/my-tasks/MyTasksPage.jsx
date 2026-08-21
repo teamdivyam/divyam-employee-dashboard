@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   CalendarCheck,
   CheckSquare,
-  ClipboardCheck,
   ClipboardList,
   Eye,
   FileText,
@@ -22,6 +21,7 @@ import {
   Search,
   Send,
   Users,
+  X,
 } from "lucide-react";
 import EmployeeV2Service from "@/services/employee-v2.service";
 import { getSocket } from "@/services/socket";
@@ -53,7 +53,6 @@ const tabs = [
   ["requests_sent", "Requests Sent", Send, "employee_requests_sent"],
   ["pending_acceptance", "Pending Acceptance", FileText, "employee_pending_acceptance"],
   ["awaiting_review", "Awaiting Review", Eye, "awaiting_review"],
-  ["for_review", "Review", ClipboardCheck, "pending_my_review"],
   ["completed", "Completed", CheckSquare, "completed"],
 ];
 
@@ -391,11 +390,11 @@ export default function MyTasksPage() {
   };
   const metricCards = [
     ["Due Today", analytics.dueToday || 0, "Tasks", CalendarCheck, "blue"],
-    ["In Progress", analytics.inProgress || 0, "Tasks", RotateCcw, "orange"],
+    ["In Progress", analytics.tabCounts?.my_work || 0, "Tasks", RotateCcw, "orange"],
     ["Overdue", analytics.overdue || 0, "Tasks", AlertTriangle, "red"],
     ["Pending Acceptance", employeeTabCounts.pending_acceptance, "Tasks", ClipboardList, "violet"],
-    ["Awaiting Review", analytics.awaitingReview || 0, "Tasks", Eye, "blue"],
-    ["Completed This Month", analytics.completedThisMonth || 0, "Tasks", CheckSquare, "green"],
+    ["Awaiting Review", analytics.tabCounts?.awaiting_review || 0, "Tasks", Eye, "blue"],
+    ["Completed This Month", analytics.tabCounts?.completed || 0, "Tasks", CheckSquare, "green"],
   ];
   const taskTabs = tabs.map(([value, label, icon]) => ({
     value,
@@ -445,8 +444,19 @@ export default function MyTasksPage() {
                     value={filters.search}
                     onChange={(event) => setFilter("search", event.target.value)}
                     placeholder="Search employee name…"
-                    className="h-8 rounded-md pl-9 text-xs"
+                    className="h-8 rounded-md pl-9 pr-8 text-xs"
                   />
+                  {filters.search ? (
+                    <button
+                      type="button"
+                      aria-label="Clear employee name"
+                      title="Clear employee name"
+                      onClick={() => setFilter("search", "")}
+                      className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
                 </div>
 
                 <Select
@@ -568,7 +578,7 @@ export default function MyTasksPage() {
                     "Action",
                   ]}
                   rows={tasks.map((task) => {
-                    const dueDateNote = getDueDateNote(task.dueDate, task.status, task.completedOn);
+                    const dueDateNote = getDueDateNote(task.dueDate, task.status, task.completedOn, task.submittedOn);
                     const isSelfTask = task.taskType === "Self Task";
                     const isTaskCreator = String(task.createdBy) === String(currentEmployee?._id);
                     const showAssignedTo = filters.tab === "requests_sent"

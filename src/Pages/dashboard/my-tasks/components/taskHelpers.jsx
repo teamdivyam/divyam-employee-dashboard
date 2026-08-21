@@ -1,8 +1,6 @@
 import React from "react";
 import { FileImage, FileText, Paperclip } from "lucide-react";
 
-import { formatDate } from "./WorkPanelUI";
-
 export const TASK_STATUS_TONE = {
   "In Progress": "orange",
   Pending: "slate",
@@ -103,13 +101,21 @@ export const getAvatarUrl = (avatar) => {
   return `https://assets.divyam.com/Uploads/employee/${avatar}`;
 };
 
-export const getDueDateNote = (dueDate, status, completedOn) => {
+const formatStatusDate = (value) => new Date(value).toLocaleDateString("en-IN", {
+  day: "2-digit",
+  month: "short",
+});
+
+export const getDueDateNote = (dueDate, status, completedOn, submittedOn) => {
   if (status === "Completed") {
-    return completedOn ? { text: `Completed on ${formatDate(completedOn)}`, tone: "text-emerald-600" } : null;
+    return completedOn ? { text: `Completed on ${formatStatusDate(completedOn)}`, tone: "text-emerald-600" } : null;
   }
   if (status === "Cancelled" || status === "Rejected") return null;
   if (["Submitted", "Pending Approval", "Under Admin Review"].includes(status)) {
-    return { text: "Submitted", tone: "text-blue-600" };
+    return {
+      text: submittedOn ? `Submitted on ${formatStatusDate(submittedOn)}` : "Submitted",
+      tone: "text-blue-600",
+    };
   }
 
   const today = new Date();

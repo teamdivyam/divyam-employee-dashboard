@@ -51,6 +51,7 @@ export function NotificationBell({ mode = "all" }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isReminderMode = mode === "reminders";
+  const notificationCategory = isReminderMode ? "reminders" : "standard";
   const [isRinging, setIsRinging] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const hasLoadedOnce = useRef(false);
@@ -59,7 +60,10 @@ export function NotificationBell({ mode = "all" }) {
   const { data, isLoading } = useQuery({
     queryKey: [...NOTIFICATIONS_QUERY_KEY, mode],
     queryFn: async () => {
-      const response = await EmployeeV2Service.getMyNotifications({ limit: isReminderMode ? 100 : 20 });
+      const response = await EmployeeV2Service.getMyNotifications({
+        category: notificationCategory,
+        limit: isReminderMode ? 100 : 20,
+      });
       return response.data?.data;
     },
     staleTime: 0,
@@ -69,10 +73,8 @@ export function NotificationBell({ mode = "all" }) {
   const allNotifications = data?.notifications || [];
   const notifications = isReminderMode
     ? allNotifications.filter((notification) => REMINDER_NOTIFICATION_TYPES.has(notification.type))
-    : allNotifications;
-  const unreadCount = isReminderMode
-    ? notifications.filter((notification) => !notification.isRead).length
-    : data?.unreadCount || 0;
+    : allNotifications.filter((notification) => !REMINDER_NOTIFICATION_TYPES.has(notification.type));
+  const unreadCount = notifications.filter((notification) => !notification.isRead).length;
 
   const markReadMutation = useMutation({
     mutationFn: (notificationId) => EmployeeV2Service.markNotificationRead(notificationId),
@@ -80,12 +82,12 @@ export function NotificationBell({ mode = "all" }) {
   });
 
   const markAllReadMutation = useMutation({
-    mutationFn: () => EmployeeV2Service.markAllNotificationsRead(),
+    mutationFn: () => EmployeeV2Service.markAllNotificationsRead(notificationCategory),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY }),
   });
 
   const clearAllMutation = useMutation({
-    mutationFn: () => EmployeeV2Service.clearAllNotifications(),
+    mutationFn: () => EmployeeV2Service.clearAllNotifications(notificationCategory),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY }),
   });
 
@@ -93,7 +95,8 @@ export function NotificationBell({ mode = "all" }) {
     const socket = getSocket();
     const handleNewNotification = (notification) => {
       queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
-      if (isReminderMode && !REMINDER_NOTIFICATION_TYPES.has(notification?.type)) return;
+      const isReminderNotification = REMINDER_NOTIFICATION_TYPES.has(notification?.type);
+      if (isReminderMode !== isReminderNotification) return;
       if (hasLoadedOnce.current) {
         setIsRinging(true);
         setTimeout(() => setIsRinging(false), 900);
@@ -179,7 +182,7 @@ export function NotificationBell({ mode = "all" }) {
                   Mark all read
                 </button>
               )}
-              {!isReminderMode && notifications.length > 0 && (
+              {notifications.length > 0 && (
                 <button
                   className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
                   onClick={() => clearAllMutation.mutate()}

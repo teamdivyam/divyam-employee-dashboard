@@ -420,16 +420,16 @@ const EmployeeV2Service = {
     escalateTask: ({ taskId, escalationType, requestedAction, priority, reason } = {}) =>
         employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/escalate`, { escalationType, requestedAction, priority, reason }),
 
-    getMyNotifications: ({ isRead, page = 1, limit = 20 } = {}) =>
+    getMyNotifications: ({ isRead, page = 1, limit = 20, category = "all" } = {}) =>
         employeeV2Request.get("/notifications", {
-            params: { isRead, page, limit },
+            params: { isRead, page, limit, category },
         }),
     markNotificationRead: (notificationId) =>
         employeeV2Request.patch(`/notifications/${encodeURIComponent(notificationId)}/read`),
-    markAllNotificationsRead: () =>
-        employeeV2Request.patch("/notifications/read-all"),
-    clearAllNotifications: () =>
-        employeeV2Request.delete("/notifications/clear-all"),
+    markAllNotificationsRead: (category = "all") =>
+        employeeV2Request.patch("/notifications/read-all", null, { params: { category } }),
+    clearAllNotifications: (category = "all") =>
+        employeeV2Request.delete("/notifications/clear-all", { params: { category } }),
 };
 
 export default EmployeeV2Service;
