@@ -69,10 +69,8 @@ export function NotificationBell({ mode = "all" }) {
   const allNotifications = data?.notifications || [];
   const notifications = isReminderMode
     ? allNotifications.filter((notification) => REMINDER_NOTIFICATION_TYPES.has(notification.type))
-    : allNotifications;
-  const unreadCount = isReminderMode
-    ? notifications.filter((notification) => !notification.isRead).length
-    : data?.unreadCount || 0;
+    : allNotifications.filter((notification) => !REMINDER_NOTIFICATION_TYPES.has(notification.type));
+  const unreadCount = notifications.filter((notification) => !notification.isRead).length;
 
   const markReadMutation = useMutation({
     mutationFn: (notificationId) => EmployeeV2Service.markNotificationRead(notificationId),
@@ -93,7 +91,8 @@ export function NotificationBell({ mode = "all" }) {
     const socket = getSocket();
     const handleNewNotification = (notification) => {
       queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
-      if (isReminderMode && !REMINDER_NOTIFICATION_TYPES.has(notification?.type)) return;
+      const isReminderNotification = REMINDER_NOTIFICATION_TYPES.has(notification?.type);
+      if (isReminderMode !== isReminderNotification) return;
       if (hasLoadedOnce.current) {
         setIsRinging(true);
         setTimeout(() => setIsRinging(false), 900);
