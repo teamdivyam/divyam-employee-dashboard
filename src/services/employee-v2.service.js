@@ -340,6 +340,16 @@ const EmployeeV2Service = {
             requestTo,
             acceptanceRequired,
         }),
+    createTaskBatch: ({ payload, attachmentsByClientId = {} } = {}) => {
+        const formData = new FormData();
+        formData.append("payload", JSON.stringify(payload));
+        Object.entries(attachmentsByClientId).forEach(([clientId, files]) => {
+            files.forEach((file) => formData.append(`attachments_${clientId}`, file));
+        });
+        return employeeV2Request.post("/tasks/batch", formData, {
+            headers: { "Content-Type": undefined },
+        });
+    },
     getMyTasksV2: ({ scope, status, priority, search, relatedType, taskType, page = 1, limit = 25, sortBy, sortOrder } = {}) =>
         employeeV2Request.get("/tasks", {
             params: { scope, status, priority, search, relatedType, taskType, page, limit, sortBy, sortOrder },
@@ -369,6 +379,11 @@ const EmployeeV2Service = {
             headers: { "Content-Type": undefined },
         });
     },
+    updateTaskChecklistItem: ({ taskId, itemId, isCompleted } = {}) =>
+        employeeV2Request.patch(
+            `/tasks/${encodeURIComponent(taskId)}/checklist/${encodeURIComponent(itemId)}`,
+            { isCompleted },
+        ),
     updateTaskDetails: ({ taskId, taskTitle, description, relatedTo, dueDate, dueTime, priority, visibility } = {}) =>
         employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/details`, {
             taskTitle,
@@ -400,6 +415,8 @@ const EmployeeV2Service = {
             headers: { "Content-Type": undefined },
         });
     },
+    markTaskDiscussionRead: (taskId) =>
+        employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/discussion/read`),
     escalateTask: ({ taskId, escalationType, requestedAction, priority, reason } = {}) =>
         employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/escalate`, { escalationType, requestedAction, priority, reason }),
 

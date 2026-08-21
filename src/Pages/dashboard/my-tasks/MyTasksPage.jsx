@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   CalendarCheck,
   CheckSquare,
+  ClipboardCheck,
   ClipboardList,
   Eye,
   FileText,
@@ -20,6 +21,7 @@ import {
   RotateCcw,
   Search,
   Send,
+  Users,
 } from "lucide-react";
 import EmployeeV2Service from "@/services/employee-v2.service";
 import { getSocket } from "@/services/socket";
@@ -47,15 +49,41 @@ import AddTaskDialog from "./components/AddTaskDialog";
 
 const tabs = [
   ["my_work", "My Work", CalendarCheck, "my_work"],
+  ["collaborating", "Collaborating", Users, "collaborating"],
   ["requests_sent", "Requests Sent", Send, "employee_requests_sent"],
   ["pending_acceptance", "Pending Acceptance", FileText, "employee_pending_acceptance"],
   ["awaiting_review", "Awaiting Review", Eye, "awaiting_review"],
+  ["for_review", "Review", ClipboardCheck, "pending_my_review"],
   ["completed", "Completed", CheckSquare, "completed"],
 ];
 
 const SCOPE_BY_TAB = Object.fromEntries(
   tabs.map(([tab, , , scope]) => [tab, scope]),
 );
+
+const createTaskItem = () => ({
+  clientId: globalThis.crypto?.randomUUID?.() || `task-${Date.now()}-${Math.random()}`,
+  taskTitle: "",
+  relatedTo: "",
+  dueDate: "",
+  dueTime: "",
+  priority: "Medium",
+  reminderType: "None",
+  instructions: "",
+  expectedOutcome: "",
+  checklist: [],
+  completionRequirement: "Update Note",
+  attachments: [],
+});
+
+const createEmptyTaskBatch = () => ({
+  taskType: "Self Task",
+  primaryOwnerId: "",
+  collaboratorIds: [],
+  reviewerId: "",
+  visibility: "Private",
+  tasks: [createTaskItem()],
+});
 
 
 export default function MyTasksPage() {
@@ -141,19 +169,7 @@ export default function MyTasksPage() {
   }, [queryClient]);
 
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
-  const emptyNewTask = {
-    taskType: "Self Task",
-    taskTitle: "",
-    relatedTo: "",
-    dueDate: "",
-    dueTime: "",
-    priority: "Medium",
-    description: "",
-    visibility: "Private",
-    requestTo: "",
-    acceptanceRequired: true,
-  };
-  const [newTask, setNewTask] = useState(emptyNewTask);
+  const [newTask, setNewTask] = useState(createEmptyTaskBatch);
 
   const analyticsQuery = useQuery({
     queryKey: ["my-task-analytics"],
@@ -227,12 +243,12 @@ export default function MyTasksPage() {
   const taskDetail = { ...selectedTask, ...(detailQuery.data || {}) };
 
   const createTaskMutation = useMutation({
-    mutationFn: (payload) => EmployeeV2Service.createTask(payload),
+    mutationFn: (payload) => EmployeeV2Service.createTaskBatch(payload),
     onSuccess: (response) => {
-      const created = response.data?.data?.task;
-      toast.success(`Task created${created?.taskId ? ` (${created.taskId})` : ""}`);
+      const createdTasks = response.data?.data?.tasks || [];
+      toast.success(`${createdTasks.length} task${createdTasks.length === 1 ? "" : "s"} created successfully`);
       setIsAddTaskOpen(false);
-      setNewTask(emptyNewTask);
+      setNewTask(createEmptyTaskBatch());
       queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["my-task-analytics"] });
       queryClient.invalidateQueries({ queryKey: ["my-task-counters"] });
@@ -328,6 +344,12 @@ export default function MyTasksPage() {
     onError: (error) => toast.error(error.response?.data?.message || "Unable to send message"),
   });
 
+  const checklistMutation = useMutation({
+    mutationFn: (payload) => EmployeeV2Service.updateTaskChecklistItem(payload),
+    onSuccess: () => invalidateTaskQueries(),
+    onError: (error) => toast.error(error.response?.data?.message || "Unable to update checklist"),
+  });
+
   const escalateMutation = useMutation({
     mutationFn: (payload) => EmployeeV2Service.escalateTask(payload),
     onSuccess: () => {
@@ -379,7 +401,7 @@ export default function MyTasksPage() {
     value,
     label,
     icon,
-    notificationCount: employeeTabCounts[value] ?? analytics.tabCounts?.[value],
+    notificationCount: employeeTabCounts[value] ?? analytics.tabCounts?.[SCOPE_BY_TAB[value] || value],
   }));
 
   return (
@@ -387,8 +409,10 @@ export default function MyTasksPage() {
       <div className="min-h-[calc(100vh-4rem)] bg-background p-2 text-foreground md:p-3">
         <div className="mx-auto max-w-[1500px] space-y-3">
         <PageHeader
-          title="My Tasks"
-          subtitle="View, manage and complete your assigned work and requests."
+          title={"My Tasks"}
+          subtitle={filters.tab === "collaborating"
+            ? "Tasks where you are added as a collaborator."
+            : "View, manage and complete your assigned work and requests."}
         />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -493,7 +517,6 @@ export default function MyTasksPage() {
                     <SelectItem value="Event">Event</SelectItem>
                     <SelectItem value="Client">Client</SelectItem>
                     <SelectItem value="Vendor">Vendor</SelectItem>
-                    <SelectItem value="Internal">Internal</SelectItem>
                     <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
@@ -535,7 +558,9 @@ export default function MyTasksPage() {
                       ? ["Assigned By", "Assigned To"]
                       : [filters.tab === "pending_acceptance"
                         ? "Request With"
-                        : filters.tab === "requests_sent" ? "Assigned To" : "Assigned By"]),
+                        : filters.tab === "requests_sent"
+                        ? "Assigned To"
+                        : filters.tab === "collaborating" ? "Primary Owner" : "Assigned By"]),
                     "Due Date",
                     "Priority",
                     "Progress",
@@ -586,14 +611,24 @@ export default function MyTasksPage() {
                     return [
                       <button type="button" className="ml-3 flex w-fit items-center gap-3 text-left" onClick={() => openTaskDetail(task)}>
                         <IconPill icon={ClipboardList} tone={getTaskStatusTone(task.status)} />
-                        <p className="font-semibold text-foreground">{getDisplayTaskTitle(task.taskTitle)}</p>
+                        <span>
+                          <span className="block font-semibold text-foreground">{getDisplayTaskTitle(task.taskTitle)}</span>
+                          {filters.tab === "collaborating" ? (
+                            <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                              <Users className="h-3 w-3" />
+                              {task.collaborators?.length || 0} collaborator{task.collaborators?.length === 1 ? "" : "s"}
+                            </span>
+                          ) : null}
+                        </span>
                       </button>,
                       <span className="text-xs text-muted-foreground">{task.taskType}</span>,
                       <div>
                         <p className="font-semibold">{task.relatedTo?.name || "—"}</p>
                         <p className="text-xs text-muted-foreground">{task.relatedTo?.type}</p>
                       </div>,
-                      ...(filters.tab === "completed" ? [assignedByCell, assignedToCell] : [showAssignedTo ? assignedToCell : assignedByCell]),
+                      ...(filters.tab === "completed"
+                        ? [assignedByCell, assignedToCell]
+                        : [filters.tab === "collaborating" || showAssignedTo ? assignedToCell : assignedByCell]),
                       <div>
                         <p className="font-medium">{formatDate(task.dueDate)}</p>
                         {dueDateNote ? <p className={`text-xs ${dueDateNote.tone}`}>{dueDateNote.text}</p> : null}
@@ -661,7 +696,7 @@ export default function MyTasksPage() {
       </div>
 
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="flex max-h-[92vh] w-[calc(100%-1.5rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[760px]">
+        <DialogContent className="flex max-h-[94vh] w-[calc(100%-1.5rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[880px]">
           <TaskDetailDialog
             task={taskDetail}
             detailLoading={detailQuery.isFetching}
@@ -673,6 +708,7 @@ export default function MyTasksPage() {
             withdrawMutation={withdrawMutation}
             reminderMutation={reminderMutation}
             discussionMutation={discussionMutation}
+            checklistMutation={checklistMutation}
             dueDateChangeMutation={dueDateChangeMutation}
             dueDateChangeRespondMutation={dueDateChangeRespondMutation}
             escalateMutation={escalateMutation}
