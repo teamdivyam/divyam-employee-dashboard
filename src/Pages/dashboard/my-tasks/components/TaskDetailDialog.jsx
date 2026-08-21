@@ -5,7 +5,10 @@ import {
   AlertTriangle,
   CalendarCheck,
   CalendarClock,
+  ChevronUp,
+  CheckCheck,
   CheckCircle2,
+  ClipboardCheck,
   Clock3,
   Download,
   FileText,
@@ -21,10 +24,12 @@ import {
   Send,
   Smile,
   Trash2,
+  Users,
   XCircle,
 } from "lucide-react";
 
 import { Button } from "@components/components/ui/button";
+import { Checkbox } from "@components/components/ui/checkbox";
 import { Input } from "@components/components/ui/input";
 import { Textarea } from "@components/components/ui/textarea";
 import { Label } from "@components/components/ui/label";
@@ -35,12 +40,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@components/components/
 import { Separator } from "@components/components/ui/separator";
 
 import useCurrentEmployee from "@/hooks/useCurrentEmployee";
+import EmployeeV2Service from "@/services/employee-v2.service";
 import { getSocket } from "@/services/socket";
 
 import { formatDate, formatDateTime } from "./WorkPanelUI";
 import {
   PRIORITY_TEXT_CLASS,
-  SectionHeader,
   TASK_STATUS_DOT_CLASS,
   TaskStatusPill,
   formatFileSize,
@@ -86,6 +91,54 @@ const ESCALATION_REQUESTED_ACTIONS = [
   "Close / Resolve Issue",
 ];
 
+function PersonSummary({ label, name, role, profileImage, compact = false, suffix }) {
+  return (
+    <div className={compact ? "flex items-center gap-2 py-0.5" : "space-y-1.5 px-3 py-1"}>
+      {!compact ? <p className="text-[11px] text-muted-foreground">{label}</p> : null}
+      <div className="flex min-w-0 items-center gap-2">
+        <Avatar className="h-7 w-7 shrink-0">
+          <AvatarImage src={getAvatarUrl(profileImage?.smallUrl)} alt={name} />
+          <AvatarFallback className="bg-blue-900 text-[9px] font-semibold text-white">{getInitials(name) || "?"}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <p className="truncate text-xs font-semibold text-foreground">
+            {name || "Not assigned"}
+            {suffix ? <span className="ml-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-medium text-emerald-600">{suffix}</span> : null}
+          </p>
+          {role ? <p className="truncate text-[10px] text-muted-foreground">{role}</p> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SectionHeader({ index, tone, title, trailing, className = "" }) {
+  const styles = {
+    blue: "border-blue-200 bg-blue-50/70 text-blue-700 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-300",
+    green: "border-emerald-200 bg-emerald-50/70 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300",
+    violet: "border-violet-200 bg-violet-50/70 text-violet-700 dark:border-violet-400/30 dark:bg-violet-400/10 dark:text-violet-300",
+    orange: "border-orange-200 bg-orange-50/70 text-orange-700 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-300",
+    grey: "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-400/30 dark:bg-slate-400/10 dark:text-slate-300",
+  };
+  const numberStyles = {
+    blue: "bg-blue-600",
+    green: "bg-emerald-600",
+    violet: "bg-violet-600",
+    orange: "bg-orange-500",
+    grey: "bg-slate-500",
+  };
+
+  return (
+    <div className={`flex min-h-10 items-center justify-between gap-3 rounded-t-lg border px-3 ${styles[tone] || styles.blue} ${className}`}>
+      <div className="flex items-center gap-2">
+        <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold text-white ${numberStyles[tone] || numberStyles.blue}`}>{index}</span>
+        <h3 className="text-sm font-semibold">{title}</h3>
+      </div>
+      {trailing ? <div className="text-[11px] font-medium">{trailing}</div> : null}
+    </div>
+  );
+}
+
 export default function TaskDetailDialog({
   task,
   detailLoading,
@@ -97,12 +150,16 @@ export default function TaskDetailDialog({
   withdrawMutation,
   reminderMutation,
   discussionMutation,
+  checklistMutation,
   dueDateChangeMutation,
   dueDateChangeRespondMutation,
   escalateMutation,
 }) {
   const [status, setStatus] = useState(task?.status || "Pending");
   const [progressPercent, setProgressPercent] = useState(task?.progressPercent ?? 0);
+  const [checklistDraft, setChecklistDraft] = useState(() =>
+    (task?.checklist || []).map((item) => ({ ...item }))
+  );
   const [priority, setPriority] = useState(task?.priority || "Medium");
   const [note, setNote] = useState("");
   const [proofFiles, setProofFiles] = useState([]);
@@ -127,6 +184,10 @@ export default function TaskDetailDialog({
   const queryClient = useQueryClient();
   const isRecipient = task && currentEmployee && task.assignedTo === currentEmployee._id;
   const isRequester = task && currentEmployee && task.createdBy === currentEmployee._id;
+  const isReviewer = task && currentEmployee && task.reviewer === currentEmployee._id;
+  const isCollaborator = Boolean(task && currentEmployee && (task.collaborators || []).some((participant) =>
+    String(participant.employee) === String(currentEmployee._id)
+  ));
   const isPendingAcceptance = task?.taskType === "Work Request" && task?.acceptanceStatus === "Pending";
   const isPendingDueDateChange = task?.dueDateChangeRequest?.status === "Pending";
   const isCompleted = task?.status === "Completed";
@@ -136,14 +197,46 @@ export default function TaskDetailDialog({
   const isDiscussionLocked = isLocked;
   const isTaskFromAdmin = task?.taskType !== "Self Task" && ["Admin", "Super Admin"].includes(task?.createdByRole);
   const isViewerSuperAdmin = currentEmployee?.accessRole === "Super Admin";
+  const canEditTaskInfo = !isLocked && isRequester;
+  const canEditOverallProgress = !isLocked && !isPendingAcceptance
+    && !isCollaborator && !isReviewer && (isRecipient || isRequester);
   const isHigherHierarchyRecipient = isRecipient
     && TASK_ROLE_RANK[task?.assignedToRole || currentEmployee?.accessRole]
       > TASK_ROLE_RANK[task?.createdByRole];
   const isReadyForReview = ["Submitted", "Pending Approval", "Under Admin Review"].includes(status);
-  const canParticipantMarkCompleted = (isRequester || isHigherHierarchyRecipient)
+  const canParticipantMarkCompleted = (isRequester || isReviewer || isHigherHierarchyRecipient)
     && !isPendingAcceptance && isReadyForReview;
   const hideEscalateButton = isTaskFromAdmin || isViewerSuperAdmin;
   const displayStatus = getDisplayTaskStatus({ ...task, status });
+  const viewerRoleLabel = isCollaborator
+    ? "Collaborator"
+    : isReviewer
+      ? "Reviewer"
+      : isRecipient
+        ? "Primary Owner"
+        : isRequester
+          ? "Task Creator"
+          : "Participant";
+  const completedChecklistCount = checklistDraft.filter((item) => item.isCompleted).length;
+  const checklistChanges = checklistDraft
+    .filter((draftItem) => {
+      const savedItem = (task?.checklist || []).find((item) => String(item._id) === String(draftItem._id));
+      return savedItem && Boolean(savedItem.isCompleted) !== Boolean(draftItem.isCompleted);
+    })
+    .map((item) => ({ itemId: item._id, isCompleted: Boolean(item.isCompleted) }));
+  const hasChecklistChanges = checklistChanges.length > 0;
+  const completionRequirement = task?.completionRequirement || "Update Note";
+  const requiresUpdateNote = completionRequirement.includes("Update Note");
+  const requiresAttachment = completionRequirement.includes("Attachment");
+  const savedWorkUpdateNotes = [...(task?.activity || [])]
+    .reverse()
+    .filter((entry) => entry.action === "Work Update Note" && entry.note);
+  const hasSavedUpdateNote = savedWorkUpdateNotes.length > 0;
+  const workProofAttachments = (task?.attachments || []).filter((file) => file.category !== "Discussion");
+  const hasProof = Boolean(proofFiles.length || workProofAttachments.length);
+  const proofCount = workProofAttachments.length + proofFiles.length;
+  const updateRequirementMet = !requiresUpdateNote || hasSavedUpdateNote || Boolean(note.trim());
+  const attachmentRequirementMet = !requiresAttachment || hasProof;
   const workLockedMessage = isRejected
     ? "This request was rejected and is view-only."
     : isCompleted
@@ -153,6 +246,7 @@ export default function TaskDetailDialog({
   useEffect(() => {
     setStatus(task?.status || "Pending");
     setProgressPercent(task?.progressPercent ?? 0);
+    setChecklistDraft((task?.checklist || []).map((item) => ({ ...item })));
     setPriority(task?.priority || "Medium");
     setNote("");
     setProofFiles([]);
@@ -190,12 +284,35 @@ export default function TaskDetailDialog({
       }
     };
     socket.on("task:message", handleMessage);
+    socket.on("task:messages-read", handleMessage);
 
     return () => {
       socket.emit("task:leave", { taskId });
       socket.off("task:message", handleMessage);
+      socket.off("task:messages-read", handleMessage);
     };
   }, [task?._id, queryClient]);
+
+  useEffect(() => {
+    if (!task?._id || !currentEmployee?._id) return undefined;
+
+    const hasUnreadMessages = (task.discussion || []).some((message) => (
+      String(message.sender) !== String(currentEmployee._id)
+      && !(message.readBy || []).some((receipt) => String(receipt.reader || receipt) === String(currentEmployee._id))
+    ));
+    if (!hasUnreadMessages) return undefined;
+
+    let cancelled = false;
+    EmployeeV2Service.markTaskDiscussionRead(task.taskId || task._id)
+      .then(() => {
+        if (!cancelled) queryClient.invalidateQueries({ queryKey: ["my-task-detail"] });
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [task?._id, task?.discussion?.length, currentEmployee?._id, queryClient]);
 
   useEffect(() => {
     const container = discussionListRef.current;
@@ -230,6 +347,14 @@ export default function TaskDetailDialog({
     );
   };
 
+  const handleChecklistToggle = (itemId, checked) => {
+    setChecklistDraft((items) => items.map((item) => (
+      String(item._id) === String(itemId)
+        ? { ...item, isCompleted: Boolean(checked) }
+        : item
+    )));
+  };
+
   const handleSaveUpdate = () => {
     const statusChanged = status !== task.status;
     const progressChanged = progressPercent !== (task.progressPercent ?? 0);
@@ -241,28 +366,49 @@ export default function TaskDetailDialog({
     );
     const dueDateRequested = isDueDateFormOpen && Boolean(newDueDate);
 
+    const saveChecklistChanges = async () => {
+      for (const change of checklistChanges) {
+        await checklistMutation.mutateAsync({
+          taskId: task.taskId || task._id,
+          itemId: change.itemId,
+          isCompleted: change.isCompleted,
+        });
+      }
+    };
+
+    const closeAfterSave = () => {
+      setNote("");
+      setProofFiles([]);
+      onClose();
+    };
+
     const saveProgress = () => {
-      if (!statusChanged && !progressChanged && !noteEntered && !proofFiles.length) {
-        onClose();
+      const submitProgress = () => {
+        if (!statusChanged && !progressChanged && !noteEntered && !proofFiles.length) {
+          closeAfterSave();
+          return;
+        }
+
+        updateProgressMutation.mutate(
+          {
+            taskId: task.taskId || task._id,
+            status: statusChanged ? status : undefined,
+            progressPercent: progressChanged ? progressPercent : undefined,
+            note: note.trim() || undefined,
+            attachments: proofFiles,
+          },
+          {
+            onSuccess: closeAfterSave,
+          }
+        );
+      };
+
+      if (!hasChecklistChanges) {
+        submitProgress();
         return;
       }
 
-      updateProgressMutation.mutate(
-        {
-          taskId: task.taskId || task._id,
-          status: statusChanged ? status : undefined,
-          progressPercent: progressChanged ? progressPercent : undefined,
-          note: note.trim() || undefined,
-          attachments: proofFiles,
-        },
-        {
-          onSuccess: () => {
-            setNote("");
-            setProofFiles([]);
-            onClose();
-          },
-        }
-      );
+      saveChecklistChanges().then(submitProgress).catch(() => {});
     };
 
     const submitDueDateChange = () => {
@@ -282,7 +428,7 @@ export default function TaskDetailDialog({
       );
     };
 
-    if (!statusChanged && !progressChanged && !noteEntered && !proofFiles.length && !infoChanged && !dueDateRequested) {
+    if (!statusChanged && !progressChanged && !noteEntered && !proofFiles.length && !infoChanged && !dueDateRequested && !hasChecklistChanges) {
       toast.info("No changes to save");
       onClose();
       return;
@@ -302,7 +448,7 @@ export default function TaskDetailDialog({
           taskId: task.taskId || task._id,
           taskTitle: editTaskTitle.trim(),
           relatedTo: {
-            type: task.relatedTo?.type || "Internal",
+            type: task.relatedTo?.type || "Other",
             refId: task.relatedTo?.refId || null,
             refModel: task.relatedTo?.refModel || null,
             name: editRelatedToName.trim(),
@@ -330,7 +476,7 @@ export default function TaskDetailDialog({
       onClose();
     };
 
-    if (isRequester) {
+    if (isRequester || isReviewer) {
       reviewTaskMutation.mutate(
         { taskId, decision: "approve" },
         { onSuccess }
@@ -359,9 +505,8 @@ export default function TaskDetailDialog({
         <div className="flex items-start gap-2">
           <div className="flex min-w-0 flex-1 items-start gap-1.5">
             {(() => {
-              const showAssignedTo = isRequester && task.taskType === "Work Request";
-              const name = showAssignedTo ? task.assignedToName : task.createdByName;
-              const profileImage = showAssignedTo ? task.assignedToProfileImage : task.createdByProfileImage;
+              const name = task.createdByName;
+              const profileImage = task.createdByProfileImage;
               return (
                 <>
                   <Avatar className="h-8 w-8 shrink-0">
@@ -371,7 +516,7 @@ export default function TaskDetailDialog({
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <p className="text-[11px] text-muted-foreground">{showAssignedTo ? "Assigned To" : "Assigned By"}</p>
+                    <p className="text-[11px] text-muted-foreground">Assigned By</p>
                     <p className="break-words text-xs font-semibold text-foreground">{name || "—"}</p>
                   </div>
                 </>
@@ -381,11 +526,11 @@ export default function TaskDetailDialog({
           <Separator orientation="vertical" className="hidden h-8 sm:block" />
           <div className="flex min-w-0 flex-1 items-start gap-1.5">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300">
-              <FileText className="h-4 w-4" />
+              <Users className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <p className="text-[11px] text-muted-foreground">Task Type</p>
-              <p className="break-words text-xs font-semibold text-foreground">{task.taskType}</p>
+              <p className="text-[11px] text-muted-foreground">Your Role</p>
+              <p className="break-words text-xs font-semibold text-blue-600">{viewerRoleLabel}</p>
             </div>
           </div>
           <Separator orientation="vertical" className="hidden h-8 sm:block" />
@@ -462,14 +607,14 @@ export default function TaskDetailDialog({
         {detailLoading ? <p className="mt-2 text-xs text-muted-foreground">Refreshing…</p> : null}
       </div>
 
-      <div className="space-y-2 p-3">
-        <div className="space-y-1.5">
+      <div className="space-y-3 p-3">
+        <div className="space-y-0">
           <SectionHeader
             index={1}
             tone="blue"
             title="Task Information"
             trailing={
-              !isLocked ? (
+              canEditTaskInfo ? (
                 isEditingInfo ? (
                   <button
                     type="button"
@@ -497,7 +642,7 @@ export default function TaskDetailDialog({
               ) : null
             }
           />
-          <div className="space-y-2 rounded-md border border-border p-2">
+          <div className="space-y-3 rounded-b-lg border border-t-0 border-border p-3">
             {isEditingInfo ? (
               <>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -519,40 +664,97 @@ export default function TaskDetailDialog({
               </>
             ) : (
               <>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <div className="space-y-1">
-                <p className="text-[11px] text-muted-foreground">Task Name</p>
-                <div className="truncate rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-xs font-medium text-foreground">
+            <div className="grid divide-y divide-border sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+              <div className="space-y-1 py-2 sm:px-3 sm:py-0 sm:first:pl-0">
+                <p className="text-[11px] text-muted-foreground">Task Title</p>
+                <div className="truncate py-1 text-xs font-semibold text-foreground">
                   {getDisplayTaskTitle(task.taskTitle)}
                 </div>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 py-2 sm:px-3 sm:py-0">
+                <p className="text-[11px] text-muted-foreground">Task Type</p>
+                <div className="inline-flex truncate rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
+                  {task.taskType}
+                </div>
+              </div>
+              <div className="space-y-1 py-2 sm:px-3 sm:py-0">
                 <p className="text-[11px] text-muted-foreground">Linked To</p>
-                <div className="truncate rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-xs font-medium text-foreground">
+                <div className="truncate py-1 text-xs font-semibold text-blue-600">
                   {task.relatedTo?.name || "—"}
                 </div>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 py-2 sm:px-3 sm:py-0 sm:last:pr-0">
                 <p className="text-[11px] text-muted-foreground">Assigned On</p>
-                <div className="truncate rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-xs font-medium text-foreground">
+                <div className="truncate py-1 text-xs font-semibold text-foreground">
                   {formatDate(task.createdAt)}
                 </div>
               </div>
             </div>
-            <div className="space-y-1">
-              <p className="text-[11px] text-muted-foreground">Expected Outcome</p>
-              <div className="rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-xs leading-5 text-foreground">
-                {task.description || "No description available."}
+            <div className="grid divide-y divide-border border-t border-border pt-3 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+              <div className="space-y-1 py-2 sm:py-0 sm:pr-3">
+                <p className="text-[11px] text-muted-foreground">Task Instructions</p>
+                <div className="min-h-12 py-1 text-xs leading-5 text-foreground">
+                  {task.instructions || "No additional instructions."}
+                </div>
+              </div>
+              <div className="space-y-1 py-2 sm:py-0 sm:pl-3">
+                <p className="text-[11px] text-muted-foreground">Expected Outcome</p>
+                <div className="min-h-12 py-1 text-xs leading-5 text-foreground">
+                  {task.expectedOutcome || task.description || "No expected outcome provided."}
+                </div>
               </div>
             </div>
+            {true ? (
+              <div className="space-y-1">
+                <p className="text-[11px] text-muted-foreground">Reference Attachments</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(task.referenceAttachments || []).map((file) => (
+                    <a key={file._id} href={file.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-blue-600">
+                      <FileText className="h-3.5 w-3.5" />{file.fileName}
+                    </a>
+                  ))}
+                  <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 text-[11px] text-blue-600" onClick={notAvailable}>
+                    <Plus className="h-3.5 w-3.5" /> Add More Reference Files
+                  </Button>
+                </div>
+              </div>
+            ) : null}
               </>
             )}
           </div>
         </div>
 
+        <div className="space-y-0">
+          <SectionHeader
+            index={2}
+            tone="green"
+            title="People & Responsibility"
+            trailing={`${task.assignedToName || "Unassigned"} • ${(task.collaborators || []).length} collaborator${task.collaborators?.length === 1 ? "" : "s"}${task.reviewerName ? " • Reviewer assigned" : ""}`}
+          />
+          <div className="rounded-b-lg border border-t-0 border-emerald-200 p-3 dark:border-emerald-400/30">
+            <div className="grid divide-y divide-border sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+              <PersonSummary label="Primary Owner" name={task.assignedToName} role={task.assignedToRole} profileImage={task.assignedToProfileImage} />
+              <div className="space-y-1.5 px-3 py-1">
+                <p className="text-[11px] text-muted-foreground">Collaborators</p>
+                {(task.collaborators || []).length ? task.collaborators.map((participant) => (
+                  <PersonSummary key={participant._id || participant.employee} compact name={participant.name} role={participant.role} profileImage={participant.profileImage} suffix={String(participant.employee) === String(currentEmployee?._id) ? "You" : undefined} />
+                )) : <p className="text-xs font-medium text-foreground">None</p>}
+              </div>
+              <PersonSummary label="Reviewer / Reporting Head" name={task.reviewerName || "Not assigned"} role={task.reviewerRole} profileImage={task.reviewerProfileImage} />
+              <PersonSummary label="Assigned By" name={task.createdByName} role={task.createdByRole} profileImage={task.createdByProfileImage} />
+            </div>
+            {isCollaborator ? (
+              <div className="mt-3 flex items-start gap-1.5 rounded-md border border-blue-100 bg-blue-50 px-2.5 py-1.5 text-[11px] text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                You are added as a collaborator. You can contribute updates, upload proofs and comment.
+              </div>
+            ) : null}
+          </div>
+        </div>
+
         {isPendingAcceptance ? (
           <div className="space-y-1.5">
-            <SectionHeader index={2} tone="green" title="Acceptance Status" />
+            <SectionHeader index={3} tone="violet" title="Acceptance Status" />
             <div className="space-y-2 rounded-md border border-orange-200 bg-orange-50/60 p-2 dark:border-orange-400/30 dark:bg-orange-400/10">
               {isRecipient ? (
                 <>
@@ -663,8 +865,94 @@ export default function TaskDetailDialog({
             </div>
           </div>
         ) : (
-          <div className="space-y-1.5">
-            <SectionHeader index={2} tone="green" title="Progress Update" />
+          <div className="space-y-0">
+            <SectionHeader
+              index={3}
+              tone="violet"
+              title="Checklist & Progress"
+              trailing={`${completedChecklistCount} of ${(task.checklist || []).length} completed • ${progressPercent}% • ${displayStatus}`}
+            />
+            <div className="grid rounded-b-lg border border-t-0 border-violet-200 dark:border-violet-400/30 sm:grid-cols-3 sm:divide-x sm:divide-border">
+              <div className="flex min-h-0 flex-col gap-1 p-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-foreground">Checklist</p>
+                  <span className="text-[11px] text-muted-foreground">{completedChecklistCount} of {checklistDraft.length} completed</span>
+                </div>
+                <div className="max-h-24 min-h-0 flex-1 space-y-2 overflow-y-auto pb-1 pl-3 pr-1 pt-1">
+                  {checklistDraft.map((item) => (
+                    <label key={item._id} className="flex items-start gap-2.5 text-xs text-foreground">
+                      <Checkbox checked={item.isCompleted} disabled={isWorkLocked || checklistMutation.isPending} onCheckedChange={(checked) => handleChecklistToggle(item._id, checked)} />
+                      <span className={item.isCompleted ? "line-through text-muted-foreground" : ""}>{item.text}</span>
+                    </label>
+                  ))}
+                  {!checklistDraft.length ? <p className="text-[11px] text-muted-foreground">No checklist items.</p> : null}
+                </div>
+                <Button type="button" variant="outline" size="sm" className="mt-auto h-6 w-fit gap-1 px-2 text-[11px] text-blue-600" onClick={notAvailable}>
+                  <Plus className="h-3.5 w-3.5" /> Add Checklist Item
+                </Button>
+              </div>
+
+              <div className="space-y-2 p-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-foreground">Overall Progress</Label>
+                  <div className="flex items-center gap-2">
+                    <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" disabled={!canEditOverallProgress} onClick={() => setProgressPercent((value) => Math.max(0, value - 10))}>−</Button>
+                    <div className="h-1.5 flex-1 rounded-full bg-muted"><div className="h-1.5 rounded-full bg-blue-600" style={{ width: `${progressPercent}%` }} /></div>
+                    <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" disabled={!canEditOverallProgress} onClick={() => setProgressPercent((value) => Math.min(100, value + 10))}>+</Button>
+                    <span className="w-9 text-right text-xs font-semibold">{progressPercent}%</span>
+                  </div>
+                  {!canEditOverallProgress ? <p className="flex items-center gap-1 text-[10px] text-muted-foreground"><Info className="h-3 w-3" />Only Primary Owner can change overall progress</p> : null}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-foreground">Task Status</Label>
+                  <Select value={status} disabled={!canEditOverallProgress} onValueChange={(value) => { setStatus(value); if (value === "In Progress") setProgressPercent(10); if (value === "Completed") setProgressPercent(100); if (value === "Rework") setProgressPercent(0); }}>
+                    <SelectTrigger className="h-8 text-xs font-semibold"><SelectValue /></SelectTrigger>
+                    <SelectContent>{(task.taskType === "Self Task" ? SELF_TASK_EDITABLE_STATUSES : WORK_REQUEST_EDITABLE_STATUSES).map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1 p-2">
+                <div className="space-y-0.5">
+                  <Label className="text-xs font-semibold text-foreground">Due Date</Label>
+                  <div className="relative">
+                    <CalendarCheck className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-blue-600" />
+                    <Input value={formatDate(task.dueDate)} readOnly className="h-8 pl-8 text-xs font-semibold" />
+                  </div>
+                  {getDueDateNote(task.dueDate, task.status, task.completedOn) ? <p className="text-[10px] font-medium text-orange-600">{getDueDateNote(task.dueDate, task.status, task.completedOn).text}</p> : null}
+                </div>
+                {(isRecipient || isCollaborator) ? (
+                  <div className="space-y-0.5">
+                    <Label className="text-xs font-semibold text-foreground">Due Date Change</Label>
+                    <Button type="button" variant="outline" size="sm" className="h-8 w-full justify-start gap-2 text-xs text-blue-600" onClick={() => setIsDueDateFormOpen((value) => !value)}><CalendarCheck className="h-3.5 w-3.5" />Request Due Date Change</Button>
+                  </div>
+                ) : null}
+                <div className="space-y-0.5">
+                  <Label className="text-xs font-semibold text-foreground">My Reminder</Label>
+                  <div className="rounded-md border border-border px-2.5 py-1.5 text-xs">{task.reminder?.type && task.reminder.type !== "None" ? task.reminder.type : "No reminder set"}</div>
+                  <div className="flex gap-3 text-[10px] font-medium text-blue-600"><button type="button" onClick={notAvailable}>Change</button><button type="button" onClick={notAvailable}>Remove</button></div>
+                </div>
+              </div>
+            </div>
+            {false && task.checklist?.length ? (
+              <div className="mb-2 grid gap-3 rounded-md border border-violet-200 p-3 dark:border-violet-400/30 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-foreground">Checklist</p>
+                    <span className="text-[11px] text-muted-foreground">{completedChecklistCount} of {task.checklist.length}</span>
+                  </div>
+                  {task.checklist.map((item) => (
+                    <label key={item._id} className="flex items-start gap-2 text-xs text-foreground">
+                      <Checkbox checked={item.isCompleted} disabled={isWorkLocked || checklistMutation.isPending} onCheckedChange={(checked) => handleChecklistToggle(item._id, checked)} />
+                      <span className={item.isCompleted ? "line-through text-muted-foreground" : ""}>{item.text}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex items-center rounded-md bg-muted/20 px-3 text-[11px] text-muted-foreground">
+                  {canEditOverallProgress ? "Update the overall progress and status below." : "Only the Primary Owner can change overall progress."}
+                </div>
+              </div>
+            ) : null}
             {isLocked && (
               <div className="flex items-start gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -672,7 +960,7 @@ export default function TaskDetailDialog({
               </div>
             )}
 
-            {!isLocked ? (
+            {false ? (
               <div className="grid gap-2 sm:grid-cols-3">
                 <div className="space-y-1">
                   <Label className="text-xs font-semibold text-foreground">Current Progress</Label>
@@ -682,6 +970,7 @@ export default function TaskDetailDialog({
                       variant="outline"
                       size="icon"
                       className="h-7 w-7 shrink-0"
+                      disabled={!canEditOverallProgress}
                       onClick={() => setProgressPercent((value) => Math.max(0, value - 10))}
                     >
                       −
@@ -694,6 +983,7 @@ export default function TaskDetailDialog({
                       variant="outline"
                       size="icon"
                       className="h-7 w-7 shrink-0"
+                      disabled={!canEditOverallProgress}
                       onClick={() => setProgressPercent((value) => Math.min(100, value + 10))}
                     >
                       +
@@ -705,6 +995,7 @@ export default function TaskDetailDialog({
                   <Label className="text-xs font-semibold text-foreground">Task Status</Label>
                   <Select
                     value={status}
+                    disabled={!canEditOverallProgress}
                     onValueChange={(value) => {
                       setStatus(value);
                       if (value === "In Progress") setProgressPercent(10);
@@ -743,7 +1034,7 @@ export default function TaskDetailDialog({
                   </div>
                 )}
               </div>
-            ) : (
+            ) : isLocked ? (
               <div className="grid gap-3 rounded-md border border-emerald-200 bg-emerald-50/40 p-2.5 dark:border-emerald-400/30 dark:bg-emerald-400/10 sm:grid-cols-4">
                 <div className="space-y-1">
                   <p className="text-[11px] text-muted-foreground">Overall Progress</p>
@@ -778,12 +1069,12 @@ export default function TaskDetailDialog({
                   </div>
                 </div>
               </div>
-            )}
+            ) : null}
 
             {isRecipient && !isLocked && isDueDateFormOpen && (
               <div className="space-y-2 rounded-md border border-border p-2">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="space-y-1">
+            <div className="grid divide-y divide-border border-t border-border pt-3 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+              <div className="space-y-1 py-2 sm:py-0 sm:pr-3">
                     <Label className="text-xs font-semibold text-foreground">New Due Date</Label>
                     <Input
                       type="date"
@@ -868,28 +1159,77 @@ export default function TaskDetailDialog({
           </div>
         )}
 
-        <div className="space-y-1.5">
-          <SectionHeader index={3} tone="violet" title="Work Update & Proof" />
+        {false && (
+          <div className="space-y-1.5">
+            <SectionHeader index={3} tone="violet" title="Task Plan & Requirements" />
+            <div className="space-y-3 rounded-md border border-violet-200 p-3 dark:border-violet-400/30">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div><p className="text-[11px] text-muted-foreground">Instructions</p><p className="whitespace-pre-wrap text-xs font-medium text-foreground">{task.instructions || "No additional instructions"}</p></div>
+                <div><p className="text-[11px] text-muted-foreground">Expected Outcome</p><p className="whitespace-pre-wrap text-xs font-medium text-foreground">{task.expectedOutcome || task.description || "—"}</p></div>
+                <div><p className="text-[11px] text-muted-foreground">Completion Requirement</p><p className="text-xs font-semibold text-foreground">{task.completionRequirement || "None"}</p></div>
+                <div><p className="text-[11px] text-muted-foreground">Reminder</p><p className="text-xs font-semibold text-foreground">{task.reminder?.type || "None"}{task.reminder?.status === "Sent" ? " • Sent" : ""}</p></div>
+                <div><p className="text-[11px] text-muted-foreground">Collaborators</p><p className="text-xs font-medium text-foreground">{(task.collaborators || []).map((participant) => participant.name).join(", ") || "None"}</p></div>
+                <div><p className="text-[11px] text-muted-foreground">Reviewer</p><p className="text-xs font-medium text-foreground">{task.reviewerName || "Not assigned"}</p></div>
+              </div>
+              {task.checklist?.length ? (
+                <div className="space-y-1.5 rounded-md bg-muted/30 p-2.5">
+                  <p className="text-xs font-semibold text-foreground">Checklist</p>
+                  {task.checklist.map((item) => (
+                    <label key={item._id} className="flex items-start gap-2 text-xs text-foreground">
+                      <Checkbox checked={item.isCompleted} disabled={isWorkLocked || checklistMutation.isPending} onCheckedChange={(checked) => handleChecklistToggle(item._id, checked)} />
+                      <span className={item.isCompleted ? "line-through text-muted-foreground" : ""}>{item.text}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+              {task.referenceAttachments?.length ? (
+                <div><p className="mb-1 text-xs font-semibold text-foreground">Reference Attachments</p><div className="flex flex-wrap gap-1.5">{task.referenceAttachments.map((file) => <a key={file._id} href={file.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[10px] text-blue-600"><FileText className="h-3 w-3" />{file.fileName}</a>)}</div></div>
+              ) : null}
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-0">
+          <SectionHeader
+            index={4}
+            tone="orange"
+            title="Work Update & Proof"
+            className="bg-orange-50/50 dark:bg-orange-400/10"
+            trailing={<span className="flex items-center gap-2"><span>{completionRequirement} Required</span><span>•</span><span>{proofCount} proof{proofCount === 1 ? "" : "s"} added</span><ChevronUp className="h-4 w-4" /></span>}
+          />
+          <div className="grid items-center gap-3 border border-t-0 border-orange-100 bg-orange-50/40 px-3 py-2 text-[11px] dark:border-orange-400/20 dark:bg-orange-400/5 sm:grid-cols-[1.2fr_1fr_1.2fr]">
+            <div className="flex items-center gap-2">
+              <ClipboardCheck className="h-5 w-5 shrink-0 text-orange-500" />
+              <div>
+                <p className="text-[10px] font-medium text-orange-700/80 dark:text-orange-300/80">Completion Requirement</p>
+                <p className="font-semibold text-foreground">{completionRequirement} Required</p>
+              </div>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-orange-700 dark:text-orange-300"><span className={updateRequirementMet ? "font-bold text-emerald-600" : "text-orange-700"}>{updateRequirementMet ? "✓" : "○"}</span> {requiresUpdateNote ? "Update note added" : "Update note not required"}</p>
+              <p className="text-orange-700 dark:text-orange-300"><span className={attachmentRequirementMet ? "font-bold text-emerald-600" : "text-orange-700"}>{attachmentRequirementMet ? "✓" : "○"}</span> {requiresAttachment ? "At least 1 work proof required" : "Work proof not required"}</p>
+            </div>
+            <p className="text-right font-medium text-orange-500 dark:text-orange-300">
+              Please complete all requirements before submitting.
+            </p>
+          </div>
           {isWorkLocked && (
             <div className="flex items-start gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>{workLockedMessage}</span>
             </div>
           )}
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-1.5 border border-t-0 border-orange-200 p-2 dark:border-orange-400/30 sm:grid-cols-2">
             <div className="space-y-1">
-              <Label className="text-xs font-semibold text-foreground">Work Update Note</Label>
-              <div className="flex h-32 flex-col overflow-hidden rounded-md border border-input bg-background">
-                {(() => {
-                  const savedWorkUpdateNotes = [...(task.activity || [])]
-                    .reverse()
-                    .filter((entry) => ['Work Update Note', 'Commented'].includes(entry.action) && entry.note);
-                  return savedWorkUpdateNotes.length ? (
-                    <ul className="min-h-0 flex-1 list-disc space-y-1 overflow-y-auto px-3 pt-2 pl-6 text-xs font-medium leading-4 text-foreground">
-                      {savedWorkUpdateNotes.map((entry) => <li key={entry._id}>{entry.note}</li>)}
-                    </ul>
-                  ) : null;
-                })()}
+              <Label className="text-xs font-semibold text-foreground">
+                Work Update Note {requiresUpdateNote ? <span className="text-red-500">*</span> : null}
+              </Label>
+              <div className="flex h-28 flex-col overflow-hidden rounded-md border border-input bg-background">
+                {savedWorkUpdateNotes.length ? (
+                  <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 py-2 text-xs leading-4 text-foreground">
+                    {savedWorkUpdateNotes.map((entry) => <p key={entry._id}>{entry.note}</p>)}
+                  </div>
+                ) : null}
                 <div className="relative mt-auto h-8 shrink-0 border-t border-input">
                   <Textarea
                     value={note}
@@ -905,21 +1245,23 @@ export default function TaskDetailDialog({
                     }
                     maxLength={500}
                     disabled={isLocked || (isPendingAcceptance && !isRecipient)}
-                    className="h-full min-h-0 resize-none overflow-y-auto rounded-none border-0 px-3 py-1 text-xs shadow-none focus-visible:ring-0"
+                    className="h-full min-h-0 resize-none overflow-y-auto rounded-none border-0 px-2.5 py-1 pr-14 text-xs shadow-none focus-visible:ring-0"
                   />
+                  {!isLocked ? <span className="pointer-events-none absolute bottom-1 right-2 text-[10px] text-muted-foreground">{note.length}/500</span> : null}
                 </div>
               </div>
-              {!isLocked && <p className="text-right text-[10px] text-muted-foreground">{note.length}/500</p>}
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground">Attachments</Label>
-              <div className="space-y-1.5">
-                {(task.attachments || []).length ? task.attachments.map((file, index) => {
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-foreground">
+                Work Proof Attachments {requiresAttachment ? <span className="text-red-500">*</span> : null}
+              </Label>
+              <div className="flex max-h-24 flex-wrap content-start gap-1.5 overflow-y-auto pr-1">
+                {workProofAttachments.length ? workProofAttachments.map((file, index) => {
                   const { icon: FileIcon, className: iconClassName } = getFileIconStyle(file);
                   return (
-                    <div key={file._id || index} className="flex items-center gap-2 rounded-lg border border-border bg-background p-2">
-                      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${iconClassName}`}>
+                    <div key={file._id || index} className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1.5">
+                      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${iconClassName}`}>
                         <FileIcon className="h-3.5 w-3.5" />
                       </span>
                       <div className="min-w-0 flex-1">
@@ -950,29 +1292,33 @@ export default function TaskDetailDialog({
                     ))}
                   </div>
                 ) : null}
-                {!isWorkLocked && (
-                  <Button type="button" variant="outline" size="sm" className="gap-2" asChild>
-                    <label className="cursor-pointer">
-                      <Plus className="h-4 w-4" />
-                      Add More Files
-                      <input
-                        type="file"
-                        multiple
-                        className="hidden"
-                        onChange={(event) => setProofFiles((files) => [...files, ...Array.from(event.target.files || [])])}
-                      />
-                    </label>
-                  </Button>
-                )}
               </div>
+              {!isWorkLocked && (
+                <Button type="button" variant="outline" size="sm" className="h-8 w-fit gap-1.5 px-3 text-blue-600" asChild>
+                  <label className="cursor-pointer">
+                    <Plus className="h-4 w-4" />
+                    Add More Work Proof
+                    <input
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(event) => setProofFiles((files) => [...files, ...Array.from(event.target.files || [])])}
+                    />
+                  </label>
+                </Button>
+              )}
             </div>
           </div>
+          <p className="flex items-center gap-1.5 rounded-b-lg border border-t-0 border-orange-200 px-2.5 py-1.5 text-[10px] text-muted-foreground dark:border-orange-400/30">
+            <Info className="h-3.5 w-3.5 shrink-0" />
+            Work proof is visible to the Primary Owner and Reviewer.
+          </p>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-0">
           <SectionHeader
-            index={4}
-            tone="grey"
+            index={5}
+            tone="blue"
             title={task.taskType === "Self Task" ? "Activity Timeline" : "Activity & Discussion"}
             trailing={
               task.taskType !== "Self Task" ? <button
@@ -984,7 +1330,7 @@ export default function TaskDetailDialog({
               </button> : null
             }
           />
-          <div className={`grid items-stretch overflow-hidden rounded-md border border-border ${task.taskType === "Self Task" ? "grid-cols-1" : "sm:grid-cols-3"}`}>
+          <div className={`grid items-stretch overflow-hidden rounded-b-lg border border-t-0 border-blue-200 dark:border-blue-400/30 ${task.taskType === "Self Task" ? "grid-cols-1" : "sm:grid-cols-3"}`}>
             <div className="flex h-64 flex-col overflow-hidden">
               <p className="border-b border-border px-2.5 pb-2 pt-2.5 text-xs font-semibold text-foreground">
                 Activity Timeline
@@ -1014,7 +1360,10 @@ export default function TaskDetailDialog({
               </p>
               <div ref={discussionListRef} className="flex flex-1 flex-col gap-2 overflow-y-auto bg-background px-2.5 py-2.5">
                 {(task.discussion || []).length ? task.discussion.map((message) => {
-                  const isOwn = currentEmployee && message.sender === currentEmployee._id;
+                  const isOwn = currentEmployee && String(message.sender) === String(currentEmployee._id);
+                  const isRead = isOwn && (message.readBy || []).some(
+                    (receipt) => String(receipt.reader || receipt) !== String(message.sender)
+                  );
                   const senderProfileImage = isOwn
                     ? currentEmployee?.profileImage
                     : message.sender === task.createdBy
@@ -1037,6 +1386,7 @@ export default function TaskDetailDialog({
                           <p className="mb-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                             <span className="font-semibold">{message.senderName}</span>
                             <span className="text-muted-foreground/70">{formatDateTime(message.sentAt)}</span>
+                            {isOwn ? <CheckCheck className={`h-3.5 w-3.5 shrink-0 ${isRead ? "text-blue-600" : "text-muted-foreground/70"}`} aria-label={isRead ? "Read" : "Sent"} /> : null}
                           </p>
                           {message.message && <p className="whitespace-pre-wrap break-words">{message.message}</p>}
                           {(message.attachments || []).map((file, index) => (
@@ -1144,7 +1494,7 @@ export default function TaskDetailDialog({
         {(task.isEscalated || showEscalationForm) && (
         <div ref={escalationSectionRef} className="space-y-1.5">
           <SectionHeader
-            index={5}
+            index={6}
             tone="orange"
             title="Escalation"
             trailing={
@@ -1214,7 +1564,7 @@ export default function TaskDetailDialog({
                   </Select>
                 </div>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 py-2 sm:py-0 sm:pl-3">
                 <Label className="text-xs font-semibold text-foreground">Reason for Escalation <span className="text-red-600">*</span></Label>
                 <Textarea
                   value={escalationReason}
@@ -1282,7 +1632,7 @@ export default function TaskDetailDialog({
         </Button>
         )}
         <div className="flex justify-end gap-2">
-          {(isRequester || isHigherHierarchyRecipient) && task.taskType === "Work Request" && status !== "Completed" && !isRejected && !isPendingAcceptance && (
+          {(isRequester || isReviewer || isHigherHierarchyRecipient) && task.taskType === "Work Request" && status !== "Completed" && !isRejected && !isPendingAcceptance && (
             <Button
               type="button"
               variant="outline"
@@ -1296,7 +1646,7 @@ export default function TaskDetailDialog({
               Mark As Completed
             </Button>
           )}
-          {isRequester && !isPendingAcceptance && !isRejected ? (
+          {(isRequester || (isReviewer && isReadyForReview)) && !isPendingAcceptance && !isRejected ? (
             <>
               <Button
                 type="button"
@@ -1337,10 +1687,16 @@ export default function TaskDetailDialog({
           ) : (
             <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancel</Button>
           )}
-          {(isRecipient || isRequester) && !isWorkLocked && (
-            <Button type="button" size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={handleSaveUpdate} disabled={updateProgressMutation.isPending}>
-              {updateProgressMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {isCollaborator && !isWorkLocked ? (
+            <Button type="button" variant="outline" size="sm" className="gap-2 text-blue-600" onClick={handleSaveUpdate} disabled={updateProgressMutation.isPending || checklistMutation.isPending}>
+              {updateProgressMutation.isPending || checklistMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Save Update
+            </Button>
+          ) : null}
+          {(isRecipient || isRequester || isReviewer || isCollaborator) && !isWorkLocked && (
+            <Button type="button" size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={handleSaveUpdate} disabled={updateProgressMutation.isPending || checklistMutation.isPending}>
+              {updateProgressMutation.isPending || checklistMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {isCollaborator ? "Save Contribution" : "Save Update"}
             </Button>
           )}
         </div>

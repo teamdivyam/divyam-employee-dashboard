@@ -22,6 +22,10 @@ import EmployeeV2Service from "../../services/employee-v2.service";
 import { getSocket } from "../../services/socket";
 
 const NOTIFICATIONS_QUERY_KEY = ["notifications"];
+const REMINDER_NOTIFICATION_TYPES = new Set([
+  "work_request_reminder",
+  "task_scheduled_reminder",
+]);
 
 const NOTIFICATION_STYLES = {
   work_request_received: { icon: Send, className: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
@@ -29,6 +33,7 @@ const NOTIFICATION_STYLES = {
   work_request_rejected: { icon: XCircle, className: "bg-rose-500/10 text-rose-600 dark:text-rose-400" },
   work_request_withdrawn: { icon: Undo2, className: "bg-orange-500/10 text-orange-600 dark:text-orange-400" },
   work_request_reminder: { icon: AlarmClock, className: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+  task_scheduled_reminder: { icon: AlarmClock, className: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
   task_message: { icon: MessageSquare, className: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" },
   due_date_change_requested: { icon: CalendarClock, className: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
   due_date_change_responded: { icon: CalendarClock, className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
@@ -42,26 +47,32 @@ const getNotificationStyle = (type) => NOTIFICATION_STYLES[type] || NOTIFICATION
 
 const formatTimeAgo = (date) => formatDistanceToNowStrict(new Date(date), { addSuffix: true });
 
-export function NotificationBell() {
+export function NotificationBell({ mode = "all" }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isReminderMode = mode === "reminders";
   const [isRinging, setIsRinging] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const hasLoadedOnce = useRef(false);
   const containerRef = useRef(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: NOTIFICATIONS_QUERY_KEY,
+    queryKey: [...NOTIFICATIONS_QUERY_KEY, mode],
     queryFn: async () => {
-      const response = await EmployeeV2Service.getMyNotifications({ limit: 20 });
+      const response = await EmployeeV2Service.getMyNotifications({ limit: isReminderMode ? 100 : 20 });
       return response.data?.data;
     },
     staleTime: 0,
     refetchOnMount: true,
   });
 
-  const notifications = data?.notifications || [];
-  const unreadCount = data?.unreadCount || 0;
+  const allNotifications = data?.notifications || [];
+  const notifications = isReminderMode
+    ? allNotifications.filter((notification) => REMINDER_NOTIFICATION_TYPES.has(notification.type))
+    : allNotifications;
+  const unreadCount = isReminderMode
+    ? notifications.filter((notification) => !notification.isRead).length
+    : data?.unreadCount || 0;
 
   const markReadMutation = useMutation({
     mutationFn: (notificationId) => EmployeeV2Service.markNotificationRead(notificationId),
@@ -80,8 +91,9 @@ export function NotificationBell() {
 
   useEffect(() => {
     const socket = getSocket();
-    const handleNewNotification = () => {
+    const handleNewNotification = (notification) => {
       queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+      if (isReminderMode && !REMINDER_NOTIFICATION_TYPES.has(notification?.type)) return;
       if (hasLoadedOnce.current) {
         setIsRinging(true);
         setTimeout(() => setIsRinging(false), 900);
@@ -89,7 +101,7 @@ export function NotificationBell() {
     };
     socket.on("notification:new", handleNewNotification);
     return () => socket.off("notification:new", handleNewNotification);
-  }, [queryClient]);
+  }, [isReminderMode, queryClient]);
 
   useEffect(() => {
     if (!isLoading) hasLoadedOnce.current = true;
@@ -130,12 +142,15 @@ export function NotificationBell() {
   return (
     <div ref={containerRef}>
       <button
+        type="button"
+        aria-label={isReminderMode ? "Task reminders" : "Notifications"}
+        title={isReminderMode ? "Task reminders" : "Notifications"}
         onClick={() => setIsOpen((value) => !value)}
         className={`relative flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground ${
           isRinging ? "animate-wiggle" : ""
         }`}
       >
-        <Bell className="h-5 w-5" />
+        {isReminderMode ? <AlarmClock className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
         {unreadCount > 0 && (
           <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-background bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
             {unreadCount > 9 ? "9+" : unreadCount}
@@ -144,11 +159,11 @@ export function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="fixed right-6 top-14 z-50 w-[340px] origin-top-right animate-in overflow-hidden rounded-xl border border-border/80 bg-popover text-popover-foreground shadow-2xl ring-1 ring-black/5 fade-in-0 zoom-in-95 duration-150 dark:ring-white/10">
+        <div className={`fixed top-14 z-50 w-[340px] origin-top-right animate-in overflow-hidden rounded-xl border border-border/80 bg-popover text-popover-foreground shadow-2xl ring-1 ring-black/5 fade-in-0 zoom-in-95 duration-150 dark:ring-white/10 ${isReminderMode ? "right-16" : "right-6"}`}>
           <div className="flex items-center justify-between px-3.5 py-2.5">
             <div className="flex items-center gap-2">
-              <p className="text-[13px] font-semibold text-foreground">Notifications</p>
-              {unreadCount > 0 && (
+              <p className="text-[13px] font-semibold text-foreground">{isReminderMode ? "Task Reminders" : "Notifications"}</p>
+              {!isReminderMode && unreadCount > 0 && (
                 <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
@@ -164,7 +179,7 @@ export function NotificationBell() {
                   Mark all read
                 </button>
               )}
-              {notifications.length > 0 && (
+              {!isReminderMode && notifications.length > 0 && (
                 <button
                   className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
                   onClick={() => clearAllMutation.mutate()}
@@ -193,11 +208,11 @@ export function NotificationBell() {
             ) : notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-1.5 py-10 text-center">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                  <BellOff className="h-4 w-4 text-muted-foreground" />
+                  {isReminderMode ? <AlarmClock className="h-4 w-4 text-muted-foreground" /> : <BellOff className="h-4 w-4 text-muted-foreground" />}
                 </div>
-                <p className="text-sm font-medium text-foreground">You're all caught up</p>
+                <p className="text-sm font-medium text-foreground">{isReminderMode ? "No reminders yet" : "You're all caught up"}</p>
                 <p className="text-xs text-muted-foreground">
-                  Work requests and new messages will show up here
+                  {isReminderMode ? "Task reminder notifications will show up here" : "Work requests and new messages will show up here"}
                 </p>
               </div>
             ) : (
@@ -241,4 +256,8 @@ export function NotificationBell() {
       )}
     </div>
   );
+}
+
+export function ReminderNotificationBell() {
+  return <NotificationBell mode="reminders" />;
 }

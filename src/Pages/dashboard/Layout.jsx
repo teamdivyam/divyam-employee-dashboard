@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@components/components/ui//dropdown-menu";
 import { AppSidebar } from "@components/components/app-sidebar";
-import { NotificationBell } from "@components/components/NotificationBell";
+import { NotificationBell, ReminderNotificationBell } from "@components/components/NotificationBell";
 import { Separator } from "@components/components/ui/separator";
 import { UserRound, Settings, LogOut, Moon, Sun } from "lucide-react";
 import {
@@ -138,6 +138,7 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-2 pr-4">
+            <ReminderNotificationBell />
             <NotificationBell />
             <div className="adminProfile cursor-pointer">
             <DropdownMenu>
