@@ -364,12 +364,13 @@ function AttendanceSnapshot({ payrollSalary }) {
   const attendanceStatus = payrollSalary?.metricsSummary?.attendanceStatus || '—';
   const attendance = [
     ['Working Days', snapshot?.workingDays ?? '—'],
-    ['Present Days', snapshot?.presentDays ?? '—'],
+    ['Present Days', snapshot?.presentDays + (snapshot?.halfDays / 2) ?? '—'],
+    // ['Half Days', snapshot?.halfDays ?? '—'],
+    ['Holidays', snapshot?.holiday ?? '—'],
     ['Paid Leaves', snapshot?.paidLeaves ?? '—'],
     ['Unpaid Leaves', snapshot?.unpaidLeaves ?? '—'],
-    ['Half Days', snapshot?.halfDays ?? '—'],
+    ['Weekly Off', snapshot?.weeklyOff ?? '—'],
     ['Absent Days', snapshot?.absentDays ?? '—'],
-    ['Late Days', snapshot?.lateDays ?? '—'],
     ['Total Working Hours', snapshot?.totalWorkingHoursFormatted || '—'],
     ['Payable Days', snapshot?.payableDays === undefined ? '—' : `${snapshot.payableDays} Days`],
     ['Attendance Deduction', currency(snapshot?.attendanceDeduction)],
