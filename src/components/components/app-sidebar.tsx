@@ -201,7 +201,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const navItems = React.useMemo(
     () => navMain.map((item) => item.title === "My Tasks"
       ? { ...item, notificationCount: taskUnreadCount }
-      : item),
+      : item), 
     [taskUnreadCount],
   );
 

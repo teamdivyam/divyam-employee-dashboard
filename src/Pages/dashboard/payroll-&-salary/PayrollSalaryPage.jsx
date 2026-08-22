@@ -364,7 +364,7 @@ function AttendanceSnapshot({ payrollSalary }) {
   const attendanceStatus = payrollSalary?.metricsSummary?.attendanceStatus || '—';
   const attendance = [
     ['Working Days', snapshot?.workingDays ?? '—'],
-    ['Present Days', snapshot?.presentDays + (snapshot?.halfDays / 2) ?? '—'],
+    ['Present Days', snapshot?.presentDays + (snapshot?.halfDays / 2)],
     // ['Half Days', snapshot?.halfDays ?? '—'],
     ['Holidays', snapshot?.holiday ?? '—'],
     ['Paid Leaves', snapshot?.paidLeaves ?? '—'],
