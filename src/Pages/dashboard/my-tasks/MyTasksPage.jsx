@@ -573,7 +573,7 @@ export default function MyTasksPage() {
                         ? "Request With"
                         : filters.tab === "requests_sent"
                         ? "Assigned To"
-                        : filters.tab === "collaborating" ? "Primary Owner" : "Assigned By"]),
+                        : ["collaborating", "awaiting_review"].includes(filters.tab) ? "Primary Owner" : "Assigned By"]),
                     "Due Date",
                     "Priority",
                     "Progress",
@@ -641,7 +641,7 @@ export default function MyTasksPage() {
                       </div>,
                       ...(filters.tab === "completed"
                         ? [assignedByCell, assignedToCell]
-                        : [filters.tab === "collaborating" || showAssignedTo ? assignedToCell : assignedByCell]),
+                        : [["collaborating", "awaiting_review"].includes(filters.tab) || showAssignedTo ? assignedToCell : assignedByCell]),
                       <div>
                         <p className="font-medium">{formatDate(task.dueDate)}</p>
                         {dueDateNote ? <p className={`text-xs ${dueDateNote.tone}`}>{dueDateNote.text}</p> : null}

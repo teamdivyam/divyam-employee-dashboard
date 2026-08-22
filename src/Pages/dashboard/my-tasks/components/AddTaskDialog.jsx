@@ -198,15 +198,17 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
   const employees = employeesQuery.data || [];
   const employeeById = useMemo(() => new Map(employees.map((employee) => [String(employee._id), employee])), [employees]);
   const primaryOwner = isWorkRequest ? employeeById.get(String(task.primaryOwnerId)) : currentEmployee;
+  const effectivePrimaryOwnerId = isWorkRequest ? String(task.primaryOwnerId) : currentEmployeeId;
   const selectedCollaborators = task.collaboratorIds.map((employeeId) => employeeById.get(String(employeeId))).filter(Boolean);
   const reviewer = String(task.reviewerId) === currentEmployeeId ? currentEmployee : employeeById.get(String(task.reviewerId));
   const needsAcceptance = isWorkRequest && requiresAcceptance(currentEmployee?.accessRole, primaryOwner?.accessRole);
 
   useEffect(() => {
-    if (open && isWorkRequest && currentEmployeeId && !task.reviewerId) {
+    if (open && isWorkRequest && currentEmployeeId && !task.reviewerId
+      && String(task.primaryOwnerId) !== currentEmployeeId) {
       setTask((current) => ({ ...current, reviewerId: currentEmployeeId }));
     }
-  }, [currentEmployeeId, isWorkRequest, open, setTask, task.reviewerId]);
+  }, [currentEmployeeId, isWorkRequest, open, setTask, task.primaryOwnerId, task.reviewerId]);
 
   useEffect(() => {
     setExpandedTasks(open && firstTaskClientId ? new Set([firstTaskClientId]) : new Set());
@@ -230,6 +232,13 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
     collaboratorIds: current.collaboratorIds.includes(employeeId)
       ? current.collaboratorIds.filter((id) => id !== employeeId)
       : [...current.collaboratorIds, employeeId],
+  }));
+
+  const handlePrimaryOwnerChange = (primaryOwnerId) => setTask((current) => ({
+    ...current,
+    primaryOwnerId,
+    collaboratorIds: current.collaboratorIds.filter((id) => String(id) !== String(primaryOwnerId)),
+    reviewerId: String(current.reviewerId) === String(primaryOwnerId) ? "" : current.reviewerId,
   }));
 
   const toggleTask = (clientId) => setExpandedTasks((current) => {
@@ -316,6 +325,14 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
     event.preventDefault();
     if (isWorkRequest && !task.primaryOwnerId) {
       toast.error("Select a primary owner");
+      return;
+    }
+    if (task.collaboratorIds.some((id) => String(id) === effectivePrimaryOwnerId)) {
+      toast.error("Primary owner cannot also be a collaborator");
+      return;
+    }
+    if (task.reviewerId && String(task.reviewerId) === effectivePrimaryOwnerId) {
+      toast.error("Primary owner cannot also be the reviewer");
       return;
     }
 
@@ -406,7 +423,7 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
               <div className="grid gap-2 rounded-b-lg border border-t-0 border-emerald-200 bg-background p-2.5 dark:border-emerald-400/30 md:grid-cols-3">
                 <Field label="Primary Owner" required helper="The primary owner is responsible for completing this task.">
                   {isWorkRequest ? (
-                    <Select value={task.primaryOwnerId} onValueChange={(value) => setTask((current) => ({ ...current, primaryOwnerId: value, collaboratorIds: current.collaboratorIds.filter((id) => id !== value) }))}>
+                    <Select value={task.primaryOwnerId} onValueChange={handlePrimaryOwnerChange}>
                       <SelectTrigger className="h-9 text-xs"><SelectValue placeholder={employeesQuery.isFetching ? "Loading..." : "Select employee"} /></SelectTrigger>
                       <SelectContent>{employees.map((employee) => <SelectItem key={employee._id} value={employee._id}><EmployeeOption employee={employee} /></SelectItem>)}</SelectContent>
                     </Select>
@@ -430,8 +447,8 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
                     <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select reviewer" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">No reviewer</SelectItem>
-                      {currentEmployeeId ? <SelectItem value={currentEmployeeId}><EmployeeOption employee={{ ...currentEmployee, name: `${currentEmployee?.name} (You)` }} /></SelectItem> : null}
-                      {employees.filter((employee) => String(employee._id) !== currentEmployeeId).map((employee) => <SelectItem key={employee._id} value={employee._id}><EmployeeOption employee={employee} /></SelectItem>)}
+                      {currentEmployeeId && currentEmployeeId !== effectivePrimaryOwnerId ? <SelectItem value={currentEmployeeId}><EmployeeOption employee={{ ...currentEmployee, name: `${currentEmployee?.name} (You)` }} /></SelectItem> : null}
+                      {employees.filter((employee) => String(employee._id) !== currentEmployeeId && String(employee._id) !== effectivePrimaryOwnerId).map((employee) => <SelectItem key={employee._id} value={employee._id}><EmployeeOption employee={employee} /></SelectItem>)}
                     </SelectContent>
                   </Select>
                 </Field>
