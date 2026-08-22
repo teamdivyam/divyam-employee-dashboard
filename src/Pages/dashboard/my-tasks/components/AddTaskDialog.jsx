@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  Bell,
   CalendarCheck,
   CheckSquare,
   ChevronDown,
   ChevronUp,
+  Clock,
   FileText,
   Info,
   Loader2,
@@ -31,6 +31,7 @@ import {
 } from "@components/components/ui/dropdown-menu";
 import { Input } from "@components/components/ui/input";
 import { Label } from "@components/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@components/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@components/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/components/ui/select";
 import { Textarea } from "@components/components/ui/textarea";
@@ -56,7 +57,6 @@ const TONES = {
   amber: { bar: "border-amber-200 bg-amber-50/80 text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300", badge: "bg-amber-500" },
 };
 
-const REMINDER_OPTIONS = ["None", "At Due Time", "On Due Date 09:00", "1 Day Before", "2 Days Before", "1 Week Before"];
 const COMPLETION_REQUIREMENTS = ["None", "Update Note", "Attachment", "Update Note + Attachment"];
 
 const createTaskItem = () => ({
@@ -66,13 +66,75 @@ const createTaskItem = () => ({
   dueDate: "",
   dueTime: "",
   priority: "Medium",
-  reminderType: "None",
+  reminderDate: "",
+  reminderTime: "",
   instructions: "",
   expectedOutcome: "",
   checklist: [],
   completionRequirement: "Update Note",
   attachments: [],
 });
+
+const formatReminderValue = (date, time) => {
+  if (!date || !time) return "Set date & time";
+  const [year, month, day] = date.split("-");
+  const formattedTime = new Date(`${date}T${time}`).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  }).toUpperCase();
+  return `${day}/${month}/${year} • ${formattedTime}`;
+};
+
+function ReminderPicker({ date, time, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [draftDate, setDraftDate] = useState(date || "");
+  const [draftTime, setDraftTime] = useState(time || "");
+
+  useEffect(() => {
+    if (!open) return;
+    setDraftDate(date || "");
+    setDraftTime(time || "");
+  }, [date, open, time]);
+
+  const setReminder = () => {
+    if (!draftDate || !draftTime) {
+      toast.error("Select reminder date and time");
+      return;
+    }
+    const reminderTimestamp = new Date(`${draftDate}T${draftTime}`).getTime();
+    if (!Number.isFinite(reminderTimestamp) || reminderTimestamp <= Date.now()) {
+      toast.error("Reminder date and time must be in the future");
+      return;
+    }
+    onChange({ reminderDate: draftDate, reminderTime: draftTime });
+    setOpen(false);
+  };
+
+  return (
+    <Popover modal open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" className="h-9 w-full justify-start gap-2 px-3 text-xs font-normal">
+          <CalendarCheck className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className={date && time ? "truncate text-foreground" : "truncate text-muted-foreground"}>{formatReminderValue(date, time)}</span>
+          <Clock className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" sideOffset={6} className="w-[340px] max-w-[calc(100vw-2rem)] space-y-3 p-3">
+        <div><h4 className="text-base font-semibold text-foreground">Set Reminder</h4></div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1"><Label className="text-xs text-muted-foreground">Reminder Date</Label><Input type="date" min={new Date().toISOString().slice(0, 10)} value={draftDate} onChange={(event) => setDraftDate(event.target.value)} className="h-9 text-xs" /></div>
+          <div className="space-y-1"><Label className="text-xs text-muted-foreground">Reminder Time</Label><Input type="time" value={draftTime} onChange={(event) => setDraftTime(event.target.value)} className="h-9 text-xs" /></div>
+        </div>
+        <p className="text-[11px] text-muted-foreground">Reminder notifications will be sent at the selected date and time.</p>
+        <div className="flex justify-end gap-2 border-t border-border pt-2.5">
+          <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button type="button" size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={setReminder}>Set Reminder</Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 const requiresAcceptance = (creatorRole, ownerRole) => {
   const creatorRank = ROLE_RANK[creatorRole];
@@ -259,6 +321,22 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
 
     if (!validateTaskDetails()) return;
 
+    for (const item of task.tasks) {
+      const hasReminderDate = Boolean(item.reminderDate);
+      const hasReminderTime = Boolean(item.reminderTime);
+      if (hasReminderDate !== hasReminderTime) {
+        toast.error("Select both reminder date and time");
+        return;
+      }
+      const reminderTimestamp = hasReminderDate
+        ? new Date(`${item.reminderDate}T${item.reminderTime}`).getTime()
+        : null;
+      if (hasReminderDate && (!Number.isFinite(reminderTimestamp) || reminderTimestamp <= Date.now())) {
+        toast.error("Reminder date and time must be in the future");
+        return;
+      }
+    }
+
     const payload = {
       taskType: task.taskType,
       primaryOwnerId: isWorkRequest ? task.primaryOwnerId : undefined,
@@ -272,7 +350,9 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
         dueDate: item.dueDate,
         dueTime: item.dueTime || undefined,
         priority: item.priority,
-        reminderType: item.reminderType,
+        reminderAt: item.reminderDate && item.reminderTime
+          ? new Date(`${item.reminderDate}T${item.reminderTime}`).toISOString()
+          : undefined,
         instructions: item.instructions.trim() || undefined,
         expectedOutcome: item.expectedOutcome.trim(),
         checklist: item.checklist.map(({ text }) => ({ text: text.trim() })),
@@ -373,7 +453,7 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
                         <Field label="Due Date" required><Input data-task-client-id={item.clientId} data-task-field="dueDate" type="date" min={new Date().toISOString().slice(0, 10)} value={item.dueDate} onChange={(event) => updateTask(item.clientId, { dueDate: event.target.value })} className="h-9 text-xs" /></Field>
                         <Field label="Due Time (Optional)"><Input type="time" value={item.dueTime} onChange={(event) => updateTask(item.clientId, { dueTime: event.target.value })} className="h-9 text-xs" /></Field>
                         <Field label="Priority"><Select value={item.priority} onValueChange={(value) => updateTask(item.clientId, { priority: value })}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{["High", "Medium", "Low"].map((priority) => <SelectItem key={priority} value={priority}>{priority}</SelectItem>)}</SelectContent></Select></Field>
-                        <Field label="Reminder (Optional)"><Select value={item.reminderType} onValueChange={(value) => updateTask(item.clientId, { reminderType: value })}><SelectTrigger className="h-9 text-xs"><Bell className="mr-2 h-4 w-4 text-blue-600" /><SelectValue /></SelectTrigger><SelectContent>{REMINDER_OPTIONS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent></Select></Field>
+                        <Field label="Reminder (Optional)"><ReminderPicker date={item.reminderDate} time={item.reminderTime} onChange={(value) => updateTask(item.clientId, value)} /></Field>
                         <Field label="Task Instructions (Optional)"><Textarea value={item.instructions} maxLength={500} onChange={(event) => updateTask(item.clientId, { instructions: event.target.value })} placeholder="Add instructions, requirements or important details..." className="h-14 min-h-14 resize-none text-xs" /><p className="text-right text-[11px] text-muted-foreground">{item.instructions.length}/500</p></Field>
                         <Field label="Expected Outcome" required><Textarea data-task-client-id={item.clientId} data-task-field="expectedOutcome" value={item.expectedOutcome} maxLength={300} onChange={(event) => updateTask(item.clientId, { expectedOutcome: event.target.value })} placeholder="What should be the final result or output?" className="h-14 min-h-14 resize-none text-xs" /><p className="text-right text-[11px] text-muted-foreground">{item.expectedOutcome.length}/300</p></Field>
                       </div>

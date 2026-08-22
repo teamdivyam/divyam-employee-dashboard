@@ -67,7 +67,8 @@ const createTaskItem = () => ({
   dueDate: "",
   dueTime: "",
   priority: "Medium",
-  reminderType: "None",
+  reminderDate: "",
+  reminderTime: "",
   instructions: "",
   expectedOutcome: "",
   checklist: [],
@@ -400,7 +401,9 @@ export default function MyTasksPage() {
     value,
     label,
     icon,
-    notificationCount: employeeTabCounts[value] ?? analytics.tabCounts?.[SCOPE_BY_TAB[value] || value],
+    notificationCount: value === "completed"
+      ? undefined
+      : employeeTabCounts[value] ?? analytics.tabCounts?.[SCOPE_BY_TAB[value] || value],
   }));
 
   return (
