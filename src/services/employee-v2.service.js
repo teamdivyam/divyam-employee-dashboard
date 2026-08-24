@@ -384,16 +384,25 @@ const EmployeeV2Service = {
             `/tasks/${encodeURIComponent(taskId)}/checklist/${encodeURIComponent(itemId)}`,
             { isCompleted },
         ),
-    updateTaskDetails: ({ taskId, taskTitle, description, relatedTo, dueDate, dueTime, priority, visibility } = {}) =>
-        employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/details`, {
+    updateTaskDetails: ({ taskId, taskTitle, description, instructions, expectedOutcome, relatedTo, dueDate, dueTime, priority, visibility, referenceAttachments = [], removedReferenceAttachmentIds = [] } = {}) => {
+        const formData = new FormData();
+        formData.append("payload", JSON.stringify({
             taskTitle,
             description,
+            instructions,
+            expectedOutcome,
             relatedTo,
             dueDate,
             dueTime,
             priority,
             visibility,
-        }),
+            removedReferenceAttachmentIds,
+        }));
+        referenceAttachments.forEach((file) => formData.append("referenceAttachments", file));
+        return employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/details`, formData, {
+            headers: { "Content-Type": undefined },
+        });
+    },
     respondToWorkRequest: ({ taskId, action, note } = {}) =>
         employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/respond`, { action, note }),
     reviewTask: ({ taskId, decision } = {}) =>
