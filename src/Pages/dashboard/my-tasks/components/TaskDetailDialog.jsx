@@ -459,6 +459,24 @@ export default function TaskDetailDialog({
     });
   };
 
+  const handleSaveWorkUpdateNote = () => {
+    const workUpdateNote = note.trim();
+    if (!workUpdateNote) {
+      toast.error("Enter a work update note to save");
+      return;
+    }
+
+    updateProgressMutation.mutate(
+      {
+        taskId: task.taskId || task._id,
+        note: workUpdateNote,
+      },
+      {
+        onSuccess: () => setNote(""),
+      }
+    );
+  };
+
   const handleSaveUpdate = () => {
     const statusChanged = status !== task.status;
     const progressChanged = progressPercent !== (task.progressPercent ?? 0);
@@ -1370,7 +1388,7 @@ export default function TaskDetailDialog({
               <span>{workLockedMessage}</span>
             </div>
           )}
-          <div className="grid gap-1.5 border border-t-0 border-orange-200 p-2 dark:border-orange-400/30 sm:grid-cols-2">
+          <div className="relative grid gap-1.5 border border-t-0 border-orange-200 p-2 dark:border-orange-400/30 sm:grid-cols-2">
             <div className="space-y-1">
               <Label className="text-xs font-semibold text-foreground">
                 Work Update Note {requiresUpdateNote ? <span className="text-red-500">*</span> : null}
@@ -1403,7 +1421,7 @@ export default function TaskDetailDialog({
               </div>
             </div>
 
-            <div className="space-y-1">
+            <div className="flex h-full flex-col space-y-1">
               <Label className="text-xs font-semibold text-foreground">
                 Work Proof Attachments {requiresAttachment ? <span className="text-red-500">*</span> : null}
               </Label>
@@ -1444,21 +1462,33 @@ export default function TaskDetailDialog({
                   </div>
                 ) : null}
               </div>
-              {!isWorkLocked && (
-                <Button type="button" variant="outline" size="sm" className="h-8 w-fit gap-1.5 px-3 text-blue-600" asChild>
-                  <label className="cursor-pointer">
-                    <Plus className="h-4 w-4" />
-                    Add More Work Proof
-                    <input
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={(event) => setProofFiles((files) => [...files, ...Array.from(event.target.files || [])])}
-                    />
-                  </label>
-                </Button>
-              )}
+              <div className="mt-auto flex items-center gap-2 pr-16">
+                {!isWorkLocked && (
+                  <Button type="button" variant="outline" size="sm" className="h-8 w-fit gap-1.5 px-3 text-blue-600" asChild>
+                    <label className="cursor-pointer">
+                      <Plus className="h-4 w-4" />
+                      Add More Work Proof
+                      <input
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(event) => setProofFiles((files) => [...files, ...Array.from(event.target.files || [])])}
+                      />
+                    </label>
+                  </Button>
+                )}
+              </div>
             </div>
+            <Button
+              type="button"
+              size="sm"
+              className="absolute bottom-2 right-2 h-8 w-auto shrink-0 gap-1.5 bg-blue-600 px-3 text-[11px] hover:bg-blue-700"
+              onClick={handleSaveWorkUpdateNote}
+              disabled={!note.trim() || isLocked || isPendingAcceptance || updateProgressMutation.isPending}
+            >
+              {updateProgressMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              Save
+            </Button>
           </div>
           <p className="flex items-center gap-1.5 rounded-b-lg border border-t-0 border-orange-200 px-2.5 py-1.5 text-[10px] text-muted-foreground dark:border-orange-400/30">
             <Info className="h-3.5 w-3.5 shrink-0" />
