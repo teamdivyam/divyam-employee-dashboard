@@ -407,7 +407,7 @@ export default function MyTasksPage() {
   };
   const metricCards = [
     ["Due Today", analytics.dueToday || 0, "Tasks", CalendarCheck, "blue"],
-    ["In Progress", analytics.tabCounts?.my_work || 0, "Tasks", RotateCcw, "orange"],
+    ["In Progress", analytics.inProgress || 0, "Tasks", RotateCcw, "orange"],
     ["Overdue", analytics.overdue || 0, "Tasks", AlertTriangle, "red"],
     ["Pending Acceptance", employeeTabCounts.pending_acceptance, "Tasks", ClipboardList, "violet"],
     ["Awaiting Review", analytics.tabCounts?.awaiting_review || 0, "Tasks", Eye, "blue"],
