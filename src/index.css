@@ -688,6 +688,27 @@ body {
     @apply mt-0.5 text-[9px] font-medium text-muted-foreground;
   }
 
+  .expense-advance-progress {
+    @apply grid h-28 w-28 shrink-0 place-items-center rounded-full;
+    background: conic-gradient(
+      hsl(var(--chart-2)) 0deg var(--advance-adjusted-angle, 0deg),
+      hsl(var(--chart-3)) var(--advance-adjusted-angle, 0deg) var(--advance-pending-angle, 0deg),
+      hsl(var(--muted)) var(--advance-pending-angle, 0deg) 360deg
+    );
+  }
+
+  .expense-advance-progress > div {
+    @apply grid h-20 w-20 place-content-center rounded-full bg-card text-center shadow-sm;
+  }
+
+  .expense-advance-progress strong {
+    @apply text-lg font-semibold text-foreground;
+  }
+
+  .expense-advance-progress span {
+    @apply mt-0.5 text-[9px] font-medium text-muted-foreground;
+  }
+
   .payroll-request-button {
     @apply border-0 text-white shadow-sm;
     background: linear-gradient(90deg, #c16df1 0%, #1778f2 100%);

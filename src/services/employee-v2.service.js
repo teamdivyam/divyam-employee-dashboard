@@ -78,6 +78,42 @@ const EmployeeV2Service = {
         employeeV2Request.get(`/employees/${encodeURIComponent(employeeId)}`),
     editEmployee: (employeeId, formData) => employeeV2Request.patch(`/employees/${encodeURIComponent(employeeId)}`, formData),
 
+    getEmployeeExpenseAnalytics: ({ monthPeriod, signal } = {}) =>
+        employeeV2Request.get("/expense/employee/analytics", {
+            params: { monthPeriod },
+            signal,
+        }),
+    createEmployeeExpense: (formData) =>
+        employeeV2Request.post("/expense/employee", formData, {
+            headers: { "Content-Type": undefined },
+        }),
+    getEmployeeExpenses: ({
+        monthPeriod,
+        pagination = 1,
+        limit = 15,
+        search,
+        expenseFor = "All Expense",
+        category = "All Category",
+        paymentSource = "All Payment Source",
+        status,
+        signal,
+    } = {}) => employeeV2Request.get(
+        `/expense/employee`,
+        {
+            params: {
+                monthPeriod,
+                pagination: Math.max(Number(pagination) || 1, 1),
+                limit: Math.min(Math.max(Number(limit) || 15, 1), 100),
+                ...(search?.trim() ? { search: search.trim() } : {}),
+                expenseFor,
+                category,
+                paymentSource,
+                ...(status ? { status } : {}),
+            },
+            signal,
+        },
+    ),
+
     getTodayAttendance: () => employeeV2Request.get("/attendance/me/today"),
     getAttendanceSummary: ({ fromDate, toDate } = {}) =>
         employeeV2Request.get("/attendance/me/summary", {

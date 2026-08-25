@@ -1,10 +1,11 @@
 /* eslint-disable react/prop-types */
 import { useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@components/lib/utils";
 
 const MIN_MONTH = new Date(2026, 6, 1);
 
-export function MonthFilterControl({ filters, onFilterChange }) {
+export function MonthFilterControl({ filters, onFilterChange, className }) {
   const now = new Date();
   const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const selectedMonth = new Date(
@@ -37,24 +38,27 @@ export function MonthFilterControl({ filters, onFilterChange }) {
   };
 
   return (
-    <div className="flex h-8 overflow-hidden rounded-md border border-border bg-secondary text-secondary-foreground text-xs">
+    <div className={cn(
+      "flex h-8 overflow-hidden rounded-md border border-border bg-secondary text-xs text-secondary-foreground",
+      className,
+    )}>
       <button
         type="button"
         onClick={() => shiftMonth(-1)}
         disabled={isPreviousDisabled}
-        className="grid w-8 place-items-center text-secondary-foreground transition-colors hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+        className="grid w-8 place-items-center text-inherit transition-colors hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
         aria-label="Previous month"
       >
         <ChevronLeft className="h-3.5 w-3.5" />
       </button>
-      <span className="grid min-w-[104px] place-items-center border-x border-border px-3 text-xs font-medium text-secondary-foreground">
+      <span className="grid min-w-[104px] place-items-center border-x border-border px-3 text-xs font-medium text-inherit">
         {label}
       </span>
       <button
         type="button"
         onClick={() => shiftMonth(1)}
         disabled={isNextDisabled}
-        className="grid w-8 place-items-center text-secondary-foreground transition-colors hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+        className="grid w-8 place-items-center text-inherit transition-colors hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
         aria-label="Next month"
       >
         <ChevronRight className="h-3.5 w-3.5" />
