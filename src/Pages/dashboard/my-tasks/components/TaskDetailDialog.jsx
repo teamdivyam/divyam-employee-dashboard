@@ -68,6 +68,7 @@ const TASK_ROLE_RANK = {
   Admin: 2,
   "Super Admin": 3,
 };
+const PERMISSION_DISABLED_CONTROL_CLASS = "disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-300 disabled:opacity-100 dark:disabled:border-slate-700 dark:disabled:bg-slate-900/40 dark:disabled:text-slate-600";
 
 const ESCALATION_TYPES = [
   "Clarification Required",
@@ -205,8 +206,9 @@ export default function TaskDetailDialog({
   const isTaskFromAdmin = task?.taskType !== "Self Task" && ["Admin", "Super Admin"].includes(task?.createdByRole);
   const isViewerSuperAdmin = currentEmployee?.accessRole === "Super Admin";
   const canEditTaskInfo = !isLocked && isRequester;
+  const canAttachReference = !isLocked && (isRecipient || isRequester || isReviewer);
   const canEditOverallProgress = !isLocked && !isPendingAcceptance
-    && !isCollaborator && !isReviewer && (isRecipient || isRequester);
+    && (!isCollaborator || isReviewer) && (isRecipient || isRequester || isReviewer);
   const isHigherHierarchyRecipient = isRecipient
     && TASK_ROLE_RANK[task?.assignedToRole || currentEmployee?.accessRole]
       > TASK_ROLE_RANK[task?.createdByRole];
@@ -367,6 +369,21 @@ export default function TaskDetailDialog({
     if (availableSlots) {
       setEditReferenceFiles((files) => [...files, ...nextFiles.slice(0, availableSlots)]);
     }
+  };
+
+  const uploadReferenceFilesDirectly = (fileList = []) => {
+    const nextFiles = Array.from(fileList);
+    const availableSlots = Math.max(0, 5 - (task.referenceAttachments || []).length);
+    if (nextFiles.length > availableSlots) {
+      toast.error("A maximum of 5 reference attachments is allowed");
+    }
+    const filesToUpload = nextFiles.slice(0, availableSlots);
+    if (!filesToUpload.length) return;
+
+    editTaskMutation.mutate({
+      taskId: task.taskId || task._id,
+      referenceAttachments: filesToUpload,
+    });
   };
 
   const removeSavedReferenceAttachment = (attachmentId) => {
@@ -872,9 +889,13 @@ export default function TaskDetailDialog({
                       <FileText className="h-3.5 w-3.5" />{file.fileName}
                     </a>
                   ))}
-                  {canEditTaskInfo ? (
-                    <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 text-[11px] text-blue-600" onClick={() => setIsEditingInfo(true)}>
-                      <Plus className="h-3.5 w-3.5" /> Add More Reference Files
+                  {canAttachReference && (task.referenceAttachments || []).length < 5 ? (
+                    <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 text-[11px] text-blue-600" asChild>
+                      <label className={editTaskMutation.isPending ? "pointer-events-none cursor-not-allowed opacity-50" : "cursor-pointer"}>
+                        {editTaskMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                        {editTaskMutation.isPending ? "Uploading..." : "Add Reference Files"}
+                        <input type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.txt" className="hidden" disabled={editTaskMutation.isPending} onChange={(event) => { uploadReferenceFilesDirectly(event.target.files); event.target.value = ""; }} />
+                      </label>
                     </Button>
                   ) : null}
                 </div>
@@ -1057,17 +1078,17 @@ export default function TaskDetailDialog({
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-foreground">Overall Progress</Label>
                   <div className="flex items-center gap-2">
-                    <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" disabled={!canEditOverallProgress} onClick={() => setProgressPercent((value) => Math.max(0, value - 10))}>−</Button>
+                    <Button type="button" variant="outline" size="icon" className={`h-8 w-8 shrink-0 ${PERMISSION_DISABLED_CONTROL_CLASS}`} disabled={!canEditOverallProgress} onClick={() => setProgressPercent((value) => Math.max(0, value - 10))}>−</Button>
                     <div className="h-1.5 flex-1 rounded-full bg-muted"><div className="h-1.5 rounded-full bg-blue-600" style={{ width: `${progressPercent}%` }} /></div>
-                    <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" disabled={!canEditOverallProgress} onClick={() => setProgressPercent((value) => Math.min(100, value + 10))}>+</Button>
+                    <Button type="button" variant="outline" size="icon" className={`h-8 w-8 shrink-0 ${PERMISSION_DISABLED_CONTROL_CLASS}`} disabled={!canEditOverallProgress} onClick={() => setProgressPercent((value) => Math.min(100, value + 10))}>+</Button>
                     <span className="w-9 text-right text-xs font-semibold">{progressPercent}%</span>
                   </div>
-                  {!canEditOverallProgress ? <p className="flex items-center gap-1 text-[10px] text-muted-foreground"><Info className="h-3 w-3" />Only Primary Owner can change overall progress</p> : null}
+                  {!canEditOverallProgress ? <p className="flex items-center gap-1 text-[10px] text-muted-foreground"><Info className="h-3 w-3" />Primary Owner, requester, or reviewer can change overall progress</p> : null}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-foreground">Task Status</Label>
                   <Select value={status} disabled={!canEditOverallProgress} onValueChange={(value) => { setStatus(value); if (value === "In Progress") setProgressPercent(10); if (value === "Completed") setProgressPercent(100); if (value === "Rework") setProgressPercent(0); }}>
-                    <SelectTrigger className="h-8 text-xs font-semibold"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className={`h-8 text-xs font-semibold ${PERMISSION_DISABLED_CONTROL_CLASS}`}><SelectValue /></SelectTrigger>
                     <SelectContent>{(task.taskType === "Self Task" ? SELF_TASK_EDITABLE_STATUSES : WORK_REQUEST_EDITABLE_STATUSES).map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
@@ -1118,7 +1139,7 @@ export default function TaskDetailDialog({
                   ))}
                 </div>
                 <div className="flex items-center rounded-md bg-muted/20 px-3 text-[11px] text-muted-foreground">
-                  {canEditOverallProgress ? "Update the overall progress and status below." : "Only the Primary Owner can change overall progress."}
+                  {canEditOverallProgress ? "Update the overall progress and status below." : "Primary Owner, requester, or reviewer can change overall progress."}
                 </div>
               </div>
             ) : null}
@@ -1818,7 +1839,7 @@ export default function TaskDetailDialog({
               type="button"
               variant="outline"
               size="sm"
-              className="gap-2 border-emerald-300 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-400/40"
+              className={`gap-2 border-emerald-300 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-400/40 ${!canParticipantMarkCompleted ? PERMISSION_DISABLED_CONTROL_CLASS : ""}`}
               disabled={reviewTaskMutation.isPending || updateProgressMutation.isPending || !canParticipantMarkCompleted}
               title={!canParticipantMarkCompleted ? "Available after the task is submitted" : undefined}
               onClick={handleMarkAsCompleted}
