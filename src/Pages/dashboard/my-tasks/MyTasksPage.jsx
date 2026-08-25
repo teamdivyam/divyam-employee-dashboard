@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import PropTypes from "prop-types";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -6,6 +7,7 @@ import { Button } from "@components/components/ui/button";
 import { Input } from "@components/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/components/ui/select";
 import { Dialog, DialogContent } from "@components/components/ui/dialog";
+import MonthFilterControl from "@components/components/MonthFilterControl";
 import TabComp from "@components/components/tab-comp";
 import {
   AlertTriangle,
@@ -99,6 +101,10 @@ export default function MyTasksPage() {
     priority: "all",
     relatedType: "all",
   });
+  const [monthFilter, setMonthFilter] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
   const [openFilterDropdown, setOpenFilterDropdown] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedTaskId, setSelectedTaskId] = useState(null);
@@ -171,19 +177,22 @@ export default function MyTasksPage() {
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [newTask, setNewTask] = useState(createEmptyTaskBatch);
 
+  const selectedMonth = `${monthFilter.year}-${String(monthFilter.month).padStart(2, "0")}`;
+
   const analyticsQuery = useQuery({
-    queryKey: ["my-task-analytics"],
+    queryKey: ["my-task-analytics", selectedMonth],
     queryFn: async () => {
-      const response = await EmployeeV2Service.getTaskAnalyticsV2();
+      const response = await EmployeeV2Service.getTaskAnalyticsV2({ month: selectedMonth });
       return response.data?.data?.analytics;
     },
   });
 
   const pendingAcceptanceCountQuery = useQuery({
-    queryKey: ["my-task-counters", "employee_pending_acceptance"],
+    queryKey: ["my-task-counters", "employee_pending_acceptance", selectedMonth],
     queryFn: async () => {
       const response = await EmployeeV2Service.getMyTasksV2({
         scope: "employee_pending_acceptance",
+        month: selectedMonth,
         page: 1,
         limit: 1,
       });
@@ -192,10 +201,11 @@ export default function MyTasksPage() {
   });
 
   const requestsSentCountQuery = useQuery({
-    queryKey: ["my-task-counters", "employee_requests_sent"],
+    queryKey: ["my-task-counters", "employee_requests_sent", selectedMonth],
     queryFn: async () => {
       const response = await EmployeeV2Service.getMyTasksV2({
         scope: "employee_requests_sent",
+        month: selectedMonth,
         page: 1,
         limit: 1,
       });
@@ -204,7 +214,7 @@ export default function MyTasksPage() {
   });
 
   const tasksQuery = useQuery({
-    queryKey: ["my-tasks", filters],
+    queryKey: ["my-tasks", filters, selectedMonth],
     queryFn: async () => {
       const response = await EmployeeV2Service.getMyTasksV2({
         scope: SCOPE_BY_TAB[filters.tab] || filters.tab,
@@ -215,6 +225,7 @@ export default function MyTasksPage() {
         status: filters.status !== "all" ? filters.status : undefined,
         priority: filters.priority !== "all" ? filters.priority : undefined,
         relatedType: filters.relatedType !== "all" ? filters.relatedType : undefined,
+        month: selectedMonth,
         sortBy: filters.sortBy,
         sortOrder: "asc",
       });
@@ -361,6 +372,11 @@ export default function MyTasksPage() {
 
   const setFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value, page: key === "page" ? value : 1 }));
 
+  const setTaskMonth = (updater) => {
+    setMonthFilter(updater);
+    setFilters((current) => ({ ...current, page: 1 }));
+  };
+
   const hasActiveFilters = Boolean(
     filters.search
     || filters.taskType !== "all"
@@ -391,7 +407,7 @@ export default function MyTasksPage() {
   };
   const metricCards = [
     ["Due Today", analytics.dueToday || 0, "Tasks", CalendarCheck, "blue"],
-    ["In Progress", analytics.tabCounts?.my_work || 0, "Tasks", RotateCcw, "orange"],
+    ["In Progress", analytics.inProgress || 0, "Tasks", RotateCcw, "orange"],
     ["Overdue", analytics.overdue || 0, "Tasks", AlertTriangle, "red"],
     ["Pending Acceptance", employeeTabCounts.pending_acceptance, "Tasks", ClipboardList, "violet"],
     ["Awaiting Review", analytics.tabCounts?.awaiting_review || 0, "Tasks", Eye, "blue"],
@@ -415,6 +431,15 @@ export default function MyTasksPage() {
           subtitle={filters.tab === "collaborating"
             ? "Tasks where you are added as a collaborator."
             : "View, manage and complete your assigned work and requests."}
+          actions={(
+            <>
+              <MonthFilterControl filters={monthFilter} onFilterChange={setTaskMonth} />
+              <Button size="sm" className="h-8 gap-1.5 bg-blue-500 text-white hover:bg-blue-600" onClick={() => setIsAddTaskOpen(true)}>
+                <Plus className="h-3.5 w-3.5" />
+                Create Task
+              </Button>
+            </>
+          )}
         />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -423,20 +448,14 @@ export default function MyTasksPage() {
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <TabComp
-            tabs={taskTabs}
-            value={filters.tab}
-            onValueChange={(value) => setFilter("tab", value)}
-            className="employee-task-tabs min-w-0 flex-1"
-            listClassName="employee-task-tab-list"
-            ariaLabel="Employee task sections"
-          />
-          <Button size="sm" className="gap-1.5 bg-blue-500 text-white hover:bg-blue-600" onClick={() => setIsAddTaskOpen(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            Create Task
-          </Button>
-        </div>
+        <TabComp
+          tabs={taskTabs}
+          value={filters.tab}
+          onValueChange={(value) => setFilter("tab", value)}
+          className="employee-task-tabs"
+          listClassName="employee-task-tab-list"
+          ariaLabel="Employee task sections"
+        />
 
         <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
 
@@ -740,11 +759,22 @@ export default function MyTasksPage() {
   );
 }
 
-function PageHeader({ title, subtitle }) {
+function PageHeader({ title, subtitle, actions }) {
   return (
-    <div>
-      <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {actions}
+      </div>
     </div>
   );
 }
+
+PageHeader.propTypes = {
+  title: PropTypes.string.isRequired,
+  subtitle: PropTypes.string.isRequired,
+  actions: PropTypes.node.isRequired,
+};

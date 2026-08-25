@@ -68,6 +68,7 @@ const TASK_ROLE_RANK = {
   Admin: 2,
   "Super Admin": 3,
 };
+const PERMISSION_DISABLED_CONTROL_CLASS = "disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-300 disabled:opacity-100 dark:disabled:border-slate-700 dark:disabled:bg-slate-900/40 dark:disabled:text-slate-600";
 
 const ESCALATION_TYPES = [
   "Clarification Required",
@@ -171,7 +172,10 @@ export default function TaskDetailDialog({
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [editTaskTitle, setEditTaskTitle] = useState("");
   const [editRelatedToName, setEditRelatedToName] = useState("");
-  const [editDescription, setEditDescription] = useState("");
+  const [editInstructions, setEditInstructions] = useState("");
+  const [editExpectedOutcome, setEditExpectedOutcome] = useState("");
+  const [editReferenceFiles, setEditReferenceFiles] = useState([]);
+  const [removedReferenceAttachmentIds, setRemovedReferenceAttachmentIds] = useState([]);
   const [escalationType, setEscalationType] = useState("");
   const [escalationAction, setEscalationAction] = useState("");
   const [escalationPriority, setEscalationPriority] = useState("High");
@@ -202,8 +206,9 @@ export default function TaskDetailDialog({
   const isTaskFromAdmin = task?.taskType !== "Self Task" && ["Admin", "Super Admin"].includes(task?.createdByRole);
   const isViewerSuperAdmin = currentEmployee?.accessRole === "Super Admin";
   const canEditTaskInfo = !isLocked && isRequester;
+  const canAttachReference = !isLocked && (isRecipient || isRequester || isReviewer);
   const canEditOverallProgress = !isLocked && !isPendingAcceptance
-    && !isCollaborator && !isReviewer && (isRecipient || isRequester);
+    && (!isCollaborator || isReviewer) && (isRecipient || isRequester || isReviewer);
   const isHigherHierarchyRecipient = isRecipient
     && TASK_ROLE_RANK[task?.assignedToRole || currentEmployee?.accessRole]
       > TASK_ROLE_RANK[task?.createdByRole];
@@ -237,6 +242,9 @@ export default function TaskDetailDialog({
     .filter((entry) => entry.action === "Work Update Note" && entry.note);
   const hasSavedUpdateNote = savedWorkUpdateNotes.length > 0;
   const workProofAttachments = (task?.attachments || []).filter((file) => file.category !== "Discussion");
+  const visibleReferenceAttachments = (task?.referenceAttachments || []).filter(
+    (file) => !removedReferenceAttachmentIds.includes(String(file._id))
+  );
   const hasProof = Boolean(proofFiles.length || workProofAttachments.length);
   const proofCount = workProofAttachments.length + proofFiles.length;
   const updateRequirementMet = !requiresUpdateNote || hasSavedUpdateNote || Boolean(note.trim());
@@ -262,7 +270,10 @@ export default function TaskDetailDialog({
     setIsEditingInfo(false);
     setEditTaskTitle(task?.taskTitle || "");
     setEditRelatedToName(task?.relatedTo?.name || "");
-    setEditDescription(task?.description || "");
+    setEditInstructions(task?.instructions || "");
+    setEditExpectedOutcome(task?.expectedOutcome || task?.description || "");
+    setEditReferenceFiles([]);
+    setRemovedReferenceAttachmentIds([]);
     setEscalationType("");
     setEscalationAction("");
     setEscalationPriority("High");
@@ -349,6 +360,37 @@ export default function TaskDetailDialog({
 
   const notAvailable = () => toast.info("This action isn't available yet.");
 
+  const addReferenceFiles = (fileList = []) => {
+    const nextFiles = Array.from(fileList);
+    const availableSlots = Math.max(0, 5 - visibleReferenceAttachments.length - editReferenceFiles.length);
+    if (nextFiles.length > availableSlots) {
+      toast.error("A maximum of 5 reference attachments is allowed");
+    }
+    if (availableSlots) {
+      setEditReferenceFiles((files) => [...files, ...nextFiles.slice(0, availableSlots)]);
+    }
+  };
+
+  const uploadReferenceFilesDirectly = (fileList = []) => {
+    const nextFiles = Array.from(fileList);
+    const availableSlots = Math.max(0, 5 - (task.referenceAttachments || []).length);
+    if (nextFiles.length > availableSlots) {
+      toast.error("A maximum of 5 reference attachments is allowed");
+    }
+    const filesToUpload = nextFiles.slice(0, availableSlots);
+    if (!filesToUpload.length) return;
+
+    editTaskMutation.mutate({
+      taskId: task.taskId || task._id,
+      referenceAttachments: filesToUpload,
+    });
+  };
+
+  const removeSavedReferenceAttachment = (attachmentId) => {
+    const id = String(attachmentId);
+    setRemovedReferenceAttachmentIds((ids) => ids.includes(id) ? ids : [...ids, id]);
+  };
+
   const handleSendDiscussion = () => {
     if (!discussionMessage.trim() && !discussionFiles.length) {
       toast.error("Write a message or attach a file");
@@ -375,15 +417,88 @@ export default function TaskDetailDialog({
     )));
   };
 
+  const resetTaskInfoDraft = () => {
+    setEditTaskTitle(task?.taskTitle || "");
+    setEditRelatedToName(task?.relatedTo?.name || "");
+    setEditInstructions(task?.instructions || "");
+    setEditExpectedOutcome(task?.expectedOutcome || task?.description || "");
+    setEditReferenceFiles([]);
+    setRemovedReferenceAttachmentIds([]);
+  };
+
+  const hasTaskInfoChanges = () => (
+    editTaskTitle.trim() !== task.taskTitle
+    || editRelatedToName.trim() !== (task.relatedTo?.name || "")
+    || editInstructions.trim() !== (task.instructions || "")
+    || editExpectedOutcome.trim() !== (task.expectedOutcome || task.description || "")
+    || editReferenceFiles.length > 0
+    || removedReferenceAttachmentIds.length > 0
+  );
+
+  const getTaskInfoPayload = () => ({
+    taskId: task.taskId || task._id,
+    taskTitle: editTaskTitle.trim(),
+    relatedTo: {
+      type: task.relatedTo?.type || "Other",
+      refId: task.relatedTo?.refId || null,
+      refModel: task.relatedTo?.refModel || null,
+      name: editRelatedToName.trim(),
+    },
+    description: editExpectedOutcome.trim(),
+    instructions: editInstructions.trim(),
+    expectedOutcome: editExpectedOutcome.trim(),
+    referenceAttachments: editReferenceFiles,
+    removedReferenceAttachmentIds,
+  });
+
+  const handleSaveTaskInfo = () => {
+    const taskTitleError = getTaskTitleValidationError(editTaskTitle);
+    if (taskTitleError) {
+      toast.error(taskTitleError);
+      return;
+    }
+    if (!editExpectedOutcome.trim()) {
+      toast.error("Expected outcome is required");
+      return;
+    }
+    if (!hasTaskInfoChanges()) {
+      toast.info("No task information changes to save");
+      setIsEditingInfo(false);
+      return;
+    }
+
+    editTaskMutation.mutate(getTaskInfoPayload(), {
+      onSuccess: () => {
+        setEditReferenceFiles([]);
+        setRemovedReferenceAttachmentIds([]);
+        setIsEditingInfo(false);
+      },
+    });
+  };
+
+  const handleSaveWorkUpdateNote = () => {
+    const workUpdateNote = note.trim();
+    if (!workUpdateNote) {
+      toast.error("Enter a work update note to save");
+      return;
+    }
+
+    updateProgressMutation.mutate(
+      {
+        taskId: task.taskId || task._id,
+        note: workUpdateNote,
+      },
+      {
+        onSuccess: () => setNote(""),
+      }
+    );
+  };
+
   const handleSaveUpdate = () => {
     const statusChanged = status !== task.status;
     const progressChanged = progressPercent !== (task.progressPercent ?? 0);
     const noteEntered = note.trim().length > 0;
-    const infoChanged = isEditingInfo && (
-      editTaskTitle.trim() !== task.taskTitle
-      || editRelatedToName.trim() !== (task.relatedTo?.name || "")
-      || editDescription.trim() !== (task.description || "")
-    );
+    const infoChanged = isEditingInfo && hasTaskInfoChanges();
     const dueDateRequested = isDueDateFormOpen && Boolean(newDueDate);
 
     const saveChecklistChanges = async () => {
@@ -460,23 +575,19 @@ export default function TaskDetailDialog({
         toast.error(taskTitleError);
         return;
       }
+      if (!editExpectedOutcome.trim()) {
+        toast.error("Expected outcome is required");
+        return;
+      }
     }
 
     if (infoChanged) {
       editTaskMutation.mutate(
-        {
-          taskId: task.taskId || task._id,
-          taskTitle: editTaskTitle.trim(),
-          relatedTo: {
-            type: task.relatedTo?.type || "Other",
-            refId: task.relatedTo?.refId || null,
-            refModel: task.relatedTo?.refModel || null,
-            name: editRelatedToName.trim(),
-          },
-          description: editDescription.trim(),
-        },
+        getTaskInfoPayload(),
         {
           onSuccess: () => {
+            setEditReferenceFiles([]);
+            setRemovedReferenceAttachmentIds([]);
             setIsEditingInfo(false);
             submitDueDateChange();
           },
@@ -636,19 +747,19 @@ export default function TaskDetailDialog({
             trailing={
               canEditTaskInfo ? (
                 isEditingInfo ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsEditingInfo(false);
-                      setEditTaskTitle(task?.taskTitle || "");
-                      setEditRelatedToName(task?.relatedTo?.name || "");
-                      setEditDescription(task?.description || "");
-                    }}
-                    className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
-                  >
-                    <XCircle className="h-3 w-3" />
-                    Cancel
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetTaskInfoDraft();
+                        setIsEditingInfo(false);
+                      }}
+                      className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      <XCircle className="h-3 w-3" />
+                      Cancel
+                    </button>
+                  </div>
                 ) : (
                   <button
                     type="button"
@@ -676,11 +787,56 @@ export default function TaskDetailDialog({
                     <Input value={editRelatedToName} onChange={(event) => setEditRelatedToName(event.target.value)} className="h-8 text-xs" />
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-[11px] text-muted-foreground">Expected Outcome</Label>
-                  <Textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} className="h-16 min-h-16 resize-none text-xs" />
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">Task Instructions</Label>
+                    <Textarea value={editInstructions} maxLength={500} onChange={(event) => setEditInstructions(event.target.value)} className="h-20 min-h-20 resize-none text-xs" />
+                    <p className="text-right text-[10px] text-muted-foreground">{editInstructions.length} / 500</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-muted-foreground">Expected Outcome <span className="text-red-500">*</span></Label>
+                    <Textarea value={editExpectedOutcome} maxLength={300} onChange={(event) => setEditExpectedOutcome(event.target.value)} className="h-20 min-h-20 resize-none text-xs" />
+                    <p className="text-right text-[10px] text-muted-foreground">{editExpectedOutcome.length} / 300</p>
+                  </div>
                 </div>
-                <p className="text-[10px] leading-none text-muted-foreground">Edits apply when you click Save Update below.</p>
+                <div className="space-y-1.5 border-t border-border pt-2">
+                  <Label className="text-[11px] text-muted-foreground">Reference Attachments</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {visibleReferenceAttachments.map((file) => (
+                      <span key={file._id} className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium">
+                        <FileText className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+                        <span className="max-w-44 truncate">{file.fileName}</span>
+                        <button type="button" title={`Remove ${file.fileName}`} className="text-muted-foreground hover:text-red-600" onClick={() => removeSavedReferenceAttachment(file._id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                    {editReferenceFiles.map((file, index) => (
+                      <span key={`${file.name}-${index}`} className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[11px] font-medium dark:bg-blue-400/10">
+                        <FileText className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+                        <span className="max-w-44 truncate">{file.name}</span>
+                        <span className="text-[10px] text-muted-foreground">Pending</span>
+                        <button type="button" title={`Remove ${file.name}`} className="text-muted-foreground hover:text-red-600" onClick={() => setEditReferenceFiles((files) => files.filter((_, fileIndex) => fileIndex !== index))}>
+                          <XCircle className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                    {visibleReferenceAttachments.length + editReferenceFiles.length < 5 ? (
+                      <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 text-[11px] text-blue-600" asChild>
+                        <label className="cursor-pointer">
+                          <Plus className="h-3.5 w-3.5" /> Add Reference Files
+                          <input type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.txt" className="hidden" onChange={(event) => { addReferenceFiles(event.target.files); event.target.value = ""; }} />
+                        </label>
+                      </Button>
+                    ) : null}
+                    <Button type="button" size="sm" className="ml-auto h-8 shrink-0 gap-1.5 bg-blue-600 px-4 text-xs hover:bg-blue-700" onClick={handleSaveTaskInfo} disabled={editTaskMutation.isPending}>
+                      {editTaskMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                      Save
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">{visibleReferenceAttachments.length + editReferenceFiles.length} / 5 files</p>
+                </div>
+                <p className="text-[10px] leading-none text-muted-foreground">Task Type and Assigned On are system fields and cannot be edited.</p>
               </>
             ) : (
               <>
@@ -733,9 +889,15 @@ export default function TaskDetailDialog({
                       <FileText className="h-3.5 w-3.5" />{file.fileName}
                     </a>
                   ))}
-                  <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 text-[11px] text-blue-600" onClick={notAvailable}>
-                    <Plus className="h-3.5 w-3.5" /> Add More Reference Files
-                  </Button>
+                  {canAttachReference && (task.referenceAttachments || []).length < 5 ? (
+                    <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 text-[11px] text-blue-600" asChild>
+                      <label className={editTaskMutation.isPending ? "pointer-events-none cursor-not-allowed opacity-50" : "cursor-pointer"}>
+                        {editTaskMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                        {editTaskMutation.isPending ? "Uploading..." : "Add Reference Files"}
+                        <input type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.txt" className="hidden" disabled={editTaskMutation.isPending} onChange={(event) => { uploadReferenceFilesDirectly(event.target.files); event.target.value = ""; }} />
+                      </label>
+                    </Button>
+                  ) : null}
                 </div>
               </div>
             ) : null}
@@ -916,17 +1078,17 @@ export default function TaskDetailDialog({
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-foreground">Overall Progress</Label>
                   <div className="flex items-center gap-2">
-                    <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" disabled={!canEditOverallProgress} onClick={() => setProgressPercent((value) => Math.max(0, value - 10))}>−</Button>
+                    <Button type="button" variant="outline" size="icon" className={`h-8 w-8 shrink-0 ${PERMISSION_DISABLED_CONTROL_CLASS}`} disabled={!canEditOverallProgress} onClick={() => setProgressPercent((value) => Math.max(0, value - 10))}>−</Button>
                     <div className="h-1.5 flex-1 rounded-full bg-muted"><div className="h-1.5 rounded-full bg-blue-600" style={{ width: `${progressPercent}%` }} /></div>
-                    <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0" disabled={!canEditOverallProgress} onClick={() => setProgressPercent((value) => Math.min(100, value + 10))}>+</Button>
+                    <Button type="button" variant="outline" size="icon" className={`h-8 w-8 shrink-0 ${PERMISSION_DISABLED_CONTROL_CLASS}`} disabled={!canEditOverallProgress} onClick={() => setProgressPercent((value) => Math.min(100, value + 10))}>+</Button>
                     <span className="w-9 text-right text-xs font-semibold">{progressPercent}%</span>
                   </div>
-                  {!canEditOverallProgress ? <p className="flex items-center gap-1 text-[10px] text-muted-foreground"><Info className="h-3 w-3" />Only Primary Owner can change overall progress</p> : null}
+                  {!canEditOverallProgress ? <p className="flex items-center gap-1 text-[10px] text-muted-foreground"><Info className="h-3 w-3" />Primary Owner, requester, or reviewer can change overall progress</p> : null}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-foreground">Task Status</Label>
                   <Select value={status} disabled={!canEditOverallProgress} onValueChange={(value) => { setStatus(value); if (value === "In Progress") setProgressPercent(10); if (value === "Completed") setProgressPercent(100); if (value === "Rework") setProgressPercent(0); }}>
-                    <SelectTrigger className="h-8 text-xs font-semibold"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className={`h-8 text-xs font-semibold ${PERMISSION_DISABLED_CONTROL_CLASS}`}><SelectValue /></SelectTrigger>
                     <SelectContent>{(task.taskType === "Self Task" ? SELF_TASK_EDITABLE_STATUSES : WORK_REQUEST_EDITABLE_STATUSES).map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
@@ -977,7 +1139,7 @@ export default function TaskDetailDialog({
                   ))}
                 </div>
                 <div className="flex items-center rounded-md bg-muted/20 px-3 text-[11px] text-muted-foreground">
-                  {canEditOverallProgress ? "Update the overall progress and status below." : "Only the Primary Owner can change overall progress."}
+                  {canEditOverallProgress ? "Update the overall progress and status below." : "Primary Owner, requester, or reviewer can change overall progress."}
                 </div>
               </div>
             ) : null}
@@ -1247,7 +1409,7 @@ export default function TaskDetailDialog({
               <span>{workLockedMessage}</span>
             </div>
           )}
-          <div className="grid gap-1.5 border border-t-0 border-orange-200 p-2 dark:border-orange-400/30 sm:grid-cols-2">
+          <div className="relative grid gap-1.5 border border-t-0 border-orange-200 p-2 dark:border-orange-400/30 sm:grid-cols-2">
             <div className="space-y-1">
               <Label className="text-xs font-semibold text-foreground">
                 Work Update Note {requiresUpdateNote ? <span className="text-red-500">*</span> : null}
@@ -1280,7 +1442,7 @@ export default function TaskDetailDialog({
               </div>
             </div>
 
-            <div className="space-y-1">
+            <div className="flex h-full flex-col space-y-1">
               <Label className="text-xs font-semibold text-foreground">
                 Work Proof Attachments {requiresAttachment ? <span className="text-red-500">*</span> : null}
               </Label>
@@ -1321,21 +1483,33 @@ export default function TaskDetailDialog({
                   </div>
                 ) : null}
               </div>
-              {!isWorkLocked && (
-                <Button type="button" variant="outline" size="sm" className="h-8 w-fit gap-1.5 px-3 text-blue-600" asChild>
-                  <label className="cursor-pointer">
-                    <Plus className="h-4 w-4" />
-                    Add More Work Proof
-                    <input
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={(event) => setProofFiles((files) => [...files, ...Array.from(event.target.files || [])])}
-                    />
-                  </label>
-                </Button>
-              )}
+              <div className="mt-auto flex items-center gap-2 pr-16">
+                {!isWorkLocked && (
+                  <Button type="button" variant="outline" size="sm" className="h-8 w-fit gap-1.5 px-3 text-blue-600" asChild>
+                    <label className="cursor-pointer">
+                      <Plus className="h-4 w-4" />
+                      Add More Work Proof
+                      <input
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(event) => setProofFiles((files) => [...files, ...Array.from(event.target.files || [])])}
+                      />
+                    </label>
+                  </Button>
+                )}
+              </div>
             </div>
+            <Button
+              type="button"
+              size="sm"
+              className="absolute bottom-2 right-2 h-8 w-auto shrink-0 gap-1.5 bg-blue-600 px-3 text-[11px] hover:bg-blue-700"
+              onClick={handleSaveWorkUpdateNote}
+              disabled={!note.trim() || isLocked || isPendingAcceptance || updateProgressMutation.isPending}
+            >
+              {updateProgressMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              Save
+            </Button>
           </div>
           <p className="flex items-center gap-1.5 rounded-b-lg border border-t-0 border-orange-200 px-2.5 py-1.5 text-[10px] text-muted-foreground dark:border-orange-400/30">
             <Info className="h-3.5 w-3.5 shrink-0" />
@@ -1665,7 +1839,7 @@ export default function TaskDetailDialog({
               type="button"
               variant="outline"
               size="sm"
-              className="gap-2 border-emerald-300 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-400/40"
+              className={`gap-2 border-emerald-300 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-400/40 ${!canParticipantMarkCompleted ? PERMISSION_DISABLED_CONTROL_CLASS : ""}`}
               disabled={reviewTaskMutation.isPending || updateProgressMutation.isPending || !canParticipantMarkCompleted}
               title={!canParticipantMarkCompleted ? "Available after the task is submitted" : undefined}
               onClick={handleMarkAsCompleted}

@@ -386,14 +386,14 @@ const EmployeeV2Service = {
             headers: { "Content-Type": undefined },
         });
     },
-    getMyTasksV2: ({ scope, status, priority, search, relatedType, taskType, page = 1, limit = 25, sortBy, sortOrder } = {}) =>
+    getMyTasksV2: ({ scope, status, priority, search, relatedType, taskType, month, page = 1, limit = 25, sortBy, sortOrder } = {}) =>
         employeeV2Request.get("/tasks", {
-            params: { scope, status, priority, search, relatedType, taskType, page, limit, sortBy, sortOrder },
+            params: { scope, status, priority, search, relatedType, taskType, month, page, limit, sortBy, sortOrder },
         }),
     getMyTaskV2Detail: (taskId) =>
         employeeV2Request.get(`/tasks/${encodeURIComponent(taskId)}`),
-    getTaskAnalyticsV2: () =>
-        employeeV2Request.get("/tasks/analytics"),
+    getTaskAnalyticsV2: ({ month } = {}) =>
+        employeeV2Request.get("/tasks/analytics", { params: { month } }),
     updateTaskProgress: ({ taskId, status, progressPercent, priority, note, attachments = [] } = {}) => {
         if (!attachments.length) {
             return employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/progress`, {
@@ -420,16 +420,25 @@ const EmployeeV2Service = {
             `/tasks/${encodeURIComponent(taskId)}/checklist/${encodeURIComponent(itemId)}`,
             { isCompleted },
         ),
-    updateTaskDetails: ({ taskId, taskTitle, description, relatedTo, dueDate, dueTime, priority, visibility } = {}) =>
-        employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/details`, {
+    updateTaskDetails: ({ taskId, taskTitle, description, instructions, expectedOutcome, relatedTo, dueDate, dueTime, priority, visibility, referenceAttachments = [], removedReferenceAttachmentIds = [] } = {}) => {
+        const formData = new FormData();
+        formData.append("payload", JSON.stringify({
             taskTitle,
             description,
+            instructions,
+            expectedOutcome,
             relatedTo,
             dueDate,
             dueTime,
             priority,
             visibility,
-        }),
+            removedReferenceAttachmentIds,
+        }));
+        referenceAttachments.forEach((file) => formData.append("referenceAttachments", file));
+        return employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/details`, formData, {
+            headers: { "Content-Type": undefined },
+        });
+    },
     respondToWorkRequest: ({ taskId, action, note } = {}) =>
         employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/respond`, { action, note }),
     reviewTask: ({ taskId, decision } = {}) =>
