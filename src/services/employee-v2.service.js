@@ -350,14 +350,14 @@ const EmployeeV2Service = {
             headers: { "Content-Type": undefined },
         });
     },
-    getMyTasksV2: ({ scope, status, priority, search, relatedType, taskType, page = 1, limit = 25, sortBy, sortOrder } = {}) =>
+    getMyTasksV2: ({ scope, status, priority, search, relatedType, taskType, month, page = 1, limit = 25, sortBy, sortOrder } = {}) =>
         employeeV2Request.get("/tasks", {
-            params: { scope, status, priority, search, relatedType, taskType, page, limit, sortBy, sortOrder },
+            params: { scope, status, priority, search, relatedType, taskType, month, page, limit, sortBy, sortOrder },
         }),
     getMyTaskV2Detail: (taskId) =>
         employeeV2Request.get(`/tasks/${encodeURIComponent(taskId)}`),
-    getTaskAnalyticsV2: () =>
-        employeeV2Request.get("/tasks/analytics"),
+    getTaskAnalyticsV2: ({ month } = {}) =>
+        employeeV2Request.get("/tasks/analytics", { params: { month } }),
     updateTaskProgress: ({ taskId, status, progressPercent, priority, note, attachments = [] } = {}) => {
         if (!attachments.length) {
             return employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/progress`, {
