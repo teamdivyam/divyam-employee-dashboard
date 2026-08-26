@@ -1,13 +1,36 @@
 /* eslint-disable react/prop-types */
-import ExpenseMetricCard from "./ExpenseMetricCard";
+import { Card } from "@components/components/ui/card";
 import { METRIC_CONFIG } from "./expense.constants";
+import { formatCurrency } from "./expense.utils";
 
 export default function ExpenseMetrics({ analytics, loading }) {
   return (
     <section className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6">
-      {METRIC_CONFIG.map(({ key, ...metric }) => (
-        <ExpenseMetricCard key={key} {...metric} metric={analytics[key]} loading={loading} />
-      ))}
+      {METRIC_CONFIG.map(({ key, label, icon: Icon, iconClass, suffix }) => {
+        const metric = analytics[key];
+        const counts = Number(metric?.counts) || 0;
+
+        return (
+          <Card key={key} className="flex min-h-[82px] items-center gap-3 rounded-lg p-3 shadow-sm">
+            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${iconClass}`}>
+              <Icon className="h-5 w-5" strokeWidth={1.8} />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-[10px] font-medium text-muted-foreground">{label}</p>
+              {loading ? (
+                <div className="mt-1 h-4 w-16 animate-pulse rounded bg-muted" />
+              ) : (
+                <p className="mt-1 text-[15px] font-semibold tabular-nums">
+                  {formatCurrency(metric?.amount)}
+                </p>
+              )}
+              <p className="mt-1 truncate text-[10px] text-muted-foreground">
+                {suffix === "Claims" ? `${counts} ${counts === 1 ? "Claim" : suffix}` : suffix}
+              </p>
+            </div>
+          </Card>
+        );
+      })}
     </section>
   );
 }

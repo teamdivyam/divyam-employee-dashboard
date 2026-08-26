@@ -1,7 +1,13 @@
 /* eslint-disable react/prop-types */
 import { Search } from "lucide-react";
 import { Input } from "@components/components/ui/input";
-import ExpenseFilterSelect from "./ExpenseFilterSelect";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@components/components/ui/select";
 import {
   CATEGORY_OPTIONS,
   EXPENSE_FOR_OPTIONS,
@@ -9,6 +15,30 @@ import {
 } from "./expense.constants";
 
 export default function ExpenseFilters({ filters, onChange }) {
+  const selectFilters = [
+    {
+      ariaLabel: "Filter by expense for",
+      key: "expenseFor",
+      options: EXPENSE_FOR_OPTIONS,
+      allValue: "All Expense",
+      allLabel: "All Expense",
+    },
+    {
+      ariaLabel: "Filter by payment source",
+      key: "paymentSource",
+      options: PAYMENT_SOURCE_OPTIONS,
+      allValue: "All Payment Source",
+      allLabel: "All Payment Sources",
+    },
+    {
+      ariaLabel: "Filter by category",
+      key: "category",
+      options: CATEGORY_OPTIONS,
+      allValue: "All Category",
+      allLabel: "All Categories",
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-2 border-b border-border p-2 sm:flex-row sm:items-center sm:justify-between">
       <div className="relative w-full sm:max-w-[310px]">
@@ -22,9 +52,20 @@ export default function ExpenseFilters({ filters, onChange }) {
         />
       </div>
       <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-3">
-        <ExpenseFilterSelect ariaLabel="Filter by expense for" value={filters.expenseFor} onValueChange={(value) => onChange("expenseFor", value)} options={EXPENSE_FOR_OPTIONS} allValue="All Expense" allLabel="All Expense" />
-        <ExpenseFilterSelect ariaLabel="Filter by payment source" value={filters.paymentSource} onValueChange={(value) => onChange("paymentSource", value)} options={PAYMENT_SOURCE_OPTIONS} allValue="All Payment Source" allLabel="All Payment Sources" />
-        <ExpenseFilterSelect ariaLabel="Filter by category" value={filters.category} onValueChange={(value) => onChange("category", value)} options={CATEGORY_OPTIONS} allValue="All Category" allLabel="All Categories" />
+        {selectFilters.map(({ ariaLabel, key, options, allValue, allLabel }) => (
+          <Select key={key} value={filters[key]} onValueChange={(value) => onChange(key, value)}>
+            <SelectTrigger className="h-8 w-full text-[10px] sm:w-[175px]" aria-label={ariaLabel}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((option) => (
+                <SelectItem key={option} value={option} className="text-xs">
+                  {option === allValue ? allLabel : option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ))}
       </div>
     </div>
   );
