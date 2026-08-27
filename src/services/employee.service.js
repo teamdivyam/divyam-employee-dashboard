@@ -633,8 +633,11 @@ const EmployeeService = {
         ...(taskId ? { taskId } : {}),
       },
     }),
-  updateCustomerCrmStatus: ({ customerId, status }) =>
-    axiosRequest.patch(`/customer/${customerId}/crm-status`, { status }),
+  updateCustomerCrmStatus: ({ customerId, status, bookingPendingReason, bookingPendingNote }) =>
+    axiosRequest.patch(`/customer/${customerId}/crm-status`, {
+      status,
+      ...(status === "Booking Pending" ? { bookingPendingReason, bookingPendingNote } : {}),
+    }),
   updateCustomer: ({ id, ...formData }) => axiosRequest.patch(`/customer/${id}/edit`, formData),
 
 };

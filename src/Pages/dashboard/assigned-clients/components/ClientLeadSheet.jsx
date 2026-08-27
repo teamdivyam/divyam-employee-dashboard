@@ -346,7 +346,7 @@ export default function ClientLeadSheet({
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    {clientLeadStatuses.map((status) => (
+                                                    {clientLeadStatuses.filter((status) => status !== 'Booking Pending').map((status) => (
                                                         <SelectItem key={status} value={status}>
                                                             {status}
                                                         </SelectItem>

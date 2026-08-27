@@ -292,6 +292,17 @@ export default function MyTasksPage() {
     onError: (error) => toast.error(error.response?.data?.message || "Unable to update task details"),
   });
 
+  const deleteTaskMutation = useMutation({
+    mutationFn: (taskId) => EmployeeV2Service.deleteTask(taskId),
+    onSuccess: () => {
+      toast.success("Self task deleted");
+      setIsDetailOpen(false);
+      setSelectedTaskId(null);
+      invalidateTaskQueries();
+    },
+    onError: (error) => toast.error(error.response?.data?.message || "Unable to delete task"),
+  });
+
   const reviewTaskMutation = useMutation({
     mutationFn: (payload) => EmployeeV2Service.reviewTask(payload),
     onSuccess: (response) => {
@@ -744,6 +755,7 @@ export default function MyTasksPage() {
             dueDateChangeMutation={dueDateChangeMutation}
             dueDateChangeRespondMutation={dueDateChangeRespondMutation}
             escalateMutation={escalateMutation}
+            deleteTaskMutation={deleteTaskMutation}
           />
         </DialogContent>
       </Dialog>

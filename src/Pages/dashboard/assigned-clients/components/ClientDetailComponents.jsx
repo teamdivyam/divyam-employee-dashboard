@@ -45,6 +45,7 @@ export const statusSteps = [
     'Proposal Sent',
     'Follow-up Due',
     'Negotiation',
+    'Booking Pending',
     'Booked',
     'Lost',
 ];
@@ -96,6 +97,7 @@ export function StatusBadge({ status }) {
         'Proposal Sent': 'crm-status-proposal-sent',
         'Follow-up Due': 'crm-status-follow-up',
         Negotiation: 'crm-status-negotiation',
+        'Booking Pending': 'crm-status-proposal-pending',
         Booked: 'crm-status-booked',
         Lost: 'crm-status-lost',
     };

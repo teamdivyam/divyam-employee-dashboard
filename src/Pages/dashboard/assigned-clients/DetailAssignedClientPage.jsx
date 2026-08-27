@@ -44,6 +44,7 @@ import {
   getCurrentCrmStatus,
   money,
 } from './components/ClientDetailComponents';
+import UpdateLeadStageDialog from './components/UpdateLeadStageDialog';
 import EmployeeService from '../../../services/employee.service';
 
 const fetchCustomer = async ({ queryKey }) => {
@@ -73,10 +74,10 @@ const fetchUpdateCustomerTask = async ({ customerId, action, taskId, ...formData
   return response.data;
 };
 
-const fetchUpdateCustomerCrmStatus = async ({ customerId, status }) => {
+const fetchUpdateCustomerCrmStatus = async ({ customerId, ...stageUpdate }) => {
   const response = await EmployeeService.updateCustomerCrmStatus({
     customerId,
-    status,
+    ...stageUpdate,
   });
 
   return response.data;
@@ -160,6 +161,7 @@ export default function DetailClientPage() {
   const [notes, setNotes] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [crmStatus, setCrmStatus] = useState('');
+  const [bookingPendingDialogOpen, setBookingPendingDialogOpen] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['client-detail', clientId],
@@ -227,6 +229,7 @@ export default function DetailClientPage() {
         setCrmStatus(response.customer.leadStatus);
       }
 
+      setBookingPendingDialogOpen(false);
       refetch();
     },
 
@@ -500,6 +503,11 @@ export default function DetailClientPage() {
             onStatusChange={(status) => {
               if (status === currentStatus) return;
 
+              if (status === 'Booking Pending') {
+                setBookingPendingDialogOpen(true);
+                return;
+              }
+
               crmStatusMutation.mutate({
                 customerId: customer._id,
                 status,
@@ -683,6 +691,19 @@ export default function DetailClientPage() {
             ...payload,
           });
         }}
+      />
+
+      <UpdateLeadStageDialog
+        open={bookingPendingDialogOpen}
+        customer={customer}
+        saving={crmStatusMutation.isPending || crmStatusMutation.isLoading}
+        onOpenChange={setBookingPendingDialogOpen}
+        onSubmit={(stageUpdate) =>
+          crmStatusMutation.mutate({
+            customerId: customer._id,
+            ...stageUpdate,
+          })
+        }
       />
     </div>
   );

@@ -42,6 +42,7 @@ import { Separator } from "@components/components/ui/separator";
 import useCurrentEmployee from "@/hooks/useCurrentEmployee";
 import EmployeeV2Service from "@/services/employee-v2.service";
 import { getSocket } from "@/services/socket";
+import DeleteSelfTaskButton from "./DeleteSelfTaskButton";
 
 import { formatDate, formatDateTime } from "./WorkPanelUI";
 import {
@@ -155,6 +156,7 @@ export default function TaskDetailDialog({
   dueDateChangeMutation,
   dueDateChangeRespondMutation,
   escalateMutation,
+  deleteTaskMutation,
 }) {
   const [status, setStatus] = useState(task?.status || "Pending");
   const [progressPercent, setProgressPercent] = useState(task?.progressPercent ?? 0);
@@ -1790,7 +1792,15 @@ export default function TaskDetailDialog({
       </div>
 
       <DialogFooter className="flex-row items-center justify-between sm:justify-between border-t border-border p-3">
-        {hideEscalateButton ? <div /> : (
+        <div className="flex items-center gap-2">
+        {deleteTaskMutation ? (
+          <DeleteSelfTaskButton
+            task={task}
+            currentEmployeeId={currentEmployee?._id}
+            mutation={deleteTaskMutation}
+          />
+        ) : null}
+        {hideEscalateButton ? null : (
         <Button
           type="button"
           variant="outline"
@@ -1833,6 +1843,7 @@ export default function TaskDetailDialog({
           {task.isEscalated ? "Escalated" : showEscalationForm ? "Submit Escalation" : "Escalate to Admin"}
         </Button>
         )}
+        </div>
         <div className="flex justify-end gap-2">
           {(isRequester || isReviewer || isHigherHierarchyRecipient) && task.taskType === "Work Request" && status !== "Completed" && !isRejected && !isPendingAcceptance && (
             <Button

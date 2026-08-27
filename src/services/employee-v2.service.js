@@ -356,6 +356,8 @@ const EmployeeV2Service = {
         }),
     getMyTaskV2Detail: (taskId) =>
         employeeV2Request.get(`/tasks/${encodeURIComponent(taskId)}`),
+    deleteTask: (taskId) =>
+        employeeV2Request.delete(`/tasks/${encodeURIComponent(taskId)}`),
     getTaskAnalyticsV2: ({ month } = {}) =>
         employeeV2Request.get("/tasks/analytics", { params: { month } }),
     updateTaskProgress: ({ taskId, status, progressPercent, priority, note, attachments = [] } = {}) => {
