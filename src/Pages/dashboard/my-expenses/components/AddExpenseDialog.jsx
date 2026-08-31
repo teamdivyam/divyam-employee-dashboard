@@ -1,8 +1,8 @@
 /* eslint-disable react/prop-types */
 import { useRef } from "react";
 import {
-  AlertCircle, Building2, CalendarDays, CheckCircle2, FileText, Info,
-  Loader2, Plus, ReceiptIndianRupee, Tag, Trash2, UploadCloud, WalletCards,
+  AlertCircle, Building2, CalendarDays, CheckCircle2, Eye, FileText, Info,
+  Loader2, Pencil, Plus, ReceiptIndianRupee, Tag, Trash2, UploadCloud, WalletCards,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@components/components/ui/avatar";
 import { Button } from "@components/components/ui/button";
@@ -13,7 +13,10 @@ import { Input } from "@components/components/ui/input";
 import { Textarea } from "@components/components/ui/textarea";
 import { CATEGORY_OPTIONS, EXPENSE_FOR_OPTIONS, PAYMENT_SOURCE_OPTIONS } from "./expense.constants";
 import { ALLOWED_ATTACHMENT_TYPES } from "./expense.schemas";
-import { formatFileSize, getInitials, numberOrZero } from "./expense.utils";
+import {
+  formatFileSize, getAttachmentKey, getAttachmentName, getAttachmentSize,
+  getAttachmentUrl, getInitials, numberOrZero,
+} from "./expense.utils";
 import CompactField from "./expense-form/CompactField";
 import ExpenseDatePicker from "./expense-form/ExpenseDatePicker";
 import ExpenseSummaryPill from "./expense-form/ExpenseSummaryPill";
@@ -36,6 +39,8 @@ export default function AddExpenseDialog({
   onRemoveFile,
   onSubmit,
   submitting,
+  mode = "add",
+  existingAttachments = [],
 }) {
   const fileInputRef = useRef(null);
   const employeeName = employee?.fullName || employee?.name || "Employee";
@@ -48,6 +53,7 @@ export default function AddExpenseDialog({
   const personallyPaid = form.paymentSource === "Office Expense Advance"
     ? Math.max(expenseAmount - advanceBalance, 0)
     : 0;
+  const isEditMode = mode === "edit";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -56,7 +62,7 @@ export default function AddExpenseDialog({
           className="flex max-h-[92vh] flex-col"
           onSubmit={(event) => {
             event.preventDefault();
-            onSubmit();
+            onSubmit(isEditMode ? "Pending Finance Review" : undefined);
           }}
           noValidate
         >
@@ -66,9 +72,11 @@ export default function AddExpenseDialog({
                 <ReceiptIndianRupee className="h-5 w-5" />
               </span>
               <div>
-                <DialogTitle className="text-[17px] font-semibold">Add Expense</DialogTitle>
+                <DialogTitle className="text-[17px] font-semibold">{isEditMode ? "Edit Expense" : "Add Expense"}</DialogTitle>
                 <DialogDescription className="mt-0.5 text-[11px]">
-                  Submit a work-related expense for review and approval.
+                  {isEditMode
+                    ? "Update this draft expense or submit it for review."
+                    : "Submit a work-related expense for review and approval."}
                 </DialogDescription>
               </div>
             </div>
@@ -254,6 +262,26 @@ export default function AddExpenseDialog({
                 </span>
               </button>
               {errors.attachments ? <FieldError message={errors.attachments} /> : null}
+              {existingAttachments.map((attachment, index) => {
+                const attachmentUrl = getAttachmentUrl(attachment);
+                return (
+                  <div key={getAttachmentKey(attachment, index)} className="flex items-center gap-2 rounded-md border border-border px-2.5 py-2">
+                    <FileText className="h-4 w-4 shrink-0 text-[hsl(var(--chart-4))]" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[11px] font-medium">{getAttachmentName(attachment)}</p>
+                      <p className="text-[10px] text-muted-foreground">{getAttachmentSize(attachment)} · Existing attachment</p>
+                    </div>
+                    {attachmentUrl ? (
+                      <Button asChild type="button" variant="ghost" size="sm" className="h-6 gap-1 px-1.5 text-[10px] text-primary">
+                        <a href={attachmentUrl} target="_blank" rel="noreferrer">
+                          <Eye className="h-3 w-3" />
+                          View
+                        </a>
+                      </Button>
+                    ) : null}
+                  </div>
+                );
+              })}
               {form.attachments.map((file, index) => (
                 <div key={`${file.name}-${file.lastModified}`} className="flex items-center gap-2 rounded-md border border-border px-2.5 py-2">
                   <FileText className="h-4 w-4 shrink-0 text-[hsl(var(--chart-4))]" />
@@ -291,7 +319,9 @@ export default function AddExpenseDialog({
                 Save as Draft
               </Button>
               <Button type="submit" className="h-8 min-w-32 gap-1.5 text-[11px]" disabled={submitting}>
-                {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                {submitting
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : isEditMode ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
                 Submit Expense
               </Button>
             </div>

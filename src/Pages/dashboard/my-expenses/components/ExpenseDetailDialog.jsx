@@ -1,20 +1,20 @@
 /* eslint-disable react/prop-types */
 import {
-  BadgeIndianRupee, CalendarDays, CheckCircle2, Clock3, Eye, FileText, Info,
-  LockKeyhole, Paperclip, ReceiptIndianRupee, ShieldCheck, Tag, UserRound, WalletCards,
+  AlertCircle, BadgeIndianRupee, CalendarDays, CheckCircle2, Clock3, Eye, FileText, Info,
+  Loader2, LockKeyhole, Paperclip, ReceiptIndianRupee, ShieldCheck, Tag, UserRound, WalletCards,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@components/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@components/components/ui/avatar";
 import { Button } from "@components/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@components/components/ui/dialog";
 import { StatusBadge } from "./ExpenseTable";
 import {
   displayPerson, displayText, firstPresent, formatCurrency, formatDate, formatDateTime,
   formatMonthPeriod, formatOptionalCurrency, getAdjustment, getAttachmentKey,
-  getAttachmentName, getAttachmentSize, getAttachmentUrl, getInitials,
+  getAttachmentName, getAttachmentSize, getAttachmentUrl, getErrorMessage, getInitials,
   hasApprovedAmount, numberOrZero,
 } from "./expense.utils";
 
-export default function ExpenseDetailDialog({ expense, employee, onOpenChange }) {
+export default function ExpenseDetailDialog({ expense, employee, loading = false, error, onOpenChange }) {
   if (!expense) return <Dialog open={false} onOpenChange={onOpenChange} />;
 
   const employeeInfo = getExpenseEmployeeInfo(expense, employee);
@@ -23,12 +23,14 @@ export default function ExpenseDetailDialog({ expense, employee, onOpenChange })
   const recommendedAmount = firstPresent(
     financeReview.recommendedAmount,
     financeReview.approvedAmount,
+    expense.financeRecommendedAmount,
     expense.recommendedAmount,
     hasApprovedAmount(expense) ? expense.amountCover : undefined,
   );
   const finalApprovedAmount = firstPresent(
     adminDecision.finalApprovedAmount,
     adminDecision.approvedAmount,
+    expense.approvedAmount,
     expense.finalApprovedAmount,
     hasApprovedAmount(expense) ? expense.amountCover : undefined,
   );
@@ -51,6 +53,7 @@ export default function ExpenseDetailDialog({ expense, employee, onOpenChange })
   const attachments = Array.isArray(expense.attachments) ? expense.attachments : [];
   const financeStatus = firstPresent(
     financeReview.status,
+    expense.financeRecommendation,
     expense.financeReviewStatus,
     hasApprovedAmount(expense) ? "Reviewed" : "Awaiting Review",
   );
@@ -78,6 +81,18 @@ export default function ExpenseDetailDialog({ expense, employee, onOpenChange })
         </DialogHeader>
 
         <div className="space-y-2.5 overflow-y-auto p-3">
+          {loading ? (
+            <div className="flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-2.5 py-2 text-[11px] text-primary">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Loading latest expense details...
+            </div>
+          ) : null}
+          {error ? (
+            <div className="flex items-center gap-1.5 rounded-md border border-destructive/25 bg-destructive/5 px-2.5 py-2 text-[11px] text-destructive">
+              <AlertCircle className="h-3.5 w-3.5" />
+              {getErrorMessage(error, "Unable to load expense details")}
+            </div>
+          ) : null}
           <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2">
             <p className="text-xs font-medium">
               Claim ID: <span className="text-foreground">{displayText(expense.expenseId)}</span>
@@ -88,6 +103,7 @@ export default function ExpenseDetailDialog({ expense, employee, onOpenChange })
           <div className="grid gap-2 rounded-md border border-border bg-muted/20 p-2 md:grid-cols-[1.25fr_1fr_0.8fr_1fr]">
             <div className="flex min-w-0 items-center gap-2.5 md:border-r md:border-border md:pr-2">
               <Avatar className="h-10 w-10 border border-[hsl(var(--chart-2)/0.30)]">
+                {employeeInfo.profileImageUrl ? <AvatarImage src={employeeInfo.profileImageUrl} alt={employeeInfo.name} /> : null}
                 <AvatarFallback className="bg-[hsl(var(--chart-2))] text-[13px] font-medium text-white">
                   {getInitials(employeeInfo.name)}
                 </AvatarFallback>
@@ -168,7 +184,7 @@ export default function ExpenseDetailDialog({ expense, employee, onOpenChange })
               <ClaimDetailNote
                 icon={FileText}
                 label="Admin Decision Note"
-                value={displayText(firstPresent(adminDecision.decisionNote, adminDecision.note, expense.adminDecisionNote))}
+                value={displayText(firstPresent(adminDecision.decisionNote, adminDecision.note, expense.adminNote, expense.adminDecisionNote))}
                 tone="violet"
               />
               <div className="flex items-start gap-1.5 rounded-md border border-primary/15 bg-primary/5 px-2.5 py-2 text-[11px] leading-4 text-primary">
@@ -300,6 +316,14 @@ function getExpenseEmployeeInfo(expense, fallbackEmployee) {
     : {};
 
   return {
+    profileImageUrl: firstPresent(
+      expenseEmployee.profileImage?.smallUrl,
+      expenseEmployee.profileImage?.url,
+      typeof expenseEmployee.profileImage === "string" ? expenseEmployee.profileImage : undefined,
+      fallback.profileImage?.smallUrl,
+      fallback.profileImage?.url,
+      typeof fallback.profileImage === "string" ? fallback.profileImage : undefined,
+    ),
     name: displayText(firstPresent(
       expenseEmployee.fullName,
       expenseEmployee.name,

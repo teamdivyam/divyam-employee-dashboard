@@ -73,6 +73,24 @@ export function createEmptyExpenseForm() {
   return { expenseName: "", expenseDate: getKolkataDate(), expenseFor: "", linkedTo: "", category: "", paymentSource: "", expenseAmount: "", paidTo: "", businessPurpose: "", supportingNote: "", attachments: [] };
 }
 
+export function createExpenseFormFromExpense(expense = {}) {
+  return {
+    expenseName: expense.expenseName || "",
+    expenseDate: String(expense.expenseDate || "").slice(0, 10),
+    expenseFor: expense.expenseFor || "",
+    linkedTo: expense.linkedTo || "",
+    category: expense.category || "",
+    paymentSource: expense.paymentSource || "",
+    expenseAmount: expense.expenseAmount === undefined || expense.expenseAmount === null
+      ? ""
+      : String(expense.expenseAmount),
+    paidTo: expense.paidTo || "",
+    businessPurpose: expense.businessPurpose || "",
+    supportingNote: expense.supportingNote || "",
+    attachments: [],
+  };
+}
+
 export function buildExpenseFormData(payload) {
   const formData = new FormData();
   ["expenseName", "expenseDate", "monthPeriod", "expenseFor", "paymentSource", "expenseAmount"].forEach((field) => formData.append(field, String(payload[field])));

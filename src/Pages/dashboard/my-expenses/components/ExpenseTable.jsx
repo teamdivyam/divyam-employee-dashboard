@@ -8,7 +8,7 @@ import {
   getRecommendedAmount, hasApprovedAmount,
 } from "./expense.utils";
 
-export default function ExpenseTable({ activeTab, expenses, loading, error, onRetry, onView }) {
+export default function ExpenseTable({ activeTab, expenses, loading, error, onRetry, onView, onEdit }) {
   const isDraftTab = activeTab === "drafts";
   const isPendingReviewTab = activeTab === "pending-review";
   const columnCount = isDraftTab ? 7 : isPendingReviewTab ? 8 : 9;
@@ -62,6 +62,7 @@ export default function ExpenseTable({ activeTab, expenses, loading, error, onRe
               activeTab={activeTab}
               expense={expense}
               onView={onView}
+              onEdit={onEdit}
             />
           ))
         ) : (
@@ -77,7 +78,7 @@ export default function ExpenseTable({ activeTab, expenses, loading, error, onRe
   );
 }
 
-function ExpenseRow({ activeTab, expense, onView }) {
+function ExpenseRow({ activeTab, expense, onView, onEdit }) {
   const actionLabel = getActionLabel(expense.status);
   const isDraftTab = activeTab === "drafts";
   const isPendingReviewTab = activeTab === "pending-review";
@@ -123,7 +124,7 @@ function ExpenseRow({ activeTab, expense, onView }) {
           variant="outline"
           size="sm"
           className="h-6 whitespace-nowrap px-2 text-[10px] text-primary"
-          onClick={() => onView(expense)}
+          onClick={() => actionLabel === "Edit" ? onEdit(expense) : onView(expense)}
         >
           {actionLabel}
         </Button>

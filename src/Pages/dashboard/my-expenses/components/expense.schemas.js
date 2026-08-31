@@ -33,5 +33,5 @@ export const expenseFormSchema = Joi.object({
   businessPurpose: Joi.string().trim().allow(""),
   supportingNote: Joi.string().trim().allow(""),
   attachments: attachmentSchema,
-  status: Joi.string().valid("Draft").optional(),
+  status: Joi.string().valid("Draft", "Pending Finance Review").optional(),
 });

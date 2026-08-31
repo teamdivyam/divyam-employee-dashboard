@@ -87,6 +87,17 @@ const EmployeeV2Service = {
         employeeV2Request.post("/expense/employee", formData, {
             headers: { "Content-Type": undefined },
         }),
+    updateEmployeeExpense: (expenseId, formData) =>
+        employeeV2Request.patch(
+            `/expense/employee/${encodeURIComponent(expenseId)}`,
+            formData,
+            { headers: { "Content-Type": undefined } },
+        ),
+    getEmployeeExpenseDetail: ({ expenseId, signal } = {}) =>
+        employeeV2Request.get(
+            `/expense/employee/${encodeURIComponent(expenseId)}/detail`,
+            { signal },
+        ),
     getEmployeeExpenses: ({
         monthPeriod,
         pagination = 1,

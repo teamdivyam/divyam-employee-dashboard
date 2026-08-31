@@ -26,6 +26,7 @@ import { attachmentSchema, expenseFormSchema } from "./components/expense.schema
 import {
   buildExpenseFormData,
   createEmptyExpenseForm,
+  createExpenseFormFromExpense,
   downloadExpenseCsv,
   getCurrentMonthFilters,
   getErrorMessage,
@@ -60,6 +61,7 @@ export default function MyExpensesPage() {
   const [page, setPage] = useState(1);
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
   const [expenseForm, setExpenseForm] = useState(createEmptyExpenseForm);
   const [expenseErrors, setExpenseErrors] = useState({});
   const [expenseFormError, setExpenseFormError] = useState("");
@@ -143,6 +145,19 @@ export default function MyExpensesPage() {
     enabled: isOfficeAdvanceTab,
   });
 
+  const selectedExpenseId = selectedExpense?.expenseId || selectedExpense?._id;
+  const expenseDetailQuery = useQuery({
+    queryKey: ["employee-expense-detail", selectedExpenseId],
+    queryFn: async ({ signal }) => {
+      const response = await EmployeeV2Service.getEmployeeExpenseDetail({
+        expenseId: selectedExpenseId,
+        signal,
+      });
+      return response.data?.data?.expense;
+    },
+    enabled: Boolean(selectedExpenseId),
+  });
+
   const analytics = analyticsQuery.data || EMPTY_ANALYTICS;
   const expenses = expensesQuery.data?.expenses || [];
   const totalRows = expensesQuery.data?.pagination.total || 0;
@@ -171,6 +186,33 @@ export default function MyExpensesPage() {
         setExpenseErrors((current) => ({ ...current, ...validationError }));
       }
       const message = getErrorMessage(error, "Unable to submit expense");
+      setExpenseFormError(message);
+      toast.error(message);
+    },
+  });
+
+  const updateExpenseMutation = useMutation({
+    mutationFn: (payload) => EmployeeV2Service.updateEmployeeExpense(
+      editingExpense?.expenseId || editingExpense?._id,
+      buildExpenseFormData(payload),
+    ),
+    onSuccess: (response) => {
+      toast.success(response.data?.message || "Expense updated successfully");
+      setIsAddExpenseOpen(false);
+      setEditingExpense(null);
+      setExpenseForm(createEmptyExpenseForm());
+      setExpenseErrors({});
+      setExpenseFormError("");
+      queryClient.invalidateQueries({ queryKey: ["employee-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-office-advance-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-expense-analytics"] });
+    },
+    onError: (error) => {
+      const validationError = error?.response?.data?.validationError;
+      if (validationError && typeof validationError === "object") {
+        setExpenseErrors((current) => ({ ...current, ...validationError }));
+      }
+      const message = getErrorMessage(error, "Unable to update expense");
       setExpenseFormError(message);
       toast.error(message);
     },
@@ -229,6 +271,13 @@ export default function MyExpensesPage() {
 
   const addExpenseFiles = (files) => {
     const nextFiles = [...expenseForm.attachments, ...files];
+    const existingAttachmentCount = Array.isArray(editingExpense?.attachments)
+      ? editingExpense.attachments.length
+      : 0;
+    if (nextFiles.length + existingAttachmentCount > 10) {
+      setExpenseErrors((current) => ({ ...current, attachments: "A maximum of 10 attachments is allowed" }));
+      return;
+    }
     const { error } = attachmentSchema.validate(nextFiles);
     if (error) {
       setExpenseErrors((current) => ({ ...current, attachments: error.details[0].message }));
@@ -251,13 +300,32 @@ export default function MyExpensesPage() {
     }
     setExpenseErrors({});
     setExpenseFormError("");
-    createExpenseMutation.mutate(value);
+    if (editingExpense) updateExpenseMutation.mutate(value);
+    else createExpenseMutation.mutate(value);
+  };
+
+  const openAddExpense = () => {
+    setEditingExpense(null);
+    setExpenseForm(createEmptyExpenseForm());
+    setExpenseErrors({});
+    setExpenseFormError("");
+    setIsAddExpenseOpen(true);
+  };
+
+  const openEditExpense = (expense) => {
+    if (!String(expense?.status || "").toLowerCase().includes("draft")) return;
+    setEditingExpense(expense);
+    setExpenseForm(createExpenseFormFromExpense(expense));
+    setExpenseErrors({});
+    setExpenseFormError("");
+    setIsAddExpenseOpen(true);
   };
 
   const handleAddExpenseOpenChange = (open) => {
-    if (!open && createExpenseMutation.isPending) return;
+    if (!open && (createExpenseMutation.isPending || updateExpenseMutation.isPending)) return;
     setIsAddExpenseOpen(open);
     if (!open) {
+      setEditingExpense(null);
       setExpenseForm(createEmptyExpenseForm());
       setExpenseErrors({});
       setExpenseFormError("");
@@ -271,6 +339,7 @@ export default function MyExpensesPage() {
     error: expensesQuery.error,
     onRetry: () => expensesQuery.refetch(),
     onView: setSelectedExpense,
+    onEdit: openEditExpense,
     filters,
     onFilterChange: updateFilter,
     page,
@@ -287,7 +356,7 @@ export default function MyExpensesPage() {
           downloadDisabled={isOfficeAdvanceTab}
           downloading={downloadMutation.isPending}
           onDownload={() => downloadMutation.mutate()}
-          onAddExpense={() => setIsAddExpenseOpen(true)}
+          onAddExpense={openAddExpense}
         />
         <ExpenseMetrics analytics={analytics} loading={analyticsQuery.isLoading} />
         <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
@@ -311,7 +380,13 @@ export default function MyExpensesPage() {
           ) : <ListTab {...listTabProps} />}
         </section>
       </main>
-      <ExpenseDetailDialog expense={selectedExpense} employee={currentEmployee} onOpenChange={(open) => !open && setSelectedExpense(null)} />
+      <ExpenseDetailDialog
+        expense={expenseDetailQuery.data || selectedExpense}
+        employee={currentEmployee}
+        loading={expenseDetailQuery.isFetching}
+        error={expenseDetailQuery.error}
+        onOpenChange={(open) => !open && setSelectedExpense(null)}
+      />
       <AddExpenseDialog
         open={isAddExpenseOpen}
         onOpenChange={handleAddExpenseOpenChange}
@@ -325,7 +400,9 @@ export default function MyExpensesPage() {
         onAddFiles={addExpenseFiles}
         onRemoveFile={(index) => updateExpenseField("attachments", expenseForm.attachments.filter((_, fileIndex) => fileIndex !== index))}
         onSubmit={submitExpense}
-        submitting={createExpenseMutation.isPending}
+        mode={editingExpense ? "edit" : "add"}
+        existingAttachments={editingExpense?.attachments || []}
+        submitting={createExpenseMutation.isPending || updateExpenseMutation.isPending}
       />
     </div>
   );
