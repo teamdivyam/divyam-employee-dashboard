@@ -177,22 +177,23 @@ export default function MyTasksPage() {
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [newTask, setNewTask] = useState(createEmptyTaskBatch);
 
-  const selectedMonth = `${monthFilter.year}-${String(monthFilter.month).padStart(2, "0")}`;
+  const completedMonth = filters.tab === "completed"
+    ? `${monthFilter.year}-${String(monthFilter.month).padStart(2, "0")}`
+    : undefined;
 
   const analyticsQuery = useQuery({
-    queryKey: ["my-task-analytics", selectedMonth],
+    queryKey: ["my-task-analytics"],
     queryFn: async () => {
-      const response = await EmployeeV2Service.getTaskAnalyticsV2({ month: selectedMonth });
+      const response = await EmployeeV2Service.getTaskAnalyticsV2();
       return response.data?.data?.analytics;
     },
   });
 
   const pendingAcceptanceCountQuery = useQuery({
-    queryKey: ["my-task-counters", "employee_pending_acceptance", selectedMonth],
+    queryKey: ["my-task-counters", "employee_pending_acceptance"],
     queryFn: async () => {
       const response = await EmployeeV2Service.getMyTasksV2({
         scope: "employee_pending_acceptance",
-        month: selectedMonth,
         page: 1,
         limit: 1,
       });
@@ -201,11 +202,10 @@ export default function MyTasksPage() {
   });
 
   const requestsSentCountQuery = useQuery({
-    queryKey: ["my-task-counters", "employee_requests_sent", selectedMonth],
+    queryKey: ["my-task-counters", "employee_requests_sent"],
     queryFn: async () => {
       const response = await EmployeeV2Service.getMyTasksV2({
         scope: "employee_requests_sent",
-        month: selectedMonth,
         page: 1,
         limit: 1,
       });
@@ -214,7 +214,7 @@ export default function MyTasksPage() {
   });
 
   const tasksQuery = useQuery({
-    queryKey: ["my-tasks", filters, selectedMonth],
+    queryKey: ["my-tasks", filters, completedMonth],
     queryFn: async () => {
       const response = await EmployeeV2Service.getMyTasksV2({
         scope: SCOPE_BY_TAB[filters.tab] || filters.tab,
@@ -225,7 +225,7 @@ export default function MyTasksPage() {
         status: filters.status !== "all" ? filters.status : undefined,
         priority: filters.priority !== "all" ? filters.priority : undefined,
         relatedType: filters.relatedType !== "all" ? filters.relatedType : undefined,
-        month: selectedMonth,
+        month: completedMonth,
         sortBy: filters.sortBy,
         sortOrder: "asc",
       });
@@ -290,6 +290,17 @@ export default function MyTasksPage() {
       invalidateTaskQueries();
     },
     onError: (error) => toast.error(error.response?.data?.message || "Unable to update task details"),
+  });
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: (taskId) => EmployeeV2Service.deleteTask(taskId),
+    onSuccess: () => {
+      toast.success("Self task deleted");
+      setIsDetailOpen(false);
+      setSelectedTaskId(null);
+      invalidateTaskQueries();
+    },
+    onError: (error) => toast.error(error.response?.data?.message || "Unable to delete task"),
   });
 
   const reviewTaskMutation = useMutation({
@@ -433,7 +444,9 @@ export default function MyTasksPage() {
             : "View, manage and complete your assigned work and requests."}
           actions={(
             <>
-              <MonthFilterControl filters={monthFilter} onFilterChange={setTaskMonth} />
+              {filters.tab === "completed" ? (
+                <MonthFilterControl filters={monthFilter} onFilterChange={setTaskMonth} />
+              ) : null}
               <Button size="sm" className="h-8 gap-1.5 bg-blue-500 text-white hover:bg-blue-600" onClick={() => setIsAddTaskOpen(true)}>
                 <Plus className="h-3.5 w-3.5" />
                 Create Task
@@ -744,6 +757,7 @@ export default function MyTasksPage() {
             dueDateChangeMutation={dueDateChangeMutation}
             dueDateChangeRespondMutation={dueDateChangeRespondMutation}
             escalateMutation={escalateMutation}
+            deleteTaskMutation={deleteTaskMutation}
           />
         </DialogContent>
       </Dialog>

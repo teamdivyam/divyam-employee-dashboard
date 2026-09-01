@@ -33,8 +33,17 @@ export const clientLeadStatuses = [
     "Proposal Sent",
     "Follow-up Due",
     "Negotiation",
+    "Booking Pending",
     "Booked",
     "Lost",
+];
+export const clientBookingPendingReasons = [
+    "Client Confirmation",
+    "Advance Pending",
+    "Details Pending",
+    "Confirmation Proof Pending",
+    "Ready to Convert",
+    "Other",
 ];
 export const clientProposalStatuses = ["Pending", "Sent"];
 export const clientTaskStatuses = ["Pending", "Completed", "Upcoming", "In Progress"];
