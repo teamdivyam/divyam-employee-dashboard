@@ -15,13 +15,20 @@ import {
 } from "@components/components/ui/alert-dialog";
 export default function DeleteSelfTaskButton({ task, currentEmployeeId, mutation }) {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
-  const creatorId = task?.createdBy?._id || task?.createdBy;
-  const canDelete = task?.taskType === "Self Task"
+  const creatorId = task?.createdBy?._id || task?.createdBy?.id || task?.createdBy;
+  const isOwnSelfTask = task?.taskType === "Self Task"
+    && Boolean(creatorId && currentEmployeeId)
     && String(creatorId) === String(currentEmployeeId);
+  const isRejectedTaskAssigner = task?.status === "Rejected"
+    && Boolean(creatorId && currentEmployeeId)
+    && String(creatorId) === String(currentEmployeeId);
+  const canDelete = isOwnSelfTask || isRejectedTaskAssigner;
 
   if (!canDelete) return null;
 
   const taskId = task.taskId || task._id;
+  const actionLabel = isRejectedTaskAssigner ? "Withdraw" : "Delete Task";
+  const pendingLabel = isRejectedTaskAssigner ? "Withdrawing..." : "Deleting...";
 
   return (
     <>
@@ -36,13 +43,15 @@ export default function DeleteSelfTaskButton({ task, currentEmployeeId, mutation
         {mutation.isPending
           ? <Loader2 className="h-4 w-4 animate-spin" />
           : <Trash2 className="h-4 w-4" />}
-        Delete Task
+        {actionLabel}
       </Button>
 
       <AlertDialog open={confirmationOpen} onOpenChange={setConfirmationOpen}>
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this self task?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {isRejectedTaskAssigner ? "Withdraw this rejected task?" : "Delete this self task?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {task.taskId || task.taskTitle} will be permanently deleted. This cannot be undone.
             </AlertDialogDescription>
@@ -56,7 +65,7 @@ export default function DeleteSelfTaskButton({ task, currentEmployeeId, mutation
                 onSuccess: () => setConfirmationOpen(false),
               })}
             >
-              {mutation.isPending ? "Deleting..." : "Delete Task"}
+              {mutation.isPending ? pendingLabel : actionLabel}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -71,9 +80,10 @@ DeleteSelfTaskButton.propTypes = {
     taskId: PropTypes.string,
     taskTitle: PropTypes.string,
     taskType: PropTypes.string,
+    status: PropTypes.string,
     createdBy: PropTypes.oneOfType([
       PropTypes.string,
-      PropTypes.shape({ _id: PropTypes.string }),
+      PropTypes.shape({ _id: PropTypes.string, id: PropTypes.string }),
     ]),
   }).isRequired,
   currentEmployeeId: PropTypes.string,
