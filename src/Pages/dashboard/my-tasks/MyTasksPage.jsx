@@ -295,7 +295,7 @@ export default function MyTasksPage() {
   const deleteTaskMutation = useMutation({
     mutationFn: (taskId) => EmployeeV2Service.deleteTask(taskId),
     onSuccess: () => {
-      toast.success("Self task deleted");
+      toast.success(taskDetail?.status === "Rejected" ? "Rejected task withdrawn" : "Self task deleted");
       setIsDetailOpen(false);
       setSelectedTaskId(null);
       invalidateTaskQueries();
