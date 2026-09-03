@@ -52,6 +52,40 @@ export const getDisplayTaskStatus = (task) => {
   return task?.status;
 };
 
+const MESSAGE_URL_PATTERN = /(https?:\/\/[^\s<]+|www\.[^\s<]+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<]*)?)/gi;
+const COMPLETE_MESSAGE_URL_PATTERN = /^(?:https?:\/\/[^\s<]+|www\.[^\s<]+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<]*)?)$/i;
+
+export const renderTaskMessageLinks = (message) => {
+  const parts = String(message || "").split(MESSAGE_URL_PATTERN);
+
+  return parts.map((part, index) => {
+    const trailingPunctuation = part.match(/[),.!?:;]+$/)?.[0] || "";
+    const linkText = trailingPunctuation ? part.slice(0, -trailingPunctuation.length) : part;
+    const followsEmailPrefix = parts[index - 1]?.endsWith("@");
+
+    if (!COMPLETE_MESSAGE_URL_PATTERN.test(linkText) || followsEmailPrefix) {
+      return <React.Fragment key={`${index}-${part}`}>{part}</React.Fragment>;
+    }
+
+    const href = /^https?:\/\//i.test(linkText) ? linkText : `https://${linkText}`;
+
+    return (
+      <React.Fragment key={`${index}-${part}`}>
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="break-all font-medium text-blue-600 underline decoration-blue-300 underline-offset-2 transition-colors [overflow-wrap:anywhere] hover:text-blue-800 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-blue-400 dark:decoration-blue-700 dark:hover:text-blue-300"
+          title="Open link in a new tab"
+        >
+          {linkText}
+        </a>
+        {trailingPunctuation}
+      </React.Fragment>
+    );
+  });
+};
+
 export function TaskStatusPill({ status }) {
   return (
     <span className={`inline-flex w-fit items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${TASK_STATUS_BADGE_CLASS[getTaskStatusTone(status)]}`}>

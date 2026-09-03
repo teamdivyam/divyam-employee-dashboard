@@ -74,7 +74,7 @@ const createTaskItem = () => ({
   instructions: "",
   expectedOutcome: "",
   checklist: [],
-  completionRequirement: "Update Note",
+  completionRequirement: "None",
   attachments: [],
 });
 

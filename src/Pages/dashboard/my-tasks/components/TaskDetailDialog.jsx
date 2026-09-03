@@ -56,6 +56,7 @@ import {
   getDueDateNote,
   getFileIconStyle,
   getInitials,
+  renderTaskMessageLinks,
   getTaskTitleValidationError,
   getTaskStatusTone,
 } from "./taskHelpers";
@@ -236,21 +237,17 @@ export default function TaskDetailDialog({
     })
     .map((item) => ({ itemId: item._id, isCompleted: Boolean(item.isCompleted) }));
   const hasChecklistChanges = checklistChanges.length > 0;
-  const completionRequirement = task?.completionRequirement || "Update Note";
-  const requiresUpdateNote = completionRequirement.includes("Update Note");
+  const storedCompletionRequirement = task?.completionRequirement || "None";
+  const completionRequirement = storedCompletionRequirement.includes("Attachment") ? "Attachment" : "None";
   const requiresAttachment = completionRequirement.includes("Attachment");
-  const savedWorkUpdateNotes = [...(task?.activity || [])]
-    .reverse()
-    .filter((entry) => entry.action === "Work Update Note" && entry.note);
-  const hasSavedUpdateNote = savedWorkUpdateNotes.length > 0;
   const workProofAttachments = (task?.attachments || []).filter((file) => file.category !== "Discussion");
   const visibleReferenceAttachments = (task?.referenceAttachments || []).filter(
     (file) => !removedReferenceAttachmentIds.includes(String(file._id))
   );
   const hasProof = Boolean(proofFiles.length || workProofAttachments.length);
   const proofCount = workProofAttachments.length + proofFiles.length;
-  const updateRequirementMet = !requiresUpdateNote || hasSavedUpdateNote || Boolean(note.trim());
   const attachmentRequirementMet = !requiresAttachment || hasProof;
+  const showNoteInput = isPendingAcceptance && isRecipient;
   const workLockedMessage = isRejected
     ? "This request was rejected and is view-only."
     : isCompleted
@@ -478,28 +475,9 @@ export default function TaskDetailDialog({
     });
   };
 
-  const handleSaveWorkUpdateNote = () => {
-    const workUpdateNote = note.trim();
-    if (!workUpdateNote) {
-      toast.error("Enter a work update note to save");
-      return;
-    }
-
-    updateProgressMutation.mutate(
-      {
-        taskId: task.taskId || task._id,
-        note: workUpdateNote,
-      },
-      {
-        onSuccess: () => setNote(""),
-      }
-    );
-  };
-
   const handleSaveUpdate = () => {
     const statusChanged = status !== task.status;
     const progressChanged = progressPercent !== (task.progressPercent ?? 0);
-    const noteEntered = note.trim().length > 0;
     const infoChanged = isEditingInfo && hasTaskInfoChanges();
     const dueDateRequested = isDueDateFormOpen && Boolean(newDueDate);
 
@@ -521,7 +499,7 @@ export default function TaskDetailDialog({
 
     const saveProgress = () => {
       const submitProgress = () => {
-        if (!statusChanged && !progressChanged && !noteEntered && !proofFiles.length) {
+        if (!statusChanged && !progressChanged && !proofFiles.length) {
           closeAfterSave();
           return;
         }
@@ -531,7 +509,6 @@ export default function TaskDetailDialog({
             taskId: task.taskId || task._id,
             status: statusChanged ? status : undefined,
             progressPercent: progressChanged ? progressPercent : undefined,
-            note: note.trim() || undefined,
             attachments: proofFiles,
           },
           {
@@ -565,7 +542,7 @@ export default function TaskDetailDialog({
       );
     };
 
-    if (!statusChanged && !progressChanged && !noteEntered && !proofFiles.length && !infoChanged && !dueDateRequested && !hasChecklistChanges) {
+    if (!statusChanged && !progressChanged && !proofFiles.length && !infoChanged && !dueDateRequested && !hasChecklistChanges) {
       toast.info("No changes to save");
       onClose();
       return;
@@ -1398,7 +1375,6 @@ export default function TaskDetailDialog({
               </div>
             </div>
             <div className="space-y-0.5">
-              <p className="text-orange-700 dark:text-orange-300"><span className={updateRequirementMet ? "font-bold text-emerald-600" : "text-orange-700"}>{updateRequirementMet ? "✓" : "○"}</span> {requiresUpdateNote ? "Update note added" : "Update note not required"}</p>
               <p className="text-orange-700 dark:text-orange-300"><span className={attachmentRequirementMet ? "font-bold text-emerald-600" : "text-orange-700"}>{attachmentRequirementMet ? "✓" : "○"}</span> {requiresAttachment ? "At least 1 work proof required" : "Work proof not required"}</p>
             </div>
             <p className="text-right font-medium text-orange-500 dark:text-orange-300">
@@ -1411,18 +1387,12 @@ export default function TaskDetailDialog({
               <span>{workLockedMessage}</span>
             </div>
           )}
-          <div className="relative grid gap-1.5 border border-t-0 border-orange-200 p-2 dark:border-orange-400/30 sm:grid-cols-2">
-            <div className="space-y-1">
+          <div className={`relative grid gap-1.5 border border-t-0 border-orange-200 p-2 dark:border-orange-400/30 ${showNoteInput ? "sm:grid-cols-2" : "sm:grid-cols-1"}`}>
+            {showNoteInput ? <div className="space-y-1">
               <Label className="text-xs font-semibold text-foreground">
-                Work Update Note {requiresUpdateNote ? <span className="text-red-500">*</span> : null}
+                Reason for rejection <span className="text-red-500">*</span>
               </Label>
-              <div className="flex h-28 flex-col overflow-hidden rounded-md border border-input bg-background">
-                {savedWorkUpdateNotes.length ? (
-                  <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 py-2 text-xs leading-4 text-foreground">
-                    {savedWorkUpdateNotes.map((entry) => <p key={entry._id}>{entry.note}</p>)}
-                  </div>
-                ) : null}
-                <div className="relative mt-auto h-8 shrink-0 border-t border-input">
+              <div className="relative h-28 overflow-hidden rounded-md border border-input bg-background">
                   <Textarea
                     value={note}
                     onChange={(event) => setNote(event.target.value)}
@@ -1430,19 +1400,16 @@ export default function TaskDetailDialog({
                       isLocked
                         ? workLockedMessage
                         : isPendingAcceptance
-                          ? isRecipient
-                            ? "Add a note (e.g. reason for rejection)..."
-                            : "Only the assignee can add a note before the request is accepted."
+                          ? "Explain why you are rejecting this request..."
                           : "Share update..."
                     }
                     maxLength={500}
                     disabled={isLocked || (isPendingAcceptance && !isRecipient)}
-                    className="h-full min-h-0 resize-none overflow-y-auto rounded-none border-0 px-2.5 py-1 pr-14 text-xs shadow-none focus-visible:ring-0"
+                    className="h-full min-h-0 resize-none overflow-y-auto rounded-none border-0 px-2.5 py-2 pb-6 text-xs shadow-none focus-visible:ring-0"
                   />
                   {!isLocked ? <span className="pointer-events-none absolute bottom-1 right-2 text-[10px] text-muted-foreground">{note.length}/500</span> : null}
-                </div>
               </div>
-            </div>
+            </div> : null}
 
             <div className="flex h-full flex-col space-y-1">
               <Label className="text-xs font-semibold text-foreground">
@@ -1485,7 +1452,7 @@ export default function TaskDetailDialog({
                   </div>
                 ) : null}
               </div>
-              <div className="mt-auto flex items-center gap-2 pr-16">
+              <div className="mt-auto flex items-center gap-2">
                 {!isWorkLocked && (
                   <Button type="button" variant="outline" size="sm" className="h-8 w-fit gap-1.5 px-3 text-blue-600" asChild>
                     <label className="cursor-pointer">
@@ -1502,16 +1469,6 @@ export default function TaskDetailDialog({
                 )}
               </div>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              className="absolute bottom-2 right-2 h-8 w-auto shrink-0 gap-1.5 bg-blue-600 px-3 text-[11px] hover:bg-blue-700"
-              onClick={handleSaveWorkUpdateNote}
-              disabled={!note.trim() || isLocked || isPendingAcceptance || updateProgressMutation.isPending}
-            >
-              {updateProgressMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-              Save
-            </Button>
           </div>
           <p className="flex items-center gap-1.5 rounded-b-lg border border-t-0 border-orange-200 px-2.5 py-1.5 text-[10px] text-muted-foreground dark:border-orange-400/30">
             <Info className="h-3.5 w-3.5 shrink-0" />
@@ -1581,9 +1538,9 @@ export default function TaskDetailDialog({
                           {getInitials(message.senderName) || "?"}
                         </AvatarFallback>
                       </Avatar>
-                      <div className={`flex max-w-[75%] flex-col ${isOwn ? "items-end" : "items-start"}`}>
+                      <div className={`flex min-w-0 max-w-[75%] flex-col ${isOwn ? "items-end" : "items-start"}`}>
                         <div
-                          className={`rounded-2xl bg-blue-50 px-2.5 py-1.5 text-xs text-foreground shadow-sm dark:bg-blue-400/10 ${
+                          className={`min-w-0 max-w-full rounded-2xl bg-blue-50 px-2.5 py-1.5 text-xs text-foreground shadow-sm dark:bg-blue-400/10 ${
                             isOwn ? "rounded-br-sm" : "rounded-bl-sm"
                           }`}
                         >
@@ -1592,7 +1549,7 @@ export default function TaskDetailDialog({
                             <span className="text-muted-foreground/70">{formatDateTime(message.sentAt)}</span>
                             {isOwn ? <CheckCheck className={`h-3.5 w-3.5 shrink-0 ${isRead ? "text-blue-600" : "text-muted-foreground/70"}`} aria-label={isRead ? "Read" : "Sent"} /> : null}
                           </p>
-                          {message.message && <p className="whitespace-pre-wrap break-words">{message.message}</p>}
+                          {message.message && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{renderTaskMessageLinks(message.message)}</p>}
                           {(message.attachments || []).map((file, index) => (
                             <a
                               key={file._id || index}
