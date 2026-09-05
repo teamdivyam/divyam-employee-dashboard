@@ -69,6 +69,7 @@ import TabComp, { TabsContent } from '@components/components/tab-comp';
 import { Textarea } from '@components/components/ui/textarea';
 import MonthFilterControl from '@components/components/MonthFilterControl';
 import EmployeeV2Service from '@/services/employee-v2.service';
+import useCurrentEmployee from '@/hooks/useCurrentEmployee';
 import {
   ADVANCE_REQUEST_STATUS,
   advanceRequestFiltersSchema,
@@ -192,6 +193,7 @@ const tabs = [
   { value: 'advance', label: 'Advance & Deduction', icon: ReceiptIndianRupee },
   { value: 'reimbursements', label: 'Reimbursements', icon: FileCheck2 },
   { value: 'loan', label: 'Loan', icon: Landmark },
+  { value: 'payment', label: 'Payment', icon: CircleDollarSign },
   { value: 'queries', label: 'Salary Queries', icon: FileQuestion },
 ];
 const payrollTabValues = new Set(tabs.map(({ value }) => value));
@@ -205,7 +207,6 @@ const progress = [
   ['Payslip Generated', '—', 'idle'],
 ];
 
-const history = [];
 const reimbursementRows = [];
 
 const formatQueryDate = (value) => {
@@ -443,7 +444,116 @@ function PayrollProgress() {
   );
 }
 
-function SalaryHistory() {
+function PaymentTab({ period }) {
+  const employeeQuery = useCurrentEmployee();
+  const employeeId = employeeQuery.data?._id || employeeQuery.data?.employeeId;
+  const payoutsQuery = useQuery({
+    queryKey: ['employee-payouts', period, employeeId],
+    enabled: Boolean(employeeId) && !employeeQuery.isError,
+    queryFn: async ({ signal }) => {
+      const response = await EmployeeV2Service.getEmployeePayouts({ period, employeeId, signal });
+      if (!response.data?.success || !Array.isArray(response.data?.data?.payouts)) {
+        throw new Error('Unable to load payment history.');
+      }
+      return response.data.data;
+    },
+    retry: (failureCount, error) => ![403, 404].includes(error.response?.status) && failureCount < 3,
+  });
+  const isLoading = employeeQuery.isPending || (employeeId && !employeeQuery.isError && payoutsQuery.isPending);
+  const hasError = employeeQuery.isError || !employeeId || payoutsQuery.isError;
+  const errorMessage = employeeQuery.isError || !employeeId
+    ? 'Unable to identify the signed-in employee. Please try again.'
+    : payoutsQuery.error?.response?.status === 403
+      ? 'Employees can only view their own payouts.'
+      : payoutsQuery.error?.response?.status === 404
+        ? 'Employee not found.'
+        : 'Unable to load payment history. Please try again.';
+  const retryPayments = () => {
+    if (employeeQuery.isError || !employeeId) employeeQuery.refetch();
+    else payoutsQuery.refetch();
+  };
+  const payouts = payoutsQuery.data?.payouts || [];
+  const formatPayoutAmount = ({ amount, currency: currencyCode }) => {
+    if (amount === null || amount === undefined || !Number.isFinite(Number(amount))) return '—';
+    try {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: currencyCode || 'INR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(Number(amount));
+    } catch {
+      return `${Number(amount).toFixed(2)} ${currencyCode || ''}`.trim();
+    }
+  };
+
+  return (
+    <Card className="payroll-panel">
+      <PanelHeader icon={FileText} title={`Payment History — ${formatMonth(period)}`} />
+      <CardContent className="p-0">
+        <Table className="payroll-payment-table" aria-label={`Payment history for ${formatMonth(period)}`} aria-busy={employeeQuery.isFetching || payoutsQuery.isFetching}>
+          <TableHeader>
+            <TableRow>
+              {['Payroll Month', 'Purpose', 'Payout Amount', 'Payment Mode', 'Payment Status', 'Paid On', 'Reference / UTR'].map((heading) => (
+                <TableHead key={heading}>{heading}</TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="payroll-payment-message">
+                  <span role="status">Loading payment history…</span>
+                </TableCell>
+              </TableRow>
+            ) : hasError ? (
+              <TableRow>
+                <TableCell colSpan={7} className="payroll-payment-message">
+                  <p role="alert">{errorMessage}</p>
+                  <Button variant="outline" size="sm" className="mt-2" onClick={retryPayments} disabled={employeeQuery.isFetching || payoutsQuery.isFetching}>
+                    Retry
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ) : !payouts.length ? (
+              <TableRow>
+                <TableCell colSpan={7} className="payroll-payment-message">
+                  No payments found for {formatMonth(period)}.
+                </TableCell>
+              </TableRow>
+            ) : payouts.map((payout) => (
+              <TableRow key={payout._id}>
+                <TableCell>{formatMonth(payout.period)}</TableCell>
+                <TableCell>{payout.purpose || '—'}</TableCell>
+                <TableCell>{formatPayoutAmount(payout)}</TableCell>
+                <TableCell>{payout.paymentMode || '—'}</TableCell>
+                <TableCell><StatusBadge value={payout.status || '—'} /></TableCell>
+                <TableCell>{formatDateTime(payout.paidAt)}</TableCell>
+                <TableCell><span title="Payment reference is not provided">—</span></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SalaryHistory({ payrollSalary, isPending, isError, onRetry, isFetching }) {
+  const summary = payrollSalary?.metricsSummary;
+  const breakdown = payrollSalary?.salaryBreakdown;
+  const netSalary = currency(summary?.netSalary ?? breakdown?.netPayableSalary);
+  const row = payrollSalary ? [
+    formatMonth(payrollSalary.month),
+    currency(summary?.grossEarnings ?? breakdown?.earnings?.grossEarnings),
+    currency(summary?.totalDeductions ?? breakdown?.deductions?.totalDeductions),
+    netSalary,
+    netSalary,
+    <StatusBadge key="payment-status" value={summary?.paymentStatus || '—'} />,
+    '—',
+    '—',
+  ] : null;
+
   return (
     <Card className="payroll-panel">
       <PanelHeader icon={FileText} title="Salary & Payment History" />
@@ -451,28 +561,34 @@ function SalaryHistory() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/45 hover:bg-muted/45">
-              {['Month', 'Gross Earnings', 'Deductions', 'Net Salary', 'Amount Paid', 'Payment Status', 'Paid On', 'Payslip'].map((heading) => (
+              {['Month', 'Gross Earnings', 'Deduction', 'Net Salary', 'Amount Paid', 'Payment Status', 'Paid On', 'Payslip'].map((heading) => (
                 <TableHead key={heading} className="h-8 whitespace-nowrap px-3 text-[10px]">{heading}</TableHead>
               ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!history.length && <EmptyTableRow colSpan={8} />}
-            {history.map((row) => (
-              <TableRow key={row[0]} className="hover:bg-muted/25">
+            {isPending ? (
+              <TableRow>
+                <TableCell colSpan={8} className="h-20 text-center text-xs text-muted-foreground">
+                  <span role="status">Loading salary information…</span>
+                </TableCell>
+              </TableRow>
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={8} className="h-20 text-center text-xs text-muted-foreground">
+                  <p role="alert">Unable to load salary information. Please try again.</p>
+                  <Button variant="outline" size="sm" className="mt-2" onClick={onRetry} disabled={isFetching}>Retry</Button>
+                </TableCell>
+              </TableRow>
+            ) : !row ? <EmptyTableRow colSpan={8} /> : (
+              <TableRow className="hover:bg-muted/25">
                 {row.map((value, index) => (
-                  <TableCell key={`${row[0]}-${index}`} className="whitespace-nowrap px-3 py-2 text-[10px] font-medium">
-                    {index === 5 ? (
-                      <StatusBadge value={value} />
-                    ) : index === 7 ? (
-                      value === 'View'
-                        ? <button type="button" className="inline-flex items-center gap-1 text-primary"><Eye size={12} /> View</button>
-                        : <StatusBadge value={value} />
-                    ) : value}
+                  <TableCell key={index} className="whitespace-nowrap px-3 py-2 text-[10px] font-medium">
+                    {value}
                   </TableCell>
                 ))}
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </CardContent>
@@ -2950,7 +3066,13 @@ export default function PayrollSalaryPage() {
             </div>
             <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(340px,0.85fr)_minmax(0,1.15fr)]">
               <PayrollProgress />
-              <SalaryHistory />
+              <SalaryHistory
+                payrollSalary={payrollSalary}
+                isPending={payrollSalaryQuery.isPending}
+                isError={payrollSalaryQuery.isError}
+                isFetching={payrollSalaryQuery.isFetching}
+                onRetry={() => payrollSalaryQuery.refetch()}
+              />
             </div>
             <p className="mt-5 flex items-center justify-center gap-2 text-[10px] text-muted-foreground">
               <ShieldCheck size={12} />
@@ -2980,6 +3102,10 @@ export default function PayrollSalaryPage() {
 
           <TabsContent value="reimbursements" className="mt-4">
             <ReimbursementsTab />
+          </TabsContent>
+
+          <TabsContent value="payment" className="mt-4">
+            <PaymentTab period={selectedMonth} />
           </TabsContent>
 
           <TabsContent value="queries" className="mt-4">

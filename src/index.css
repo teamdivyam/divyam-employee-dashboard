@@ -636,6 +636,18 @@ body {
     @apply overflow-hidden rounded-lg border-border bg-card shadow-sm;
   }
 
+  .payroll-payment-table th {
+    @apply h-10 whitespace-nowrap bg-muted/45 px-3 text-[10px] font-medium text-muted-foreground;
+  }
+
+  .payroll-payment-table td {
+    @apply whitespace-nowrap px-3 py-3 text-[11px] font-medium text-foreground;
+  }
+
+  .payroll-payment-table td.payroll-payment-message {
+    @apply h-20 whitespace-normal text-center text-xs font-normal text-muted-foreground;
+  }
+
   .payroll-badge-success {
     @apply border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-medium text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300;
   }

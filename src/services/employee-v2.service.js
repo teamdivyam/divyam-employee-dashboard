@@ -252,6 +252,11 @@ const EmployeeV2Service = {
         employeeV2Request.get("/employees/me/payroll-salary", {
             params: { month },
         }),
+    getEmployeePayouts: ({ period, employeeId, signal } = {}) =>
+        employeeV2Request.get(
+            `/payroll/employee-payouts/${encodeURIComponent(period)}/employees/${encodeURIComponent(employeeId)}`,
+            { signal },
+        ),
     createMyPayrollQuery: ({ employeePayrollId, queryType, subject, message, attachment } = {}) => {
         const formData = new FormData();
         if (employeePayrollId) formData.append("employeePayrollId", employeePayrollId);
