@@ -8,7 +8,7 @@ import EmployeeV2Service from "@/services/employee-v2.service";
 import AddExpenseDialog from "./components/AddExpenseDialog";
 import ExpenseDetailDialog from "./components/ExpenseDetailDialog";
 import ExpenseMetrics from "./components/ExpenseMetrics";
-import ExpensePageHeader from "./components/ExpensePageHeader";
+import ExpensePageActions from "./components/ExpensePageActions";
 import AllExpensesTab from "./components/tabs/AllExpensesTab";
 import ApprovedExpensesTab from "./components/tabs/ApprovedExpensesTab";
 import DraftExpensesTab from "./components/tabs/DraftExpensesTab";
@@ -350,24 +350,25 @@ export default function MyExpensesPage() {
   return (
     <div className="relative min-h-[calc(100vh-4rem)] bg-background text-foreground">
       <main className="mx-auto max-w-[1700px] space-y-3 p-3 md:p-4">
-        <ExpensePageHeader
-          monthFilters={monthFilters}
-          onMonthChange={setMonthFilters}
-          downloadDisabled={isOfficeAdvanceTab}
-          downloading={downloadMutation.isPending}
-          onDownload={() => downloadMutation.mutate()}
-          onAddExpense={openAddExpense}
-        />
         <ExpenseMetrics analytics={analytics} loading={analyticsQuery.isLoading} />
+        <TabComp
+          tabs={EXPENSE_TABS}
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="[&_.tab-comp-trigger]:text-[12px] [&_.tab-comp-trigger]:font-medium"
+          ariaLabel="Expense views"
+          actions={(
+            <ExpensePageActions
+              monthFilters={monthFilters}
+              onMonthChange={setMonthFilters}
+              downloadDisabled={isOfficeAdvanceTab}
+              downloading={downloadMutation.isPending}
+              onDownload={() => downloadMutation.mutate()}
+              onAddExpense={openAddExpense}
+            />
+          )}
+        />
         <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-          <TabComp
-            tabs={EXPENSE_TABS}
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="[&_.tab-comp-trigger]:text-[12px] [&_.tab-comp-trigger]:font-medium"
-            listClassName="rounded-none border-x-0 border-t-0 shadow-none"
-            ariaLabel="Expense views"
-          />
           {isOfficeAdvanceTab ? (
             <OfficeAdvanceTab
               analytics={analytics}

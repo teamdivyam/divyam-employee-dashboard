@@ -252,6 +252,22 @@ body {
     @apply bg-background text-foreground;
   }
 
+  .atl-summary-label {
+    @apply truncate text-[10px] font-medium text-muted-foreground;
+  }
+
+  .atl-summary-value {
+    @apply mt-1 truncate text-[15px] font-semibold tabular-nums text-foreground;
+  }
+
+  .atl-summary-note {
+    @apply mt-1 truncate text-[10px] text-muted-foreground;
+  }
+
+  .atl-summary-note-alert {
+    @apply text-red-600 dark:text-red-400;
+  }
+
   .atl-card {
     @apply rounded-lg border border-border bg-card text-card-foreground shadow-sm;
   }

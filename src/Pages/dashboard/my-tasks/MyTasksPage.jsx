@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import PropTypes from "prop-types";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -437,24 +436,6 @@ export default function MyTasksPage() {
     <div className="relative min-h-[calc(100vh-4rem)]">
       <div className="min-h-[calc(100vh-4rem)] bg-background p-2 text-foreground md:p-3">
         <div className="mx-auto max-w-[1500px] space-y-3">
-        <PageHeader
-          title={"My Tasks"}
-          subtitle={filters.tab === "collaborating"
-            ? "Tasks where you are added as a collaborator."
-            : "View, manage and complete your assigned work and requests."}
-          actions={(
-            <>
-              {filters.tab === "completed" ? (
-                <MonthFilterControl filters={monthFilter} onFilterChange={setTaskMonth} />
-              ) : null}
-              <Button size="sm" className="h-8 gap-1.5 bg-blue-500 text-white hover:bg-blue-600" onClick={() => setIsAddTaskOpen(true)}>
-                <Plus className="h-3.5 w-3.5" />
-                Create Task
-              </Button>
-            </>
-          )}
-        />
-
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {metricCards.map(([label, value, subLabel, Icon, tone]) => (
             <MetricCard key={label} label={label} value={value} subLabel={subLabel} icon={Icon} tone={tone} />
@@ -468,6 +449,17 @@ export default function MyTasksPage() {
           className="employee-task-tabs"
           listClassName="employee-task-tab-list"
           ariaLabel="Employee task sections"
+          actions={(
+            <>
+              {filters.tab === "completed" ? (
+                <MonthFilterControl filters={monthFilter} onFilterChange={setTaskMonth} />
+              ) : null}
+              <Button variant="custom" size="sm" onClick={() => setIsAddTaskOpen(true)}>
+                <Plus className="h-3.5 w-3.5" />
+                Create Task
+              </Button>
+            </>
+          )}
         />
 
         <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -772,23 +764,3 @@ export default function MyTasksPage() {
     </div>
   );
 }
-
-function PageHeader({ title, subtitle, actions }) {
-  return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
-      </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        {actions}
-      </div>
-    </div>
-  );
-}
-
-PageHeader.propTypes = {
-  title: PropTypes.string.isRequired,
-  subtitle: PropTypes.string.isRequired,
-  actions: PropTypes.node.isRequired,
-};

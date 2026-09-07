@@ -1163,11 +1163,7 @@ export default function AttendenceLeavePage() {
   ];
   return (
     <div className="atl-page min-h-screen px-4 py-4">
-      <header className="mb-6 flex flex-col justify-between gap-4 xl:flex-row xl:items-start">
-        <div>
-          <h1 className="atl-title text-2xl font-semibold">Attendance & Leave</h1>
-          <p className="atl-muted mt-1 text-sm">Track your attendance, working hours, leave balance, event duty and requests.</p>
-        </div>
+      <header className="mb-3 flex justify-end">
         <HeaderActions
           isBusy={actionMutation.isPending || todayAttendanceQuery.isPending || todayAttendanceQuery.isError || attendanceLocked}
           visibleAttendanceAction={visibleAttendanceAction}
@@ -1181,7 +1177,7 @@ export default function AttendenceLeavePage() {
         />
       </header>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6">
         {cardConfig.map((card) => <SummaryCard key={card.label} {...card} />)}
       </div>
 

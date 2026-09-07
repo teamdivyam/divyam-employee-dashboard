@@ -3031,23 +3031,7 @@ export default function PayrollSalaryPage() {
   return (
     <main className="payroll-page">
       <div className="mx-auto w-full max-w-[1600px] p-4 lg:p-5">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">My Payroll &amp; Salary</h1>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              View your monthly salary, attendance impact, deductions, allowances, reimbursements and payment details.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <MonthFilterControl filters={monthFilters} onFilterChange={setMonthFilters} />
-            <Button size="sm" className="h-9 gap-2 px-4 text-xs font-medium shadow-sm">
-              <Download size={14} />
-              Download Payslip
-            </Button>
-          </div>
-        </header>
-
-        <section className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
           {stats.map((stat) => <StatCard key={stat[0]} data={stat} />)}
         </section>
 
@@ -3057,6 +3041,9 @@ export default function PayrollSalaryPage() {
           onValueChange={setActiveTab}
           className="mt-4"
           ariaLabel="Payroll sections"
+          actions={(
+            <MonthFilterControl filters={monthFilters} onFilterChange={setMonthFilters} />
+          )}
         >
 
           <TabsContent value="summary" className="mt-4">
