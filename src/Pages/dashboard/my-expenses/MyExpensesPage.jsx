@@ -22,7 +22,7 @@ import {
   PAGE_SIZE,
   TAB_VALUES,
 } from "./components/expense.constants";
-import { attachmentSchema, expenseFormSchema } from "./components/expense.schemas";
+import { attachmentSchema, expenseFormSchema, editExpenseFormSchema } from "./components/expense.schemas";
 import {
   buildExpenseFormData,
   createEmptyExpenseForm,
@@ -259,14 +259,20 @@ export default function MyExpensesPage() {
   };
 
   const updateExpenseField = (field, value) => {
-    setExpenseForm((current) => ({ ...current, [field]: value }));
+    setExpenseForm((current) => ({
+      ...current,
+      [field]: value,
+      ...((field === "expenseFor" && current.expenseFor !== value) ? { linkedTo: "", linkedToName: "", advanceExpense: "" } : {}),
+      ...((field === "linkedTo" && current.linkedTo !== value) ? { advanceExpense: "" } : {}),
+      ...((field === "paymentSource" && value !== "Office Expense Advance") ? { advanceExpense: "" } : {}),
+    }));
     setExpenseErrors((current) => ({ ...current, [field]: undefined }));
     setExpenseFormError("");
   };
 
   const validateExpenseField = (field) => {
-    const { error } = expenseFormSchema.extract(field).validate(expenseForm[field]);
-    setExpenseErrors((current) => ({ ...current, [field]: error?.details?.[0]?.message }));
+    const { error } = expenseFormSchema.validate({ ...expenseForm, monthPeriod: expenseForm.expenseDate.slice(0, 7) }, { abortEarly: false, stripUnknown: true, convert: true });
+    setExpenseErrors((current) => ({ ...current, [field]: error?.details?.find((detail) => detail.path[0] === field)?.message }));
   };
 
   const addExpenseFiles = (files) => {
@@ -292,7 +298,8 @@ export default function MyExpensesPage() {
       monthPeriod: expenseForm.expenseDate.slice(0, 7),
       ...(status ? { status } : {}),
     };
-    const { error, value } = expenseFormSchema.validate(payload, { abortEarly: false, stripUnknown: true });
+    const schema = editingExpense ? editExpenseFormSchema : expenseFormSchema;
+    const { error, value } = schema.validate(payload, { abortEarly: false, stripUnknown: true, convert: true });
     if (error) {
       setExpenseErrors(joiErrorMap(error));
       setExpenseFormError("Please correct the highlighted fields");

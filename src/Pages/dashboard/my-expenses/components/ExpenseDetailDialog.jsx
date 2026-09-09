@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@components/components/ui/a
 import { Button } from "@components/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@components/components/ui/dialog";
 import { StatusBadge } from "./ExpenseTable";
+import LinkedToDisplay from "./LinkedToDisplay";
 import {
   displayPerson, displayText, firstPresent, formatCurrency, formatDate, formatDateTime,
   formatMonthPeriod, formatOptionalCurrency, getAdjustment, getAttachmentKey,
@@ -122,7 +123,7 @@ export default function ExpenseDetailDialog({ expense, employee, loading = false
           <ClaimDetailSection title="Employee Submitted Expense" icon={FileText} tone="blue" badge="Read Only" badgeIcon={LockKeyhole}>
             <div className="grid gap-y-2 p-3 sm:grid-cols-2 lg:grid-cols-3">
               <ClaimDetailField icon={ReceiptIndianRupee} label="Expense Name" value={displayText(expense.expenseName)} />
-              <ClaimDetailField icon={FileText} label="Linked To" value={displayText(expense.linkedTo)} />
+              <ClaimDetailField icon={FileText} label="Linked To" value={<LinkedToDisplay value={expense.linkedTo} />} />
               <ClaimDetailField icon={Tag} label="Category" value={displayText(expense.category)} />
               <ClaimDetailField icon={CalendarDays} label="Expense Date" value={formatDate(expense.expenseDate)} />
               <ClaimDetailField icon={UserRound} label="Paid To / Vendor" value={displayText(expense.paidTo)} />

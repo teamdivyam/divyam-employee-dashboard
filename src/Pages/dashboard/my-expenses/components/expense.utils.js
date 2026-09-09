@@ -13,6 +13,10 @@ export function displayText(value) {
   return value || "—";
 }
 
+export function getLinkedToName(value) {
+  return typeof value === "string" ? value : value?.name || "";
+}
+
 export function displayPerson(value) {
   if (!value) return "—";
   if (typeof value === "string") return value;
@@ -70,7 +74,7 @@ export function getKolkataDate() {
 }
 
 export function createEmptyExpenseForm() {
-  return { expenseName: "", expenseDate: getKolkataDate(), expenseFor: "", linkedTo: "", category: "", paymentSource: "", expenseAmount: "", paidTo: "", businessPurpose: "", supportingNote: "", attachments: [] };
+  return { expenseName: "", expenseDate: getKolkataDate(), expenseFor: "", linkedTo: "", advanceExpense: "", category: "", paymentSource: "", expenseAmount: "", paidTo: "", businessPurpose: "", supportingNote: "", attachments: [] };
 }
 
 export function createExpenseFormFromExpense(expense = {}) {
@@ -78,7 +82,11 @@ export function createExpenseFormFromExpense(expense = {}) {
     expenseName: expense.expenseName || "",
     expenseDate: String(expense.expenseDate || "").slice(0, 10),
     expenseFor: expense.expenseFor || "",
-    linkedTo: expense.linkedTo || "",
+    linkedTo: ["Event", "Client"].includes(expense.expenseFor)
+      ? expense.linkedTo?._id || (typeof expense.linkedTo === "string" ? expense.linkedTo : "")
+      : "",
+    linkedToName: expense.linkedTo?.name || expense.linkedToName || "",
+    advanceExpense: expense.advanceExpense?._id || expense.advanceExpense || "",
     category: expense.category || "",
     paymentSource: expense.paymentSource || "",
     expenseAmount: expense.expenseAmount === undefined || expense.expenseAmount === null
@@ -93,11 +101,12 @@ export function createExpenseFormFromExpense(expense = {}) {
 
 export function buildExpenseFormData(payload) {
   const formData = new FormData();
-  ["expenseName", "expenseDate", "monthPeriod", "expenseFor", "paymentSource", "expenseAmount"].forEach((field) => formData.append(field, String(payload[field])));
+  ["expenseName", "monthPeriod", "expenseFor", "paymentSource", "expenseAmount"].forEach((field) => formData.append(field, String(payload[field])));
+  formData.append("expenseDate", payload.expenseDate instanceof Date ? payload.expenseDate.toISOString().slice(0, 10) : payload.expenseDate);
   if (payload.status) formData.append("status", payload.status);
-  ["linkedTo", "paidTo", "businessPurpose", "supportingNote"].forEach((field) => { if (payload[field]?.trim()) formData.append(field, payload[field].trim()); });
+  ["linkedTo", "advanceExpense", "paidTo", "businessPurpose", "supportingNote"].forEach((field) => { if (payload[field]?.trim()) formData.append(field, payload[field].trim()); });
   if (payload.category) formData.append("category", payload.category);
-  payload.attachments.forEach((file) => formData.append("attachments", file));
+  (payload.attachments || []).forEach((file) => formData.append("attachments", file));
   return formData;
 }
 
@@ -211,5 +220,5 @@ export function downloadCsv(filename, headers, rows) {
 }
 
 export function downloadExpenseCsv(expenses, monthPeriod) {
-  downloadCsv(`expense-statement-${monthPeriod}.csv`, ["Claim ID", "Expense Name", "Category", "Linked To", "Expense Date", "Payment Source", "Expense Amount", "Approved Amount", "Status"], expenses.map((expense) => [expense.expenseId, expense.expenseName, expense.category, expense.linkedTo, formatDate(expense.expenseDate), expense.paymentSource, expense.expenseAmount, hasApprovedAmount(expense) ? expense.amountCover : "", expense.status]));
+  downloadCsv(`expense-statement-${monthPeriod}.csv`, ["Claim ID", "Expense Name", "Category", "Linked To", "Expense Date", "Payment Source", "Expense Amount", "Approved Amount", "Status"], expenses.map((expense) => [expense.expenseId, expense.expenseName, expense.category, getLinkedToName(expense.linkedTo), formatDate(expense.expenseDate), expense.paymentSource, expense.expenseAmount, hasApprovedAmount(expense) ? expense.amountCover : "", expense.status]));
 }

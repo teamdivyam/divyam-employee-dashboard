@@ -6,6 +6,7 @@ import { Card } from "@components/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@components/components/ui/table";
 import { EMPTY_ANALYTICS } from "../expense.constants";
+import LinkedToDisplay from "../LinkedToDisplay";
 import {
   displayPerson, displayText, firstPresent, formatCurrency, formatDate,
   getErrorMessage, numberOrZero,
@@ -322,7 +323,7 @@ function buildOfficeAdvanceModels(expenses = [], analytics = EMPTY_ANALYTICS) {
       primaryDetails: [
         ["Advance For", firstPresent(record.advanceFor, record.title, record.purpose, firstExpense.expenseFor, "-")],
         ["Advance ID", id],
-        ["Linked To", firstPresent(record.linkedTo, firstExpense.linkedTo, "-")],
+        ["Linked To", <LinkedToDisplay key={`${id}-linked-to`} value={firstPresent(record.linkedTo, firstExpense.linkedTo)} />],
         ["Received On", formatDate(receivedOn)],
         ["Issued By", displayPerson(firstPresent(record.issuedBy, record.createdBy, "Finance Team"))],
       ],

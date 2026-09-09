@@ -78,6 +78,20 @@ const EmployeeV2Service = {
         employeeV2Request.get(`/employees/${encodeURIComponent(employeeId)}`),
     editEmployee: (employeeId, formData) => employeeV2Request.patch(`/employees/${encodeURIComponent(employeeId)}`, formData),
 
+    getExpenseAdvances: ({ employeeId, expenseFor, eventId, clientId, signal } = {}) =>
+        employeeV2Request.get("/expense/advances", {
+            params: {
+                employeeId,
+                expenseFor,
+                ...(expenseFor === "Event" ? { eventId } : { clientId }),
+            },
+            signal,
+        }),
+    getExpenseLookup: ({ expenseFor, page = 1, limit = 25, search = "", signal } = {}) =>
+        employeeV2Request.get("/expense/lookup", {
+            params: { expenseFor, page, limit, search },
+            signal,
+        }),
     getEmployeeExpenseAnalytics: ({ monthPeriod, signal } = {}) =>
         employeeV2Request.get("/expense/employee/analytics", {
             params: { monthPeriod },

@@ -1,7 +1,9 @@
 /* eslint-disable react/prop-types */
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import EmployeeV2Service from "@/services/employee-v2.service";
 import {
-  AlertCircle, Building2, CalendarDays, CheckCircle2, Eye, FileText, Info,
+  AlertCircle, Building2, CalendarDays, Eye, FileText,
   Loader2, Pencil, Plus, ReceiptIndianRupee, Tag, Trash2, UploadCloud, WalletCards,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@components/components/ui/avatar";
@@ -15,7 +17,7 @@ import { CATEGORY_OPTIONS, EXPENSE_FOR_OPTIONS, PAYMENT_SOURCE_OPTIONS } from ".
 import { ALLOWED_ATTACHMENT_TYPES } from "./expense.schemas";
 import {
   formatFileSize, getAttachmentKey, getAttachmentName, getAttachmentSize,
-  getAttachmentUrl, getInitials, numberOrZero,
+  getAttachmentUrl, getInitials,
 } from "./expense.utils";
 import CompactField from "./expense-form/CompactField";
 import ExpenseDatePicker from "./expense-form/ExpenseDatePicker";
@@ -24,6 +26,7 @@ import FieldError from "./expense-form/FieldError";
 import FormSectionHeader from "./expense-form/FormSectionHeader";
 import FormSelectField from "./expense-form/FormSelectField";
 import ReadOnlyAmount from "./expense-form/ReadOnlyAmount";
+import LinkedToSelect from "./expense-form/LinkedToSelect";
 
 export default function AddExpenseDialog({
   open,
@@ -32,7 +35,6 @@ export default function AddExpenseDialog({
   form,
   errors,
   formError,
-  availableAdvance,
   onFieldChange,
   onFieldBlur,
   onAddFiles,
@@ -45,14 +47,35 @@ export default function AddExpenseDialog({
   const fileInputRef = useRef(null);
   const employeeName = employee?.fullName || employee?.name || "Employee";
   const employeeRole = employee?.designation || employee?.jobTitle || employee?.role || "Employee";
-  const expenseAmount = Math.max(numberOrZero(form.expenseAmount), 0);
-  const advanceBalance = Math.max(numberOrZero(availableAdvance), 0);
-  const advanceUsed = form.paymentSource === "Office Expense Advance"
-    ? Math.min(expenseAmount, advanceBalance)
-    : 0;
-  const personallyPaid = form.paymentSource === "Office Expense Advance"
-    ? Math.max(expenseAmount - advanceBalance, 0)
-    : 0;
+  const supportsAdvances = ["Event", "Client"].includes(form.expenseFor);
+  const linkedId = supportsAdvances && /^[a-f\d]{24}$/i.test(form.linkedTo || "") ? form.linkedTo : undefined;
+  const employeeId = employee?._id || employee?.employeeId;
+  const advancesQuery = useQuery({
+    queryKey: ["expense-advances", employeeId, form.expenseFor, linkedId],
+    enabled: Boolean(open && supportsAdvances && employeeId && linkedId),
+    queryFn: async ({ signal }) => {
+      const response = await EmployeeV2Service.getExpenseAdvances({
+        employeeId,
+        expenseFor: form.expenseFor,
+        ...(form.expenseFor === "Event" ? { eventId: linkedId } : { clientId: linkedId }),
+        signal,
+      });
+      if (response.data?.success === false) throw new Error("Unable to load advances");
+      return response.data?.data?.advances || [];
+    },
+  });
+  const advances = advancesQuery.data || [];
+  useEffect(() => {
+    if (!open || form.paymentSource !== "Office Expense Advance" || !advancesQuery.isSuccess) return;
+    const available = advancesQuery.data || [];
+    if (available.some((advance) => advance._id === form.advanceExpense)) return;
+    const nextAdvance = available.length === 1 ? available[0]._id || "" : "";
+    if ((form.advanceExpense || "") !== nextAdvance) onFieldChange("advanceExpense", nextAdvance);
+  }, [open, form.paymentSource, form.advanceExpense, advancesQuery.isSuccess, advancesQuery.data, onFieldChange]);
+  const submitDisabled = submitting || (form.paymentSource === "Office Expense Advance"
+    && (!supportsAdvances || !employeeId || !linkedId || advancesQuery.isFetching
+      || !advancesQuery.isSuccess || advances.length === 0
+      || !advances.some((advance) => advance._id && advance._id === form.advanceExpense)));
   const isEditMode = mode === "edit";
 
   return (
@@ -62,6 +85,7 @@ export default function AddExpenseDialog({
           className="flex max-h-[92vh] flex-col"
           onSubmit={(event) => {
             event.preventDefault();
+            if (submitDisabled) return;
             onSubmit(isEditMode ? "Pending Finance Review" : undefined);
           }}
           noValidate
@@ -133,16 +157,33 @@ export default function AddExpenseDialog({
                 placeholder="Select expense for"
                 options={EXPENSE_FOR_OPTIONS.slice(1)}
                 error={errors.expenseFor}
-                onValueChange={(value) => onFieldChange("expenseFor", value)}
+                onValueChange={(value) => {
+                  onFieldChange("expenseFor", value);
+                  if (value !== form.expenseFor) {
+                    onFieldChange("linkedTo", "");
+                  }
+                }}
               />
-              <CompactField label="Linked To" error={errors.linkedTo}>
-                <Input
-                  value={form.linkedTo}
-                  onChange={(event) => onFieldChange("linkedTo", event.target.value)}
-                  onBlur={() => onFieldBlur("linkedTo")}
-                  placeholder="Event, client or office work"
+              <CompactField label="Linked To" required={supportsAdvances} error={errors.linkedTo}>
+                {open && ["Event", "Client"].includes(form.expenseFor) ? (
+                  <LinkedToSelect
+                    key={form.expenseFor}
+                    expenseFor={form.expenseFor}
+                    value={form.linkedTo}
+                    displayName={form.linkedToName}
+                    error={errors.linkedTo}
+                    onChange={(value, item) => {
+                      onFieldChange("linkedTo", value);
+                      onFieldChange("linkedToName", item.name);
+                    }}
+                    onBlur={() => onFieldBlur("linkedTo")}
+                  />
+                ) : <Input
+                  value=""
+                  disabled
+                  placeholder="Not applicable"
                   className={formControlClass(errors.linkedTo)}
-                />
+                />}
               </CompactField>
               <FormSelectField
                 label="Category"
@@ -188,20 +229,57 @@ export default function AddExpenseDialog({
             </div>
 
             {form.paymentSource === "Office Expense Advance" ? (
-              <div>
-                <div className="flex items-center gap-1.5 rounded-t-md border border-border bg-primary/5 px-2.5 py-1.5 text-[11px] font-medium text-primary">
-                  <Building2 className="h-3.5 w-3.5" />
-                  Office Expense Advance Details
-                </div>
-                <div className="grid gap-2 rounded-b-md border border-t-0 border-border bg-primary/[0.02] p-3 sm:grid-cols-3">
-                  <ReadOnlyAmount label="Available Balance" value={advanceBalance} />
-                  <ReadOnlyAmount label="Amount Used from Advance" value={advanceUsed} />
-                  <ReadOnlyAmount label="Personally Paid Amount" value={personallyPaid} />
-                  <div className="flex items-start gap-1.5 text-[10px] leading-4 text-muted-foreground sm:col-span-3">
-                    <Info className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
-                    The approved amount will be adjusted against the office expense advance ledger.
+              <div className="space-y-2">
+                {advances.length > 0 && linkedId ? advances.map((advance) => (
+                  <div key={advance._id || advance.advanceId}>
+                    <div className="flex items-center gap-1.5 rounded-t-md border border-border bg-primary/5 px-2.5 py-1.5 text-[11px] font-medium text-primary">
+                      <Building2 className="h-3.5 w-3.5 shrink-0" />
+                      Office Expense Advance Details
+                      <span className="ml-auto text-right font-normal">({advance.advanceId || "—"})</span>
+                      {advances.length > 1 ? (
+                        <Button
+                          type="button"
+                          variant={form.advanceExpense === advance._id ? "secondary" : "outline"}
+                          aria-pressed={form.advanceExpense === advance._id}
+                          disabled={!advance._id}
+                          className="h-6 px-2 text-[10px] font-normal"
+                          onClick={() => onFieldChange("advanceExpense", advance._id)}
+                        >
+                          {form.advanceExpense === advance._id ? "Selected" : "Use this advance"}
+                        </Button>
+                      ) : null}
+                    </div>
+                    <div className="grid gap-2 rounded-b-md border border-t-0 border-border bg-primary/[0.02] p-3 sm:grid-cols-3">
+                      <ReadOnlyAmount label="Received Amount" value={advance.receivedAmount} />
+                      <ReadOnlyAmount label="Amount Used from Advance" value={advance.usedAmount} />
+                      <ReadOnlyAmount label="Personally Paid Amount" value={advance.remainingAmount} />
+                    </div>
                   </div>
-                </div>
+                )) : (
+                  <div>
+                    <div className="flex items-center gap-1.5 rounded-t-md border border-border bg-primary/5 px-2.5 py-1.5 text-[11px] font-medium text-primary">
+                      <Building2 className="h-3.5 w-3.5" />
+                      Office Expense Advance Details
+                    </div>
+                    <div className="rounded-b-md border border-t-0 border-border p-3 text-[11px] text-muted-foreground" role="status">
+                      {!supportsAdvances ? "Advance lookup is available for Event or Client expenses."
+                        : !form.linkedTo ? "Select a linked event or client to view advances."
+                          : !linkedId ? "Advances are unavailable for this selection."
+                            : !employeeId ? "Employee details are unavailable."
+                              : advancesQuery.isPending ? "Loading advances..."
+                                : advancesQuery.isError ? "Unable to load advances."
+                                  : "No advances found for this selection."}
+                      {linkedId && advancesQuery.isError ? (
+                        <Button type="button" variant="ghost" className="ml-1 h-7 text-[11px]" onClick={() => advancesQuery.refetch()}>Retry</Button>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+                {errors.advanceExpense ? <FieldError message={errors.advanceExpense} /> : null}
+                {/* <div className="flex items-start gap-1.5 text-[10px] leading-4 text-muted-foreground">
+                  <Info className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+                  The approved amount will be adjusted against the office expense advance ledger.
+                </div> */}
               </div>
             ) : null}
 
@@ -225,7 +303,7 @@ export default function AddExpenseDialog({
                   className="min-h-14 resize-none text-[11px] placeholder:text-[11px]"
                 />
               </CompactField>
-              <div className="grid gap-1 rounded-md border border-[hsl(var(--chart-2)/0.20)] bg-[hsl(var(--chart-2)/0.05)] px-2.5 py-2 text-[10px] text-muted-foreground">
+              {/* <div className="grid gap-1 rounded-md border border-[hsl(var(--chart-2)/0.20)] bg-[hsl(var(--chart-2)/0.05)] px-2.5 py-2 text-[10px] text-muted-foreground">
                 <p className="flex items-start gap-1.5">
                   <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-[hsl(var(--chart-2))]" />
                   Only the approved amount of a personally paid expense is eligible for reimbursement.
@@ -234,7 +312,7 @@ export default function AddExpenseDialog({
                   <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-[hsl(var(--chart-2))]" />
                   Office advance and company-paid expenses are recorded without generating employee reimbursement.
                 </p>
-              </div>
+              </div> */}
             </div>
 
             <FormSectionHeader number="3" title="Attachments" tone="violet" icon={UploadCloud} />
@@ -318,7 +396,7 @@ export default function AddExpenseDialog({
               >
                 Save as Draft
               </Button>
-              <Button type="submit" className="h-8 min-w-32 gap-1.5 text-[11px]" disabled={submitting}>
+              <Button type="submit" className="h-8 min-w-32 gap-1.5 text-[11px]" disabled={submitDisabled}>
                 {submitting
                   ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   : isEditMode ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}

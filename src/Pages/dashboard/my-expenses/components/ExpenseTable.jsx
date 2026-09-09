@@ -1,24 +1,25 @@
 /* eslint-disable react/prop-types */
 import { FileText, Loader2 } from "lucide-react";
 import { Button } from "@components/components/ui/button";
+import LinkedToDisplay from "./LinkedToDisplay";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@components/components/ui/table";
 import {
   displayText, formatCurrency, formatDate, formatOptionalCurrency, formatTime,
-  getActionLabel, getAdjustment, getAdvanceId, getErrorMessage,
+  getActionLabel, getAdvanceId, getErrorMessage,
   getRecommendedAmount, hasApprovedAmount,
 } from "./expense.utils";
 
 export default function ExpenseTable({ activeTab, expenses, loading, error, onRetry, onView, onEdit }) {
   const isDraftTab = activeTab === "drafts";
   const isPendingReviewTab = activeTab === "pending-review";
-  const columnCount = isDraftTab ? 7 : isPendingReviewTab ? 8 : 9;
+  const columnCount = isDraftTab ? 7 : 8;
 
   return (
     <Table>
       <TableHeader className="bg-muted/45">
         <TableRow className="hover:bg-muted/45">
           <TableHead className="min-w-[185px] px-3 text-[11px]">Expense Name</TableHead>
-          <TableHead className="min-w-[150px] px-3 text-[11px]">Linked To</TableHead>
+          <TableHead className="min-w-[150px] px-3 text-left text-[11px]">Linked To</TableHead>
           <TableHead className="min-w-[115px] px-3 text-[11px]">Expense Date</TableHead>
           <TableHead className="min-w-[155px] px-3 text-[11px]">Payment Source</TableHead>
           <TableHead className="min-w-[110px] px-3 text-[11px]">Expense Amount</TableHead>
@@ -29,9 +30,6 @@ export default function ExpenseTable({ activeTab, expenses, loading, error, onRe
               {isPendingReviewTab ? "Recommended Amount" : "Approved Amount"}
             </TableHead>
           )}
-          {!isDraftTab && !isPendingReviewTab ? (
-            <TableHead className="min-w-[140px] px-3 text-[11px]">Adjustment</TableHead>
-          ) : null}
           {!isDraftTab ? (
             <TableHead className="min-w-[130px] px-3 text-[11px]">Status</TableHead>
           ) : null}
@@ -91,7 +89,7 @@ function ExpenseRow({ activeTab, expense, onView, onEdit }) {
           {displayText(expense.expenseId)} · {displayText(expense.category)}
         </p>
       </TableCell>
-      <TableCell className="px-3 py-2 font-medium text-primary">{displayText(expense.linkedTo)}</TableCell>
+      <TableCell className="px-3 py-2 text-left text-primary"><LinkedToDisplay value={expense.linkedTo} /></TableCell>
       <TableCell className="px-3 py-2">{formatDate(expense.expenseDate)}</TableCell>
       <TableCell className="px-3 py-2">
         <p>{displayText(expense.paymentSource)}</p>
@@ -112,9 +110,6 @@ function ExpenseRow({ activeTab, expense, onView, onEdit }) {
             : hasApprovedAmount(expense) ? formatCurrency(expense.amountCover) : "-"}
         </TableCell>
       )}
-      {!isDraftTab && !isPendingReviewTab ? (
-        <TableCell className="px-3 py-2">{getAdjustment(expense)}</TableCell>
-      ) : null}
       {!isDraftTab ? (
         <TableCell className="px-3 py-2"><StatusBadge status={expense.status} /></TableCell>
       ) : null}

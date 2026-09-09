@@ -743,13 +743,13 @@ export function HeaderActions({ onCheckIn, onCheckOut, onApplyLeave, setActiveTa
   return (
     <div className="flex flex-nowrap items-center justify-end gap-3">
       {visibleAttendanceAction === "hidden" ? null : visibleAttendanceAction === "completed" ? (
-        <button disabled className={`${button} border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300`}><CalendarCheck className="h-4 w-4" />Completed Today</button>
+        <Button disabled className={`${button} border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300`}><CalendarCheck className="h-4 w-4" />Completed Today</Button>
       ) : visibleAttendanceAction === "checkOut" ? (
-        <button disabled={isBusy} onClick={onCheckOut} className={`${button} border-red-200 text-red-600`}><LogOut className="h-4 w-4" />Check Out</button>
+        <button disabled={isBusy} onClick={onCheckOut} className={`h-8 ${button} border-red-200 text-red-600`}><LogOut className="h-4 w-4" />Check Out</button>
       ) : (
-        <button disabled={isBusy} onClick={onCheckIn} className={`${button} border-emerald-600 bg-emerald-600 text-white`}><LogIn className="h-4 w-4" />Check In</button>
+        <button disabled={isBusy} onClick={onCheckIn} className={`h-8 ${button} border-emerald-600 bg-emerald-600 text-white`}><LogIn className="h-4 w-4" />Check In</button>
       )}
-      <Button type="button" variant="custom" size="sm" onClick={onApplyLeave || (() => setActiveTab("leaves"))}><CalendarCheck className="h-4 w-4" />Apply Leave</Button>
+      <Button type="button" variant="custom" size="sm" className="h-8" onClick={onApplyLeave || (() => setActiveTab("leaves"))}><CalendarCheck className="h-4 w-4" />Apply Leave</Button>
     </div>
   );
 }
