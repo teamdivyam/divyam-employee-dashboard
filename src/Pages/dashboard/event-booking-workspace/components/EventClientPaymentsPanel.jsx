@@ -946,7 +946,7 @@ export default function EventClientPaymentsPanel({
                               variant="outline"
                               size="sm"
                               onClick={() => setReceiptMilestone(milestone)}
-                              className="gap-1.5 text-blue-700"
+                              className="gap-1.5 border-blue-300 bg-transparent text-blue-700 hover:bg-blue-50 hover:text-blue-800"
                             >
                               <Eye className="h-4 w-4" />
                               View
@@ -960,7 +960,7 @@ export default function EventClientPaymentsPanel({
                                 numberOf(milestone.balance) <= 0
                               }
                               onClick={() => openPayment(milestone)}
-                              className="gap-1.5"
+                              className="gap-1.5 border-blue-300 bg-transparent text-blue-700 hover:bg-blue-50 hover:text-blue-800"
                             >
                               <IndianRupee className="h-4 w-4" />
                               Record

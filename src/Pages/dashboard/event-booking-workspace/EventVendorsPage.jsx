@@ -86,10 +86,10 @@ export default function EventVendorsPage() {
   const openEdit = (assignment) => { setSelectedAssignment(assignment); setPreferredVendorId(''); setDialogOpen(true); };
 
   return (
-    <div className="crm-page min-h-screen space-y-3 p-3 sm:p-4 lg:p-5">
+    <div className="crm-page min-h-screen w-full min-w-0 max-w-full space-y-3 overflow-x-hidden p-3 sm:p-4 lg:p-5">
       <EventFunctionsHeader booking={booking} metrics={metrics} onBack={() => navigate('/dashboard/assigned-events')} onEdit={() => setEditBookingOpen(true)} onMarkReady={() => readyMutation.mutate()} onOpenPlanning={() => document.getElementById('event-vendors')?.scrollIntoView({ behavior: 'smooth' })} primaryActionLabel="Open Operations Plan" />
       <EventDetailTabs activePrimary="operations" onSelect={selectTab} />
-      <div id="event-vendors"><EventVendorsPanel booking={booking} onAdd={openCreate} onEdit={openEdit} /></div>
+      <div id="event-vendors" className="w-full min-w-0 max-w-full"><EventVendorsPanel booking={booking} onAdd={openCreate} onEdit={openEdit} /></div>
 
       <EventVendorAssignmentDialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setSelectedAssignment(null); setPreferredVendorId(''); } }} assignment={selectedAssignment} preferredVendorId={preferredVendorId} vendors={vendors} functions={functions} services={services} assignedVendorIds={assignedVendorIds} saving={saveVendorMutation.isPending} onSave={(payload) => saveVendorMutation.mutate(payload)} />
       <EditBookingDialog open={editBookingOpen} onOpenChange={setEditBookingOpen} booking={booking} employees={employees} saving={updateBookingMutation.isPending} onSave={(payload) => updateBookingMutation.mutate(payload)} />

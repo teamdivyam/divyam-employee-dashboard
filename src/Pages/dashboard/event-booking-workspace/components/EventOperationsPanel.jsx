@@ -6,16 +6,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@components/components/ui/a
 import { Badge } from "@components/components/ui/badge";
 import { Button } from "@components/components/ui/button";
 import { Card, CardContent } from "@components/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "./EventTable";
 import { avatarUrl, initials } from "../eventBookingDashboard.utils";
 import EventOperationsNav from "./EventOperationsNav";
+import EventTasksPanel from "./EventTasksPanel";
 
 const idOf = (value) => String(value?._id || value || "");
 
@@ -71,57 +64,18 @@ function EventCoreTeamCard({ team, onManageTeam }) {
   );
 }
 
-export default function EventOperationsPanel({ booking, team = [], onManageTeam }) {
+export default function EventOperationsPanel({ booking, team = [], onManageTeam, onCreateTask }) {
   const navigate = useNavigate();
-  const tasks = booking.eventTasks || [];
 
   return (
     <div className="space-y-3">
       <EventOperationsNav active="tasks" />
-
-      <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <Card className="crm-card min-w-0 overflow-hidden">
-          <CardContent className="p-0">
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <div>
-                <h2 className="text-sm font-semibold">Event Tasks</h2>
-                <p className="mt-1 text-[10px] text-muted-foreground">Tasks linked to this event.</p>
-              </div>
-              <Button size="sm" className="h-8 text-xs" onClick={() => navigate("/dashboard/my-tasks")}>Open My Tasks</Button>
-            </div>
-            <div className="overflow-x-auto">
-              <Table className="min-w-[760px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Task</TableHead>
-                    <TableHead>Assigned To</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tasks.length ? tasks.map((task) => (
-                    <TableRow key={idOf(task)}>
-                      <TableCell className="font-medium">{task.taskTitle || task.title}</TableCell>
-                      <TableCell>{task.assignedTo?.name || "Unassigned"}</TableCell>
-                      <TableCell>{task.dueDate ? new Date(task.dueDate).toLocaleDateString("en-IN") : "-"}</TableCell>
-                      <TableCell><Badge variant="outline">{task.priority || "Medium"}</Badge></TableCell>
-                      <TableCell><Badge variant="outline">{task.status || "Pending"}</Badge></TableCell>
-                    </TableRow>
-                  )) : (
-                    <TableRow>
-                      <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">No event tasks available.</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-
-        <EventCoreTeamCard team={team} onManageTeam={onManageTeam} />
-      </div>
+      <EventTasksPanel
+        booking={booking}
+        onCreateTask={onCreateTask}
+        onViewTask={(task) => navigate(`/dashboard/my-tasks?taskId=${encodeURIComponent(idOf(task))}`)}
+        sideContent={<EventCoreTeamCard team={team} onManageTeam={onManageTeam} />}
+      />
     </div>
   );
 }

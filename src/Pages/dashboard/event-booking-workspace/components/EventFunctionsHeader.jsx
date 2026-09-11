@@ -56,19 +56,19 @@ export default function EventFunctionsHeader({ booking, metrics = {}, metricItem
 
   return (
     <>
-      <div className="flex flex-col gap-4 pb-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 items-center gap-4">
-          <Avatar className="h-16 w-16 rounded-lg border border-violet-100"><AvatarImage src={avatarUrl(booking.customer)} /><AvatarFallback className="rounded-lg bg-violet-50 text-xl font-semibold text-violet-700">{initials(clientName)}</AvatarFallback></Avatar>
+      <div className="flex flex-col gap-3 pb-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar className="h-14 w-14 rounded-lg border border-violet-100"><AvatarImage src={avatarUrl(booking.customer)} /><AvatarFallback className="rounded-lg bg-violet-50 text-lg font-semibold text-violet-700">{initials(clientName)}</AvatarFallback></Avatar>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-3"><h1 className="truncate text-2xl font-bold text-foreground">{clientName}</h1><Badge className="border-0 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Booking Confirmed</Badge></div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2.5"><h1 className="truncate text-xl font-bold text-foreground">{clientName}</h1><Badge className="border-0 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Booking Confirmed</Badge></div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
               <span>{bookingCode(booking)}</span><span>•</span><span>{booking.eventType || '-'}</span><span>•</span><span className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{eventDateRange(booking)}</span><span>•</span><span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{[booking.venue, booking.city].filter(Boolean).join(', ') || '-'}</span>
             </div>
           </div>
         </div>
         <div className="flex shrink-0 gap-2">
-          <Button className="h-10 gap-2 bg-blue-600 px-5 hover:bg-blue-700" onClick={onOpenPlanning}><FileCheck2 className="h-4 w-4" />{primaryActionLabel}<ChevronRight className="h-4 w-4" /></Button>
-          <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" className="h-10 gap-2">More Actions<MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={onEdit}>Edit booking</DropdownMenuItem><DropdownMenuItem onSelect={onMarkReady}>Mark execution ready</DropdownMenuItem><DropdownMenuItem onSelect={onBack}>Back to bookings</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
+          <Button className="h-9 gap-2 bg-blue-600 px-4 hover:bg-blue-700" onClick={onOpenPlanning}><FileCheck2 className="h-4 w-4" />{primaryActionLabel}<ChevronRight className="h-4 w-4" /></Button>
+          <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" className="h-9 gap-2">More Actions<MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={onEdit}>Edit booking</DropdownMenuItem><DropdownMenuItem onSelect={onMarkReady}>Mark execution ready</DropdownMenuItem><DropdownMenuItem onSelect={onBack}>Back to bookings</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
         </div>
       </div>
 

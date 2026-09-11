@@ -203,7 +203,7 @@ export default function EventApprovalsPanel({ approvals = [], functions = [], on
               <TableCell><p className="font-medium">{formatDate(item.sharedAt || item.createdAt)}</p><p className="mt-1 text-[9px] text-muted-foreground">Shared by {item.sharedByName || 'Admin'}</p></TableCell>
               <TableCell><Badge variant="outline" className={`whitespace-nowrap rounded px-2 py-0.5 text-[9px] ${approvalStatusTone(item.status)}`}>{item.status || 'Pending'}</Badge></TableCell>
               <TableCell><div className="flex items-center gap-2"><span>{formatDate(item.lastUpdatedAt || item.updatedAt)}</span><span className="grid h-7 w-7 place-items-center rounded-full bg-violet-50 text-[9px] font-bold text-violet-700">{initials || 'AD'}</span></div></TableCell>
-              <TableCell className="pr-6 text-right"><Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-blue-600" onClick={() => onView(item)}>View<ChevronRight className="h-3.5 w-3.5" /></Button></TableCell>
+              <TableCell className="pr-6 text-right"><Button variant="outline" size="sm" className="h-8 gap-1.5 border-blue-300 bg-transparent px-3 text-blue-700 hover:bg-blue-50 hover:text-blue-800" onClick={() => onView(item)}><Eye className="h-4 w-4" />View</Button></TableCell>
             </TableRow>
           );
         }) : <TableRow><TableCell colSpan={7} className="h-44 text-center"><CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-muted-foreground" /><p className="font-semibold">No approval requests found</p><p className="mt-1 text-[11px] text-muted-foreground">Add an approval request or adjust the current filters.</p></TableCell></TableRow>}</TableBody></Table></div>
