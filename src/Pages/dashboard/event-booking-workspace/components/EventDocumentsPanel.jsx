@@ -504,7 +504,7 @@ export default function EventDocumentsPanel({
                       <TableHead className="h-10">Uploaded By</TableHead>
                       <TableHead className="h-10">Uploaded On</TableHead>
                       <TableHead className="h-10">Version</TableHead>
-                      <TableHead className="sticky right-0 z-10 h-10 border-l bg-muted pr-4 text-right">
+                      <TableHead className="sticky right-0 z-10 h-10 bg-muted pr-4 text-right">
                         Action
                       </TableHead>
                     </TableRow>
@@ -568,9 +568,9 @@ export default function EventDocumentsPanel({
                               v{numberOf(document.version) || 1}
                             </Badge>
                           </TableCell>
-                          <TableCell className="sticky right-0 border-l bg-card pr-4 text-right group-hover:bg-muted/50">
+                          <TableCell className="sticky right-0 bg-card pr-4 text-right group-hover:bg-muted/50">
                             {document.fileUrl ? (
-                              <Button size="sm" variant="outline" asChild>
+                              <Button size="sm" variant="outline" asChild className="gap-1 text-blue-700">
                                 <a
                                   href={document.fileUrl}
                                   target="_blank"

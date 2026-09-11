@@ -946,7 +946,7 @@ export default function EventClientPaymentsPanel({
                               variant="outline"
                               size="sm"
                               onClick={() => setReceiptMilestone(milestone)}
-                              className="gap-1.5"
+                              className="gap-1.5 text-blue-700"
                             >
                               <Eye className="h-4 w-4" />
                               View
