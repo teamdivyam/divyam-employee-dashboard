@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import { ChefHat, ChevronRight, ClipboardList, MoreVertical, Plus, UserRound } from 'lucide-react';
+import { ChefHat, ClipboardList, Eye, MoreVertical, Plus, UserRound } from 'lucide-react';
 
 import { Badge } from '@components/components/ui/badge';
 import { Button } from '@components/components/ui/button';
@@ -44,7 +44,7 @@ export default function EventServicesTable({ services, functions, manager, onAdd
                   <TableCell>{deliverables.length ? <div className="flex flex-wrap gap-x-2 gap-y-1">{deliverables.slice(0, 5).map((value) => <span key={value} className="text-[11px] text-foreground">{value}</span>)}</div> : <span className="text-muted-foreground">Scope pending</span>}</TableCell>
                   <TableCell>{lead ? <div className="flex items-center gap-2"><Avatar className="h-8 w-8"><AvatarImage src={avatarUrl(lead)} /><AvatarFallback className="bg-blue-50 text-[10px] text-blue-700">{initials(lead.name)}</AvatarFallback></Avatar><div><p className="font-semibold text-foreground">{lead.name}</p><p className="text-[10px] text-muted-foreground">{lead.designation || (item.assignedLead ? 'Service Lead' : 'Event Manager')}</p></div></div> : <span className="flex items-center gap-2 text-muted-foreground"><UserRound className="h-3.5 w-3.5" />Not assigned</span>}</TableCell>
                   <TableCell><Badge variant="outline" className={`rounded px-2 py-0.5 text-[10px] ${statusTone(item.status)}`}>{item.status || 'Pending'}</Badge></TableCell>
-                  <TableCell><div className="flex items-center justify-end gap-1"><Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-blue-600" onClick={() => onEdit(item)}>View<ChevronRight className="h-3.5 w-3.5" /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => onEdit(item)}>Edit service</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></TableCell>
+                  <TableCell><div className="flex items-center justify-end gap-1"><Button variant="outline" size="sm" className="h-8 gap-1.5 px-3 text-blue-700" onClick={() => onEdit(item)}><Eye className="h-4 w-4" />View</Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => onEdit(item)}>Edit service</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></TableCell>
                 </TableRow>;
               }) : <TableRow><TableCell colSpan={6} className="h-48 text-center"><ClipboardList className="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><p className="font-semibold text-foreground">No services added yet</p><p className="mt-1 text-xs text-muted-foreground">Add the first service to build the delivery plan.</p><Button size="sm" className="mt-4 gap-2" onClick={onAdd}><Plus className="h-4 w-4" />Add Service</Button></TableCell></TableRow>}
             </TableBody>

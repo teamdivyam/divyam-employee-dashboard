@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Eye,
   Filter,
   MoreVertical,
   Plus,
@@ -405,13 +406,13 @@ export default function EventAccommodationPanel({
                         <TableCell className="pr-6 text-right">
                           <div className="flex justify-end">
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
-                              className="h-8 gap-1 px-2 text-blue-600"
+                              className="h-8 gap-1.5 px-3 text-blue-700"
                               onClick={() => onEditAllocation(item)}
                             >
+                              <Eye className="h-4 w-4" />
                               View
-                              <ChevronRight className="h-3.5 w-3.5" />
                             </Button>
 
                             {item._id ? (

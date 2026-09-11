@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ConciergeBell,
   Crown,
+  Eye,
   Filter,
   Plane,
   Plus,
@@ -214,8 +215,8 @@ export default function EventHospitalityPanel({
                       </Badge>
                     </TableCell>
                     <TableCell className="pr-6 text-right">
-                      <Button type="button" variant="ghost" size="sm" className="h-8 gap-1 px-2 text-blue-600" onClick={() => onEdit(item)}>
-                        View <ChevronRight className="h-3.5 w-3.5" />
+                      <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-3 text-blue-700" onClick={() => onEdit(item)}>
+                        <Eye className="h-4 w-4" /> View
                       </Button>
                     </TableCell>
                   </TableRow>
