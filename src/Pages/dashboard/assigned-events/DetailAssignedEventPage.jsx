@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+/* eslint-disable react/prop-types */
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@components/components/ui/button";
 import { Input } from "@components/components/ui/input";
@@ -8,6 +9,7 @@ import { Textarea } from "@components/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/components/ui/select";
 import {
   AlertCircle,
+  Activity,
   Building2,
   CalendarDays,
   Check,
@@ -22,6 +24,7 @@ import {
   UserRound,
   UsersRound,
 } from "lucide-react";
+import TabComp from "@components/components/tab-comp";
 import EmployeeService from "@/services/employee.service";
 import {
   DetailStat,
@@ -36,8 +39,19 @@ import {
   TableActionButton,
 } from "./components/AssignedEventUI";
 
+const workspaceTabs = [
+  { value: "overview", label: "Overview", icon: UserRound },
+  { value: "event-plan", label: "Event Plan", icon: CalendarDays },
+  { value: "operations", label: "Operations", icon: Check },
+  { value: "files", label: "Finance & Files", icon: FolderOpen },
+  { value: "activity", label: "Activity", icon: Activity },
+];
+
+const validWorkspaceTabs = new Set(workspaceTabs.map((tab) => tab.value));
+
 export default function DetailAssignedEventPage() {
-  const { eventId } = useParams();
+  const { clientId, eventId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [issue, setIssue] = useState({ issueType: "Vendor Issue", description: "" });
   const [proofTaskId, setProofTaskId] = useState("");
@@ -106,6 +120,16 @@ export default function DetailAssignedEventPage() {
 
   const event = eventQuery.data;
   const assignment = event?.myAssignment || {};
+  const actionPermissions = new Set(assignment.actionPermissions || []);
+  const requestedTab = searchParams.get("tab");
+  const activeTab = validWorkspaceTabs.has(requestedTab) ? requestedTab : "overview";
+
+  const handleTabChange = (nextTab) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextTab === "overview") nextParams.delete("tab");
+    else nextParams.set("tab", nextTab);
+    setSearchParams(nextParams, { replace: true });
+  };
 
   if (eventQuery.isLoading) {
     return (
@@ -141,15 +165,33 @@ export default function DetailAssignedEventPage() {
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <Link to="/dashboard" className="hover:text-primary">Home</Link>
               <span>/</span>
-              <Link to="/dashboard/assigned-events" className="hover:text-primary">Assigned Events</Link>
+              <Link
+                to={clientId ? `/dashboard/assigned-clients/${clientId}` : "/dashboard/assigned-events"}
+                className="hover:text-primary"
+              >
+                {clientId ? event.client?.name || "Assigned Client" : "Assigned Events"}
+              </Link>
               <span>/</span>
               <span>{event.eventName}</span>
             </div>
           </div>
-          <div className="relative w-full lg:w-[420px]">
-            <Input placeholder="Search events, clients, venues..." className="h-11 rounded-lg pl-4" />
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge>{event.bookingStatus}</StatusBadge>
+            {event.eventCode ? (
+              <span className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                {event.eventCode}
+              </span>
+            ) : null}
           </div>
         </div>
+
+        <TabComp
+          tabs={workspaceTabs}
+          value={activeTab}
+          onValueChange={handleTabChange}
+          ariaLabel="Assigned event workspace sections"
+          listClassName="justify-start overflow-x-auto"
+        />
 
         <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
           <div className="space-y-5">
@@ -163,7 +205,8 @@ export default function DetailAssignedEventPage() {
               <DetailStat icon={UserRound} label="Reporting Manager" value={event.reportingManager?.name || assignment.reportingManager?.name} subValue="Manager" tone="slate" />
             </div>
 
-            <SectionCard title="My Role & Responsibilities" icon={UserRound}>
+            {activeTab === "overview" ? (
+              <SectionCard title="My Role & Responsibilities" icon={UserRound}>
               <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
                 <div className="space-y-3">
                   <Info label="My Role" value={<RoleBadge>{assignment.role}</RoleBadge>} />
@@ -183,43 +226,75 @@ export default function DetailAssignedEventPage() {
                   </div>
                 </div>
               </div>
-            </SectionCard>
+              </SectionCard>
+            ) : null}
 
-            <SectionCard title="Functions & Timeline" icon={CalendarDays}>
+            {activeTab === "event-plan" ? (
+              <SectionCard title="Functions & Timeline" icon={CalendarDays}>
               <DataTable
                 headers={["#", "Function", "Date & Day", "Time", "Venue Area", "Guest Count", "My Responsibility", "Status"]}
                 rows={(event.functions || []).map((fn, index) => [
                   index + 1,
                   fn.name,
-                  <><p>{formatDate(fn.date)}</p><p className="text-xs text-muted-foreground">{formatDay(fn.date)}</p></>,
+                   <div key={`date-${fn._id || index}`}><p>{formatDate(fn.date)}</p><p className="text-xs text-muted-foreground">{formatDay(fn.date)}</p></div>,
                   `${fn.startTime || ""} - ${fn.endTime || ""}`,
                   fn.area,
                   `${fn.guestCount || 0} pax`,
                   fn.myResponsibility,
-                  <StatusBadge>{fn.status}</StatusBadge>,
+                   <StatusBadge key={`status-${fn._id || index}`}>{fn.status}</StatusBadge>,
                 ])}
               />
-            </SectionCard>
+              </SectionCard>
+            ) : null}
 
-            <SectionCard title="My Tasks for This Event" icon={Check}>
+            {activeTab === "event-plan" ? (
+              <SectionCard title="Planned Services" icon={Building2}>
+                {event.servicesRequired?.length ? (
+                  <div className="flex flex-wrap gap-2">
+                    {event.servicesRequired.map((service) => (
+                      <RoleBadge key={service}>{service}</RoleBadge>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState message="No services are available for this assignment." />
+                )}
+              </SectionCard>
+            ) : null}
+
+            {activeTab === "operations" ? (
+              <SectionCard title="My Tasks for This Event" icon={Check}>
               <DataTable
                 headers={["#", "Task", "Due Date", "Priority", "Status", "Proof Required", "Action", ""]}
                 rows={(event.tasks || []).map((task, index) => [
                   index + 1,
                   task.taskTitle,
                   formatDateTime(task.dueDate),
-                  <StatusBadge>{task.priority}</StatusBadge>,
-                  <StatusBadge>{task.status}</StatusBadge>,
+                  <StatusBadge key={`priority-${task._id}`}>{task.priority}</StatusBadge>,
+                  <StatusBadge key={`status-${task._id}`}>{task.status}</StatusBadge>,
                   task.proofRequired ? "Yes" : "No",
-                  <TableActionButton onClick={() => statusMutation.mutate({ taskId: task._id, status: task.status === "Not Started" ? "In Progress" : "Submitted" })}>
-                    {task.status === "Not Started" ? "Start Task" : "Continue"}
-                  </TableActionButton>,
-                  <MoreButton />,
+                  task.availableActions?.updateStatus ? (
+                    <TableActionButton
+                      key={`action-${task._id}`}
+                      onClick={() => statusMutation.mutate({
+                        taskId: task._id,
+                        status: ["Not Started", "Pending", "Rework"].includes(task.status)
+                          ? "In Progress"
+                          : "Submitted",
+                      })}
+                    >
+                      {["Not Started", "Pending", "Rework"].includes(task.status) ? "Start Task" : "Continue"}
+                    </TableActionButton>
+                  ) : (
+                    <span key={`action-${task._id}`} className="text-xs text-muted-foreground">No action</span>
+                  ),
+                  <MoreButton key={`more-${task._id}`} />,
                 ])}
               />
-            </SectionCard>
+              </SectionCard>
+            ) : null}
 
-            <SectionCard title="Event Brief & Documents" icon={FileText}>
+            {activeTab === "files" ? (
+              <SectionCard title="Event Brief & Documents" icon={FileText}>
               {event.documents?.length ? (
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   {event.documents.map((doc, index) => (
@@ -237,50 +312,107 @@ export default function DetailAssignedEventPage() {
                   No event documents available.
                 </div>
               )}
-            </SectionCard>
+              </SectionCard>
+            ) : null}
 
-            <SectionCard title="Inventory / Essentials" icon={FolderOpen}>
+            {activeTab === "files" ? (
+              <SectionCard title="Financial Access" icon={FolderOpen}>
+                <EmptyState message="Financial controls are available only to authorized finance and admin users. Event files shared with you appear above." />
+              </SectionCard>
+            ) : null}
+
+            {activeTab === "operations" ? (
+              <SectionCard title="Inventory / Essentials" icon={FolderOpen}>
               <DataTable
-                headers={["Item", "Description", "Required", "Issued", "Pending", "Status"]}
-                rows={[
-                  ["Welcome Kits", "Including welcome card, tissue, mint", 300, 180, 120, <StatusBadge>Pending</StatusBadge>],
-                  ["Water Station Items", "Water bottles, dispensers, glasses", 500, 350, 150, <StatusBadge>Pending</StatusBadge>],
-                  ["Guest Badges", "VIP & Guest badges with lanyards", 400, 400, 0, <StatusBadge>Issued</StatusBadge>],
-                ]}
+                headers={["Item", "Category", "Applies To", "Required", "Reserved", "Shortage", "Status"]}
+                rows={(event.inventory || []).map((item) => [
+                  item.itemName,
+                  item.category,
+                  item.appliesToLabel || "All Functions",
+                  `${item.requiredQuantity || 0} ${item.unitLabel || "pcs"}`,
+                  item.reservedQuantity || 0,
+                  item.shortageQuantity || 0,
+                  <StatusBadge key={`inventory-${item._id}`}>{item.status}</StatusBadge>,
+                ])}
               />
-            </SectionCard>
+              </SectionCard>
+            ) : null}
+
+            {activeTab === "operations" && event.vendors?.length ? (
+              <SectionCard title="Vendor Coordination" icon={Building2}>
+                <DataTable
+                  headers={["Vendor", "Service", "Scope", "Reporting", "Work Status", "Confirmation"]}
+                  rows={event.vendors.map((assignmentItem) => [
+                    assignmentItem.vendor?.companyName || "Vendor",
+                    assignmentItem.service || assignmentItem.category,
+                    assignmentItem.scope || "Not specified",
+                    formatDateTime(assignmentItem.reportingTime),
+                    <StatusBadge key={`work-${assignmentItem._id}`}>{assignmentItem.workStatus}</StatusBadge>,
+                    <StatusBadge key={`confirmation-${assignmentItem._id}`}>{assignmentItem.confirmationStatus}</StatusBadge>,
+                  ])}
+                />
+              </SectionCard>
+            ) : null}
+
+            {activeTab === "activity" ? (
+              <SectionCard title="My Raised Issues" icon={AlertCircle}>
+                <DataTable
+                  headers={["Issue Type", "Description", "Raised On", "Status", "Resolution"]}
+                  rows={(event.issues || []).map((eventIssue) => [
+                    eventIssue.issueType,
+                    eventIssue.description,
+                    formatDateTime(eventIssue.raisedAt),
+                    <StatusBadge key={`issue-${eventIssue._id}`}>{eventIssue.status}</StatusBadge>,
+                    eventIssue.resolutionNote || "Awaiting update",
+                  ])}
+                />
+              </SectionCard>
+            ) : null}
           </div>
 
-          <aside className="space-y-5">
-            <img src={getEventImage(event)} alt={event.eventName} className="h-56 w-full rounded-lg object-cover shadow-sm" />
+          {activeTab === "overview" || activeTab === "operations" || activeTab === "activity" ? (
+            <aside className="space-y-5">
+            {activeTab === "overview" ? (
+              <img src={getEventImage(event)} alt={event.eventName} className="h-56 w-full rounded-lg object-cover shadow-sm" />
+            ) : null}
 
-            <SectionCard title="Team & Contacts" icon={UsersRound}>
+            {activeTab === "overview" ? (
+              <SectionCard title="Team & Contacts" icon={UsersRound}>
               <div className="space-y-4">
-                {(event.teamContacts || []).map((person, index) => (
-                  <div key={person._id || index} className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-semibold">{person.name?.charAt(0) || "T"}</div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-foreground">{person.name}</p>
-                      <p className="text-xs text-muted-foreground">{person.role || person.designation}</p>
+                {(event.teamContacts || []).map((person, index) => {
+                  const employee = person.employee || person;
+                  return (
+                    <div key={person._id || employee._id || index} className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-semibold">
+                        {employee.name?.charAt(0) || "T"}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-foreground">{employee.name || "Team Member"}</p>
+                        <p className="text-xs text-muted-foreground">{person.role || employee.designation || "Event Team"}</p>
+                      </div>
+                      {employee.phoneNo ? <Phone className="h-4 w-4 text-primary" aria-label={employee.phoneNo} /> : null}
+                      {employee.email ? <Mail className="h-4 w-4 text-primary" aria-label={employee.email} /> : null}
                     </div>
-                    <Phone className="h-4 w-4 text-primary" />
-                    <Mail className="h-4 w-4 text-primary" />
-                  </div>
-                ))}
+                  );
+                })}
                 {!event.teamContacts?.length ? <p className="text-sm text-muted-foreground">No team contacts available.</p> : null}
               </div>
-            </SectionCard>
+              </SectionCard>
+            ) : null}
 
-            <SectionCard title="Duty Attendance" icon={Clock3}>
+            {activeTab === "overview" ? (
+              <SectionCard title="Duty Attendance" icon={Clock3}>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <Info label="Reporting Time" value={formatDateTime(assignment.reportingTime)} />
                 <Info label="Duty Status" value={<StatusBadge>{assignment.dutyAttendance?.status}</StatusBadge>} />
                 <Info label="Check In" value={formatDateTime(assignment.dutyAttendance?.checkInAt)} />
                 <Info label="Check Out" value={formatDateTime(assignment.dutyAttendance?.checkOutAt)} />
               </div>
-            </SectionCard>
+              </SectionCard>
+            ) : null}
 
-            <SectionCard title="Raise Event Issue" icon={AlertCircle}>
+            {activeTab === "activity" && actionPermissions.has("raise_issue") ? (
+              <SectionCard title="Raise Event Issue" icon={AlertCircle}>
               <div className="space-y-3">
                 <Select value={issue.issueType} onValueChange={(value) => setIssue((current) => ({ ...current, issueType: value }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -301,9 +433,11 @@ export default function DetailAssignedEventPage() {
                   Submit Issue
                 </Button>
               </div>
-            </SectionCard>
+              </SectionCard>
+            ) : null}
 
-            <SectionCard title="Recent Updates" icon={Clock3}>
+            {activeTab === "activity" ? (
+              <SectionCard title="Recent Updates" icon={Clock3}>
               <div className="space-y-3">
                 {(event.recentUpdates || []).map((update, index) => (
                   <div key={update._id || index} className="flex justify-between gap-3 text-sm">
@@ -313,16 +447,37 @@ export default function DetailAssignedEventPage() {
                 ))}
                 {!event.recentUpdates?.length ? <p className="text-sm text-muted-foreground">No recent updates.</p> : null}
               </div>
-            </SectionCard>
+              </SectionCard>
+            ) : null}
 
-            <SectionCard title="Quick Actions" icon={Check}>
+            {activeTab === "operations" ? (
+              <SectionCard title="Quick Actions" icon={Check}>
               <div className="grid grid-cols-2 gap-3">
                 <Button variant="outline">View My Tasks</Button>
-                <Button variant="outline" onClick={() => document.getElementById("proof-upload")?.click()}><Upload className="mr-2 h-4 w-4" />Upload Proof</Button>
+                <Button
+                  variant="outline"
+                  disabled={!actionPermissions.has("upload_proof")}
+                  onClick={() => document.getElementById("proof-upload")?.click()}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Proof
+                </Button>
                 <Button variant="outline">View Event Brief</Button>
                 <Button variant="outline">Contact Manager</Button>
-                <Button variant="outline" onClick={() => dutyMutation.mutate("check_in")}>Check In</Button>
-                <Button className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => dutyMutation.mutate("complete")}>Mark Complete</Button>
+                <Button
+                  variant="outline"
+                  disabled={!actionPermissions.has("mark_duty_attendance")}
+                  onClick={() => dutyMutation.mutate("check_in")}
+                >
+                  Check In
+                </Button>
+                <Button
+                  className="bg-emerald-600 text-white hover:bg-emerald-700"
+                  disabled={!actionPermissions.has("mark_duty_complete")}
+                  onClick={() => dutyMutation.mutate("complete")}
+                >
+                  Mark Complete
+                </Button>
               </div>
               <div className="mt-4 space-y-3">
                 <Select value={proofTaskId} onValueChange={setProofTaskId}>
@@ -337,8 +492,10 @@ export default function DetailAssignedEventPage() {
                   Upload Selected Proof
                 </Button>
               </div>
-            </SectionCard>
-          </aside>
+              </SectionCard>
+            ) : null}
+            </aside>
+          ) : null}
         </div>
       </div>
     </div>
@@ -350,6 +507,14 @@ function Info({ label, value }) {
     <div>
       <p className="text-xs font-semibold text-muted-foreground">{label}</p>
       <div className="mt-1 text-sm font-medium text-foreground">{value || "Not available"}</div>
+    </div>
+  );
+}
+
+function EmptyState({ message }) {
+  return (
+    <div className="rounded-lg border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+      {message}
     </div>
   );
 }

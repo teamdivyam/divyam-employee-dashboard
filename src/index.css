@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+.event-booking-table-fit > div {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden !important;
+}
+
 @layer base {
   :root {
     --background: 210 20% 98%;
@@ -166,6 +172,75 @@ body {
 
   .crm-card {
     @apply rounded-xl border border-border bg-card text-card-foreground shadow-sm;
+  }
+
+  .event-booking-metric-card {
+    @apply flex min-h-[108px] items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md;
+  }
+
+  .event-booking-metric-value {
+    @apply mt-0.5 text-xl font-bold leading-6 text-foreground;
+  }
+
+  .admin-task-metric-icon {
+    @apply grid h-12 w-12 shrink-0 place-items-center rounded-full;
+  }
+
+  .admin-task-metric-icon svg {
+    @apply h-6 w-6;
+  }
+
+  .admin-task-metric-label {
+    @apply text-xs font-medium leading-4 text-slate-600 dark:text-slate-300;
+  }
+
+  .admin-task-tab-list {
+    @apply rounded-lg border border-border bg-card px-3 shadow-sm;
+  }
+
+  .admin-task-table-card {
+    @apply overflow-hidden rounded-xl border border-slate-200 bg-card shadow-sm dark:border-border;
+  }
+
+  .admin-task-data-table thead {
+    background-color: #f7f9fc !important;
+    color: #172554 !important;
+    border-top: 1px solid #e7edf5;
+    border-bottom: 1px solid #e7edf5;
+  }
+
+  .admin-task-data-table thead th {
+    @apply px-3 py-3 text-xs font-bold;
+  }
+
+  .admin-task-data-table tbody tr {
+    border-bottom: 1px solid #edf1f6;
+  }
+
+  .admin-task-data-table tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .admin-task-data-table tbody tr:hover {
+    background-color: #f8fafc;
+  }
+
+  .admin-task-data-table tbody td {
+    @apply px-3 py-2 align-middle;
+  }
+
+  .dark .admin-task-data-table thead {
+    background-color: hsl(var(--muted) / 0.55) !important;
+    color: hsl(var(--foreground)) !important;
+    border-color: hsl(var(--border));
+  }
+
+  .dark .admin-task-data-table tbody tr {
+    border-color: hsl(var(--border));
+  }
+
+  .dark .admin-task-data-table tbody tr:hover {
+    background-color: hsl(var(--muted) / 0.3);
   }
 
   .crm-surface {

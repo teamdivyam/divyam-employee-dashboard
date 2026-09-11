@@ -45,6 +45,7 @@ import {
   money,
 } from './components/ClientDetailComponents';
 import UpdateLeadStageDialog from './components/UpdateLeadStageDialog';
+import AssignedClientEventsPanel from './components/AssignedClientEventsPanel';
 import EmployeeService from '../../../services/employee.service';
 
 const fetchCustomer = async ({ queryKey }) => {
@@ -369,6 +370,8 @@ export default function DetailClientPage() {
               </div>
             </SectionCard>
           </div>
+
+          <AssignedClientEventsPanel clientId={customer._id} />
 
           <div className="grid min-w-0 gap-3 lg:grid-cols-2">
             <SectionCard

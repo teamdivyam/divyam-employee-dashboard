@@ -61,6 +61,15 @@ const SCOPE_BY_TAB = Object.fromEntries(
   tabs.map(([tab, , , scope]) => [tab, scope]),
 );
 
+const getVisiblePageNumbers = (currentPage, totalPages, windowSize = 3) => {
+  const safeTotal = Math.max(1, Number(totalPages) || 1);
+  const safeCurrent = Math.min(safeTotal, Math.max(1, Number(currentPage) || 1));
+  const visibleCount = Math.min(windowSize, safeTotal);
+  let startPage = Math.max(1, safeCurrent - Math.floor(visibleCount / 2));
+  startPage = Math.min(startPage, safeTotal - visibleCount + 1);
+  return Array.from({ length: visibleCount }, (_, index) => startPage + index);
+};
+
 const createTaskItem = () => ({
   clientId: globalThis.crypto?.randomUUID?.() || `task-${Date.now()}-${Math.random()}`,
   taskTitle: "",
@@ -73,7 +82,7 @@ const createTaskItem = () => ({
   instructions: "",
   expectedOutcome: "",
   checklist: [],
-  completionRequirement: "Update Note",
+  completionRequirement: "None",
   attachments: [],
 });
 
@@ -711,13 +720,13 @@ export default function MyTasksPage() {
 
               <div className="flex flex-col gap-2 border-t border-border p-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs text-muted-foreground">
-                  Showing {tasks.length ? 1 : 0} to {tasks.length} of {pagination?.total ?? tasks.length} tasks
+                  Showing {tasks.length ? ((pagination?.page || 1) - 1) * (pagination?.limit || tasks.length) + 1 : 0} to {Math.min(((pagination?.page || 1) - 1) * (pagination?.limit || tasks.length) + tasks.length, pagination?.total ?? tasks.length)} of {pagination?.total ?? tasks.length} tasks
                 </p>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" disabled={(pagination?.page || 1) <= 1} onClick={() => setFilter("page", filters.page - 1)}>Previous</Button>
-                  {Array.from({ length: Math.min(pagination?.totalPages || 1, 3) }).map((_, index) => (
-                    <Button key={index} variant="outline" size="sm" className={(pagination?.page || 1) === index + 1 ? "border-primary text-primary" : ""} onClick={() => setFilter("page", index + 1)}>
-                      {index + 1}
+                  {getVisiblePageNumbers(pagination?.page, pagination?.totalPages).map((pageNumber) => (
+                    <Button key={pageNumber} variant="outline" size="sm" className={(pagination?.page || 1) === pageNumber ? "border-primary text-primary" : ""} onClick={() => setFilter("page", pageNumber)}>
+                      {pageNumber}
                     </Button>
                   ))}
                   <Button variant="outline" size="sm" disabled={(pagination?.page || 1) >= (pagination?.totalPages || 1)} onClick={() => setFilter("page", filters.page + 1)}>Next</Button>

@@ -113,7 +113,7 @@ export default function Layout() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="min-w-0 overflow-x-hidden">
         <header
           className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-background/95 backdrop-blur px-3 lg:px-4">
           <ActiveSidebarHeading />
@@ -212,10 +212,10 @@ export default function Layout() {
           </div>
         </header>
         <main
-          className="flex-1 bg-background"
+          className="min-w-0 flex-1 overflow-x-hidden bg-background"
         >
           <div
-            className="mx-auto w-full max-w-[1800px]"
+            className="mx-auto w-full min-w-0 max-w-[1800px]"
           >
             <Outlet />
           </div>
