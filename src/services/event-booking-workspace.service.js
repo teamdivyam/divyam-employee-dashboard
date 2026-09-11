@@ -1,6 +1,6 @@
-import axiosRequest from "../utils/axios";
+import { employeeV2Request as axiosRequest } from "./employee-v2.service";
 
-const eventPath = (eventId, suffix = "") => `/event-booking/${eventId}${suffix}`;
+const eventPath = (eventId, suffix = "") => `/employee-event-booking/${eventId}${suffix}`;
 
 const appendValues = (formData, values) => {
   Object.entries(values).forEach(([key, value]) => {
@@ -10,13 +10,13 @@ const appendValues = (formData, values) => {
 
 const EventBookingWorkspaceService = {
   getEventBookingManagers: (params = {}) =>
-    axiosRequest.get("/event-booking/managers", { params }),
+    axiosRequest.get("/employee-event-booking/managers", { params }),
   getEventBookingAnalytics: (params = {}) =>
-    axiosRequest.get("/event-booking/analytics", { params }),
+    axiosRequest.get("/employee-event-booking/analytics", { params }),
   getEventBookings: (params = {}) =>
-    axiosRequest.get("/event-booking", { params }),
-  createEventBooking: (formData) => axiosRequest.post("/event-booking", formData),
-  adminGetEmployee: (params = {}) => axiosRequest.get("/assigned-clients", { params }),
+    axiosRequest.get("/employee-event-booking", { params }),
+  createEventBooking: (formData) => axiosRequest.post("/employee-event-booking", formData),
+  adminGetEmployee: (params = {}) => axiosRequest.get("/employee-event-booking/customers", { params }),
   getEventBookingDetail: ({ eventId }) => axiosRequest.get(eventPath(eventId)),
   updateEventBooking: ({ eventId, ...formData }) =>
     axiosRequest.patch(eventPath(eventId), formData),
@@ -191,7 +191,7 @@ const EventBookingWorkspaceService = {
   updateEventClientApproval: ({ eventId, approvalId, ...formData }) =>
     axiosRequest.patch(eventPath(eventId, `/approvals/${approvalId}`), formData),
   adminAddCustomerPreference: ({ customerId, formData }) =>
-    axiosRequest.post(`/event-booking/customers/${customerId}/preference`, formData),
+    axiosRequest.post(`/employee-event-booking/customers/${customerId}/preference`, formData),
   getVendors: ({ eventId, ...params }) =>
     axiosRequest.get(eventPath(eventId, "/vendor-options"), { params }),
   addVendorDocument: ({ eventId, vendorId, formData }) =>
