@@ -206,6 +206,7 @@ export default function TaskDetailDialog({
   const isLocked = isCompleted || isRejected;
   const isWorkLocked = isLocked || isPendingAcceptance;
   const isDiscussionLocked = isLocked;
+  const hasDiscussion = task?.taskType !== "Self Task" || Boolean(task?.reviewer);
   const isTaskFromAdmin = task?.taskType !== "Self Task" && ["Admin", "Super Admin"].includes(task?.createdByRole);
   const isViewerSuperAdmin = currentEmployee?.accessRole === "Super Admin";
   const canEditTaskInfo = !isLocked && isRequester;
@@ -1480,9 +1481,9 @@ export default function TaskDetailDialog({
           <SectionHeader
             index={5}
             tone="blue"
-            title={task.taskType === "Self Task" ? "Activity Timeline" : "Activity & Discussion"}
+            title={hasDiscussion ? "Activity & Discussion" : "Activity Timeline"}
             trailing={
-              task.taskType !== "Self Task" ? <button
+              hasDiscussion ? <button
                 type="button"
                 onClick={notAvailable}
                 className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
@@ -1491,7 +1492,7 @@ export default function TaskDetailDialog({
               </button> : null
             }
           />
-          <div className={`grid items-stretch overflow-hidden rounded-b-lg border border-t-0 border-blue-200 dark:border-blue-400/30 ${task.taskType === "Self Task" ? "grid-cols-1" : "sm:grid-cols-3"}`}>
+          <div className={`grid items-stretch overflow-hidden rounded-b-lg border border-t-0 border-blue-200 dark:border-blue-400/30 ${hasDiscussion ? "sm:grid-cols-3" : "grid-cols-1"}`}>
             <div className="flex h-64 flex-col overflow-hidden">
               <p className="border-b border-border px-2.5 pb-2 pt-2.5 text-xs font-semibold text-foreground">
                 Activity Timeline
@@ -1514,7 +1515,7 @@ export default function TaskDetailDialog({
               </div>
             </div>
 
-            {task.taskType !== "Self Task" && (
+            {hasDiscussion && (
             <div className="flex h-64 flex-col overflow-hidden border-t border-border sm:col-span-2 sm:border-l sm:border-t-0">
               <p className="flex items-center gap-1 border-b border-border px-2.5 pb-2 pt-2.5 text-xs font-semibold text-foreground">
                 <MessageSquare className="h-3.5 w-3.5" /> Discussion
