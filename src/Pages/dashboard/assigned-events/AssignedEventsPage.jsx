@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import PropTypes from "prop-types";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@components/components/ui/button";
 import { Input } from "@components/components/ui/input";
-import PageLocked from "@components/components/PageLocked";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/components/ui/select";
 import { CalendarDays, Filter, Loader2, Search } from "lucide-react";
 import EmployeeService from "@/services/employee.service";
@@ -64,7 +64,7 @@ export default function AssignedEventsPage() {
     placeholderData: (previous) => previous,
   });
 
-  const events = eventsQuery.data?.events || [];
+  const events = useMemo(() => eventsQuery.data?.events || [], [eventsQuery.data]);
   const pagination = eventsQuery.data?.pagination;
   const optionValues = useMemo(() => {
     const city = [...new Set(events.map((event) => event.city).filter(Boolean))];
@@ -229,7 +229,6 @@ export default function AssignedEventsPage() {
         </section>
         </div>
       </div>
-      <PageLocked className="z-[100]" />
     </div>
   );
 }
@@ -249,3 +248,10 @@ function FilterSelect({ label, value, values, onChange }) {
     </Select>
   );
 }
+
+FilterSelect.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.string.isRequired,
+  values: PropTypes.arrayOf(PropTypes.string).isRequired,
+  onChange: PropTypes.func.isRequired,
+};

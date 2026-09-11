@@ -54,9 +54,18 @@ const EmployeeService = {
   // Employee Assigned Events
   getAssignedEventAnalytics: () => axiosRequest.get("/assigned-events/analytics"),
 
-  getAssignedEvents: ({ page = 1, limit = 10, search, status, city, role, view }) =>
+  getAssignedEvents: ({
+    page = 1,
+    limit = 10,
+    search,
+    status,
+    city,
+    role,
+    view,
+    clientId,
+  }) =>
     axiosRequest.get("/assigned-events", {
-      params: { page, limit, search, status, city, role, view },
+      params: { page, limit, search, status, city, role, view, clientId },
     }),
 
   getAssignedEventDetail: ({ eventId }) =>

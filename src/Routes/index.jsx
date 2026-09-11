@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import LoginForm from "../Pages/auth/Login";
@@ -12,14 +12,29 @@ import { useSelector } from "react-redux";
 import DashboardPage from "../Pages/dashboard/dashboard/DashboardPage";
 import MyProfilePage from "../Pages/dashboard/my-profile/MyProfilePage";
 import MyTasksPage from "../Pages/dashboard/my-tasks/MyTasksPage";
-import AssignedEventsPage from "../Pages/dashboard/assigned-events/AssignedEventsPage";
-import DetailAssignedEventPage from "../Pages/dashboard/assigned-events/DetailAssignedEventPage";
 import AssignedClientsPage from "../Pages/dashboard/assigned-clients/AssignedClientsPage";
-import FunctionsTimelinePage from "../Pages/dashboard/functions-timeline/FunctionsTimelinePage";
+import EventBookingDashboardPage from "../Pages/dashboard/event-booking-workspace/EventBookingDashboardPage";
+import EventOverviewPage from "../Pages/dashboard/event-booking-workspace/EventOverviewPage";
+import EventFunctionsPage from "../Pages/dashboard/event-booking-workspace/EventFunctionsPage";
+import EventServicesPage from "../Pages/dashboard/event-booking-workspace/EventServicesPage";
+import EventGuestsPage from "../Pages/dashboard/event-booking-workspace/EventGuestsPage";
+import EventGuestListPage from "../Pages/dashboard/event-booking-workspace/EventGuestListPage";
+import EventAccommodationPage from "../Pages/dashboard/event-booking-workspace/EventAccommodationPage";
+import EventTransportPage from "../Pages/dashboard/event-booking-workspace/EventTransportPage";
+import EventHospitalityPage from "../Pages/dashboard/event-booking-workspace/EventHospitalityPage";
+import EventVisualPreferencesPage from "../Pages/dashboard/event-booking-workspace/EventVisualPreferencesPage";
+import EventClientApprovalsPage from "../Pages/dashboard/event-booking-workspace/EventClientApprovalsPage";
+import EventOperationsPage from "../Pages/dashboard/event-booking-workspace/EventOperationsPage";
+import EventVendorsPage from "../Pages/dashboard/event-booking-workspace/EventVendorsPage";
+import EventInventoryPage from "../Pages/dashboard/event-booking-workspace/EventInventoryPage";
+import EventLogisticsPage from "../Pages/dashboard/event-booking-workspace/EventLogisticsPage";
+import EventRunSheetPage from "../Pages/dashboard/event-booking-workspace/EventRunSheetPage";
+import EventRolesResponsibilitiesPage from "../Pages/dashboard/event-booking-workspace/EventRolesResponsibilitiesPage";
+import EventFinancePage from "../Pages/dashboard/event-booking-workspace/EventFinancePage";
+import EventActivityPage from "../Pages/dashboard/event-booking-workspace/EventActivityPage";
 import VendorCoordinationPage from "../Pages/dashboard/vendor-coordination/VendorCoordinationPage";
 import InventoryEssentialsPage from "../Pages/dashboard/inventory-essentials/InventoryEssentialsPage";
 import DocumentsPage from "../Pages/dashboard/documents/DocumentsPage";
-import CommunicationsPage from "../Pages/dashboard/communications/CommunicationsPage";
 import MyExpensesPage from "../Pages/dashboard/my-expenses/MyExpensesPage";
 import MyRequestsApprovalPage from "../Pages/dashboard/my-requests-approvals/MyRequestsApprovalPage";
 import AttendenceLeavePage from "../Pages/dashboard/attendence-leave/AttendenceLeavePage";
@@ -71,10 +86,32 @@ const DashBoardRoutes = () => {
             {/* Lazy Dashboard Sub-Routes */}
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="my-tasks" element={<MyTasksPage />} />
-            <Route path="assigned-events" element={<AssignedEventsPage />} />
-            <Route path="assigned-events/:eventId" element={<DetailAssignedEventPage />} />
+            <Route path="assigned-events" element={<EventBookingDashboardPage />} />
+            <Route path="assigned-events/:eventId" element={<EventOverviewPage />} />
+            <Route path="assigned-events/:eventId/plan/functions" element={<EventFunctionsPage />} />
+            <Route path="assigned-events/:eventId/plan/services" element={<EventServicesPage />} />
+            <Route path="assigned-events/:eventId/plan/guests" element={<EventGuestsPage />} />
+            <Route path="assigned-events/:eventId/plan/guests/list" element={<EventGuestListPage />} />
+            <Route path="assigned-events/:eventId/plan/guests/accommodation" element={<EventAccommodationPage />} />
+            <Route path="assigned-events/:eventId/plan/guests/transport" element={<EventTransportPage />} />
+            <Route path="assigned-events/:eventId/plan/guests/hospitality" element={<EventHospitalityPage />} />
+            <Route path="assigned-events/:eventId/plan/preferences" element={<EventVisualPreferencesPage />} />
+            <Route path="assigned-events/:eventId/plan/approvals" element={<EventClientApprovalsPage />} />
+            <Route path="assigned-events/:eventId/operations" element={<EventOperationsPage />} />
+            <Route path="assigned-events/:eventId/operations/vendors" element={<EventVendorsPage />} />
+            <Route path="assigned-events/:eventId/operations/inventory" element={<EventInventoryPage />} />
+            <Route path="assigned-events/:eventId/operations/logistics" element={<EventLogisticsPage />} />
+            <Route path="assigned-events/:eventId/operations/run-sheet" element={<EventRunSheetPage />} />
+            <Route path="assigned-events/:eventId/operations/roles-responsibilities" element={<EventRolesResponsibilitiesPage />} />
+            <Route path="assigned-events/:eventId/finance" element={<EventFinancePage />} />
+            <Route path="assigned-events/:eventId/finance/:section" element={<EventFinancePage />} />
+            <Route path="assigned-events/:eventId/activity" element={<EventActivityPage />} />
             <Route path="assigned-clients" element={<AssignedClientsPage />} />
             <Route path="assigned-clients/:clientId" element={<DetailAssignedClientPage />} />
+            <Route
+              path="assigned-clients/:clientId/events/:eventId"
+              element={<EventOverviewPage />}
+            />
             <Route path="vendor-coordination" element={<VendorCoordinationPage />} />
             <Route path="vendor-coordination/:vendorId/:assignmentId" element={<DetailVendorCoordinationPage />} />
             <Route path="inventory-essentials" element={<InventoryEssentialsPage />} />
