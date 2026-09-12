@@ -1,13 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import AdminService from '../../../services/event-booking-workspace.service';
 import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
 import { EditBookingDialog, getBookingDetail, getEmployees } from './components/EventBookingComponents';
+import AddBookingDialog from './components/AddBookingDialog';
 import EventDetailTabs from './components/EventDetailTabs';
 import EventOverviewHeader from './components/EventOverviewHeader';
 import { ApprovalsPanel, BookingSnapshot, ReadinessPayment, RecentActivity } from './components/EventOverviewPanels';
@@ -103,7 +104,30 @@ const buildOverview = (booking) => {
 export default function EventOverviewPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
-  const [editOpen, setEditOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [bookingFormOpen, setBookingFormOpen] = useState(false);
+  const [managerOpen, setManagerOpen] = useState(false);
+  const requestedAction = searchParams.get('action');
+  const clearRequestedAction = () => {
+    if (requestedAction) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('action');
+      setSearchParams(next, { replace: true });
+    }
+  };
+  const setBookingDialogOpen = (open) => {
+    setBookingFormOpen(open);
+    if (!open) clearRequestedAction();
+  };
+  const setManagerDialogOpen = (open) => {
+    setManagerOpen(open);
+    if (!open) clearRequestedAction();
+  };
+
+  useEffect(() => {
+    if (requestedAction === 'edit-booking') setBookingFormOpen(true);
+    if (requestedAction === 'assign-manager') setManagerOpen(true);
+  }, [requestedAction]);
 
   const bookingQuery = useQuery({
     queryKey: ['event-booking-detail', eventId],
@@ -116,7 +140,16 @@ export default function EventOverviewPage() {
   });
   const updateMutation = useMutation({
     mutationFn: (payload) => AdminService.updateEventBooking({ eventId, ...payload }),
-    onSuccess: () => { toast.success('Booking updated'); setEditOpen(false); bookingQuery.refetch(); },
+    onSuccess: () => { toast.success('Event manager updated'); setManagerDialogOpen(false); bookingQuery.refetch(); },
+    onError: (error) => toast.error(error.response?.data?.message || 'Unable to update booking'),
+  });
+  const bookingFormMutation = useMutation({
+    mutationFn: (formData) => AdminService.updateEventBookingForm({ eventId, formData }),
+    onSuccess: (response) => {
+      toast.success(response?.data?.message || 'Booking updated');
+      setBookingDialogOpen(false);
+      bookingQuery.refetch();
+    },
     onError: (error) => toast.error(error.response?.data?.message || 'Unable to update booking'),
   });
   const readyMutation = useMutation({
@@ -142,7 +175,7 @@ export default function EventOverviewPage() {
 
   return (
     <div className="crm-page min-h-screen space-y-4 p-3 sm:p-4 lg:p-5">
-      <EventOverviewHeader booking={booking} summary={summary} onBack={() => navigate('/dashboard/assigned-events')} onOpenPlanning={openPlanning} onEdit={() => setEditOpen(true)} onMarkReady={() => readyMutation.mutate()} onViewTasks={() => navigate(`/dashboard/assigned-events/${eventId}/operations`)} />
+      <EventOverviewHeader booking={booking} summary={summary} onBack={() => navigate('/dashboard/assigned-events')} onOpenPlanning={openPlanning} onEdit={() => setBookingFormOpen(true)} onMarkReady={() => readyMutation.mutate()} onViewTasks={() => navigate(`/dashboard/assigned-events/${eventId}/operations`)} />
 
       <EventDetailTabs activePrimary="overview" onSelect={selectTab} />
 
@@ -150,7 +183,8 @@ export default function EventOverviewPage() {
       <ApprovalsPanel approvals={summary.approvals} />
       <RecentActivity activity={summary.activity} />
 
-      <EditBookingDialog open={editOpen} onOpenChange={setEditOpen} booking={booking} employees={employees} saving={updateMutation.isPending} onSave={(payload) => updateMutation.mutate(payload)} />
+      <AddBookingDialog open={bookingFormOpen} onOpenChange={setBookingDialogOpen} booking={booking} customers={booking.customer ? [booking.customer] : []} employees={employees} mode="edit" saving={bookingFormMutation.isPending} onSubmit={(payload) => bookingFormMutation.mutate(payload)} />
+      <EditBookingDialog open={managerOpen} onOpenChange={setManagerDialogOpen} booking={booking} employees={employees} saving={updateMutation.isPending} onSave={(payload) => updateMutation.mutate(payload)} mode="assign-manager" />
     </div>
   );
 }

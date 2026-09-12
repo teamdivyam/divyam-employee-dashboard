@@ -429,7 +429,7 @@ function CreateInvoiceDialog({ open, onOpenChange, options, saving, onSave }) {
           >
             Cancel
           </Button>
-          <Button type="submit" form="create-event-invoice" disabled={saving}>
+          <Button variant="custom" type="submit" form="create-event-invoice" disabled={saving}>
             {saving ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -564,7 +564,7 @@ export default function EventInvoicesReceiptsPanel({
               <SelectItem value="this-year">This year</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={() => setCreateOpen(true)} className="gap-2">
+          <Button variant="custom" onClick={() => setCreateOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
             Create Invoice
           </Button>

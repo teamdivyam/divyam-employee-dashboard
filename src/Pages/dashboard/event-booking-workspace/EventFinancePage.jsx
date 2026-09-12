@@ -274,6 +274,7 @@ function CommercialChangeDialog({
             Cancel
           </Button>
           <Button
+            variant="custom"
             type="submit"
             form="commercial-change-form"
             disabled={saving || !form.title.trim() || !numberOf(form.amount)}
@@ -312,6 +313,7 @@ function CommercialNoteDialog({ open, onOpenChange, saving, onSave }) {
             Cancel
           </Button>
           <Button
+            variant="custom"
             disabled={saving || !note.trim()}
             onClick={() =>
               onSave({
@@ -478,6 +480,7 @@ function AcceptedProposalDialog({
             Cancel
           </Button>
           <Button
+            variant="custom"
             type="submit"
             form="accepted-proposal-form"
             disabled={
@@ -570,6 +573,7 @@ function ContractTermsDialog({
             Cancel
           </Button>
           <Button
+            variant="custom"
             type="submit"
             form="contract-terms-form"
             disabled={saving || form.baseProposalValue === ""}
@@ -687,7 +691,8 @@ function CommercialPanel({
                 <Button
                   size="sm"
                   onClick={onAttachProposal}
-                  className="gap-2 bg-blue-600 hover:bg-blue-700"
+                  className="gap-2"
+                  variant="custom"
                 >
                   <UploadCloud className="h-4 w-4" />
                   Attach Accepted Proposal
@@ -790,7 +795,8 @@ function CommercialPanel({
             <Button
               size="sm"
               onClick={onAddChange}
-              className="gap-1.5 bg-blue-600 hover:bg-blue-700"
+              className="gap-1.5"
+              variant="custom"
             >
               <Plus className="h-4 w-4" />
               Add Change

@@ -1,15 +1,9 @@
 /* eslint-disable react/prop-types */
-import { CalendarDays, CheckCircle2, ChevronDown, UsersRound } from 'lucide-react';
+import { CalendarDays, CheckCircle2, UsersRound } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@components/components/ui/avatar';
 import { Badge } from '@components/components/ui/badge';
 import { Button } from '@components/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@components/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -26,8 +20,19 @@ import {
   initials,
 } from '../eventBookingDashboard.utils';
 import { PaymentProgress } from './EventBookingProgress';
+import { BookingActionsMenu } from './BookingTable';
 
-export default function CompletedBookingTable({ bookings, openEventOverview }) {
+export default function CompletedBookingTable({
+  bookings,
+  openBooking,
+  openBookingEdit,
+  openManagerAssignment,
+  openDocuments,
+  openPayments,
+  openBookingSetup,
+  openEventOverview,
+  onUpdateStatus,
+}) {
   return (
     <div className="event-booking-table-fit w-full min-w-0 max-w-full overflow-x-auto rounded-lg border border-border">
       <Table className="w-full table-fixed text-xs">
@@ -130,17 +135,7 @@ export default function CompletedBookingTable({ bookings, openEventOverview }) {
                     <Button variant="outline" className="h-8 min-w-[92px] whitespace-nowrap rounded-r-none border-border bg-transparent px-2 text-[10px] font-semibold text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200" onClick={() => openEventOverview(booking)}>
                       {closure.pending.length ? 'Open Closure' : 'View Booking'}
                     </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="icon" className="h-8 w-8 rounded-l-none border-l-0 border-border bg-transparent text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200" aria-label="More closure actions">
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => openEventOverview(booking)}>Open booking details</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => openEventOverview(booking)}>Review post-event closure</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <BookingActionsMenu booking={booking} openBooking={openBooking} openBookingEdit={openBookingEdit} openManagerAssignment={openManagerAssignment} openDocuments={openDocuments} openPayments={openPayments} openBookingSetup={openBookingSetup} onUpdateStatus={onUpdateStatus} />
                   </div>
                 </TableCell>
               </TableRow>

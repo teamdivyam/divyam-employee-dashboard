@@ -1,5 +1,18 @@
 /* eslint-disable react/prop-types */
-import { CalendarDays, ChevronDown, Loader2, UsersRound } from 'lucide-react';
+import {
+  Ban,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  CirclePause,
+  CreditCard,
+  Eye,
+  FileText,
+  Loader2,
+  Pencil,
+  UserRoundCog,
+  UsersRound,
+} from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@components/components/ui/avatar';
 import { Badge } from '@components/components/ui/badge';
@@ -8,6 +21,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@components/components/ui/dropdown-menu';
 import {
@@ -24,7 +38,6 @@ import {
   daysRemaining,
   eventDateLabel,
   getKeyPendingItems,
-  getOnboardingProgress,
   initials,
   planningStage,
   planningStageStep,
@@ -42,12 +55,85 @@ import {
   Readiness,
 } from './EventBookingProgress';
 
+export function BookingActionsMenu({
+  booking,
+  openBooking,
+  openBookingEdit,
+  openManagerAssignment,
+  openDocuments,
+  openPayments,
+  onUpdateStatus,
+}) {
+  const itemClass = 'cursor-pointer gap-2.5 px-2.5 py-2 text-xs';
+  const canComplete = Boolean(booking.executionReadiness?.isReady);
+  const isCompleted = booking.bookingStatus === 'Completed';
+  const isCancelled = booking.bookingStatus === 'Cancelled';
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 rounded-l-none border-l-0 border-border bg-transparent text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
+          aria-label="More booking actions"
+        >
+          <ChevronDown className="h-3.5 w-3.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={6} className="w-60 rounded-lg p-1.5 shadow-lg">
+        <DropdownMenuItem className={itemClass} onSelect={() => openBooking(booking)}>
+          <Eye className="text-slate-600" /> View Booking
+        </DropdownMenuItem>
+        <DropdownMenuItem className={itemClass} onSelect={() => openBookingEdit(booking)}>
+          <Pencil className="text-blue-600" /> Edit Booking Details
+        </DropdownMenuItem>
+        <DropdownMenuItem className={itemClass} onSelect={() => openManagerAssignment(booking)}>
+          <UserRoundCog className="text-indigo-600" /> Assign Event Manager
+        </DropdownMenuItem>
+        <DropdownMenuItem className={itemClass} onSelect={() => openDocuments(booking)}>
+          <FileText className="text-violet-600" /> Upload / View Documents
+        </DropdownMenuItem>
+        <DropdownMenuItem className={itemClass} onSelect={() => openPayments(booking)}>
+          <CreditCard className="text-cyan-700" /> Record Client Payment
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className={itemClass}
+          disabled={booking.isCrmOnly || !canComplete || isCompleted || isCancelled}
+          onSelect={() => onUpdateStatus(booking, 'Completed')}
+        >
+          <Check className="text-emerald-600" /> Mark as Completed
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className={itemClass}
+          disabled={booking.isCrmOnly || isCompleted || isCancelled || booking.bookingStatus === 'On Hold'}
+          onSelect={() => onUpdateStatus(booking, 'On Hold')}
+        >
+          <CirclePause className="text-amber-600" /> Put On Hold
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className={itemClass}
+          disabled={booking.isCrmOnly || isCompleted || isCancelled}
+          onSelect={() => onUpdateStatus(booking, 'Cancelled')}
+        >
+          <Ban className="text-red-600" /> Cancel Booking
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default function BookingTable({
   bookings,
   isNewBookingView,
   isPlanningView,
   isExecutionReadyView,
   openBooking,
+  openBookingEdit,
+  openManagerAssignment,
+  openDocuments,
+  openPayments,
   openEventOverview,
   openPlanning,
   openBookingSetup,
@@ -123,7 +209,6 @@ export default function BookingTable({
             const manager = booking.assignedManager;
             const stage = isPlanningView ? planningViewStage(booking) : planningStage(booking);
             const stageStep = planningStageStep(stage);
-            const onboarding = getOnboardingProgress(booking);
             const requiresSetup = booking.isCrmOnly || booking.onboardingStatus === 'Pending';
             const executionPercentage = readinessPercentage(booking);
             const canMarkReady = isExecutionReadyView
@@ -133,11 +218,7 @@ export default function BookingTable({
               && !booking.isCrmOnly;
             const teamCount = Math.max(0, (booking.assignedTeam?.length || 0) - (manager ? 1 : 0));
             const primaryActionLabel = isNewBookingView
-              ? !onboarding.hasManager
-                ? 'Assign Manager'
-                : onboarding.completed === onboarding.total
-                  ? 'Move to Planning'
-                  : 'Continue Setup'
+              ? requiresSetup ? 'Continue Setup' : 'View Booking'
               : isPlanningView
                 ? 'Open Planning'
               : isExecutionReadyView
@@ -225,29 +306,12 @@ export default function BookingTable({
                         {String(markingReadyId || '') === String(booking._id) ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
                         {primaryActionLabel}
                       </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8 rounded-l-none border-l-0 border-border bg-transparent text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200" aria-label="More booking actions"><ChevronDown className="h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onSelect={() => openBooking(booking)}>Open booking</DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => onUpdateStatus(booking)}>Update event stage</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <BookingActionsMenu booking={booking} openBooking={openBooking} openBookingEdit={openBookingEdit} openManagerAssignment={openManagerAssignment} openDocuments={openDocuments} openPayments={openPayments} onUpdateStatus={onUpdateStatus} />
                     </div>
                   ) : (
                     <div className="flex justify-end">
                       <Button variant="outline" className="h-8 min-w-[92px] whitespace-nowrap rounded-r-none border-border bg-transparent px-2 text-[10px] font-semibold text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200" onClick={handlePrimaryAction}>{primaryActionLabel}</Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8 rounded-l-none border-l-0 border-border bg-transparent text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200" aria-label="More booking actions"><ChevronDown className="h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {requiresSetup ? (
-                          <>
-                            <DropdownMenuItem onSelect={() => openBookingSetup(booking)}>Continue booking setup</DropdownMenuItem>
-                            {booking.isCrmOnly ? <DropdownMenuItem onSelect={() => openBooking(booking)}>Open client details</DropdownMenuItem> : null}
-                          </>
-                        ) : <DropdownMenuItem onSelect={() => openBooking(booking)}>Open booking</DropdownMenuItem>}
-                        {!booking.isCrmOnly ? <DropdownMenuItem onSelect={() => onUpdateStatus(booking)}>Update event stage</DropdownMenuItem> : null}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <BookingActionsMenu booking={booking} openBooking={openBooking} openBookingEdit={openBookingEdit} openManagerAssignment={openManagerAssignment} openDocuments={openDocuments} openPayments={openPayments} onUpdateStatus={onUpdateStatus} />
                     </div>
                   )}
                 </TableCell>

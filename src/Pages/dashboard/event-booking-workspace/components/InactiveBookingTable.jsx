@@ -1,15 +1,9 @@
 /* eslint-disable react/prop-types */
-import { CalendarDays, ChevronDown, Loader2, UsersRound } from 'lucide-react';
+import { CalendarDays, Loader2, UsersRound } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@components/components/ui/avatar';
 import { Badge } from '@components/components/ui/badge';
 import { Button } from '@components/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@components/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -28,6 +22,7 @@ import {
   initials,
   settlementDetails,
 } from '../eventBookingDashboard.utils';
+import { BookingActionsMenu } from './BookingTable';
 
 const statusClass = (isOnHold) => isOnHold
   ? 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-300'
@@ -40,7 +35,19 @@ const settlementTone = (status) => ({
   Pending: 'text-amber-600 dark:text-amber-400',
 }[status] || 'text-muted-foreground');
 
-export default function InactiveBookingTable({ bookings, openEventOverview, onResume, onUpdateStatus, resumingId }) {
+export default function InactiveBookingTable({
+  bookings,
+  openBooking,
+  openBookingEdit,
+  openManagerAssignment,
+  openDocuments,
+  openPayments,
+  openBookingSetup,
+  openEventOverview,
+  onResume,
+  onUpdateStatus,
+  resumingId,
+}) {
   return (
     <div className="event-booking-table-fit w-full min-w-0 max-w-full overflow-x-auto rounded-lg border border-border">
       <Table className="w-full table-fixed text-xs">
@@ -129,14 +136,7 @@ export default function InactiveBookingTable({ bookings, openEventOverview, onRe
                     <Button variant="outline" className="h-8 min-w-[92px] whitespace-nowrap rounded-r-none border-border bg-transparent px-2 text-[10px] font-semibold text-blue-700 hover:bg-muted/50 hover:text-blue-800 disabled:bg-transparent dark:text-blue-300 dark:hover:text-blue-200" disabled={isResuming} onClick={() => inactive.isOnHold ? onResume(booking) : openEventOverview(booking)}>
                       {isResuming ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}{primaryAction}
                     </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="h-8 w-8 shrink-0 rounded-l-none border-l-0 border-border bg-transparent text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200" aria-label="More booking actions"><ChevronDown className="h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => openEventOverview(booking)}>Open booking details</DropdownMenuItem>
-                        {inactive.isOnHold ? <DropdownMenuItem onSelect={() => onUpdateStatus(booking)}>Update event stage</DropdownMenuItem> : null}
-                        {inactive.isOnHold ? <DropdownMenuItem onSelect={() => onResume(booking)}>Resume booking</DropdownMenuItem> : null}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <BookingActionsMenu booking={booking} openBooking={openBooking} openBookingEdit={openBookingEdit} openManagerAssignment={openManagerAssignment} openDocuments={openDocuments} openPayments={openPayments} openBookingSetup={openBookingSetup} onUpdateStatus={onUpdateStatus} />
                   </div>
                 </TableCell>
               </TableRow>

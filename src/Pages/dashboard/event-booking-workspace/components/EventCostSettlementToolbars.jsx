@@ -71,6 +71,7 @@ export function VendorSettlementToolbar({
       </Select>
 
       <Button
+        variant="custom"
         onClick={onRecordSettlement}
         disabled={!hasOutstandingVendor}
         className="shrink-0 gap-2 whitespace-nowrap"
@@ -152,6 +153,7 @@ export function ExpenseToolbar({
       </Button>
 
       <Button
+        variant="custom"
         onClick={onAddExpense}
         className="shrink-0 gap-2 whitespace-nowrap"
       >

@@ -152,6 +152,7 @@ export function SettlementTermsDialog({
             Cancel
           </Button>
           <Button
+            variant="custom"
             type="submit"
             form="vendor-settlement-terms"
             disabled={saving}
@@ -399,6 +400,7 @@ export function RecordSettlementDialog({
           </Button>
           {payable.length ? (
             <Button
+              variant="custom"
               type="submit"
               form="record-vendor-settlement"
               disabled={saving}

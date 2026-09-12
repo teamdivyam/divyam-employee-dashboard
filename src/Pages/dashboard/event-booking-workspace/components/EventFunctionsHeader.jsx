@@ -67,7 +67,7 @@ export default function EventFunctionsHeader({ booking, metrics = {}, metricItem
           </div>
         </div>
         <div className="flex shrink-0 gap-2">
-          <Button className="h-9 gap-2 bg-blue-600 px-4 hover:bg-blue-700" onClick={onOpenPlanning}><FileCheck2 className="h-4 w-4" />{primaryActionLabel}<ChevronRight className="h-4 w-4" /></Button>
+          <Button className="h-9 gap-2 px-4" variant="custom" onClick={onOpenPlanning}><FileCheck2 className="h-4 w-4" />{primaryActionLabel}<ChevronRight className="h-4 w-4" /></Button>
           <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" className="h-9 gap-2">More Actions<MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={onEdit}>Edit booking</DropdownMenuItem><DropdownMenuItem onSelect={onMarkReady}>Mark execution ready</DropdownMenuItem><DropdownMenuItem onSelect={onBack}>Back to bookings</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
         </div>
       </div>

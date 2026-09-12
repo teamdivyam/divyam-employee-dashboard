@@ -23,32 +23,14 @@ import MonthFilterControl from '@components/components/MonthFilterControl';
 import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@components/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@components/components/ui/dialog';
-import {
-  BookingForm,
-  EditBookingDialog,
-  buildInitialForm,
-  buildBookingPayload,
   getBookings,
   getCustomers,
   getEmployees,
   getTotalPages,
   getTotalRows,
-  initialBookingForm,
 } from './components/EventBookingComponents';
 import BookingCalendar from './components/EventBookingCalendar';
+import AddBookingDialog from './components/AddBookingDialog';
 import { EventBookingDashboardFilters } from './components/EventBookingDashboardFilters';
 import EventBookingMetricCard from './components/EventBookingMetricCard';
 import EventBookingStatusDialog from './components/EventBookingStatusDialog';
@@ -106,10 +88,8 @@ export default function EventBookingDashboardPage() {
   const [month, setMonth] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
   const [pagination, dispatch] = useReducer(paginationReducer, { page: 1, totalRows: 0, totalPages: 1 });
   const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [form, setForm] = useState(initialBookingForm);
   const [formOpen, setFormOpen] = useState(false);
   const [setupBooking, setSetupBooking] = useState(null);
-  const [editBooking, setEditBooking] = useState(null);
   const [statusBooking, setStatusBooking] = useState(null);
   const range = useMemo(() => {
     const selectedRange = monthRange(month);
@@ -178,31 +158,19 @@ export default function EventBookingDashboardPage() {
       queryClient.invalidateQueries({ queryKey: ['event-booking-analytics'] }),
     ]);
   };
-  const createMutation = useMutation({
-    mutationFn: async (payload) => (await AdminService.createEventBooking(payload)).data,
+  const bookingFormMutation = useMutation({
+    mutationFn: async ({ payload, booking }) => (
+      booking && !booking.isCrmOnly
+        ? (await AdminService.updateEventBookingForm({ eventId: booking._id, formData: payload })).data
+        : (await AdminService.createEventBooking(payload)).data
+    ),
     onSuccess: async (response) => {
       toast.success(response?.message || 'Booking created');
-      setForm(initialBookingForm);
       setFormOpen(false);
       setSetupBooking(null);
       await refreshDashboard(response?.event);
     },
     onError: (error) => toast.error(error.response?.data?.message || error.message || 'Unable to create booking'),
-  });
-  const completeSetupMutation = useMutation({
-    mutationFn: async ({ eventId, ...payload }) => (await AdminService.updateEventBooking({
-      eventId,
-      ...payload,
-      onboardingStatus: 'Completed',
-    })).data,
-    onSuccess: async (response) => {
-      toast.success(response?.message || 'Booking setup completed');
-      setForm(initialBookingForm);
-      setFormOpen(false);
-      setSetupBooking(null);
-      await refreshDashboard(response?.event);
-    },
-    onError: (error) => toast.error(error.response?.data?.message || error.message || 'Unable to complete booking setup'),
   });
   const markReadyMutation = useMutation({
     mutationFn: async (eventId) => (await AdminService.markEventExecutionReady({
@@ -242,16 +210,6 @@ export default function EventBookingDashboardPage() {
     },
     onError: (error) => toast.error(error.response?.data?.message || error.message || 'Unable to update event status'),
   });
-  const updateMutation = useMutation({
-    mutationFn: (payload) => AdminService.updateEventBooking({ eventId: editBooking._id, ...payload }),
-    onSuccess: async (response) => {
-      toast.success(response?.data?.message || 'Booking updated');
-      setEditBooking(null);
-      await refreshDashboard(response?.data?.event);
-    },
-    onError: (error) => toast.error(error.response?.data?.message || error.message || 'Unable to update booking'),
-  });
-
   const analytics = analyticsQuery.data?.analytics || {};
   const cards = analytics.cards || {};
   const counts = analytics.tabs || {};
@@ -305,11 +263,10 @@ export default function EventBookingDashboardPage() {
       navigate(`/dashboard/assigned-clients/${booking.crmCustomerId}`);
       return;
     }
-    setEditBooking(booking);
+    openEventOverview(booking);
   };
   const openBookingSetup = (booking = null) => {
     setSetupBooking(booking);
-    setForm(booking ? buildInitialForm(booking) : initialBookingForm);
     setFormOpen(true);
   };
   const openEventOverview = (booking) => {
@@ -326,6 +283,36 @@ export default function EventBookingDashboardPage() {
     }
 
     navigate(`/dashboard/assigned-events/${eventId}`);
+  };
+  const openWorkspaceAction = (booking, action) => {
+    if (booking?.isCrmOnly) {
+      openBookingSetup(booking);
+      return;
+    }
+    if (!booking?._id) {
+      toast.error('Unable to open booking. Event ID not found.');
+      return;
+    }
+    navigate(`/dashboard/assigned-events/${booking._id}?action=${action}`);
+  };
+  const openFinanceSection = (booking, section) => {
+    if (!booking?._id || booking.isCrmOnly) {
+      toast.info('Complete booking setup before opening Finance & Files.');
+      return;
+    }
+    navigate(`/dashboard/assigned-events/${booking._id}/finance?tab=${section}`);
+  };
+  const openStatusDialog = (booking, initialStatus) => {
+    setStatusBooking({ booking, initialStatus });
+  };
+  const bookingActionProps = {
+    openBooking,
+    openBookingEdit: (booking) => openWorkspaceAction(booking, 'edit-booking'),
+    openManagerAssignment: (booking) => openWorkspaceAction(booking, 'assign-manager'),
+    openDocuments: (booking) => openFinanceSection(booking, 'documents'),
+    openPayments: (booking) => openFinanceSection(booking, 'payments'),
+    openBookingSetup,
+    onUpdateStatus: openStatusDialog,
   };
 
   const metricItems = [
@@ -389,17 +376,10 @@ export default function EventBookingDashboardPage() {
           <Button variant="outline" size="icon" className="h-9 w-9" onClick={refresh} aria-label="Refresh bookings">
             <RefreshCw className={`h-4 w-4 ${(analyticsQuery.isFetching || bookingsQuery.isFetching) ? 'animate-spin' : ''}`} />
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-9 gap-2 px-3 text-xs">More Actions <ChevronDown className="h-3.5 w-3.5" /></Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => openBookingSetup()}><Plus className="mr-2 h-4 w-4" /> Add Booking</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => { setFilters(EMPTY_FILTERS); dispatch({ type: 'reset' }); }}>
-                <RefreshCw className="mr-2 h-4 w-4" /> Reset Filters
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button variant="custom" className="h-9 gap-2 px-3 text-xs" onClick={() => openBookingSetup()}>
+            <Plus className="h-4 w-4" />
+            Add Booking
+          </Button>
         </div>
       </header>
 
@@ -440,29 +420,27 @@ export default function EventBookingDashboardPage() {
             <BookingCalendar bookings={bookings} month={month} onOpen={openBooking} />
           ) : (
             activeTab === 'today' ? (
-              <TodayBookingTable bookings={visibleBookings} openBooking={openBooking} openEventOverview={openEventOverview} onUpdateStatus={setStatusBooking} />
+              <TodayBookingTable bookings={visibleBookings} openEventOverview={openEventOverview} {...bookingActionProps} />
             ) : activeTab === 'completed' ? (
-              <CompletedBookingTable bookings={visibleBookings}  openEventOverview={openEventOverview} />
+              <CompletedBookingTable bookings={visibleBookings} openEventOverview={openEventOverview} {...bookingActionProps} />
             ) : activeTab === 'closed' ? (
               <InactiveBookingTable
                 bookings={visibleBookings}
                 openEventOverview={openEventOverview}
                 onResume={(booking) => resumeMutation.mutate(booking._id)}
-                onUpdateStatus={setStatusBooking}
                 resumingId={resumeMutation.isPending ? resumeMutation.variables : null}
+                {...bookingActionProps}
               />
             ) : <BookingTable
               bookings={visibleBookings}
               isNewBookingView={activeTab === 'new'}
               isPlanningView={activeTab === 'planning'}
               isExecutionReadyView={activeTab === 'execution_ready'}
-              openBooking={openBooking}
               openEventOverview={openEventOverview}
               openPlanning={(booking) => navigate(`/dashboard/assigned-events/${booking._id}/plan/functions`)}
-              openBookingSetup={openBookingSetup}
               markingReadyId={markReadyMutation.isPending ? markReadyMutation.variables : null}
               onMarkReady={(booking) => markReadyMutation.mutate(booking._id)}
-              onUpdateStatus={setStatusBooking}
+              {...bookingActionProps}
             />
           )}
 
@@ -504,71 +482,26 @@ export default function EventBookingDashboardPage() {
         </CardContent>
       </Card>
 
-      <Dialog
+      <AddBookingDialog
         open={formOpen}
         onOpenChange={(open) => {
           setFormOpen(open);
           if (!open) {
-            setForm(initialBookingForm);
             setSetupBooking(null);
           }
         }}
-      >
-        <DialogContent className="flex max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-5xl flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
-          <DialogHeader className="border-b border-border bg-blue-50/40 px-4 py-3 pr-12 text-left dark:bg-blue-400/5">
-            <DialogTitle className="flex items-center gap-3 text-xl">
-              <span className="grid h-9 w-9 place-items-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-300"><Plus className="h-4 w-4" /></span>
-              {setupBooking ? 'Continue Booking Setup' : 'Add New Booking'}
-            </DialogTitle>
-            <DialogDescription className="text-left text-xs">
-              {setupBooking
-                ? `Complete the booking details for ${setupBooking.customer?.name || setupBooking.eventName}.`
-                : 'Create a booking from a converted Clients & CRM enquiry.'}
-            </DialogDescription>
-          </DialogHeader>
-          <BookingForm
-            formId="create-event-booking-form"
-            showSubmitButton={false}
-            className="min-h-0 flex-1 overflow-y-auto px-4 py-3"
-            customers={customers}
-            employees={employees}
-            value={form}
-            setValue={setForm}
-            saving={createMutation.isPending || completeSetupMutation.isPending}
-            onSubmit={(event) => {
-              event.preventDefault();
-              const payload = buildBookingPayload(form);
-              if (setupBooking && !setupBooking.isCrmOnly && setupBooking.onboardingStatus === 'Pending') {
-                completeSetupMutation.mutate({ eventId: setupBooking._id, ...payload });
-                return;
-              }
-              createMutation.mutate(payload);
-            }}
-          />
-
-          <DialogFooter className="flex-row justify-end gap-2 border-t border-border bg-muted/30 px-4 py-2.5 sm:space-x-0">
-            <Button type="button" variant="outline" size="sm" disabled={createMutation.isPending || completeSetupMutation.isPending} onClick={() => { setFormOpen(false); setForm(initialBookingForm); setSetupBooking(null); }}>Cancel</Button>
-            <Button type="submit" form="create-event-booking-form" size="sm" disabled={createMutation.isPending || completeSetupMutation.isPending || !form.customer || !form.eventName?.trim() || !form.eventDate} className="min-w-32 gap-2">
-              {(createMutation.isPending || completeSetupMutation.isPending) ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
-              {(createMutation.isPending || completeSetupMutation.isPending) ? 'Saving...' : setupBooking ? 'Complete Booking' : 'Create Booking'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <EditBookingDialog
-        booking={editBooking}
-        open={Boolean(editBooking)}
-        onOpenChange={(open) => !open && setEditBooking(null)}
         employees={employees}
-        saving={updateMutation.isPending}
-        onSave={(payload) => updateMutation.mutate(payload)}
+        customers={customers}
+        booking={setupBooking}
+        saving={bookingFormMutation.isPending}
+        onSubmit={(payload) => bookingFormMutation.mutate({ payload, booking: setupBooking })}
       />
 
       <EventBookingStatusDialog
-        booking={statusBooking}
+        booking={statusBooking?.booking}
         open={Boolean(statusBooking)}
         onOpenChange={(open) => !open && setStatusBooking(null)}
+        initialStatus={statusBooking?.initialStatus}
         onSubmit={(payload) => statusMutation.mutate(payload)}
         onMarkExecutionReady={(eventId) => markReadyMutation.mutate(eventId)}
         onRevokeExecutionReady={(payload) => revokeReadyMutation.mutate(payload)}

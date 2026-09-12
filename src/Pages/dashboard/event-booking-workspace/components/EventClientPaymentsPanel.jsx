@@ -328,7 +328,7 @@ function MilestoneDialog({ open, onOpenChange, milestone, saving, onSave }) {
           >
             Cancel
           </Button>
-          <Button type="submit" form="payment-milestone-form" disabled={saving}>
+          <Button variant="custom" type="submit" form="payment-milestone-form" disabled={saving}>
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {milestone ? "Save Changes" : "Add Milestone"}
           </Button>
@@ -563,6 +563,7 @@ function RecordPaymentDialog({
           </Button>
           {payableMilestones.length ? (
             <Button
+              variant="custom"
               type="submit"
               form="record-client-payment-form"
               disabled={saving}
@@ -793,6 +794,7 @@ export default function EventClientPaymentsPanel({
                 Add Milestone
               </Button>
               <Button
+                variant="custom"
                 onClick={() => openPayment()}
                 disabled={!hasOutstanding}
                 className="gap-2"

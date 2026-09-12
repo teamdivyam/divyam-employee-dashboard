@@ -335,7 +335,7 @@ export function AddExpenseDialog({
           >
             Cancel
           </Button>
-          <Button type="submit" form="add-event-expense" disabled={saving}>
+          <Button variant="custom" type="submit" form="add-event-expense" disabled={saving}>
             {saving ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -462,7 +462,7 @@ export function MoreExpenseFiltersDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={apply}>Apply Filters</Button>
+          <Button variant="custom" onClick={apply}>Apply Filters</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

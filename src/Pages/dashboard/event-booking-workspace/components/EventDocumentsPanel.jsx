@@ -346,7 +346,7 @@ function UploadDocumentDialog({ open, onOpenChange, options, saving, onSave }) {
           >
             Cancel
           </Button>
-          <Button type="submit" form="upload-event-document" disabled={saving}>
+          <Button variant="custom" type="submit" form="upload-event-document" disabled={saving}>
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
@@ -465,6 +465,7 @@ export default function EventDocumentsPanel({
           </SelectContent>
         </Select>
         <Button
+          variant="custom"
           size="sm"
           onClick={() => setUploadOpen(true)}
           className="h-9 gap-2 px-4"

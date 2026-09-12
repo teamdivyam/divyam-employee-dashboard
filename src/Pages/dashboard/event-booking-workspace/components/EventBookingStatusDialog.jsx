@@ -29,10 +29,12 @@ const isExecutionReady = (booking) => Boolean(
   booking?.executionReadiness?.isReady && booking?.executionReadiness?.readyMarkedAt,
 );
 
-const initialValue = (booking) => ({
-  bookingStatus: isExecutionReady(booking)
-    ? executionReadyStage
-    : booking?.bookingStatus || 'Planning',
+const initialValue = (booking, requestedStatus) => ({
+  bookingStatus: requestedStatus && stageOptionsFor(booking).includes(requestedStatus)
+    ? requestedStatus
+    : isExecutionReady(booking)
+      ? executionReadyStage
+      : booking?.bookingStatus || 'Planning',
   reason: booking?.bookingStatus === 'On Hold'
     ? booking?.holdDetails?.reason || ''
     : booking?.cancellationDetails?.reason || '',
@@ -57,13 +59,14 @@ export default function EventBookingStatusDialog({
   onSubmit,
   onMarkExecutionReady,
   onRevokeExecutionReady,
+  initialStatus,
   saving,
 }) {
-  const [value, setValue] = useState(() => initialValue(booking));
+  const [value, setValue] = useState(() => initialValue(booking, initialStatus));
 
   useEffect(() => {
-    if (open) setValue(initialValue(booking));
-  }, [booking, open]);
+    if (open) setValue(initialValue(booking, initialStatus));
+  }, [booking, initialStatus, open]);
 
   if (!booking) return null;
 

@@ -16,6 +16,8 @@ const EventBookingWorkspaceService = {
   getEventBookings: (params = {}) =>
     axiosRequest.get("/employee-event-booking", { params }),
   createEventBooking: (formData) => axiosRequest.post("/employee-event-booking", formData),
+  updateEventBookingForm: ({ eventId, formData }) =>
+    axiosRequest.patch(eventPath(eventId), formData, { headers: { "Content-Type": undefined } }),
   adminGetEmployee: (params = {}) => axiosRequest.get("/employee-event-booking/customers", { params }),
   getEventBookingDetail: ({ eventId }) => axiosRequest.get(eventPath(eventId)),
   updateEventBooking: ({ eventId, ...formData }) =>
