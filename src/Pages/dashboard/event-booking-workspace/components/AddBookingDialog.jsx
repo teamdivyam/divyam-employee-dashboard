@@ -2,7 +2,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
-  Check,
   ChevronDown,
   ChevronUp,
   FileText,
@@ -42,10 +41,9 @@ import {
   SelectValue,
 } from '@components/components/ui/select';
 import { Textarea } from '@components/components/ui/textarea';
+import BookingRequirementsEditor from './BookingRequirementsEditor';
 
 const eventTypes = ['Wedding', 'Reception', 'Engagement', 'Birthday', 'Corporate Event', 'Anniversary', 'Other'];
-const services = ['Catering', 'D\u00e9cor', 'Hospitality', 'Wedding Planning', 'Complete Wedding Management', 'Service & Presentation', 'Other'];
-const ceremonies = ['Haldi', 'Mehndi', 'Sangeet', 'Wedding', 'Reception', 'Other'];
 const bookingStatuses = ['Planning', 'Proposal Pending', 'Proposal Sent', 'Confirmed'];
 const allowedProposal = /\.(pdf|doc|docx)$/i;
 const allowedReference = /\.(pdf|doc|docx|png|jpe?g)$/i;
@@ -67,6 +65,8 @@ const initialForm = {
   selectedServices: [],
   ceremonies: [],
   functionDetails: [],
+  serviceDetails: [],
+  cateringPreference: '',
   requirementSummary: '',
   bookingStatus: 'Confirmed',
   totalAgreedValue: '',
@@ -123,6 +123,35 @@ const getInitialForm = (booking) => {
   const bookingServices = Array.isArray(booking.servicesRequired) && booking.servicesRequired.length
     ? booking.servicesRequired
     : customer.servicesInterested || (customer.serviceDetails || []).map((item) => item.name);
+  const selectedServices = bookingServices.map(formService);
+  const requirementStatus = (status) => status === 'Confirmed'
+    ? 'Client Confirmed'
+    : ['Client Confirmed', 'Under Discussion', 'Tentative'].includes(status) ? status : 'Under Discussion';
+  const functionDetails = bookingFunctions.map((item) => ({
+    ...item,
+    name: item?.name || '',
+    date: toDateInput(item?.date || booking.eventDate),
+    time: item?.time || item?.startTime || '',
+    venue: item?.venue || booking.venue || '',
+    guests: String(item?.guests ?? item?.guestCount ?? booking.guestCount ?? ''),
+    services: (item?.services?.length ? item.services : item?.linkedServices?.length ? item.linkedServices : selectedServices).map(formService),
+    status: requirementStatus(item?.status),
+  }));
+  const sourceServiceDetails = booking.servicesSelected?.length
+    ? booking.servicesSelected
+    : customer.serviceDetails || [];
+  const serviceDetails = selectedServices.map((name) => {
+    const detail = sourceServiceDetails.find((item) => formService(item?.service || item?.name) === name) || {};
+    return {
+      ...detail,
+      name,
+      summary: detail.summary || detail.details || '',
+      appliesTo: detail.appliesTo || [],
+      status: requirementStatus(detail.status),
+      level: detail.level || detail.category || 'Standard',
+      note: detail.note || detail.notes || '',
+    };
+  });
   return {
     ...initialForm,
     clientName: customer.name || booking.clientName || '',
@@ -137,9 +166,11 @@ const getInitialForm = (booking) => {
     eventCity: booking.city || '',
     venue: booking.venue || '',
     estimatedGuests: booking.guestCount || '',
-    selectedServices: bookingServices.map(formService),
-    ceremonies: bookingFunctions.map((item) => item?.name).filter(Boolean),
-    functionDetails: bookingFunctions,
+    selectedServices,
+    ceremonies: functionDetails.map((item) => item.name).filter(Boolean),
+    functionDetails,
+    serviceDetails,
+    cateringPreference: customer.cateringPreference || '',
     requirementSummary: booking.requirementSummary || customer.requirementSummary || '',
     bookingStatus: booking.bookingStatus || 'Confirmed',
     totalAgreedValue: booking.paymentSummary?.totalAmount || booking.commercialTerms?.baseProposalValue || '',
@@ -180,29 +211,6 @@ function Field({ label, required, icon: Icon, children, className = '' }) {
   );
 }
 
-function ChoiceChips({ options, value, onChange }) {
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {options.map((option) => {
-        const selected = value.includes(option);
-        return (
-          <button
-            key={option}
-            type="button"
-            onClick={() => onChange(selected ? value.filter((item) => item !== option) : [...value, option])}
-            className={`inline-flex h-7 items-center gap-1.5 rounded border px-2.5 text-[10px] font-medium transition-colors ${selected ? 'border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-400/40 dark:bg-violet-400/10 dark:text-violet-300' : 'border-border bg-background text-foreground hover:bg-muted'}`}
-          >
-            <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border ${selected ? 'border-violet-600 bg-violet-600 text-white' : 'border-input'}`}>
-              {selected ? <Check className="h-2.5 w-2.5" /> : null}
-            </span>
-            {option}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 function UploadField({ label, required, file, accept, helper, onChange, onClear }) {
   return (
     <div className="space-y-1">
@@ -237,15 +245,15 @@ const validateFile = (file, pattern, label) => {
 
 const buildRequest = ({ form, proposalFile, approvalFile, customerId, action }) => {
   const request = new FormData();
-  const functions = form.ceremonies.map((name) => {
-    const detail = form.functionDetails.find((item) => item?.name === name) || {};
-    return {
-      name,
-      date: detail.date || form.eventStartDate || null,
-      venue: detail.venue || form.venue || null,
-      guestCount: detail.guestCount ?? detail.guests ?? form.estimatedGuests ?? 0,
-    };
-  });
+  const functions = form.functionDetails.map((detail) => ({
+    name: detail.name,
+    date: detail.date || form.eventStartDate || null,
+    time: detail.time || null,
+    venue: detail.venue || form.venue || null,
+    guests: detail.guests || form.estimatedGuests || 0,
+    services: detail.services || [],
+    status: detail.status || 'Under Discussion',
+  }));
   const values = {
     ...form,
     customerId,
@@ -253,6 +261,7 @@ const buildRequest = ({ form, proposalFile, approvalFile, customerId, action }) 
     selectedServices: JSON.stringify(form.selectedServices),
     ceremonies: JSON.stringify(form.ceremonies),
     functions: JSON.stringify(functions),
+    serviceDetails: JSON.stringify(form.serviceDetails),
     bookingAction: action,
     eventName: `${form.clientName.trim()} ${form.eventType || 'Booking'}`,
   };
@@ -309,7 +318,7 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
     if (!form.eventType) return 'Event type is required.';
     if (!form.eventStartDate || !form.eventEndDate) return 'Event start and end dates are required.';
     if (form.eventEndDate < form.eventStartDate) return 'Event end date cannot be before the start date.';
-    if (!form.selectedServices.length) return 'Select at least one service.';
+    if (!form.serviceDetails.length) return 'Add at least one service.';
     if (!Number.isFinite(total) || total <= 0) return 'Total agreed value must be greater than zero.';
     if (!Number.isFinite(advance) || advance < 0 || advance > total) return 'Advance received must be between zero and the total agreed value.';
     if (!isEditing && !proposalFile) return 'Final approved proposal is required.';
@@ -377,8 +386,7 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
                 <Field label="Event City" icon={MapPin} className="sm:col-span-2"><Input className={iconInputClass} value={form.eventCity} onChange={(event) => update('eventCity', event.target.value)} placeholder="Enter event city" /></Field>
                 <Field label="Venue / Location" icon={MapPin} className="sm:col-span-2"><Input className={iconInputClass} value={form.venue} onChange={(event) => update('venue', event.target.value)} placeholder="Enter venue or location" /></Field>
                 <Field label="Estimated Guests" icon={Users} className="sm:col-span-2"><Input className={iconInputClass} min="0" step="1" type="number" value={form.estimatedGuests} onChange={(event) => update('estimatedGuests', event.target.value)} placeholder="Enter guest count" /></Field>
-                <div className="space-y-1 sm:col-span-2 lg:col-span-4"><Label className="text-[10px] font-medium">Selected Services <span className="text-red-500">*</span></Label><ChoiceChips options={services} value={form.selectedServices} onChange={(value) => update('selectedServices', value)} /></div>
-                <div className="space-y-1 sm:col-span-2 lg:col-span-4"><Label className="text-[10px] font-medium text-muted-foreground">Functions / Ceremonies (Optional)</Label><ChoiceChips options={ceremonies} value={form.ceremonies} onChange={(value) => update('ceremonies', value)} /></div>
+                <BookingRequirementsEditor value={form} onChange={setForm} />
                 <Field label="Requirement Summary" className="sm:col-span-2 lg:col-span-4"><Textarea className="min-h-12 resize-none pr-14 text-[11px] shadow-none" maxLength={500} value={form.requirementSummary} onChange={(event) => update('requirementSummary', event.target.value)} placeholder="Summarise the booking requirements, special requests, or any other important details..." /><span className="pointer-events-none absolute bottom-1 right-2 text-[9px] text-muted-foreground">{form.requirementSummary.length}/500</span></Field>
               </div>
             </SectionCard>

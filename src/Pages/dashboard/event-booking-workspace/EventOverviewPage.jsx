@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import AdminService from '../../../services/event-booking-workspace.service';
 import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
-import { EditBookingDialog, getBookingDetail, getEmployees } from './components/EventBookingComponents';
+import { AssignManagerDialog, getBookingDetail, getEmployees } from './components/EventBookingComponents';
 import AddBookingDialog from './components/AddBookingDialog';
 import EventDetailTabs from './components/EventDetailTabs';
 import EventOverviewHeader from './components/EventOverviewHeader';
@@ -184,7 +184,7 @@ export default function EventOverviewPage() {
       <RecentActivity activity={summary.activity} />
 
       <AddBookingDialog open={bookingFormOpen} onOpenChange={setBookingDialogOpen} booking={booking} customers={booking.customer ? [booking.customer] : []} employees={employees} mode="edit" saving={bookingFormMutation.isPending} onSubmit={(payload) => bookingFormMutation.mutate(payload)} />
-      <EditBookingDialog open={managerOpen} onOpenChange={setManagerDialogOpen} booking={booking} employees={employees} saving={updateMutation.isPending} onSave={(payload) => updateMutation.mutate(payload)} mode="assign-manager" />
+      <AssignManagerDialog open={managerOpen} onOpenChange={setManagerDialogOpen} booking={booking} employees={employees} saving={updateMutation.isPending} onSave={(payload) => updateMutation.mutate(payload)} />
     </div>
   );
 }

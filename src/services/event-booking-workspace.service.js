@@ -20,8 +20,10 @@ const EventBookingWorkspaceService = {
     axiosRequest.patch(eventPath(eventId), formData, { headers: { "Content-Type": undefined } }),
   adminGetEmployee: (params = {}) => axiosRequest.get("/employee-event-booking/customers", { params }),
   getEventBookingDetail: ({ eventId }) => axiosRequest.get(eventPath(eventId)),
-  updateEventBooking: ({ eventId, ...formData }) =>
-    axiosRequest.patch(eventPath(eventId), formData),
+  updateEventBooking: ({ eventId, formData, ...payload }) =>
+    typeof FormData !== "undefined" && formData instanceof FormData
+      ? axiosRequest.patch(eventPath(eventId), formData, { headers: { "Content-Type": undefined } })
+      : axiosRequest.patch(eventPath(eventId), payload),
   markEventExecutionReady: ({ eventId, remarks }) =>
     axiosRequest.patch(eventPath(eventId, "/execution-ready"), { remarks }),
   revokeEventExecutionReady: ({ eventId, bookingStatus, note }) =>
