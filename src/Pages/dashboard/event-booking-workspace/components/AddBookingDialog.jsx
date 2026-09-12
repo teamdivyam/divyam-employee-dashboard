@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
+  Check,
   ChevronDown,
   ChevronUp,
   FileText,
@@ -41,10 +42,11 @@ import {
   SelectValue,
 } from '@components/components/ui/select';
 import { Textarea } from '@components/components/ui/textarea';
-import BookingRequirementsEditor from './BookingRequirementsEditor';
 
 const eventTypes = ['Wedding', 'Reception', 'Engagement', 'Birthday', 'Corporate Event', 'Anniversary', 'Other'];
 const bookingStatuses = ['Planning', 'Proposal Pending', 'Proposal Sent', 'Confirmed'];
+const serviceOptions = ['Catering', 'Décor', 'Hospitality', 'Wedding Planning', 'Complete Wedding Management', 'Service & Presentation', 'Other'];
+const ceremonyOptions = ['Haldi', 'Mehndi', 'Sangeet', 'Wedding', 'Reception', 'Other'];
 const allowedProposal = /\.(pdf|doc|docx)$/i;
 const allowedReference = /\.(pdf|doc|docx|png|jpe?g)$/i;
 const maxFileSize = 10 * 1024 * 1024;
@@ -211,6 +213,30 @@ function Field({ label, required, icon: Icon, children, className = '' }) {
   );
 }
 
+function ChoiceChips({ options, value = [], onChange }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((option) => {
+        const selected = value.includes(option);
+        return (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onChange(selected ? value.filter((item) => item !== option) : [...value, option])}
+            className="inline-flex h-7 items-center gap-1.5 rounded border border-input bg-background px-2 text-[10px] font-medium text-foreground hover:bg-muted"
+          >
+            <span className={`grid h-3.5 w-3.5 place-items-center rounded-[3px] border ${selected ? 'border-violet-600 bg-violet-600 text-white' : 'border-input'}`}>
+              {selected ? <Check className="h-2.5 w-2.5" /> : null}
+            </span>
+            {option}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function UploadField({ label, required, file, accept, helper, onChange, onClear }) {
   return (
     <div className="space-y-1">
@@ -292,6 +318,34 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
   }, [booking, open]);
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const updateServices = (selectedServices) => setForm((current) => ({
+    ...current,
+    selectedServices,
+    serviceDetails: selectedServices.map((name) => (
+      current.serviceDetails.find((item) => item.name === name)
+      || { name, summary: '', appliesTo: [], status: 'Under Discussion', level: 'Standard', note: '' }
+    )),
+    functionDetails: current.functionDetails.map((item) => ({
+      ...item,
+      services: (item.services || []).filter((name) => selectedServices.includes(name)),
+    })),
+  }));
+  const updateCeremonies = (ceremonies) => setForm((current) => ({
+    ...current,
+    ceremonies,
+    functionDetails: ceremonies.map((name) => (
+      current.functionDetails.find((item) => item.name === name)
+      || {
+        name,
+        date: current.eventStartDate,
+        time: '',
+        venue: current.venue,
+        guests: String(current.estimatedGuests || ''),
+        services: current.selectedServices,
+        status: 'Under Discussion',
+      }
+    )),
+  }));
   const total = Number(form.totalAgreedValue || 0);
   const advance = Number(form.advanceReceived || 0);
   const pending = Math.max(0, total - advance);
@@ -318,7 +372,7 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
     if (!form.eventType) return 'Event type is required.';
     if (!form.eventStartDate || !form.eventEndDate) return 'Event start and end dates are required.';
     if (form.eventEndDate < form.eventStartDate) return 'Event end date cannot be before the start date.';
-    if (!form.serviceDetails.length) return 'Add at least one service.';
+    if (!form.selectedServices.length) return 'Select at least one service.';
     if (!Number.isFinite(total) || total <= 0) return 'Total agreed value must be greater than zero.';
     if (!Number.isFinite(advance) || advance < 0 || advance > total) return 'Advance received must be between zero and the total agreed value.';
     if (!isEditing && !proposalFile) return 'Final approved proposal is required.';
@@ -386,7 +440,8 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
                 <Field label="Event City" icon={MapPin} className="sm:col-span-2"><Input className={iconInputClass} value={form.eventCity} onChange={(event) => update('eventCity', event.target.value)} placeholder="Enter event city" /></Field>
                 <Field label="Venue / Location" icon={MapPin} className="sm:col-span-2"><Input className={iconInputClass} value={form.venue} onChange={(event) => update('venue', event.target.value)} placeholder="Enter venue or location" /></Field>
                 <Field label="Estimated Guests" icon={Users} className="sm:col-span-2"><Input className={iconInputClass} min="0" step="1" type="number" value={form.estimatedGuests} onChange={(event) => update('estimatedGuests', event.target.value)} placeholder="Enter guest count" /></Field>
-                <BookingRequirementsEditor value={form} onChange={setForm} />
+                <Field label="Selected Services" required className="sm:col-span-2 lg:col-span-4"><ChoiceChips options={serviceOptions} value={form.selectedServices} onChange={updateServices} /></Field>
+                <Field label="Functions / Ceremonies (Optional)" className="sm:col-span-2 lg:col-span-4"><ChoiceChips options={ceremonyOptions} value={form.ceremonies} onChange={updateCeremonies} /></Field>
                 <Field label="Requirement Summary" className="sm:col-span-2 lg:col-span-4"><Textarea className="min-h-12 resize-none pr-14 text-[11px] shadow-none" maxLength={500} value={form.requirementSummary} onChange={(event) => update('requirementSummary', event.target.value)} placeholder="Summarise the booking requirements, special requests, or any other important details..." /><span className="pointer-events-none absolute bottom-1 right-2 text-[9px] text-muted-foreground">{form.requirementSummary.length}/500</span></Field>
               </div>
             </SectionCard>

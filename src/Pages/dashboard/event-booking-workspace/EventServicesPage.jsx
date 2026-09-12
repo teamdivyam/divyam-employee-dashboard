@@ -7,14 +7,18 @@ import { toast } from 'sonner';
 import AdminService from '../../../services/event-booking-workspace.service';
 import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
-import { EditBookingDialog, getBookingDetail, getEmployees } from './components/EventBookingComponents';
+import {
+  buildBookingRequirementsUpdate,
+  EditBookingDialog,
+  getBookingDetail,
+  getBookingRequirementsCustomer,
+  getEmployees,
+} from './components/EventBookingComponents';
 import { getFinalPreferenceCount } from './eventBookingDashboard.utils';
+import ClientRequirementsDialog from './components/ClientRequirementsDialog';
 import EventDetailTabs from './components/EventDetailTabs';
 import EventFunctionsHeader from './components/EventFunctionsHeader';
-import EventServiceDialog from './components/EventServiceDialog';
 import EventServicesTable from './components/EventServicesTable';
-
-const serviceChoices = ['Catering', 'Decor', 'Decor & Design', 'Hospitality', 'Planning', 'Furniture', 'Tent / Lighting', 'Tent / Lighting / Furniture', 'Wedding Essentials', 'Sound', 'Other'];
 
 export default function EventServicesPage() {
   const { eventId } = useParams();
@@ -32,15 +36,13 @@ export default function EventServicesPage() {
     queryFn: async () => (await AdminService.getEventBookingManagers({ limit: 100 })).data,
   });
   const refresh = () => bookingQuery.refetch();
-  const createMutation = useMutation({
-    mutationFn: (payload) => AdminService.addEventService({ eventId, ...payload }),
-    onSuccess: () => { toast.success('Service added'); setServiceDialog(null); refresh(); },
-    onError: (error) => toast.error(error.response?.data?.message || 'Unable to add service'),
-  });
-  const updateServiceMutation = useMutation({
-    mutationFn: ({ serviceId, ...payload }) => AdminService.updateEventService({ eventId, serviceId, ...payload }),
-    onSuccess: () => { toast.success('Service updated'); setServiceDialog(null); refresh(); },
-    onError: (error) => toast.error(error.response?.data?.message || 'Unable to update service'),
+  const requirementsMutation = useMutation({
+    mutationFn: (payload) => AdminService.updateEventBooking({
+      eventId,
+      ...buildBookingRequirementsUpdate(booking, payload),
+    }),
+    onSuccess: () => { toast.success('Event requirements updated'); setServiceDialog(null); refresh(); },
+    onError: (error) => toast.error(error.response?.data?.message || 'Unable to update event requirements'),
   });
   const updateBookingMutation = useMutation({
     mutationFn: (payload) => AdminService.updateEventBooking({ eventId, ...payload }),
@@ -62,7 +64,6 @@ export default function EventServicesPage() {
     const requiredOnly = (booking.servicesRequired || []).filter((service) => !selectedNames.has(service)).map((service) => ({ service, status: 'Pending', linkedFunctions: [], deliverables: [], isRequiredOnly: true }));
     return [...(booking.servicesSelected || []), ...requiredOnly];
   }, [booking]);
-  const options = useMemo(() => Array.from(new Set([...serviceChoices, ...(booking?.servicesRequired || []), ...services.map((item) => item.service)])).filter(Boolean), [booking, services]);
   const metrics = useMemo(() => ({
     functions: functions.length,
     functionsCaption: 'Confirmed',
@@ -76,10 +77,6 @@ export default function EventServicesPage() {
   if (bookingQuery.isLoading) return <div className="crm-page grid min-h-[70vh] place-items-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!booking) return <div className="crm-page p-5"><Card className="crm-card"><CardContent className="p-8 text-center"><p className="font-semibold">Event booking not found</p><Button variant="outline" className="mt-4" onClick={() => navigate('/dashboard/assigned-events')}>Back to bookings</Button></CardContent></Card></div>;
 
-  const saveService = (payload) => {
-    if (serviceDialog?._id) updateServiceMutation.mutate({ serviceId: serviceDialog._id, ...payload });
-    else createMutation.mutate(payload);
-  };
   const selectTab = (key) => {
     if (key === 'overview') navigate(`/dashboard/assigned-events/${eventId}`);
     else if (key === 'functions') navigate(`/dashboard/assigned-events/${eventId}/plan/functions`);
@@ -96,7 +93,18 @@ export default function EventServicesPage() {
       <EventDetailTabs activePrimary="plan" activePlan="services" showPlanTabs onSelect={selectTab} />
       <EventServicesTable services={services} functions={functions} manager={booking.assignedManager} onAdd={() => setServiceDialog({})} onEdit={setServiceDialog} />
 
-      <EventServiceDialog open={Boolean(serviceDialog)} onOpenChange={(open) => !open && setServiceDialog(null)} item={serviceDialog} functions={functions} employees={employees} serviceOptions={options} saving={createMutation.isPending || updateServiceMutation.isPending} onSave={saveService} />
+      <ClientRequirementsDialog
+        open={Boolean(serviceDialog)}
+        onOpenChange={(open) => !open && setServiceDialog(null)}
+        customer={getBookingRequirementsCustomer(booking)}
+        initialSection="services"
+        functionsAndServicesOnly
+        startAddingService={!serviceDialog?._id && !serviceDialog?.service}
+        initialServiceId={serviceDialog?._id}
+        initialServiceName={serviceDialog?.service}
+        isSaving={requirementsMutation.isPending}
+        onSubmit={(payload) => requirementsMutation.mutate(payload)}
+      />
       <EditBookingDialog open={editBookingOpen} onOpenChange={setEditBookingOpen} booking={booking} employees={employees} saving={updateBookingMutation.isPending} onSave={(payload) => updateBookingMutation.mutate(payload)} />
     </div>
   );

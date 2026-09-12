@@ -84,6 +84,133 @@ export const getBookings = (data) => data?.events || data?.bookings || data?.eve
 
 export const getBookingDetail = (data) => data?.event || data?.booking || data?.eventBooking || data?.data;
 
+const idOf = (value) => String(value?._id || value || '');
+const clientRequirementStatus = (status) => (
+  ['Confirmed', 'Completed'].includes(status) ? 'Client Confirmed'
+    : ['Client Confirmed', 'Under Discussion', 'Tentative'].includes(status) ? status
+      : 'Under Discussion'
+);
+
+export const getBookingRequirementsCustomer = (booking) => {
+  if (!booking) return null;
+  const customer = booking.customer && typeof booking.customer === 'object' ? booking.customer : {};
+  const customerFunctions = new Map((customer.functionDetails || []).map((item) => [
+    String(item.name || '').trim().toLowerCase(),
+    item,
+  ]));
+  const functionDetails = (booking.functions || []).map((item) => {
+    const customerFunction = customerFunctions.get(String(item.name || '').trim().toLowerCase()) || {};
+    return {
+      ...customerFunction,
+      _id: item._id || customerFunction._id,
+      name: item.name || customerFunction.name || '',
+      date: item.date || customerFunction.date || booking.eventDate,
+      time: item.startTime || customerFunction.time || '',
+      venue: item.venue || customerFunction.venue || booking.venue || '',
+      guests: String(item.guestCount ?? customerFunction.guests ?? booking.guestCount ?? ''),
+      services: item.linkedServices?.length ? item.linkedServices : customerFunction.services || [],
+      status: customerFunction.status || clientRequirementStatus(item.status),
+    };
+  });
+  const functionNamesById = new Map(functionDetails.map((item) => [idOf(item), item.name]));
+  const customerServices = new Map((customer.serviceDetails || []).map((item) => [
+    String(item.name || '').trim().toLowerCase(),
+    item,
+  ]));
+  const selectedServices = booking.servicesSelected?.length
+    ? booking.servicesSelected
+    : (booking.servicesRequired || []).map((service) => ({ service }));
+  const serviceDetails = selectedServices.map((item) => {
+    const name = item.service || item.name || '';
+    const customerService = customerServices.get(String(name).trim().toLowerCase()) || {};
+    return {
+      ...customerService,
+      _id: item._id || customerService._id,
+      name,
+      summary: item.details ?? customerService.summary ?? '',
+      appliesTo: customerService.appliesTo?.length
+        ? customerService.appliesTo
+        : (item.linkedFunctions || []).map((functionId) => functionNamesById.get(idOf(functionId))).filter(Boolean),
+      status: customerService.status || clientRequirementStatus(item.status),
+      level: item.category || customerService.level || 'Standard',
+      note: item.notes ?? customerService.note ?? '',
+    };
+  });
+
+  return {
+    ...customer,
+    _id: customer._id || booking.crmCustomerId,
+    eventType: booking.eventType || customer.eventType || '',
+    eventDate: booking.eventDate || customer.eventDate,
+    eventEndDate: booking.eventEndDate || customer.eventEndDate || booking.eventDate,
+    eventCity: booking.city || customer.eventCity || customer.clientCity || '',
+    venue: booking.venue || customer.venue || '',
+    guestRange: customer.guestRange || String(booking.guestCount || ''),
+    ceremonies: functionDetails.map((item) => item.name).filter(Boolean),
+    functionDetails,
+    servicesInterested: serviceDetails.map((item) => item.name).filter(Boolean),
+    serviceDetails,
+    requirementSummary: booking.requirementSummary || customer.requirementSummary || '',
+    assignedEmployee: booking.assignedManager || customer.assignedEmployee,
+    leadStatus: customer.leadStatus || booking.bookingStatus,
+  };
+};
+
+export const buildBookingRequirementsUpdate = (booking, requirements) => {
+  const customer = booking?.customer && typeof booking.customer === 'object' ? booking.customer : {};
+  const guestMatch = String(requirements.guestRange || booking?.guestCount || '').match(/[\d,]+/);
+  const estimatedGuests = guestMatch ? Number(guestMatch[0].replace(/,/g, '')) : 0;
+  const selectedServices = requirements.servicesInterested || [];
+  const functions = (requirements.functionDetails || []).map((item) => ({
+    name: item.name,
+    date: item.date || requirements.eventDate || null,
+    time: item.time || null,
+    venue: item.venue || requirements.venue || null,
+    guests: Number.parseInt(item.guests, 10) || estimatedGuests,
+    services: item.services || [],
+    status: item.status || 'Under Discussion',
+  }));
+  const formData = new FormData();
+  const values = {
+    customerId: booking?.crmCustomerId || customer._id,
+    clientName: customer.name || booking?.clientName || '',
+    primaryMobile: String(customer.phone || booking?.primaryMobile || '').replace(/\D/g, '').slice(-10),
+    alternateMobile: String(customer.alternatePhone || '').replace(/\D/g, '').slice(-10),
+    emailAddress: customer.email || '',
+    clientCity: customer.clientCity || '',
+    preferredContactMethod: customer.preferredContactMethod || 'WhatsApp',
+    eventName: booking?.eventName,
+    eventType: requirements.eventType,
+    eventStartDate: requirements.eventDate,
+    eventEndDate: requirements.eventEndDate || requirements.eventDate,
+    eventCity: requirements.eventCity,
+    venue: requirements.venue,
+    estimatedGuests,
+    guestRange: requirements.guestRange,
+    selectedServices: JSON.stringify(selectedServices),
+    ceremonies: JSON.stringify(requirements.ceremonies || []),
+    functions: JSON.stringify(functions),
+    serviceDetails: JSON.stringify(requirements.serviceDetails || []),
+    requirementSummary: requirements.requirementSummary,
+    budgetRange: requirements.budgetRange,
+    preferredStyle: requirements.preferredStyle,
+    decorPreference: requirements.decorPreference,
+    cateringPreference: requirements.cateringPreference,
+    preferenceNotes: JSON.stringify(requirements.preferenceNotes || []),
+    requirementsStatus: requirements.requirementsStatus,
+    bookingStatus: booking?.bookingStatus,
+    totalAgreedValue: booking?.paymentSummary?.totalAmount ?? booking?.commercialTerms?.baseProposalValue ?? 0,
+    advanceReceived: booking?.paymentSummary?.advanceAmount ?? 0,
+    assignedEventManager: idOf(booking?.assignedManager),
+    internalBookingNotes: booking?.internalBookingNotes || customer.internalNotes || '',
+    bookingAction: 'requirements',
+  };
+  Object.entries(values).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) formData.append(key, value);
+  });
+  return { formData };
+};
+
 export const getTotalRows = (data) =>
   data?.totalEvents || data?.totalBookings || data?.total || data?.pagination?.total || 0;
 
