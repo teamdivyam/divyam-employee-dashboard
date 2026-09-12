@@ -78,6 +78,67 @@ const EmployeeV2Service = {
         employeeV2Request.get(`/employees/${encodeURIComponent(employeeId)}`),
     editEmployee: (employeeId, formData) => employeeV2Request.patch(`/employees/${encodeURIComponent(employeeId)}`, formData),
 
+    getExpenseAdvances: ({ employeeId, expenseFor, eventId, clientId, signal } = {}) =>
+        employeeV2Request.get("/expense/advances", {
+            params: {
+                employeeId,
+                expenseFor,
+                ...(expenseFor === "Event" ? { eventId } : { clientId }),
+            },
+            signal,
+        }),
+    getExpenseLookup: ({ expenseFor, page = 1, limit = 25, search = "", signal } = {}) =>
+        employeeV2Request.get("/expense/lookup", {
+            params: { expenseFor, page, limit, search },
+            signal,
+        }),
+    getEmployeeExpenseAnalytics: ({ monthPeriod, signal } = {}) =>
+        employeeV2Request.get("/expense/employee/analytics", {
+            params: { monthPeriod },
+            signal,
+        }),
+    createEmployeeExpense: (formData) =>
+        employeeV2Request.post("/expense/employee", formData, {
+            headers: { "Content-Type": undefined },
+        }),
+    updateEmployeeExpense: (expenseId, formData) =>
+        employeeV2Request.patch(
+            `/expense/employee/${encodeURIComponent(expenseId)}`,
+            formData,
+            { headers: { "Content-Type": undefined } },
+        ),
+    getEmployeeExpenseDetail: ({ expenseId, signal } = {}) =>
+        employeeV2Request.get(
+            `/expense/employee/${encodeURIComponent(expenseId)}/detail`,
+            { signal },
+        ),
+    getEmployeeExpenses: ({
+        monthPeriod,
+        pagination = 1,
+        limit = 15,
+        search,
+        expenseFor = "All Expense",
+        category = "All Category",
+        paymentSource = "All Payment Source",
+        status,
+        signal,
+    } = {}) => employeeV2Request.get(
+        `/expense/employee`,
+        {
+            params: {
+                monthPeriod,
+                pagination: Math.max(Number(pagination) || 1, 1),
+                limit: Math.min(Math.max(Number(limit) || 15, 1), 100),
+                ...(search?.trim() ? { search: search.trim() } : {}),
+                expenseFor,
+                category,
+                paymentSource,
+                ...(status ? { status } : {}),
+            },
+            signal,
+        },
+    ),
+
     getTodayAttendance: () => employeeV2Request.get("/attendance/me/today"),
     getAttendanceSummary: ({ fromDate, toDate } = {}) =>
         employeeV2Request.get("/attendance/me/summary", {
@@ -205,6 +266,11 @@ const EmployeeV2Service = {
         employeeV2Request.get("/employees/me/payroll-salary", {
             params: { month },
         }),
+    getEmployeePayouts: ({ period, employeeId, signal } = {}) =>
+        employeeV2Request.get(
+            `/payroll/employee-payouts/${encodeURIComponent(period)}/employees/${encodeURIComponent(employeeId)}`,
+            { signal },
+        ),
     createMyPayrollQuery: ({ employeePayrollId, queryType, subject, message, attachment } = {}) => {
         const formData = new FormData();
         if (employeePayrollId) formData.append("employeePayrollId", employeePayrollId);

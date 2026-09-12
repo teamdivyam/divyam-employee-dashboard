@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   BadgeCheck,
   Boxes,
@@ -21,7 +21,7 @@ import {
   Workflow,
   type LucideIcon,
 } from "lucide-react";
-import { NavMain } from "@components/components/nav-main";
+import { isNavItemActive, NavMain } from "@components/components/nav-main";
 import {
   Avatar,
   AvatarFallback,
@@ -41,19 +41,13 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  SidebarTrigger,
+  useSidebar
 } from "@components/components/ui/sidebar";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import useCurrentEmployee from "../../hooks/useCurrentEmployee";
 import EmployeeV2Service from "../../services/employee-v2.service";
 import { toast } from "sonner";
-
-type EmployeeProfile = {
-  fullName?: string;
-  name?: string;
-  role?: string;
-  email?: string;
-  avatar?: string;
-};
 
 type NavItem = {
   title: string;
@@ -142,14 +136,14 @@ const navMain: NavItem[] = [
     icon: ReceiptText,
     items: [],
   },
-  
+
   {
     title: "My Attendence & Leave",
     url: "/dashboard/attendence-&-leave",
     icon: ClipboardList,
     items: [],
   },
-  
+
   {
     title: "My Scorecard",
     url: "/dashboard/scorecard",
@@ -179,8 +173,36 @@ const getAvatarUrl = (avatar?: string) => {
   return `https://assets.divyam.com/Uploads/employee/${avatar}`;
 };
 
+export function ActiveSidebarHeading() {
+  const { pathname } = useLocation();
+  // const { data: employee } = useCurrentEmployee();
+  const { isMobile, toggleSidebar, openMobile } = useSidebar();
+  const activeItem = navMain.find((item) => (
+    isNavItemActive(pathname, item)
+  )) || navMain[0];
+  const Icon = activeItem.icon || LayoutDashboard;
+  const iconTileClassName = "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-blue-600 shadow-sm dark:text-blue-400";
+
+  return (
+    <div className="flex min-w-0 items-center gap-3 sm:gap-3">
+      {isMobile ? (
+        <Button variant="ghost" size="icon" className={iconTileClassName} onClick={toggleSidebar} aria-label="Open sidebar" aria-expanded={openMobile}>
+          <Icon className="h-6 w-6" aria-hidden="true" />
+        </Button>
+      ) : (
+        <span className={iconTileClassName}>
+          <Icon className="h-4 w-4" aria-hidden="true" />
+        </span>
+      )}
+      <h1 className="truncate text-lg font-semibold tracking-tight text-foreground sm:text-lg">{activeItem.title}</h1>
+    </div>
+  );
+}
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const navigate = useNavigate();
+  const { state, isMobile } = useSidebar();
+  const isCollapsed = !isMobile && state === "collapsed";
   const queryClient = useQueryClient();
   const { data: employee } = useCurrentEmployee();
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
@@ -231,13 +253,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {...props}
       className="border-r border-[#123257] bg-[#001833] text-white"
     >
-      <SidebarHeader className="px-3 pb-2 pt-2 group-data-[collapsible=icon]:px-2">
+      <SidebarHeader className="relative px-3 pb-2 pt-2 group-data-[collapsible=icon]:px-2">
+        {!isCollapsed && (
+          <SidebarTrigger className="absolute right-2 top-2 h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" aria-label={isMobile ? "Close sidebar" : "Collapse sidebar"} />
+        )}
         <div className="flex flex-col items-center gap-2 text-center group-data-[collapsible=icon]:gap-0">
-          <img
-            src="/img/logo.png"
-            alt="Divyam"
-            className="h-12 w-auto object-contain group-data-[collapsible=icon]:h-9"
-          />
+          <div className="group/logo relative flex items-center justify-center">
+            <img
+              src="/img/logo.png"
+              alt="Divyam"
+              className={isCollapsed
+                ? "h-9 w-8 object-contain transition-opacity group-hover/logo:opacity-0 group-focus-within/logo:opacity-0"
+                : "h-12 w-auto object-contain"}
+            />
+            {isCollapsed && (
+              <SidebarTrigger
+                aria-label="Expand sidebar"
+                className="absolute inset-0 m-auto h-8 w-8 text-sidebar-foreground opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-hover/logo:opacity-100 group-focus-within/logo:opacity-100"
+              />
+            )}
+          </div>
           <div className="group-data-[collapsible=icon]:hidden">
             <div className="text-[19px] font-light uppercase tracking-[0.48em] text-[#f0b64f]">
               Divyam

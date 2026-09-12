@@ -1,18 +1,28 @@
-import React from "react";
+/* eslint-disable react/prop-types */
 import { Button } from "@components/components/ui/button";
-import { ArrowLeft, ArrowRight, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 /**
  * state: useReducer hook with initial value { page, totalRows, state.rowsPerPage }
  */
 
-export default function DataPagination({ state, setSearchParams, dispatch }) {
+export default function DataPagination({
+  state,
+  dispatch,
+  onPageChange,
+  itemLabel = "results",
+  className = "",
+}) {
   const totalPages = Math.ceil(state.totalRows / state.rowsPerPage) || 1;
+  const goToPage = (page, action) => {
+    if (page < 1 || page > totalPages || page === state.page) return;
+    if (onPageChange) onPageChange(page);
+    else dispatch?.({ type: action });
+  };
 
   return (
-    <div className="mt-5 flex items-center justify-between px-4 pb-4">
-      {/* Left side: info */}
-      <div className="text-sm text-muted-foreground">
+    <div className={`flex flex-col gap-2 border-t border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between ${className}`}>
+      <div className="text-[10px] text-muted-foreground">
         {state.totalRows > 0 ? (
           <>
             Showing{" "}
@@ -23,54 +33,38 @@ export default function DataPagination({ state, setSearchParams, dispatch }) {
             <span className="font-medium">
               {Math.min(state.page * state.rowsPerPage, state.totalRows)}
             </span>{" "}
-            of <span className="font-medium">{state.totalRows}</span> results
+            of <span className="font-medium">{state.totalRows}</span> {itemLabel}
           </>
         ) : (
           "No data available"
         )}
       </div>
 
-      {/* Right side: pagination controls */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           disabled={state.page === 1}
-          onClick={() => {
-            setSearchParams({ page: state.page })
-            dispatch({ type: "previous" })
-          }}
+          onClick={() => goToPage(state.page - 1, "previous")}
+          className="h-7 w-7"
+          aria-label="Previous page"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ChevronLeft className="h-3.5 w-3.5" />
         </Button>
 
-        <div className="px-3 text-sm">
-          Page <span className="font-medium">{state.page}</span> of{" "}
-          <span className="font-medium">{totalPages}</span>
-        </div>
+        <span className="grid h-7 min-w-7 place-items-center rounded-md bg-primary px-2 text-[10px] font-medium text-primary-foreground">
+          {state.page}
+        </span>
 
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           disabled={state.totalRows === 0 || state.page === totalPages}
-          onClick={() => {
-            dispatch({ type: "next" });
-            setSearchParams({ page: state.page})
-          }
-          }
+          onClick={() => goToPage(state.page + 1, "next")}
+          className="h-7 w-7"
+          aria-label="Next page"
         >
-          <ArrowRight className="h-4 w-4" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={state.page === 1 && state.totalRows === 0}
-          onClick={() => dispatch({ type: "reset" })}
-          className="ml-2"
-        >
-          <RotateCcw className="h-4 w-4 mr-1" />
-          Reset
+          <ChevronRight className="h-3.5 w-3.5" />
         </Button>
       </div>
     </div>

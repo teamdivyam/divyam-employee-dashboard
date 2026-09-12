@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import {
   SidebarInset,
   SidebarProvider,
-  SidebarTrigger,
 } from "@components/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -16,9 +15,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@components/components/ui//dropdown-menu";
-import { AppSidebar } from "@components/components/app-sidebar";
+import { ActiveSidebarHeading, AppSidebar } from "@components/components/app-sidebar";
 import { NotificationBell, ReminderNotificationBell } from "@components/components/NotificationBell";
-import { Separator } from "@components/components/ui/separator";
 import { UserRound, Settings, LogOut, Moon, Sun } from "lucide-react";
 import {
   setDarkTheme,
@@ -118,24 +116,7 @@ export default function Layout() {
       <SidebarInset className="min-w-0 overflow-x-hidden">
         <header
           className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-background/95 backdrop-blur px-3 lg:px-4">
-          <div className="flex items-center gap-2">
-            <SidebarTrigger className="h-7 w-7" />
-
-            <Separator
-              orientation="vertical"
-              className="h-4"
-            />
-
-            <div>
-              <h1 className="text-sm font-semibold text-foreground">
-                Dashboard
-              </h1>
-
-              <p className="hidden md:block text-[11px] leading-tight text-muted-foreground">
-                Manage products, inventory and operations
-              </p>
-            </div>
-          </div>
+          <ActiveSidebarHeading />
 
           <div className="flex items-center gap-2 pr-4">
             <ReminderNotificationBell />

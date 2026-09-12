@@ -327,6 +327,22 @@ body {
     @apply bg-background text-foreground;
   }
 
+  .atl-summary-label {
+    @apply truncate text-[10px] font-medium text-muted-foreground;
+  }
+
+  .atl-summary-value {
+    @apply mt-1 truncate text-[15px] font-semibold tabular-nums text-foreground;
+  }
+
+  .atl-summary-note {
+    @apply mt-1 truncate text-[10px] text-muted-foreground;
+  }
+
+  .atl-summary-note-alert {
+    @apply text-red-600 dark:text-red-400;
+  }
+
   .atl-card {
     @apply rounded-lg border border-border bg-card text-card-foreground shadow-sm;
   }
@@ -711,6 +727,18 @@ body {
     @apply overflow-hidden rounded-lg border-border bg-card shadow-sm;
   }
 
+  .payroll-payment-table th {
+    @apply h-10 whitespace-nowrap bg-muted/45 px-3 text-[10px] font-medium text-muted-foreground;
+  }
+
+  .payroll-payment-table td {
+    @apply whitespace-nowrap px-3 py-3 text-[11px] font-medium text-foreground;
+  }
+
+  .payroll-payment-table td.payroll-payment-message {
+    @apply h-20 whitespace-normal text-center text-xs font-normal text-muted-foreground;
+  }
+
   .payroll-badge-success {
     @apply border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-medium text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300;
   }
@@ -760,6 +788,27 @@ body {
   }
 
   .payroll-loan-progress span {
+    @apply mt-0.5 text-[9px] font-medium text-muted-foreground;
+  }
+
+  .expense-advance-progress {
+    @apply grid h-28 w-28 shrink-0 place-items-center rounded-full;
+    background: conic-gradient(
+      hsl(var(--chart-2)) 0deg var(--advance-adjusted-angle, 0deg),
+      hsl(var(--chart-3)) var(--advance-adjusted-angle, 0deg) var(--advance-pending-angle, 0deg),
+      hsl(var(--muted)) var(--advance-pending-angle, 0deg) 360deg
+    );
+  }
+
+  .expense-advance-progress > div {
+    @apply grid h-20 w-20 place-content-center rounded-full bg-card text-center shadow-sm;
+  }
+
+  .expense-advance-progress strong {
+    @apply text-lg font-semibold text-foreground;
+  }
+
+  .expense-advance-progress span {
     @apply mt-0.5 text-[9px] font-medium text-muted-foreground;
   }
 

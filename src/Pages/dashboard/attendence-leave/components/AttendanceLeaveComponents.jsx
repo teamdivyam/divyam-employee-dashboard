@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types, react-refresh/only-export-components */
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Button } from "@components/components/ui/button";
 import {
   Activity,
   AlertTriangle,
@@ -204,14 +205,14 @@ export function SummaryCard({ icon: Icon, label, value, sub, tone = "green" }) {
     purple: "bg-violet-100 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
   };
   return (
-    <Panel className="flex min-h-[88px] items-center gap-4 p-4">
-      <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ${tones[tone]}`}>
-        <Icon className="h-6 w-6" />
+    <Panel className="flex min-h-[82px] items-center gap-3 p-3">
+      <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${tones[tone]}`}>
+        <Icon className="h-5 w-5" strokeWidth={1.8} />
       </div>
       <div className="min-w-0">
-        <p className="text-xs font-medium text-foreground">{displayText(label)}</p>
-        <p className="mt-1 truncate text-lg font-semibold text-foreground">{displayText(value)}</p>
-        <p className={`mt-1 text-xs ${tone === "red" ? "text-red-600" : "text-muted-foreground"}`}>{displayText(sub)}</p>
+        <p className="atl-summary-label">{displayText(label)}</p>
+        <p className="atl-summary-value">{displayText(value)}</p>
+        <p className={`atl-summary-note ${tone === "red" ? "atl-summary-note-alert" : ""}`}>{displayText(sub)}</p>
       </div>
     </Panel>
   );
@@ -738,17 +739,17 @@ function RailStat({ label, value }) {
 }
 
 export function HeaderActions({ onCheckIn, onCheckOut, onApplyLeave, setActiveTab, isBusy, visibleAttendanceAction = "checkIn" }) {
-  const button = "inline-flex items-center gap-2 rounded-md border px-4 py-2 text-xs font-medium disabled:opacity-60";
+  const button = "inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border px-4 py-3 text-xs font-medium disabled:opacity-60";
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-nowrap items-center justify-end gap-3">
       {visibleAttendanceAction === "hidden" ? null : visibleAttendanceAction === "completed" ? (
-        <button disabled className={`${button} border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300`}><CalendarCheck className="h-4 w-4" />Completed Today</button>
+        <Button disabled className={`${button} border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300`}><CalendarCheck className="h-4 w-4" />Completed Today</Button>
       ) : visibleAttendanceAction === "checkOut" ? (
-        <button disabled={isBusy} onClick={onCheckOut} className={`${button} border-red-200 text-red-600`}><LogOut className="h-4 w-4" />Check Out</button>
+        <button disabled={isBusy} onClick={onCheckOut} className={`h-8 ${button} border-red-200 text-red-600`}><LogOut className="h-4 w-4" />Check Out</button>
       ) : (
-        <button disabled={isBusy} onClick={onCheckIn} className={`${button} border-emerald-600 bg-emerald-600 text-white`}><LogIn className="h-4 w-4" />Check In</button>
+        <button disabled={isBusy} onClick={onCheckIn} className={`h-8 ${button} border-emerald-600 bg-emerald-600 text-white`}><LogIn className="h-4 w-4" />Check In</button>
       )}
-      <button onClick={onApplyLeave || (() => setActiveTab("leaves"))} className={`${button} border-blue-300 text-foreground`}><CalendarCheck className="h-4 w-4" />Apply Leave</button>
+      <Button type="button" variant="custom" size="sm" className="h-8" onClick={onApplyLeave || (() => setActiveTab("leaves"))}><CalendarCheck className="h-4 w-4" />Apply Leave</Button>
     </div>
   );
 }

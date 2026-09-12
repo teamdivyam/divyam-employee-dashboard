@@ -8,7 +8,6 @@ import {
 } from "@components/components/ui/collapsible";
 import {
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -25,6 +24,7 @@ type NavItem = {
   isActive?: boolean;
   target?: string;
   notificationCount?: number;
+  navigationState?: Record<string, unknown>;
   items?: {
     title: string;
     url: string;
@@ -34,30 +34,40 @@ type NavItem = {
 const linkClass = (isActive: boolean) =>
   cn(
     "relative h-9 rounded-[7px] border px-2 text-[12px] font-medium leading-none transition-all",
-    "text-slate-100 hover:border-[#d59b2d]/70 hover:bg-[#d59b2d]/12 hover:text-white",
+    "text-slate-100 hover:border-[#d59b2d]/70",
     "group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2",
     isActive
-      ? "!border-0 !bg-white !text-slate-950 !shadow-none"
-      : "border-transparent"
+      ? "border-slate-200 !bg-slate-100 !text-slate-900 shadow-sm hover:border-slate-200 hover:!bg-slate-100 hover:!text-slate-900"
+      : "border-transparent hover:!bg-[#d59b2d]/[0.12] hover:!text-white"
   );
 
 const subLinkClass = (isActive: boolean) =>
   cn(
     "h-7 rounded-md px-2 text-[11px] font-medium transition-all",
-    "text-slate-200 hover:bg-[#d59b2d]/12 hover:text-white",
-    isActive && "!bg-white !text-slate-950 !shadow-none"
+    "text-slate-200",
+    isActive
+      ? "!bg-slate-100 !text-slate-900 hover:!bg-slate-100 hover:!text-slate-900"
+      : "hover:!bg-[#d59b2d]/[0.12] hover:!text-white"
   );
 
-const normalizePath = (path: string) =>
-  path.length > 1 ? path.replace(/\/+$/, "") : path;
+const normalizePath = (path: string) => {
+  const pathname = path.split(/[?#]/)[0] || "/";
+  return pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+};
 
-const isPathActive = (pathname: string, url: string, exact = false) => {
+const matchesPath = (pathname: string, url: string, exact = false) => {
+  if (/^https?:\/\//i.test(url)) return false;
+
   const currentPath = normalizePath(pathname);
   const targetPath = normalizePath(url);
-
-  return currentPath === targetPath ||
-    (!exact && currentPath.startsWith(`${targetPath}/`));
+  return currentPath === targetPath
+    || (!exact && currentPath.startsWith(`${targetPath}/`));
 };
+
+export const isNavItemActive = (pathname: string, item: NavItem) => (
+  matchesPath(pathname, item.url, item.url === "/dashboard")
+  || Boolean(item.items?.some((subItem) => matchesPath(pathname, subItem.url)))
+);
 
 export function NavMain({ items }: { items: NavItem[] }) {
   const location = useLocation();
@@ -67,11 +77,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
       <SidebarMenu className="mt-1 gap-1">
         {items.map((item) => {
           const hasChildren = Boolean(item.items?.length);
-          const isParentActive = isPathActive(
-            location.pathname,
-            item.url,
-            item.url === "/dashboard"
-          );
+          const isParentActive = isNavItemActive(location.pathname, item);
 
           if (hasChildren) {
             return (
@@ -98,19 +104,17 @@ export function NavMain({ items }: { items: NavItem[] }) {
                   <CollapsibleContent>
                     <SidebarMenuSub className="ml-5 mt-1 border-l border-[#d59b2d]/25 pl-2">
                       {item.items?.map((subItem) => {
-                        const isSubActive = isPathActive(location.pathname, subItem.url);
+                        const isSubItemActive = matchesPath(location.pathname, subItem.url);
 
                         return (
                           <SidebarMenuSubItem key={subItem.title}>
-                            <SidebarMenuSubButton
-                              asChild
-                              isActive={isSubActive}
-                              className={subLinkClass(isSubActive)}
-                            >
-                              <NavLink to={subItem.url}>
-                                <span className="truncate text-xs text-inherit">
-                                  {subItem.title}
-                                </span>
+                            <SidebarMenuSubButton asChild isActive={isSubItemActive}>
+                              <NavLink
+                                to={subItem.url}
+                                className={subLinkClass(isSubItemActive)}
+                                aria-current={isSubItemActive ? "page" : undefined}
+                              >
+                                <span className="truncate text-xs">{subItem.title}</span>
                               </NavLink>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
@@ -144,15 +148,13 @@ export function NavMain({ items }: { items: NavItem[] }) {
 
           return (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton
-                asChild
-                tooltip={item.title}
-                isActive={isParentActive}
-                className={linkClass(isParentActive)}
-              >
+              <SidebarMenuButton asChild tooltip={item.title} isActive={isParentActive}>
                 <NavLink
                   to={item.url}
+                  state={item.navigationState}
                   end={item.url === "/dashboard"}
+                  className={linkClass(isParentActive)}
+                  aria-current={isParentActive ? "page" : undefined}
                 >
                   {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
                   <span className="text-[12px] truncate group-data-[collapsible=icon]:hidden">
