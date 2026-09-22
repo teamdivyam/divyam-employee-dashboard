@@ -269,7 +269,7 @@ const validateFile = (file, pattern, label) => {
   return null;
 };
 
-const buildRequest = ({ form, proposalFile, approvalFile, customerId, action }) => {
+const buildRequest = ({ form, proposalFile, approvalFile, customerId, action, commercialEditable }) => {
   const request = new FormData();
   const functions = form.functionDetails.map((detail) => ({
     name: detail.name,
@@ -291,10 +291,14 @@ const buildRequest = ({ form, proposalFile, approvalFile, customerId, action }) 
     bookingAction: action,
     eventName: `${form.clientName.trim()} ${form.eventType || 'Booking'}`,
   };
+  if (!commercialEditable) {
+    delete values.totalAgreedValue;
+    delete values.advanceReceived;
+  }
   Object.entries(values).forEach(([key, value]) => {
     if (value !== undefined && value !== null && !Array.isArray(value)) request.append(key, value);
   });
-  if (proposalFile) request.append('finalApprovedProposal', proposalFile);
+  if (commercialEditable && proposalFile) request.append('finalApprovedProposal', proposalFile);
   if (approvalFile) request.append('clientApprovalAttachment', approvalFile);
   return request;
 };
@@ -302,6 +306,7 @@ const buildRequest = ({ form, proposalFile, approvalFile, customerId, action }) 
 export default function AddBookingDialog({ open, onOpenChange, employees = [], customers = [], booking = null, mode = 'create', saving = false, onSubmit }) {
   const { data: currentEmployee } = useCurrentEmployee();
   const isEditing = mode === 'edit';
+  const commercialEditable = ['Super Admin', 'Admin'].includes(currentEmployee?.accessRole);
   const [form, setForm] = useState(initialForm);
   const [proposalFile, setProposalFile] = useState(null);
   const [approvalFile, setApprovalFile] = useState(null);
@@ -361,21 +366,22 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
   const selectClass = 'h-7 text-[11px] shadow-none';
 
   const validate = (action) => {
-    const proposalError = validateFile(proposalFile, allowedProposal, 'Final approved proposal');
+    const proposalError = commercialEditable
+      ? validateFile(proposalFile, allowedProposal, 'Final approved proposal')
+      : null;
     const approvalError = validateFile(approvalFile, allowedReference, 'Client approval attachment');
     if (proposalError || approvalError) return proposalError || approvalError;
     if (!form.clientName.trim()) return 'Client name is required.';
     if (form.primaryMobile.length !== 10) return 'Enter a valid 10-digit primary mobile number.';
-    if (!(booking?.crmCustomerId || booking?.customer?._id || matchedCustomer?._id)) return 'Enter the mobile number of a client assigned to you.';
     if (form.alternateMobile && form.alternateMobile.length !== 10) return 'Enter a valid 10-digit alternate mobile number.';
     if (action === 'draft') return null;
     if (!form.eventType) return 'Event type is required.';
     if (!form.eventStartDate || !form.eventEndDate) return 'Event start and end dates are required.';
     if (form.eventEndDate < form.eventStartDate) return 'Event end date cannot be before the start date.';
     if (!form.selectedServices.length) return 'Select at least one service.';
-    if (!Number.isFinite(total) || total <= 0) return 'Total agreed value must be greater than zero.';
-    if (!Number.isFinite(advance) || advance < 0 || advance > total) return 'Advance received must be between zero and the total agreed value.';
-    if (!isEditing && !proposalFile) return 'Final approved proposal is required.';
+    if (commercialEditable && (!Number.isFinite(total) || total <= 0)) return 'Total agreed value must be greater than zero.';
+    if (commercialEditable && (!Number.isFinite(advance) || advance < 0 || advance > total)) return 'Advance received must be between zero and the total agreed value.';
+    if (commercialEditable && !isEditing && !proposalFile) return 'Final approved proposal is required.';
     return null;
   };
 
@@ -391,18 +397,25 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
       approvalFile,
       customerId: booking?.crmCustomerId || booking?.customer?._id || matchedCustomer?._id,
       action,
+      commercialEditable,
     }));
   };
 
   const eventSummary = [form.eventType, form.eventStartDate, form.eventCity].filter(Boolean).join(' â€¢ ');
-  const commercialSummary = total > 0 ? `â‚¹${total.toLocaleString('en-IN')} â€¢ â‚¹${pending.toLocaleString('en-IN')} pending` : '';
+  const commercialSummary = commercialEditable && total > 0
+    ? `â‚¹${total.toLocaleString('en-IN')} â€¢ â‚¹${pending.toLocaleString('en-IN')} pending`
+    : form.bookingStatus;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[95dvh] w-[calc(100vw-20px)] max-w-[800px] flex-col gap-0 overflow-hidden rounded-md border-border bg-background p-0 sm:max-w-[900px]">
         <DialogHeader className="border-b border-border px-4 py-2.5 pr-11 text-left">
           <DialogTitle className="text-lg font-bold text-foreground">{isEditing ? 'Edit Booking Details' : booking ? 'Continue Booking Setup' : 'Add Booking'}</DialogTitle>
-          <DialogDescription className="text-[11px]">{isEditing ? 'Update client, event, commercial, attachment and assignment details.' : booking ? 'Complete the pending booking details, commercial confirmation and event assignment.' : 'Create a booking for an assigned client with commercial details, attachments and event assignment.'}</DialogDescription>
+          <DialogDescription className="text-[11px]">
+            {commercialEditable
+              ? isEditing ? 'Update client, event, commercial, attachment and assignment details.' : booking ? 'Complete the pending booking details, commercial confirmation and event assignment.' : 'Create a booking for an assigned client with commercial details, attachments and event assignment.'
+              : isEditing ? 'Update client, event, attachment and assignment details.' : booking ? 'Complete the pending booking details and event assignment.' : 'Create a booking with client details, attachments and event assignment.'}
+          </DialogDescription>
         </DialogHeader>
 
         <form id="add-booking-form" onSubmit={(event) => { event.preventDefault(); submit(isEditing ? 'update' : 'create'); }} className="min-h-0 overflow-y-auto px-4 py-2.5">
@@ -421,7 +434,7 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
               </div>
             </div>
 
-            <SectionCard number="1" title="Client Information" tone="blue" summary={matchedCustomer ? `Existing Client â€¢ ${matchedCustomer.name}` : 'Enter assigned client mobile'} expanded={expanded.client} onToggle={() => setExpanded((current) => ({ ...current, client: !current.client }))}>
+            <SectionCard number="1" title="Client Information" tone="blue" summary={matchedCustomer ? `Existing Client â€¢ ${matchedCustomer.name}` : 'Enter client mobile'} expanded={expanded.client} onToggle={() => setExpanded((current) => ({ ...current, client: !current.client }))}>
               <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
                 <Field label="Client Name" required icon={UserRound}><Input className={iconInputClass} value={form.clientName} onChange={(event) => update('clientName', event.target.value)} placeholder="Enter client name" /></Field>
                 <Field label="Primary Mobile" required><div className="flex"><span className="flex h-7 items-center rounded-l-md border border-r-0 border-input bg-muted/40 px-2.5 text-[11px]">+91</span><Input className="h-7 rounded-l-none pl-2.5 text-[11px] shadow-none" inputMode="numeric" value={form.primaryMobile} onChange={(event) => update('primaryMobile', onlyDigits(event.target.value))} placeholder="98765 43210" /></div></Field>
@@ -446,13 +459,17 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
               </div>
             </SectionCard>
 
-            <SectionCard number="3" title="Commercial & Attachments" tone="emerald" summary={commercialSummary} expanded={expanded.commercial} onToggle={() => setExpanded((current) => ({ ...current, commercial: !current.commercial }))}>
+            <SectionCard number="3" title={commercialEditable ? 'Commercial & Attachments' : 'Booking & Attachment'} tone="emerald" summary={commercialSummary} expanded={expanded.commercial} onToggle={() => setExpanded((current) => ({ ...current, commercial: !current.commercial }))}>
               <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
                 <Field label="Booking Status" required icon={Flag}><Select disabled={isEditing} value={form.bookingStatus} onValueChange={(value) => update('bookingStatus', value)}><SelectTrigger className={`${selectClass} pl-8`}><SelectValue /></SelectTrigger><SelectContent>{statusOptions.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></Field>
-                <Field label="Total Agreed Value" required icon={IndianRupee}><Input className={iconInputClass} min="0" step="0.01" type="number" value={form.totalAgreedValue} onChange={(event) => update('totalAgreedValue', event.target.value)} placeholder="Enter total value" /></Field>
-                <Field label="Advance Received" icon={IndianRupee}><Input className={iconInputClass} min="0" step="0.01" type="number" value={form.advanceReceived} onChange={(event) => update('advanceReceived', event.target.value)} placeholder="Enter advance amount" /></Field>
-                <Field label="Pending Amount" icon={IndianRupee}><Input className={`${iconInputClass} bg-muted/50`} readOnly value={pending.toFixed(2)} /><span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[8px] text-muted-foreground">Auto-calculated</span></Field>
-                <UploadField label="Final Approved Proposal" required={!isEditing} file={proposalFile} accept=".pdf,.doc,.docx" helper={isEditing ? 'Optional replacement: PDF, DOC, DOCX (Max 10 MB)' : 'PDF, DOC, DOCX (Max 10 MB)'} onChange={setProposalFile} onClear={() => setProposalFile(null)} />
+                {commercialEditable ? (
+                  <>
+                    <Field label="Total Agreed Value" required icon={IndianRupee}><Input className={iconInputClass} min="0" step="0.01" type="number" value={form.totalAgreedValue} onChange={(event) => update('totalAgreedValue', event.target.value)} placeholder="Enter total value" /></Field>
+                    <Field label="Advance Received" icon={IndianRupee}><Input className={iconInputClass} min="0" step="0.01" type="number" value={form.advanceReceived} onChange={(event) => update('advanceReceived', event.target.value)} placeholder="Enter advance amount" /></Field>
+                    <Field label="Pending Amount" icon={IndianRupee}><Input className={`${iconInputClass} bg-muted/50`} readOnly value={pending.toFixed(2)} /><span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[8px] text-muted-foreground">Auto-calculated</span></Field>
+                    <UploadField label="Final Approved Proposal" required={!isEditing} file={proposalFile} accept=".pdf,.doc,.docx" helper={isEditing ? 'Optional replacement: PDF, DOC, DOCX (Max 10 MB)' : 'PDF, DOC, DOCX (Max 10 MB)'} onChange={setProposalFile} onClear={() => setProposalFile(null)} />
+                  </>
+                ) : null}
                 <UploadField label="Client Approval / Reference Attachment" file={approvalFile} accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" helper="PDF, DOC, DOCX, JPG, PNG (Max 10 MB)" onChange={setApprovalFile} onClear={() => setApprovalFile(null)} />
               </div>
             </SectionCard>

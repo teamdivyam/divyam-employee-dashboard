@@ -19,12 +19,14 @@ import ClientRequirementsDialog from './components/ClientRequirementsDialog';
 import EventDetailTabs from './components/EventDetailTabs';
 import EventFunctionsHeader from './components/EventFunctionsHeader';
 import EventFunctionsTable from './components/EventFunctionsTable';
+import useCurrentEmployee from '../../../hooks/useCurrentEmployee';
 
 export default function EventFunctionsPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const [functionDialog, setFunctionDialog] = useState(null);
   const [editBookingOpen, setEditBookingOpen] = useState(false);
+  const { data: currentEmployee } = useCurrentEmployee();
 
   const bookingQuery = useQuery({
     queryKey: ['event-booking-detail', eventId],
@@ -60,7 +62,7 @@ export default function EventFunctionsPage() {
   const employees = getEmployees(managersQuery.data);
   const services = useMemo(() => Array.from(new Set([
     ...(booking?.servicesRequired || []),
-    ...(booking?.servicesSelected || []).map((item) => item.service).filter(Boolean),
+    ...(booking?.servicesSelected || []).map((item) => item.name || item.service).filter(Boolean),
   ])), [booking]);
   const functions = useMemo(() => booking?.functions || [], [booking]);
   const metrics = useMemo(() => ({
@@ -98,6 +100,7 @@ export default function EventFunctionsPage() {
         customer={getBookingRequirementsCustomer(booking)}
         initialSection="functions"
         functionsAndServicesOnly
+        canDeleteExisting={['Super Admin', 'Admin'].includes(currentEmployee?.accessRole)}
         startAddingFunction={!functionDialog?._id}
         initialFunctionId={functionDialog?._id}
         initialFunctionName={functionDialog?.name}

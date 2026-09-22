@@ -455,26 +455,6 @@ export default function EventTransportPanel({
                               <Eye className="h-4 w-4" />
                               View
                             </Button>
-                            {item._id ? (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                  >
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onSelect={() => onEditTransport(item)}
-                                  >
-                                    Edit transport
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            ) : null}
                           </div>
                         </TableCell>
                       </TableRow>

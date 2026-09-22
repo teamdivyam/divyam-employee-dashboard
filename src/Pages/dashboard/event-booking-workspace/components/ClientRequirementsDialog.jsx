@@ -202,7 +202,7 @@ function ChoiceChips({ options, value, onChange, compact = false }) {
   );
 }
 
-export default function ClientRequirementsDialog({ open, onOpenChange, customer, onSubmit, isSaving = false, initialSection = 'event', startAddingFunction = false, startAddingService = false, initialFunctionId, initialFunctionName = '', initialServiceId, initialServiceName = '', functionsAndServicesOnly = false }) {
+export default function ClientRequirementsDialog({ open, onOpenChange, customer, onSubmit, isSaving = false, initialSection = 'event', startAddingFunction = false, startAddingService = false, initialFunctionId, initialFunctionName = '', initialServiceId, initialServiceName = '', functionsAndServicesOnly = false, canDeleteExisting = false }) {
   const [activeSection, setActiveSection] = useState('event');
   const [form, setForm] = useState(() => getForm(customer));
   const [editingFunctionIndex, setEditingFunctionIndex] = useState(null);
@@ -262,7 +262,7 @@ export default function ClientRequirementsDialog({ open, onOpenChange, customer,
     };
     const nextFunctions = editingFunctionIndex >= 0
       ? form.functionDetails.map((item, index) => (index === editingFunctionIndex ? nextFunction : item))
-      : [...form.functionDetails, nextFunction];
+      : [...form.functionDetails, { ...nextFunction, _isNew: true }];
     update('functionDetails', nextFunctions);
     setEditingFunctionIndex(null);
     setFunctionDraft(emptyFunction);
@@ -293,7 +293,7 @@ export default function ClientRequirementsDialog({ open, onOpenChange, customer,
     };
     const nextServices = editingServiceIndex >= 0
       ? form.serviceDetails.map((item, index) => (index === editingServiceIndex ? nextService : item))
-      : [...form.serviceDetails, nextService];
+      : [...form.serviceDetails, { ...nextService, _isNew: true }];
     update('serviceDetails', nextServices);
     setEditingServiceIndex(null);
     setServiceDraft(emptyService);
@@ -451,7 +451,7 @@ export default function ClientRequirementsDialog({ open, onOpenChange, customer,
                         <p className="truncate text-muted-foreground">{item.venue || 'Venue pending'}</p>
                         <div className="flex justify-end gap-1">
                           <Button type="button" variant="ghost" size="icon" onClick={() => startFunction(index)} className="h-7 w-7" aria-label={`Edit ${item.name}`}><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button type="button" variant="ghost" size="icon" onClick={() => removeFunction(index)} className="h-7 w-7 text-destructive hover:text-destructive" aria-label={`Remove ${item.name}`}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          {(canDeleteExisting || item._isNew) ? <Button type="button" variant="ghost" size="icon" onClick={() => removeFunction(index)} className="h-7 w-7 text-destructive hover:text-destructive" aria-label={`Remove ${item.name}`}><Trash2 className="h-3.5 w-3.5" /></Button> : null}
                         </div>
                       </div>
                     ))}
@@ -485,7 +485,7 @@ export default function ClientRequirementsDialog({ open, onOpenChange, customer,
                         <div><p className="font-semibold text-foreground">{item.name}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{item.level}</p></div>
                         <p className="line-clamp-2 text-muted-foreground">{item.summary || 'Summary pending'}</p>
                         <p className="text-muted-foreground">{item.appliesTo?.length ? item.appliesTo.join(', ') : 'All Functions'}</p>
-                        <div className="flex justify-end gap-1"><Button type="button" variant="ghost" size="icon" onClick={() => startService(index)} className="h-7 w-7" aria-label={`Edit ${item.name}`}><Pencil className="h-3.5 w-3.5" /></Button><Button type="button" variant="ghost" size="icon" onClick={() => removeService(index)} className="h-7 w-7 text-destructive hover:text-destructive" aria-label={`Remove ${item.name}`}><Trash2 className="h-3.5 w-3.5" /></Button></div>
+                        <div className="flex justify-end gap-1"><Button type="button" variant="ghost" size="icon" onClick={() => startService(index)} className="h-7 w-7" aria-label={`Edit ${item.name}`}><Pencil className="h-3.5 w-3.5" /></Button>{(canDeleteExisting || item._isNew) ? <Button type="button" variant="ghost" size="icon" onClick={() => removeService(index)} className="h-7 w-7 text-destructive hover:text-destructive" aria-label={`Remove ${item.name}`}><Trash2 className="h-3.5 w-3.5" /></Button> : null}</div>
                       </div>
                     ))}
                   </div>

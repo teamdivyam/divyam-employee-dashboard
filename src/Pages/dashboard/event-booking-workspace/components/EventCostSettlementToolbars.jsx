@@ -18,6 +18,7 @@ export function VendorSettlementToolbar({
   options,
   onFilterChange,
   onRecordSettlement,
+  readOnly = false,
 }) {
   const hasOutstandingVendor = (options.vendors || []).some(
     (vendor) => numberOf(vendor.outstandingAmount) > 0,
@@ -70,15 +71,17 @@ export function VendorSettlementToolbar({
         </SelectContent>
       </Select>
 
-      <Button
-        variant="custom"
-        onClick={onRecordSettlement}
-        disabled={!hasOutstandingVendor}
-        className="shrink-0 gap-2 whitespace-nowrap"
-      >
-        <Plus className="h-4 w-4" />
-        Record Settlement
-      </Button>
+      {!readOnly && (
+        <Button
+          variant="custom"
+          onClick={onRecordSettlement}
+          disabled={!hasOutstandingVendor}
+          className="shrink-0 gap-2 whitespace-nowrap"
+        >
+          <Plus className="h-4 w-4" />
+          Record Settlement
+        </Button>
+      )}
     </div>
   );
 }
@@ -90,6 +93,7 @@ export function ExpenseToolbar({
   onFilterChange,
   onMoreFilters,
   onAddExpense,
+  readOnly = false,
 }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap xl:flex-nowrap xl:justify-end">
@@ -152,14 +156,16 @@ export function ExpenseToolbar({
         ) : null}
       </Button>
 
-      <Button
-        variant="custom"
-        onClick={onAddExpense}
-        className="shrink-0 gap-2 whitespace-nowrap"
-      >
-        <Plus className="h-4 w-4" />
-        Add Expense
-      </Button>
+      {!readOnly && (
+        <Button
+          variant="custom"
+          onClick={onAddExpense}
+          className="shrink-0 gap-2 whitespace-nowrap"
+        >
+          <Plus className="h-4 w-4" />
+          Add Expense
+        </Button>
+      )}
     </div>
   );
 }

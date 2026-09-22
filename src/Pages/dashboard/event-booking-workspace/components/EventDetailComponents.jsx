@@ -204,7 +204,7 @@ export const quickActionConfigs = [
 ];
 
 const defaultForms = {
-  function: { name: '', date: '', startTime: '', endTime: '', venue: '', area: '', guestCount: '', status: 'Confirmed', notes: '' },
+  function: { name: '', fromDate: '', toDate: '', startTime: '', endTime: '', venue: '', guestCount: '', status: 'Confirmed', notes: '' },
   team: { employee: '', role: '', responsibility: '', isPrimary: false, notes: '' },
   vendor: { vendor: '', service: '', category: '', status: 'Confirmed', paymentStatus: 'Advance Received', quotationAmount: '', agreedAmount: '', notes: '' },
   task: { taskTitle: '', description: '', assignedTo: '', assignedToName: '', dueDate: '', priority: 'High', status: 'In Progress' },
@@ -242,7 +242,7 @@ export function QuickActionDialog({ open, onOpenChange, action, employees, savin
   const fields = useMemo(() => {
     switch (action?.key) {
       case 'function':
-        return [['name', 'Function Name'], ['date', 'Date', 'date'], ['startTime', 'Start Time'], ['endTime', 'End Time'], ['venue', 'Venue'], ['area', 'Area'], ['guestCount', 'Guests', 'number'], ['notes', 'Notes', 'textarea']];
+        return [['name', 'Function Name'], ['fromDate', 'From Date', 'date'], ['toDate', 'To Date', 'date'], ['startTime', 'Start Time'], ['endTime', 'End Time'], ['venue', 'Venue'], ['guestCount', 'Guests', 'number'], ['notes', 'Notes', 'textarea']];
       case 'team':
         return [['employee', 'Employee', 'employee'], ['role', 'Role'], ['responsibility', 'Responsibility'], ['notes', 'Notes', 'textarea']];
       case 'vendor':

@@ -57,7 +57,7 @@ const buildOverview = (booking) => {
   const functions = booking.functions || [];
   const services = Array.from(new Set([
     ...(booking.servicesRequired || []),
-    ...(booking.servicesSelected || []).map((item) => item.service).filter(Boolean),
+    ...(booking.servicesSelected || []).map((item) => item.name || item.service).filter(Boolean),
   ]));
   const tasks = booking.eventTasks || [];
   const openTasks = tasks.filter((task) => task && !['Completed', 'Cancelled'].includes(task.status));
@@ -70,7 +70,7 @@ const buildOverview = (booking) => {
   const minGuests = guestCounts.length ? Math.min(...guestCounts) : Number(booking.guestCount || 0);
   const maxGuests = Math.max(Number(booking.guestCount || 0), ...guestCounts);
   const vendorPending = (booking.vendorAssignments || []).filter((item) => !['Confirmed', 'Accepted'].includes(item.confirmationStatus)).length;
-  const menuPending = (booking.servicesSelected || []).filter((item) => /cater|menu/i.test(item.service || item.category || '') && !['Confirmed', 'Completed'].includes(item.status)).length;
+  const menuPending = (booking.servicesSelected || []).filter((item) => /cater|menu/i.test(item.name || item.service || item.category || '') && !['Confirmed', 'Completed'].includes(item.status)).length;
   const inventoryPending = openTasks.filter((task) => /inventory|equipment|material/i.test(`${task.taskTitle || ''} ${task.description || ''}`)).length;
   const clientPending = (booking.issues || []).filter((item) => item.status !== 'Resolved' && /client|approval/i.test(`${item.issueType || ''} ${item.description || ''}`)).length
     + (['Proposal Pending', 'Proposal Sent'].includes(booking.bookingStatus) ? 1 : 0);

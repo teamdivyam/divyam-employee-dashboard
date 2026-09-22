@@ -677,6 +677,7 @@ function LoadingState() {
 }
 
 export default function EventClientPaymentsPanel({
+  readOnly = false,
   data,
   filters,
   onFiltersChange,
@@ -784,25 +785,27 @@ export default function EventClientPaymentsPanel({
                 Track client payments against the agreed contract schedule.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                onClick={() => openMilestone()}
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Add Milestone
-              </Button>
-              <Button
-                variant="custom"
-                onClick={() => openPayment()}
-                disabled={!hasOutstanding}
-                className="gap-2"
-              >
-                <IndianRupee className="h-4 w-4" />
-                Record Payment
-              </Button>
-            </div>
+            {!readOnly && (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => openMilestone()}
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Milestone
+                </Button>
+                <Button
+                  variant="custom"
+                  onClick={() => openPayment()}
+                  disabled={!hasOutstanding}
+                  className="gap-2"
+                >
+                  <IndianRupee className="h-4 w-4" />
+                  Record Payment
+                </Button>
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-3 border-b border-border p-3 lg:flex-row lg:items-center">
             <div className="relative min-w-0 flex-1">
@@ -943,7 +946,7 @@ export default function EventClientPaymentsPanel({
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
-                          {milestone.status === "Paid" ? (
+                          {readOnly || milestone.status === "Paid" ? (
                             <Button
                               variant="outline"
                               size="sm"
@@ -968,36 +971,38 @@ export default function EventClientPaymentsPanel({
                               Record
                             </Button>
                           )}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                aria-label={`Actions for ${milestone.name}`}
-                              >
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onSelect={() => openMilestone(milestone)}
-                              >
-                                <Pencil className="mr-2 h-4 w-4" />
-                                Edit milestone
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                disabled={
-                                  numberOf(milestone.receivedAmount) > 0
-                                }
-                                onSelect={() => setDeleteMilestone(milestone)}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete milestone
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          {!readOnly && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  aria-label={`Actions for ${milestone.name}`}
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onSelect={() => openMilestone(milestone)}
+                                >
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  Edit milestone
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  disabled={
+                                    numberOf(milestone.receivedAmount) > 0
+                                  }
+                                  onSelect={() => setDeleteMilestone(milestone)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete milestone
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1012,17 +1017,21 @@ export default function EventClientPaymentsPanel({
                             No payment milestones found
                           </p>
                           <p className="text-xs">
-                            Add a milestone or adjust the current filters.
+                            {readOnly
+                              ? "Adjust the current filters to view milestones."
+                              : "Add a milestone or adjust the current filters."}
                           </p>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openMilestone()}
-                        >
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add Milestone
-                        </Button>
+                        {!readOnly && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openMilestone()}
+                          >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Milestone
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1082,44 +1091,48 @@ export default function EventClientPaymentsPanel({
           </div>
         </CardContent>
       </Card>
-      <MilestoneDialog
-        open={milestoneDialog}
-        onOpenChange={setMilestoneDialog}
-        milestone={selectedMilestone}
-        saving={savingMilestone}
-        onSave={(payload) =>
-          selectedMilestone
-            ? onUpdateMilestone(selectedMilestone, payload)
-            : onAddMilestone(payload)
-        }
-      />
-      <RecordPaymentDialog
-        open={paymentDialog}
-        onOpenChange={setPaymentDialog}
-        milestones={paymentMilestones}
-        initialMilestone={paymentMilestone}
-        saving={recordingPayment}
-        onSave={onRecordPayment}
-        paymentModes={
-          options.paymentModes || [
-            "Bank Transfer",
-            "UPI",
-            "NEFT",
-            "RTGS",
-            "IMPS",
-            "Card",
-            "Cash",
-            "Cheque",
-            "Wallet",
-            "Other",
-          ]
-        }
-      />
+      {!readOnly && (
+        <>
+          <MilestoneDialog
+            open={milestoneDialog}
+            onOpenChange={setMilestoneDialog}
+            milestone={selectedMilestone}
+            saving={savingMilestone}
+            onSave={(payload) =>
+              selectedMilestone
+                ? onUpdateMilestone(selectedMilestone, payload)
+                : onAddMilestone(payload)
+            }
+          />
+          <RecordPaymentDialog
+            open={paymentDialog}
+            onOpenChange={setPaymentDialog}
+            milestones={paymentMilestones}
+            initialMilestone={paymentMilestone}
+            saving={recordingPayment}
+            onSave={onRecordPayment}
+            paymentModes={
+              options.paymentModes || [
+                "Bank Transfer",
+                "UPI",
+                "NEFT",
+                "RTGS",
+                "IMPS",
+                "Card",
+                "Cash",
+                "Cheque",
+                "Wallet",
+                "Other",
+              ]
+            }
+          />
+        </>
+      )}
       <ReceiptsDialog
         milestone={receiptMilestone}
         onOpenChange={setReceiptMilestone}
       />
-      <AlertDialog
+      {!readOnly && <AlertDialog
         open={Boolean(deleteMilestone)}
         onOpenChange={(open) => !open && setDeleteMilestone(null)}
       >
@@ -1147,7 +1160,7 @@ export default function EventClientPaymentsPanel({
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog>}
     </div>
   );
 }

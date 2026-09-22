@@ -14,6 +14,7 @@ import {
   getEmployees,
 } from './components/EventBookingComponents';
 import { getEventVisualPreferences, getFinalPreferenceCount } from './eventBookingDashboard.utils';
+import { getEventServiceNames, normalizeEventVisualPreference } from './eventRecordAdapters';
 import EventDetailTabs from './components/EventDetailTabs';
 import EventFunctionsHeader from './components/EventFunctionsHeader';
 import EventVisualPreferencesPanel from './components/EventVisualPreferencesPanel';
@@ -36,11 +37,12 @@ export default function EventVisualPreferencesPage() {
   });
   const refresh = () => bookingQuery.refetch();
   const preferenceMutation = useMutation({
-    mutationFn: ({ customerId, formData }) => AdminService.adminAddCustomerPreference({ customerId, formData }),
+    mutationFn: ({ customerId, formData }) => AdminService.adminAddCustomerPreference({ eventId, customerId, formData }),
     onSuccess: (_, { customerId }) => {
       toast.success('Visual preference added');
       setPreferenceOpen(false);
       queryClient.invalidateQueries({ queryKey: ['client-detail', customerId] });
+      queryClient.invalidateQueries({ queryKey: ['event-activities', eventId] });
       refresh();
     },
     onError: (error) => toast.error(error.response?.data?.validationError?.[0]?.message || error.response?.data?.message || 'Unable to add visual preference'),
@@ -59,8 +61,8 @@ export default function EventVisualPreferencesPage() {
   const booking = getBookingDetail(bookingQuery.data);
   const employees = getEmployees(managersQuery.data);
   const functions = useMemo(() => booking?.functions || [], [booking]);
-  const preferences = useMemo(() => getEventVisualPreferences(booking), [booking]);
-  const services = useMemo(() => Array.from(new Set([...(booking?.servicesRequired || []), ...(booking?.servicesSelected || []).map((item) => item.service).filter(Boolean)])), [booking]);
+  const preferences = useMemo(() => getEventVisualPreferences(booking).map((item) => normalizeEventVisualPreference(item, functions)), [booking, functions]);
+  const services = useMemo(() => getEventServiceNames(booking), [booking]);
   const metrics = useMemo(() => ({
     functions: functions.length,
     services: services.length,

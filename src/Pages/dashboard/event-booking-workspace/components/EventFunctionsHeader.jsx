@@ -17,6 +17,7 @@ import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/components/ui/dropdown-menu';
 import { avatarUrl, bookingCode, initials } from '../eventBookingDashboard.utils';
+import { getBookingStatus } from '../eventRecordAdapters';
 
 const compactDate = (date) => {
   if (!date) return '-';
@@ -26,7 +27,7 @@ const compactDate = (date) => {
 };
 
 const eventDateRange = (booking) => {
-  const dates = (booking.functions || []).map((item) => new Date(item.date)).filter((date) => !Number.isNaN(date.getTime())).sort((a, b) => a - b);
+  const dates = (booking.functions || []).map((item) => new Date(item.fromDate || item.date)).filter((date) => !Number.isNaN(date.getTime())).sort((a, b) => a - b);
   if (!dates.length) return compactDate(booking.eventDate);
   if (dates.length === 1 || dates[0].toDateString() === dates.at(-1).toDateString()) return compactDate(dates[0]);
   return `${compactDate(dates[0])} – ${compactDate(dates.at(-1))}`;
@@ -60,7 +61,7 @@ export default function EventFunctionsHeader({ booking, metrics = {}, metricItem
         <div className="flex min-w-0 items-center gap-3">
           <Avatar className="h-14 w-14 rounded-lg border border-violet-100"><AvatarImage src={avatarUrl(booking.customer)} /><AvatarFallback className="rounded-lg bg-violet-50 text-lg font-semibold text-violet-700">{initials(clientName)}</AvatarFallback></Avatar>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2.5"><h1 className="truncate text-xl font-bold text-foreground">{clientName}</h1><Badge className="border-0 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Booking Confirmed</Badge></div>
+            <div className="flex flex-wrap items-center gap-2.5"><h1 className="truncate text-xl font-bold text-foreground">{clientName}</h1><Badge className="border-0 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">{getBookingStatus(booking)}</Badge></div>
             <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
               <span>{bookingCode(booking)}</span><span>•</span><span>{booking.eventType || '-'}</span><span>•</span><span className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{eventDateRange(booking)}</span><span>•</span><span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{[booking.venue, booking.city].filter(Boolean).join(', ') || '-'}</span>
             </div>

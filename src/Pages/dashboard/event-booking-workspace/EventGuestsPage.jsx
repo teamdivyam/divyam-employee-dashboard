@@ -62,7 +62,7 @@ export default function EventGuestsPage() {
   const employees = getEmployees(managersQuery.data);
   const functions = useMemo(() => booking?.functions || [], [booking]);
   const requirements = useMemo(() => booking?.hospitalityRequirements || [], [booking]);
-  const services = useMemo(() => Array.from(new Set([...(booking?.servicesRequired || []), ...(booking?.servicesSelected || []).map((item) => item.service).filter(Boolean)])), [booking]);
+  const services = useMemo(() => Array.from(new Set([...(booking?.servicesRequired || []), ...(booking?.servicesSelected || []).map((item) => item.name || item.service).filter(Boolean)])), [booking]);
   const peakGuests = Math.max(Number(booking?.guestCount || 0), ...functions.map((item) => Number(item.guestCount || 0)));
   const metrics = useMemo(() => ({
     functions: functions.length,

@@ -15,16 +15,19 @@ import {
   getEmployees,
 } from './components/EventBookingComponents';
 import { getFinalPreferenceCount } from './eventBookingDashboard.utils';
+import { getEventServiceName } from './eventRecordAdapters';
 import ClientRequirementsDialog from './components/ClientRequirementsDialog';
 import EventDetailTabs from './components/EventDetailTabs';
 import EventFunctionsHeader from './components/EventFunctionsHeader';
 import EventServicesTable from './components/EventServicesTable';
+import useCurrentEmployee from '../../../hooks/useCurrentEmployee';
 
 export default function EventServicesPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const [serviceDialog, setServiceDialog] = useState(null);
   const [editBookingOpen, setEditBookingOpen] = useState(false);
+  const { data: currentEmployee } = useCurrentEmployee();
 
   const bookingQuery = useQuery({
     queryKey: ['event-booking-detail', eventId],
@@ -60,8 +63,13 @@ export default function EventServicesPage() {
   const functions = useMemo(() => booking?.functions || [], [booking]);
   const services = useMemo(() => {
     if (!booking) return [];
-    const selectedNames = new Set((booking.servicesSelected || []).map((item) => item.service));
-    const requiredOnly = (booking.servicesRequired || []).filter((service) => !selectedNames.has(service)).map((service) => ({ service, status: 'Pending', linkedFunctions: [], deliverables: [], isRequiredOnly: true }));
+    const selectedNames = new Set((booking.servicesSelected || [])
+      .map((item) => getEventServiceName(item).trim().toLowerCase())
+      .filter(Boolean));
+    const requiredOnly = (booking.servicesRequired || [])
+      .map((service) => String(service || '').trim())
+      .filter((service) => service && !selectedNames.has(service.toLowerCase()))
+      .map((service) => ({ name: service, status: 'Pending', linkedFunctions: [], deliverables: [], isRequiredOnly: true }));
     return [...(booking.servicesSelected || []), ...requiredOnly];
   }, [booking]);
   const metrics = useMemo(() => ({
@@ -99,9 +107,10 @@ export default function EventServicesPage() {
         customer={getBookingRequirementsCustomer(booking)}
         initialSection="services"
         functionsAndServicesOnly
-        startAddingService={!serviceDialog?._id && !serviceDialog?.service}
+        canDeleteExisting={['Super Admin', 'Admin'].includes(currentEmployee?.accessRole)}
+        startAddingService={!serviceDialog?._id && !serviceDialog?.name && !serviceDialog?.service}
         initialServiceId={serviceDialog?._id}
-        initialServiceName={serviceDialog?.service}
+        initialServiceName={serviceDialog?.name || serviceDialog?.service}
         isSaving={requirementsMutation.isPending}
         onSubmit={(payload) => requirementsMutation.mutate(payload)}
       />

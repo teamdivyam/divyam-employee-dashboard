@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+/* eslint-disable react/prop-types */
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -41,6 +42,9 @@ const NOTIFICATION_STYLES = {
   task_sent_for_rework: { icon: RotateCcw, className: "bg-rose-500/10 text-rose-600 dark:text-rose-400" },
   task_updated: { icon: RotateCcw, className: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
   task_deleted: { icon: Trash2, className: "bg-rose-500/10 text-rose-600 dark:text-rose-400" },
+  event_created: { icon: CalendarClock, className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
+  event_updated: { icon: CalendarClock, className: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
+  event_assignment: { icon: Send, className: "bg-violet-500/10 text-violet-600 dark:text-violet-400" },
 };
 
 const getNotificationStyle = (type) => NOTIFICATION_STYLES[type] || NOTIFICATION_STYLES.task_message;
@@ -138,6 +142,10 @@ export function NotificationBell({ mode = "all" }) {
     if (!notification.isRead) markReadMutation.mutate(notification._id);
     if (notification.taskId) {
       navigate(`/dashboard/my-tasks?taskId=${encodeURIComponent(notification.taskId)}`);
+    } else if (notification.event) {
+      const eventId = notification.event?._id || notification.event;
+      const target = String(notification.actionTarget || "").replace(/^\/+/, "");
+      navigate(`/dashboard/assigned-events/${eventId}${target ? `/${target}` : ""}`);
     }
     setIsOpen(false);
   };

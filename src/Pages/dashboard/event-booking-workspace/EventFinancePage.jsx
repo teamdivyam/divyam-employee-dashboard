@@ -65,6 +65,7 @@ import EventFunctionsHeader from "./components/EventFunctionsHeader";
 import { getFinalPreferenceCount } from "./eventBookingDashboard.utils";
 import { currency, idOf, numberOf, shortDate } from "./eventFinance.utils";
 import useDebouncedValue from "../../../hooks/useDebouncedValue";
+import useCurrentEmployee from "../../../hooks/useCurrentEmployee";
 
 const financeTabs = [
   { key: "commercial", label: "Commercial", icon: IndianRupee },
@@ -116,6 +117,7 @@ function CommercialChangeDialog({
   functions,
   saving,
   onSave,
+  readOnly = false,
 }) {
   const [form, setForm] = useState(emptyChange);
   useEffect(() => {
@@ -144,6 +146,7 @@ function CommercialChangeDialog({
     setForm((current) => ({ ...current, [key]: value }));
   const submit = (event) => {
     event.preventDefault();
+    if (readOnly) return;
     const eventFunction = functions.find(
       (item) => idOf(item) === form.functionId,
     );
@@ -164,7 +167,11 @@ function CommercialChangeDialog({
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>
-            {change ? "Commercial Change" : "Add Commercial Change"}
+            {readOnly
+              ? "Commercial Change Details"
+              : change
+                ? "Commercial Change"
+                : "Add Commercial Change"}
           </DialogTitle>
         </DialogHeader>
         <form
@@ -178,6 +185,7 @@ function CommercialChangeDialog({
               type="date"
               value={form.changeDate}
               onChange={(event) => update("changeDate", event.target.value)}
+              disabled={readOnly}
               required
             />
           </div>
@@ -186,6 +194,7 @@ function CommercialChangeDialog({
             <Select
               value={form.functionId}
               onValueChange={(value) => update("functionId", value)}
+              disabled={readOnly}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -205,6 +214,7 @@ function CommercialChangeDialog({
             <Input
               value={form.title}
               onChange={(event) => update("title", event.target.value)}
+              disabled={readOnly}
               placeholder="Additional lighting for main stage"
               required
             />
@@ -214,6 +224,7 @@ function CommercialChangeDialog({
             <Textarea
               value={form.description}
               onChange={(event) => update("description", event.target.value)}
+              disabled={readOnly}
               className="min-h-20"
             />
           </div>
@@ -222,6 +233,7 @@ function CommercialChangeDialog({
             <Select
               value={form.type}
               onValueChange={(value) => update("type", value)}
+              disabled={readOnly}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -239,6 +251,7 @@ function CommercialChangeDialog({
               min="0"
               value={form.amount}
               onChange={(event) => update("amount", event.target.value)}
+              disabled={readOnly}
               required
             />
           </div>
@@ -247,6 +260,7 @@ function CommercialChangeDialog({
             <Select
               value={form.status}
               onValueChange={(value) => update("status", value)}
+              disabled={readOnly}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -265,23 +279,26 @@ function CommercialChangeDialog({
             <Input
               value={form.reference}
               onChange={(event) => update("reference", event.target.value)}
+              disabled={readOnly}
               placeholder="Client discussion / email"
             />
           </div>
         </form>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {readOnly ? "Close" : "Cancel"}
           </Button>
-          <Button
-            variant="custom"
-            type="submit"
-            form="commercial-change-form"
-            disabled={saving || !form.title.trim() || !numberOf(form.amount)}
-          >
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {change ? "Save Changes" : "Add Change"}
-          </Button>
+          {!readOnly && (
+            <Button
+              variant="custom"
+              type="submit"
+              form="commercial-change-form"
+              disabled={saving || !form.title.trim() || !numberOf(form.amount)}
+            >
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {change ? "Save Changes" : "Add Change"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -601,6 +618,7 @@ function CommercialPanel({
   onAddChange,
   onViewChange,
   onAddNote,
+  readOnly = false,
 }) {
   const proposal = finance.acceptedProposal;
   const breakdown = finance.breakdown || {};
@@ -618,15 +636,17 @@ function CommercialPanel({
                     {proposal.status}
                   </Badge>
                 )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onAttachProposal}
-                  className="gap-1.5"
-                >
-                  <UploadCloud className="h-4 w-4" />
-                  {proposal ? "Replace" : "Attach Proposal"}
-                </Button>
+                {!readOnly && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onAttachProposal}
+                    className="gap-1.5"
+                  >
+                    <UploadCloud className="h-4 w-4" />
+                    {proposal ? "Replace" : "Attach Proposal"}
+                  </Button>
+                )}
               </div>
             </div>
             {proposal ? (
@@ -688,15 +708,17 @@ function CommercialPanel({
             ) : (
               <div className="flex h-32 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
                 <span>No proposal is attached to this booking.</span>
-                <Button
-                  size="sm"
-                  onClick={onAttachProposal}
-                  className="gap-2"
-                  variant="custom"
-                >
-                  <UploadCloud className="h-4 w-4" />
-                  Attach Accepted Proposal
-                </Button>
+                {!readOnly && (
+                  <Button
+                    size="sm"
+                    onClick={onAttachProposal}
+                    className="gap-2"
+                    variant="custom"
+                  >
+                    <UploadCloud className="h-4 w-4" />
+                    Attach Accepted Proposal
+                  </Button>
+                )}
               </div>
             )}
             {proposal?.fileUrl && (
@@ -720,15 +742,17 @@ function CommercialPanel({
               <h2 className="text-base font-bold">Contract Value Breakdown</h2>
               <div className="flex items-center gap-2">
                 <Badge variant="outline">GST {breakdown.taxRate || 0}%</Badge>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onEditTerms}
-                  className="gap-1.5"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                  Edit
-                </Button>
+                {!readOnly && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onEditTerms}
+                    className="gap-1.5"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                )}
               </div>
             </div>
             <div className="mt-4 divide-y rounded-md border text-xs">
@@ -792,15 +816,17 @@ function CommercialPanel({
                 Approved additions, reductions, and adjustments to the proposal.
               </p>
             </div>
-            <Button
-              size="sm"
-              onClick={onAddChange}
-              className="gap-1.5"
-              variant="custom"
-            >
-              <Plus className="h-4 w-4" />
-              Add Change
-            </Button>
+            {!readOnly && (
+              <Button
+                size="sm"
+                onClick={onAddChange}
+                className="gap-1.5"
+                variant="custom"
+              >
+                <Plus className="h-4 w-4" />
+                Add Change
+              </Button>
+            )}
           </div>
           <div className="overflow-x-auto">
             <Table className="min-w-[900px]">
@@ -913,19 +939,21 @@ function CommercialPanel({
             <Badge variant="outline" className="ml-auto">
               {finance.commercialNotes?.length || 0} Notes
             </Badge>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={(event) => {
-                event.stopPropagation();
-                onAddNote();
-              }}
-              className="gap-1"
-            >
-              <Plus className="h-4 w-4" />
-              Add Note
-            </Button>
+            {!readOnly && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onAddNote();
+                }}
+                className="gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                Add Note
+              </Button>
+            )}
             {notesOpen ? (
               <ChevronUp className="h-4 w-4" />
             ) : (
@@ -964,6 +992,8 @@ export default function EventFinancePage() {
   const { eventId, section: routeSection } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const canManageFinance = ["Super Admin", "Admin"].includes(currentEmployee?.accessRole);
   const [searchParams] = useSearchParams();
   const requestedSection = searchParams.get("tab") || routeSection;
   const section = financeTabs.some((item) => item.key === requestedSection)
@@ -1222,7 +1252,7 @@ export default function EventFinancePage() {
         new Set([
           ...(booking?.servicesRequired || []),
           ...(booking?.servicesSelected || [])
-            .map((item) => item.service)
+            .map((item) => item.name || item.service)
             .filter(Boolean),
         ]),
       ),
@@ -1330,6 +1360,7 @@ export default function EventFinancePage() {
   });
   const refreshClientPayments = () => {
     clientPaymentsQuery.refetch();
+    queryClient.invalidateQueries({ queryKey: ["event-activities", eventId] });
     queryClient.invalidateQueries({
       queryKey: ["event-invoices-receipts", eventId],
     });
@@ -1541,6 +1572,7 @@ export default function EventFinancePage() {
     section === "commercial" ? (
       <CommercialPanel
         finance={finance}
+        readOnly={!canManageFinance}
         onAttachProposal={() => setProposalOpen(true)}
         onEditTerms={() => setTermsOpen(true)}
         onAddChange={() => {
@@ -1555,6 +1587,7 @@ export default function EventFinancePage() {
       />
     ) : section === "payments" ? (
       <EventClientPaymentsPanel
+        readOnly={!canManageFinance}
         data={clientPaymentsQuery.data}
         filters={paymentFilters}
         onFiltersChange={setPaymentFilters}
@@ -1586,6 +1619,7 @@ export default function EventFinancePage() {
       />
     ) : section === "costs" ? (
       <EventCostSettlementsPanel
+        readOnly={!canManageFinance}
         view={costView}
         onViewChange={selectCostView}
         vendorData={vendorSettlementsQuery.data}
@@ -1617,6 +1651,7 @@ export default function EventFinancePage() {
       />
     ) : section === "invoices" ? (
       <EventInvoicesReceiptsPanel
+        readOnly={!canManageFinance}
         view={invoiceView}
         onViewChange={selectInvoiceView}
         data={invoicesReceiptsQuery.data}
@@ -1671,23 +1706,33 @@ export default function EventFinancePage() {
         />
         {financeContent}
       </div>
-      <AcceptedProposalDialog
-        open={proposalOpen}
-        onOpenChange={setProposalOpen}
-        saving={proposalMutation.isPending}
-        defaultAcceptedBy={
-          booking.customer?.name || finance.acceptedProposal?.acceptedBy
-        }
-        taxRate={finance.breakdown?.taxRate}
-        onSave={(payload) => proposalMutation.mutate(payload)}
-      />
-      <ContractTermsDialog
-        open={termsOpen}
-        onOpenChange={setTermsOpen}
-        breakdown={finance.breakdown}
-        saving={termsMutation.isPending}
-        onSave={(payload) => termsMutation.mutate(payload)}
-      />
+      {canManageFinance && (
+        <>
+          <AcceptedProposalDialog
+            open={proposalOpen}
+            onOpenChange={setProposalOpen}
+            saving={proposalMutation.isPending}
+            defaultAcceptedBy={
+              booking.customer?.name || finance.acceptedProposal?.acceptedBy
+            }
+            taxRate={finance.breakdown?.taxRate}
+            onSave={(payload) => proposalMutation.mutate(payload)}
+          />
+          <ContractTermsDialog
+            open={termsOpen}
+            onOpenChange={setTermsOpen}
+            breakdown={finance.breakdown}
+            saving={termsMutation.isPending}
+            onSave={(payload) => termsMutation.mutate(payload)}
+          />
+          <CommercialNoteDialog
+            open={noteOpen}
+            onOpenChange={setNoteOpen}
+            saving={noteMutation.isPending}
+            onSave={(payload) => noteMutation.mutate(payload)}
+          />
+        </>
+      )}
       <CommercialChangeDialog
         open={changeOpen}
         onOpenChange={(open) => {
@@ -1698,12 +1743,7 @@ export default function EventFinancePage() {
         functions={functions}
         saving={changeMutation.isPending}
         onSave={(payload) => changeMutation.mutate(payload)}
-      />
-      <CommercialNoteDialog
-        open={noteOpen}
-        onOpenChange={setNoteOpen}
-        saving={noteMutation.isPending}
-        onSave={(payload) => noteMutation.mutate(payload)}
+        readOnly={!canManageFinance}
       />
       <EditBookingDialog
         open={editBookingOpen}

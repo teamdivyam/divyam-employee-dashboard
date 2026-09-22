@@ -9,6 +9,7 @@ import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
 import { EditBookingDialog, getBookingDetail, getEmployees } from './components/EventBookingComponents';
 import { getFinalPreferenceCount } from './eventBookingDashboard.utils';
+import { getEventServiceNames, normalizeEventTransportAssignment, normalizeEventVehicle } from './eventRecordAdapters';
 import EventDetailTabs from './components/EventDetailTabs';
 import EventFunctionsHeader from './components/EventFunctionsHeader';
 import EventTransportDialog from './components/EventTransportDialog';
@@ -38,15 +39,15 @@ export default function EventTransportPage() {
   const employees = getEmployees(managersQuery.data);
   const functions = useMemo(() => booking?.functions || [], [booking]);
   const guests = useMemo(() => booking?.guestList || [], [booking]);
-  const vehicles = useMemo(() => booking?.transportVehicles || [], [booking]);
-  const storedAssignments = useMemo(() => booking?.transportAssignments || [], [booking]);
+  const vehicles = useMemo(() => (booking?.transportVehicles || []).map(normalizeEventVehicle), [booking]);
+  const storedAssignments = useMemo(() => (booking?.transportAssignments || []).map(normalizeEventTransportAssignment), [booking]);
   const transportGuests = useMemo(() => guests.filter((item) => item.transportRequired || (item.hospitalityNeeds || []).some((need) => /pickup|drop|transport|transfer/i.test(need))), [guests]);
   const assignments = useMemo(() => {
     const assignedGuestIds = new Set(storedAssignments.map((item) => idOf(item.guest)));
     const pending = transportGuests.filter((guest) => !assignedGuestIds.has(idOf(guest))).map((guest) => ({ guest: guest._id, guestCount: guest.memberCount || 1, status: 'Pending Assignment', isPendingProjection: true }));
     return [...storedAssignments, ...pending];
   }, [storedAssignments, transportGuests]);
-  const services = useMemo(() => Array.from(new Set([...(booking?.servicesRequired || []), ...(booking?.servicesSelected || []).map((item) => item.service).filter(Boolean)])), [booking]);
+  const services = useMemo(() => getEventServiceNames(booking), [booking]);
   const peakGuests = Math.max(Number(booking?.guestCount || 0), ...functions.map((item) => Number(item.guestCount || 0)));
   const metrics = useMemo(() => ({ functions: functions.length, services: services.length, peakGuests, preferences: getFinalPreferenceCount(booking), approvals: (booking?.approvals || []).filter((item) => item.status === 'Pending').length + (booking?.finance?.approvalStatus === 'Pending' ? 1 : 0) }), [booking, functions, peakGuests, services]);
 

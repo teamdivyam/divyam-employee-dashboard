@@ -1,10 +1,9 @@
 /* eslint-disable react/prop-types */
-import { CalendarDays, ChevronRight, Clock3, Eye, Hand, Heart, MoreVertical, PartyPopper, Plus, UsersRound } from 'lucide-react';
+import { CalendarDays, ChevronRight, Clock3, Eye, Hand, Heart, PartyPopper, Plus, UsersRound } from 'lucide-react';
 
 import { Badge } from '@components/components/ui/badge';
 import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './EventTable';
 
 const icons = [PartyPopper, Hand, Heart, CalendarDays];
@@ -64,8 +63,8 @@ export default function EventFunctionsTable({ functions, defaultServices, onAdd,
             <TableBody>
               {functions.length ? functions.map((item, index) => {
                 const Icon = icons[index % icons.length];
-                const scheduled = dateParts(item.date);
-                const linkedServices = item.linkedServices?.length ? item.linkedServices : defaultServices;
+                const scheduled = dateParts(item.fromDate || item.date);
+                const linkedServices = item.linkedServices ?? defaultServices;
                 return (
                   <TableRow key={item._id || `${item.name}-${index}`}>
                     <TableCell className="pl-6"><div className="flex items-center gap-3"><span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${iconTones[index % iconTones.length]}`}><Icon className="h-4 w-4" /></span><span className="font-semibold text-foreground">{item.name}</span></div></TableCell>
@@ -74,7 +73,7 @@ export default function EventFunctionsTable({ functions, defaultServices, onAdd,
                     <TableCell><span className="flex items-center gap-2 font-semibold"><UsersRound className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />{item.guestCount || 0}</span></TableCell>
                     <TableCell><div className="flex flex-wrap gap-1.5">{linkedServices.length ? linkedServices.slice(0, 4).map((service, serviceIndex) => <Badge key={service} variant="outline" className={`rounded px-2 py-0.5 text-[9px] ${serviceTones[serviceIndex % serviceTones.length]}`}>{service}</Badge>) : <span className="text-muted-foreground">No services linked</span>}</div></TableCell>
                     <TableCell><Badge variant="outline" className={`whitespace-nowrap rounded px-2 py-0.5 text-[10px] ${statusTone(item.status)}`}>{item.status || 'Planned'}</Badge></TableCell>
-                    <TableCell className="pr-6 text-right"><div className="flex items-center justify-end gap-1"><Button variant="outline" size="sm" className="h-8 gap-1.5 px-3 text-blue-700" onClick={() => onEdit(item)}><Eye className="h-4 w-4" />View</Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => onEdit(item)}>Edit function</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></TableCell>
+                    <TableCell className="pr-6 text-right"><div className="flex items-center justify-end"><Button variant="outline" size="sm" className="h-8 gap-1.5 px-3 text-blue-700" onClick={() => onEdit(item)}><Eye className="h-4 w-4" />View</Button></div></TableCell>
                   </TableRow>
                 );
               }) : (

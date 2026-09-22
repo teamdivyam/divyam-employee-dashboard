@@ -758,7 +758,7 @@ export default function MyTasksPage() {
             dueDateChangeMutation={dueDateChangeMutation}
             dueDateChangeRespondMutation={dueDateChangeRespondMutation}
             escalateMutation={escalateMutation}
-            deleteTaskMutation={deleteTaskMutation}
+            deleteTaskMutation={['Super Admin', 'Admin'].includes(currentEmployee?.accessRole) ? deleteTaskMutation : null}
           />
         </DialogContent>
       </Dialog>

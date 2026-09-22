@@ -42,7 +42,7 @@ export default function EventClientApprovalsPage() {
   const booking = getBookingDetail(bookingQuery.data);
   const employees = getEmployees(managersQuery.data);
   const functions = useMemo(() => booking?.functions || [], [booking]);
-  const services = useMemo(() => Array.from(new Set([...(booking?.servicesRequired || []), ...(booking?.servicesSelected || []).map((item) => item.service).filter(Boolean)])), [booking]);
+  const services = useMemo(() => Array.from(new Set([...(booking?.servicesRequired || []), ...(booking?.servicesSelected || []).map((item) => item.name || item.service).filter(Boolean)])), [booking]);
   const approvals = useMemo(() => booking?.approvals || [], [booking]);
   const metrics = useMemo(() => ({
     functions: functions.length,

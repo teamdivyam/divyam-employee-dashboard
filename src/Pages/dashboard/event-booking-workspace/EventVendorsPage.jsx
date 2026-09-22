@@ -62,7 +62,7 @@ export default function EventVendorsPage() {
   const employees = getEmployees(managersQuery.data);
   const vendors = getVendors(vendorsQuery.data);
   const functions = useMemo(() => booking?.functions || [], [booking]);
-  const services = useMemo(() => Array.from(new Set([...(booking?.servicesRequired || []), ...(booking?.servicesSelected || []).map((item) => item.service).filter(Boolean)])), [booking]);
+  const services = useMemo(() => Array.from(new Set([...(booking?.servicesRequired || []), ...(booking?.servicesSelected || []).map((item) => item.name || item.service).filter(Boolean)])), [booking]);
   const metrics = useMemo(() => ({
     functions: functions.length,
     services: services.length,

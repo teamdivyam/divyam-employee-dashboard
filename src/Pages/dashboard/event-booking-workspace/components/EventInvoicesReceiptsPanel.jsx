@@ -473,6 +473,7 @@ function ErrorState({ error, onRetry }) {
 }
 
 export default function EventInvoicesReceiptsPanel({
+  readOnly = false,
   view,
   onViewChange,
   data,
@@ -564,10 +565,12 @@ export default function EventInvoicesReceiptsPanel({
               <SelectItem value="this-year">This year</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="custom" onClick={() => setCreateOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Invoice
-          </Button>
+          {!readOnly && (
+            <Button variant="custom" onClick={() => setCreateOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Invoice
+            </Button>
+          )}
         </div>
       </div>
       {loading && !data ? (
@@ -795,13 +798,15 @@ export default function EventInvoicesReceiptsPanel({
           </Card>
         </>
       )}
-      <CreateInvoiceDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        options={data?.options || {}}
-        saving={creatingInvoice}
-        onSave={onCreateInvoice}
-      />
+      {!readOnly && (
+        <CreateInvoiceDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          options={data?.options || {}}
+          saving={creatingInvoice}
+          onSave={onCreateInvoice}
+        />
+      )}
       <Dialog
         open={Boolean(selectedInvoice)}
         onOpenChange={(open) => !open && setSelectedInvoice(null)}

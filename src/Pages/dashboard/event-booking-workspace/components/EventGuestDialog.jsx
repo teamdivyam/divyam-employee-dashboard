@@ -16,11 +16,20 @@ const emptyForm = { name: '', contact: '', email: '', memberCount: 1, functions:
 const idOf = (value) => String(value?._id || value || '');
 const fromItem = (item) => {
   if (!item) return emptyForm;
-  const needs = item.hospitalityNeeds || [];
+  const needs = [...new Set([
+    ...(item.hospitalityNeeds || []),
+    ...(item.isVip ? ['VIP'] : []),
+    ...(item.stayRequired ? ['Stay'] : []),
+    ...(item.transportRequired && !(item.hospitalityNeeds || []).some((need) => /pickup|drop|transport|transfer/i.test(need)) ? ['Airport Pickup'] : []),
+  ])];
+  const customNeeds = [
+    ...needs.filter((need) => !commonNeeds.includes(need)),
+    item.specialRequirements,
+  ].filter(Boolean);
   return {
     name: item.name || '', contact: item.contact || '', email: item.email || '', memberCount: item.memberCount || 1,
     functions: (item.functions || []).map(idOf).filter(Boolean), rsvpStatus: item.rsvpStatus || 'Pending',
-    hospitalityNeeds: needs.filter((need) => commonNeeds.includes(need)), customNeeds: needs.filter((need) => !commonNeeds.includes(need)).join(', '), notes: item.notes || '',
+    hospitalityNeeds: needs.filter((need) => commonNeeds.includes(need)), customNeeds: [...new Set(customNeeds)].join(', '), notes: item.notes || '',
   };
 };
 
@@ -36,7 +45,7 @@ export default function EventGuestDialog({ open, onOpenChange, item, functions, 
     onSave({
       name: form.name.trim(), contact: form.contact.trim() || undefined, email: form.email.trim() || undefined,
       memberCount: Math.max(1, Number(form.memberCount || 1)), functions: form.functions, rsvpStatus: form.rsvpStatus,
-      hospitalityNeeds, isVip: hospitalityNeeds.includes('VIP'), stayRequired: hospitalityNeeds.includes('Stay'), transportRequired: hospitalityNeeds.some((need) => /pickup|drop|transport|transfer/i.test(need)), notes: form.notes.trim() || undefined,
+      hospitalityNeeds, isVip: hospitalityNeeds.includes('VIP'), stayRequired: hospitalityNeeds.includes('Stay'), transportRequired: hospitalityNeeds.some((need) => /pickup|drop|transport|transfer/i.test(need)), specialRequirements: form.customNeeds.trim() || undefined, notes: form.notes.trim() || undefined,
     });
   };
 

@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import { useEffect, useMemo, useState } from "react";
-import { CheckSquare2, ClipboardList, Eye, MoreVertical, Plus, Search } from "lucide-react";
+import { CheckSquare2, ClipboardList, Eye, Plus, Search } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@components/components/ui/avatar";
 import { Badge } from "@components/components/ui/badge";
@@ -142,7 +142,7 @@ export default function EventTasksPanel({ booking, sideContent, onCreateTask, on
                       <TableCell><Badge variant="outline" className={`rounded-full px-2 py-0.5 text-[10px] ${priorityTone(task.priority)}`}>{task.priority || "Medium"}</Badge></TableCell>
                       <TableCell><Badge variant="outline" className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] ${statusTone(task.status)}`}>{task.status || "Pending"}</Badge></TableCell>
                       <TableCell><div className="flex items-center gap-2"><div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-blue-600" style={{ width: `${progress}%` }} /></div><span>{progress}%</span></div></TableCell>
-                      <TableCell className="text-right"><div className="flex items-center justify-end gap-1"><Button variant="outline" size="sm" onClick={() => onViewTask(task)} className="h-8 gap-1.5 border-blue-300 bg-transparent px-3 text-blue-700 hover:bg-blue-50 hover:text-blue-800"><Eye className="h-4 w-4" />View</Button><Button variant="ghost" size="icon" onClick={() => onViewTask(task)} className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></div></TableCell>
+                      <TableCell className="text-right"><div className="flex items-center justify-end"><Button variant="outline" size="sm" onClick={() => onViewTask(task)} className="h-8 gap-1.5 border-blue-300 bg-transparent px-3 text-blue-700 hover:bg-blue-50 hover:text-blue-800"><Eye className="h-4 w-4" />View</Button></div></TableCell>
                     </TableRow>
                   );
                 }) : <TableRow><TableCell colSpan={9} className="h-36 text-center"><CheckSquare2 className="mx-auto mb-2 h-8 w-8 text-muted-foreground" /><p className="font-semibold">No tasks found</p><p className="mt-1 text-[11px] text-muted-foreground">Create a task or adjust the current filters.</p></TableCell></TableRow>}

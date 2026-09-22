@@ -87,7 +87,7 @@ export default function EventOperationsPage() {
   const booking = getBookingDetail(bookingQuery.data);
   const employees = getEmployees(managersQuery.data);
   const functions = useMemo(() => booking?.functions || [], [booking]);
-  const services = useMemo(() => Array.from(new Set([...(booking?.servicesRequired || []), ...(booking?.servicesSelected || []).map((item) => item.service).filter(Boolean)])), [booking]);
+  const services = useMemo(() => Array.from(new Set([...(booking?.servicesRequired || []), ...(booking?.servicesSelected || []).map((item) => item.name || item.service).filter(Boolean)])), [booking]);
   const team = useMemo(() => {
     if (!booking) return [];
     const members = [...(booking.assignedTeam || [])];

@@ -62,7 +62,7 @@ function StatusBadge({ status }) {
   );
 }
 
-function SettlementActions({ settlement, onView, onEdit, onRecord }) {
+function SettlementActions({ settlement, onView, onEdit, onRecord, readOnly }) {
   return (
     <div className="flex justify-end gap-1">
       <Button
@@ -74,7 +74,7 @@ function SettlementActions({ settlement, onView, onEdit, onRecord }) {
         <Eye className="mr-2 h-4 w-4" />
         View
       </Button>
-      <DropdownMenu>
+      {!readOnly && <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             size="icon"
@@ -98,7 +98,7 @@ function SettlementActions({ settlement, onView, onEdit, onRecord }) {
             Record payment
           </DropdownMenuItem>
         </DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu>}
     </div>
   );
 }
@@ -113,6 +113,7 @@ export default function EventVendorSettlementRegister({
   onViewSettlement,
   onEditSettlement,
   onRecordPayment,
+  readOnly = false,
 }) {
   if (loading && !data) return <LoadingState />;
   if (error && !data) return <ErrorState error={error} onRetry={onRetry} />;
@@ -181,6 +182,7 @@ export default function EventVendorSettlementRegister({
                           onView={onViewSettlement}
                           onEdit={onEditSettlement}
                           onRecord={onRecordPayment}
+                          readOnly={readOnly}
                         />
                       </TableCell>
                     </TableRow>

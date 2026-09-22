@@ -194,8 +194,8 @@ const EventBookingWorkspaceService = {
     axiosRequest.post(eventPath(eventId, "/approvals"), formData),
   updateEventClientApproval: ({ eventId, approvalId, ...formData }) =>
     axiosRequest.patch(eventPath(eventId, `/approvals/${approvalId}`), formData),
-  adminAddCustomerPreference: ({ customerId, formData }) =>
-    axiosRequest.post(`/employee-event-booking/customers/${customerId}/preference`, formData),
+  adminAddCustomerPreference: ({ eventId, customerId, formData }) =>
+    axiosRequest.post(eventPath(eventId, `/customers/${customerId}/preference`), formData),
   getVendors: ({ eventId, ...params }) =>
     axiosRequest.get(eventPath(eventId, "/vendor-options"), { params }),
   addVendorDocument: ({ eventId, vendorId, formData }) =>

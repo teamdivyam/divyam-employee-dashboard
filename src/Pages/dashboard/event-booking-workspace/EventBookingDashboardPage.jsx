@@ -139,7 +139,6 @@ export default function EventBookingDashboardPage() {
       page: 1,
       limit: 100,
       search: '',
-      leadStatus: 'Booked',
     })).data,
   });
   const employeesQuery = useQuery({

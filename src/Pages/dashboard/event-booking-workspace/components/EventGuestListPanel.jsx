@@ -6,13 +6,15 @@ import {
   Download,
   Eye,
   Filter,
+  MessageCircle,
+  Phone,
   Plus,
   Search,
   UserRound,
-  UsersRound,
 } from "lucide-react";
 
 import { Badge } from "@components/components/ui/badge";
+import { Avatar, AvatarFallback } from "@components/components/ui/avatar";
 import { Button } from "@components/components/ui/button";
 import { Card, CardContent } from "@components/components/ui/card";
 import { Input } from "@components/components/ui/input";
@@ -32,6 +34,8 @@ import {
   TableRow,
 } from "./EventTable";
 import EventGuestsNav from "./EventGuestsNav";
+import { initials } from "../eventBookingDashboard.utils";
+import { getEventGuestNeeds } from "../eventRecordAdapters";
 
 const idOf = (value) => String(value?._id || value || "");
 const functionTones = [
@@ -39,6 +43,13 @@ const functionTones = [
   "border-violet-200 bg-violet-50 text-violet-700",
   "border-emerald-200 bg-emerald-50 text-emerald-700",
 ];
+const phoneFor = (item) => {
+  const digits = String(item.contact || "").replace(/\D/g, "");
+  const code = String(item.countryCode || "+91").replace(/\D/g, "");
+  return digits.startsWith(code) && (String(item.contact).startsWith("+") || (code === "91" && digits.length === 12))
+    ? digits
+    : code + digits;
+};
 const needTones = [
   "border-amber-200 bg-amber-50 text-amber-700",
   "border-blue-200 bg-blue-50 text-blue-700",
@@ -89,7 +100,7 @@ export default function EventGuestListPanel({
           return false;
         if (rsvpFilter !== "all" && item.rsvpStatus !== rsvpFilter)
           return false;
-        if (needsOnly && !(item.hospitalityNeeds || []).length) return false;
+        if (needsOnly && !getEventGuestNeeds(item).length) return false;
         return true;
       }),
     [functionFilter, guests, needsOnly, rsvpFilter, search],
@@ -237,24 +248,20 @@ export default function EventGuestListPanel({
                     <TableRow key={idOf(item)}>
                       <TableCell className="pl-6">
                         <div className="flex items-center gap-2">
-                          <span
-                            className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${functionTones[index % functionTones.length]}`}
-                          >
-                            <UsersRound className="h-4 w-4" />
-                          </span>
+                          <Avatar className="h-8 w-8 shrink-0">
+                            <AvatarFallback className={functionTones[index % functionTones.length]}>{initials(item.name)}</AvatarFallback>
+                          </Avatar>
                           <div className="min-w-0">
                             <p className="truncate font-semibold text-foreground">
                               {item.name}
                             </p>
-                            {item.email ? (
-                              <p className="truncate text-[10px] text-muted-foreground">
-                                {item.email}
-                              </p>
-                            ) : null}
+                            <p className="truncate text-[10px] text-muted-foreground">
+                              {[item.comingFrom, item.guestType || (item.memberCount > 1 ? "Family" : "Individual")].filter(Boolean).join(" : ")}
+                            </p>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{item.contact || "-"}</TableCell>
+                      <TableCell>{item.contact ? <div className="space-y-1"><a href={`tel:+${phoneFor(item)}`} className="flex items-center gap-1 text-[11px]"><Phone className="h-3 w-3" />+{phoneFor(item)}</a><a href={`https://wa.me/${phoneFor(item)}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-300"><MessageCircle className="h-3 w-3" />WhatsApp</a></div> : "-"}</TableCell>
                       <TableCell className="text-center font-semibold">
                         {item.memberCount || 1}
                       </TableCell>
@@ -291,8 +298,8 @@ export default function EventGuestListPanel({
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          {(item.hospitalityNeeds || []).length ? (
-                            item.hospitalityNeeds.map((need, needIndex) => (
+                          {getEventGuestNeeds(item).length ? (
+                            getEventGuestNeeds(item).map((need, needIndex) => (
                               <Badge
                                 key={need}
                                 variant="outline"

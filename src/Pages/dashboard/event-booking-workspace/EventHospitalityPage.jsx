@@ -81,9 +81,9 @@ export default function EventHospitalityPage() {
   );
   const summaryItems = useMemo(() => [
     { label: 'Requirements', value: requirements.length, caption: 'Total', icon: ConciergeBell, tone: 'violet' },
-    { label: 'Finalised', value: requirements.filter((item) => ['Finalised', 'Completed'].includes(item.status)).length, caption: 'Ready to deliver', icon: ClipboardCheck, tone: 'emerald' },
-    { label: 'In Planning', value: requirements.filter((item) => item.status === 'In Planning').length, caption: 'Being prepared', icon: ClipboardList, tone: 'orange' },
-    { label: 'Pending', value: requirements.filter((item) => !item.status || item.status === 'Pending').length, caption: 'Awaiting details', icon: Hourglass, tone: 'rose' },
+    { label: 'Finalised', value: requirements.filter((item) => ['Finalised', 'Completed'].includes(item.planningStatus || item.status)).length, caption: 'Ready to deliver', icon: ClipboardCheck, tone: 'emerald' },
+    { label: 'In Planning', value: requirements.filter((item) => (item.planningStatus || item.status) === 'In Planning').length, caption: 'Being prepared', icon: ClipboardList, tone: 'orange' },
+    { label: 'Pending', value: requirements.filter((item) => !(item.planningStatus || item.status) || (item.planningStatus || item.status) === 'Pending').length, caption: 'Awaiting details', icon: Hourglass, tone: 'rose' },
     { label: 'VIP Guests', value: vipGuests, caption: 'Special attention', icon: Crown, tone: 'blue' },
   ], [requirements, vipGuests]);
 

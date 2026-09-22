@@ -46,7 +46,7 @@ export default function EventAccommodationPage() {
     const pending = stayGuests.filter((guest) => !allocatedGuestIds.has(idOf(guest))).map((guest) => ({ guest: guest._id, guestCount: guest.memberCount || 1, status: 'Pending Allocation', roomNumbers: [], isPendingProjection: true }));
     return [...storedAllocations, ...pending];
   }, [stayGuests, storedAllocations]);
-  const services = useMemo(() => Array.from(new Set([...(booking?.servicesRequired || []), ...(booking?.servicesSelected || []).map((item) => item.service).filter(Boolean)])), [booking]);
+  const services = useMemo(() => Array.from(new Set([...(booking?.servicesRequired || []), ...(booking?.servicesSelected || []).map((item) => item.name || item.service).filter(Boolean)])), [booking]);
   const peakGuests = Math.max(Number(booking?.guestCount || 0), ...functions.map((item) => Number(item.guestCount || 0)));
   const metrics = useMemo(() => ({ functions: functions.length, services: services.length, peakGuests, preferences: getFinalPreferenceCount(booking), approvals: (booking?.approvals || []).filter((item) => item.status === 'Pending').length + (booking?.finance?.approvalStatus === 'Pending' ? 1 : 0) }), [booking, functions, peakGuests, services]);
 

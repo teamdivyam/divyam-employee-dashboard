@@ -22,6 +22,7 @@ import { Input } from '@components/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './EventTable';
 import EventGuestsNav from './EventGuestsNav';
+import { normalizeEventHospitalityRequirement } from '../eventRecordAdapters';
 
 const PAGE_SIZE = 10;
 const statuses = ['Pending', 'In Planning', 'Finalised', 'Completed', 'Cancelled'];
@@ -72,12 +73,16 @@ const ownerInitials = (name) => String(name || 'TA')
   .toUpperCase();
 
 export default function EventHospitalityPanel({
-  requirements,
+  requirements: sourceRequirements,
   functions,
   onGuestTab,
   onAdd,
   onEdit,
 }) {
+  const requirements = useMemo(
+    () => sourceRequirements.map(normalizeEventHospitalityRequirement),
+    [sourceRequirements],
+  );
   const [search, setSearch] = useState('');
   const [functionFilter, setFunctionFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');

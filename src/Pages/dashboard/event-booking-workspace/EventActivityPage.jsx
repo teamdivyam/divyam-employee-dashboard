@@ -123,7 +123,19 @@ const validDate = (value) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-const dateKey = (value) => validDate(value)?.toDateString() || "Unknown date";
+const ACTIVITY_TIME_ZONE = "Asia/Kolkata";
+
+const dateKey = (value) => {
+  const date = validDate(value);
+  return date
+    ? new Intl.DateTimeFormat("en-CA", {
+        timeZone: ACTIVITY_TIME_ZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(date)
+    : "Unknown date";
+};
 const dateLabel = (value) => {
   const date = validDate(value);
   if (!date) return { date: "Unknown date", weekday: "" };
@@ -132,15 +144,23 @@ const dateLabel = (value) => {
       day: "2-digit",
       month: "short",
       year: "numeric",
+      timeZone: ACTIVITY_TIME_ZONE,
     }).format(date),
-    weekday: new Intl.DateTimeFormat("en-GB", { weekday: "long" }).format(date),
+    weekday: new Intl.DateTimeFormat("en-GB", {
+      weekday: "long",
+      timeZone: ACTIVITY_TIME_ZONE,
+    }).format(date),
   };
 };
 
 const timeLabel = (value) => {
   const date = validDate(value);
   return date
-    ? new Intl.DateTimeFormat("en-IN", { hour: "2-digit", minute: "2-digit" }).format(date)
+    ? new Intl.DateTimeFormat("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: ACTIVITY_TIME_ZONE,
+      }).format(date)
     : "—";
 };
 
@@ -153,6 +173,7 @@ const dateTimeLabel = (value) => {
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: ACTIVITY_TIME_ZONE,
       }).format(date)
     : "—";
 };
@@ -469,7 +490,7 @@ export default function EventActivityPage() {
         new Set([
           ...(booking?.servicesRequired || []),
           ...(booking?.servicesSelected || [])
-            .map((item) => item.service)
+            .map((item) => item.name || item.service)
             .filter(Boolean),
         ]),
       ),

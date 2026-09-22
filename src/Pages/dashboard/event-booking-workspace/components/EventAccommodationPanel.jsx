@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Eye,
   Filter,
-  MoreVertical,
   Plus,
   Search,
   UsersRound,
@@ -415,22 +414,6 @@ export default function EventAccommodationPanel({
                               View
                             </Button>
 
-                            {item._id ? (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onSelect={() => onEditAllocation(item)}
-                                  >
-                                    Edit allocation
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            ) : null}
                           </div>
                         </TableCell>
                       </TableRow>

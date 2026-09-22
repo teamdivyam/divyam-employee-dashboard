@@ -47,6 +47,7 @@ const emptyOptions = {};
 const emptyList = [];
 
 export default function EventCostSettlementsPanel({
+  readOnly = false,
   view,
   onViewChange,
   vendorData,
@@ -125,6 +126,7 @@ export default function EventCostSettlementsPanel({
 
         {view === "expenses" ? (
           <ExpenseToolbar
+            readOnly={readOnly}
             filters={expenseFilters}
             options={expenseOptions}
             activeExtraFilters={activeExtraFilters}
@@ -134,6 +136,7 @@ export default function EventCostSettlementsPanel({
           />
         ) : (
           <VendorSettlementToolbar
+            readOnly={readOnly}
             filters={vendorFilters}
             options={vendorOptions}
             onFilterChange={setVendorFilter}
@@ -153,6 +156,7 @@ export default function EventCostSettlementsPanel({
         />
       ) : (
         <EventVendorSettlementRegister
+          readOnly={readOnly}
           data={vendorData}
           filters={vendorFilters}
           onFiltersChange={onVendorFiltersChange}
@@ -165,21 +169,25 @@ export default function EventCostSettlementsPanel({
         />
       )}
 
-      <SettlementTermsDialog
-        settlement={termsSettlement}
-        onOpenChange={setTermsSettlement}
-        saving={updatingSettlement}
-        onSave={onUpdateSettlement}
-      />
-      <RecordSettlementDialog
-        open={recordDialog.open}
-        onOpenChange={setRecordDialogOpen}
-        settlements={vendorOptions.vendors || emptyList}
-        selected={recordDialog.settlement}
-        paymentModes={vendorOptions.paymentModes || defaultPaymentModes}
-        saving={recordingSettlement}
-        onSave={onRecordSettlement}
-      />
+      {!readOnly && (
+        <>
+          <SettlementTermsDialog
+            settlement={termsSettlement}
+            onOpenChange={setTermsSettlement}
+            saving={updatingSettlement}
+            onSave={onUpdateSettlement}
+          />
+          <RecordSettlementDialog
+            open={recordDialog.open}
+            onOpenChange={setRecordDialogOpen}
+            settlements={vendorOptions.vendors || emptyList}
+            selected={recordDialog.settlement}
+            paymentModes={vendorOptions.paymentModes || defaultPaymentModes}
+            saving={recordingSettlement}
+            onSave={onRecordSettlement}
+          />
+        </>
+      )}
       <SettlementDetailDialog
         settlement={detailSettlement}
         onOpenChange={setDetailSettlement}
@@ -193,13 +201,15 @@ export default function EventCostSettlementsPanel({
           onExpenseFiltersChange({ ...expenseFilters, ...values, page: 1 })
         }
       />
-      <AddExpenseDialog
-        open={expenseOpen}
-        onOpenChange={setExpenseOpen}
-        options={expenseOptions}
-        saving={addingExpense}
-        onSave={onAddExpense}
-      />
+      {!readOnly && (
+        <AddExpenseDialog
+          open={expenseOpen}
+          onOpenChange={setExpenseOpen}
+          options={expenseOptions}
+          saving={addingExpense}
+          onSave={onAddExpense}
+        />
+      )}
     </div>
   );
 }
