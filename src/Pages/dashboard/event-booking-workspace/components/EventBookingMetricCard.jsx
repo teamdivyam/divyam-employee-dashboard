@@ -1,21 +1,48 @@
-export default function MetricCard({ label, value, icon: Icon, tone, onOpen }) {
-  const iconStyle = {
-    blue: { backgroundColor: '#eaf3ff', color: '#0867e8' },
-    green: { backgroundColor: '#ecf9f2', color: '#109a52' },
-    amber: { backgroundColor: '#fff3e8', color: '#ff6b1a' },
-    violet: { backgroundColor: '#f2eaff', color: '#6d28d9' },
-    red: { backgroundColor: '#fff0f1', color: '#ef233c' },
-  }[tone];
+import PropTypes from 'prop-types';
+import { Card } from '@components/components/ui/card';
 
+const tones = {
+  blue: 'bg-blue-50/80 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300',
+  green: 'bg-emerald-50/80 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300',
+  amber: 'bg-amber-50/80 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300',
+  violet: 'bg-violet-50/80 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300',
+  red: 'bg-red-50/80 text-red-600 dark:bg-red-400/10 dark:text-red-300',
+};
+
+export default function MetricCard({ label, value, icon: Icon, tone, description, footer, onOpen, loading }) {
+  const Content = onOpen ? 'button' : 'div';
   return (
-    <button type="button" className="event-booking-metric-card group text-left outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onOpen}>
-      <span className="admin-task-metric-icon" style={iconStyle}>
-        <Icon aria-hidden="true" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="admin-task-metric-label">{label}</p>
-        <p className="event-booking-metric-value">{value ?? 0}</p>
-      </div>
-    </button>
+    <Card className={`min-w-0 overflow-hidden border-0 shadow-none ${tones[tone]}`}>
+      <Content
+        {...(onOpen ? { type: 'button', onClick: onOpen } : {})}
+        className="flex h-full w-full min-w-0 flex-col rounded-lg p-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        aria-busy={loading}
+      >
+        <div className="flex w-full items-start gap-2.5">
+          <span className="relative grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-lg">
+            <span className="absolute inset-0 bg-current opacity-15" />
+            <Icon className="relative h-4 w-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-medium leading-5 text-foreground">{label}</p>
+            <p className="mt-1 break-words text-base font-bold leading-tight tracking-tight text-foreground">{loading ? '�' : value ?? '�'}</p>
+          </div>
+          {/* {onOpen && <ChevronRight className="mt-5 h-4 w-4 shrink-0" aria-hidden="true" />} */}
+        </div>
+        <p className={`mt-3 text-[11px] leading-4 ${tone === 'amber' || tone === 'red' ? '' : 'text-muted-foreground'}`}>{description}</p>
+        {footer && <p className="mt-2 w-full rounded bg-emerald-100/60 px-1.5 py-1 text-[10px] leading-4 text-muted-foreground dark:bg-emerald-400/10">{footer}</p>}
+      </Content>
+    </Card>
   );
 }
+
+MetricCard.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  icon: PropTypes.elementType.isRequired,
+  tone: PropTypes.oneOf(Object.keys(tones)).isRequired,
+  description: PropTypes.string,
+  footer: PropTypes.string,
+  onOpen: PropTypes.func,
+  loading: PropTypes.bool,
+};

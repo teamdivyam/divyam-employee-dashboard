@@ -1,6 +1,16 @@
 /* eslint-disable react/prop-types */
-import { useEffect, useState } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@components/components/ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@components/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@components/components/ui/command";
+import { format } from "date-fns";
+import AdminService from "../../../../services/event-booking-workspace.service";
+import { getEmployees } from "./EventBookingComponents";
+import ExpenseFormDialog from "../../ExpenseManagement/components/employee-detail-expense/AddExpenseDialog";
+import FormSelectField from "../../ExpenseManagement/components/employee-detail-expense/expense-form/FormSelectField";
+import CompactField from "../../ExpenseManagement/components/employee-detail-expense/expense-form/CompactField";
 
 import { Button } from "@components/components/ui/button";
 import {
@@ -20,7 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@components/components/ui/select";
-import { Textarea } from "@components/components/ui/textarea";
 import { numberOf } from "../eventFinance.utils";
 
 const settlementForFundingSource = (fundingSource) => {
@@ -30,323 +39,145 @@ const settlementForFundingSource = (fundingSource) => {
   return "Not Applicable";
 };
 
-export function AddExpenseDialog({
-  open,
-  onOpenChange,
-  options,
-  saving,
-  onSave,
-}) {
-  const [form, setForm] = useState({
-    expenseTitle: "",
-    category: "",
-    paidByName: "",
-    fundingSource: "Company Payment",
-    amount: "",
-    date: "",
-    paymentMode: "UPI",
-    approvalStatus: "Approved",
-    settlementStatus: "Company Paid",
-    billNumber: "",
-    notes: "",
-    billReceipt: null,
-  });
-  const [error, setError] = useState("");
+const sourceValues = {
+  "Paid Personally": "Personal Funds",
+  "Office Expense Advance": "Company Advance",
+  "Paid Directly by Company": "Company Payment",
+};
 
+function EmployeeAvatar({ employee }) {
+  const photo = employee?.profileImage;
+  return <Avatar className="h-6 w-6 shrink-0">
+    <AvatarImage src={photo?.smallUrl || photo?.small || photo?.url || (typeof photo === "string" ? photo : undefined)} alt={employee.name} className="object-cover" />
+    <AvatarFallback className="text-[9px]">{employee.name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</AvatarFallback>
+  </Avatar>;
+}
+
+export function AddExpenseDialog({ open, onOpenChange, options, saving, onSave, booking }) {
+  const [form, setForm] = useState({});
+  const [errors, setErrors] = useState({});
+  const [employeePickerOpen, setEmployeePickerOpen] = useState(false);
+  const employeeTriggerRef = useRef(null);
+  const employeesQuery = useQuery({
+    queryKey: ["event-expense-managers"],
+    enabled: open && form.expenseBy === "Employee",
+    queryFn: async () => {
+      const result = [];
+      let page = 1;
+      while (true) {
+        const { data } = await AdminService.getEventBookingManagers({ page, limit: 100, search: "" });
+        const batch = getEmployees(data);
+        const fresh = batch.filter((item) => !result.some((entry) => entry._id === item._id));
+        result.push(...fresh);
+        if (batch.length < 100 || !fresh.length) break;
+        page += 1;
+      }
+      return result;
+    },
+  });
+  const employees = employeesQuery.data || [];
+  const selectedEmployee = employees.find((employee) => employee._id === form.employeeId);
   useEffect(() => {
     if (!open) return;
-
-    setForm({
-      expenseTitle: "",
-      category: options.categories?.[0] || "",
-      paidByName: "",
-      fundingSource: "Company Payment",
-      amount: "",
-      date: new Date().toISOString().slice(0, 10),
-      paymentMode: options.paymentModes?.[0] || "UPI",
-      approvalStatus: "Approved",
-      settlementStatus: "Company Paid",
-      billNumber: "",
-      notes: "",
-      billReceipt: null,
+    setForm({ expenseName: "", expenseDate: format(new Date(), "yyyy-MM-dd"), expenseFor: "Event",
+      linkedTo: booking?.eventName || "", category: options.categories?.[0] || "",
+      paymentSource: "Paid Directly by Company", expenseAmount: "", paidTo: "",
+      businessPurpose: "", supportingNote: "", attachments: [], expenseBy: "Company", employeeId: "",
+      paymentMode: options.paymentModes?.[0] || "UPI", approvalStatus: "Approved", settlementStatus: "Company Paid", billNumber: "",
     });
-    setError("");
-  }, [open, options.categories, options.paymentModes]);
-
-  const update = (key, value) =>
-    setForm((state) => ({ ...state, [key]: value }));
-
-  const updateFundingSource = (fundingSource) =>
-    setForm((state) => ({
-      ...state,
-      fundingSource,
-      settlementStatus:
-        state.approvalStatus === "Approved"
-          ? settlementForFundingSource(fundingSource)
-          : "Not Applicable",
-    }));
-
-  const updateApprovalStatus = (approvalStatus) =>
-    setForm((state) => ({
-      ...state,
-      approvalStatus,
-      settlementStatus:
-        approvalStatus === "Approved"
-          ? settlementForFundingSource(state.fundingSource)
-          : "Not Applicable",
-    }));
-
-  const submit = async (event) => {
-    event.preventDefault();
-
-    if (
-      !form.expenseTitle.trim() ||
-      !form.paidByName.trim() ||
-      !form.category ||
-      numberOf(form.amount) <= 0
-    ) {
-      setError("Title, category, paid by, and amount are required.");
-      return;
-    }
-
+    setErrors({});
+    setEmployeePickerOpen(false);
+    // Preserve entered values when background queries update options or booking.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+  const update = (key, value) => {
+    setErrors((current) => ({ ...current, [key]: undefined }));
+    setForm((current) => {
+      const next = { ...current, [key]: value };
+      if (key === "expenseBy") {
+        next.employeeId = "";
+        next.paymentSource = "Paid Directly by Company";
+      }
+      if (["expenseBy", "paymentSource", "approvalStatus"].includes(key)) {
+        next.settlementStatus = next.approvalStatus === "Approved" ? settlementForFundingSource(sourceValues[next.paymentSource]) : "Not Applicable";
+      }
+      return next;
+    });
+  };
+  const submit = async () => {
+    if (saving) return;
+    const nextErrors = {};
+    if (!form.expenseName.trim()) nextErrors.expenseName = "Expense name is required.";
+    if (!form.expenseDate) nextErrors.expenseDate = "Expense date is required.";
+    if (!form.category) nextErrors.category = "Category is required.";
+    if (!Number.isFinite(Number(form.expenseAmount)) || numberOf(form.expenseAmount) <= 0) nextErrors.expenseAmount = "Enter a positive expense amount.";
+    const employee = employees.find((item) => item._id === form.employeeId);
+    if (form.expenseBy === "Employee" && !employee) nextErrors.employeeId = "Select an employee.";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
     try {
       await onSave({
-        ...form,
-        expenseTitle: form.expenseTitle.trim(),
-        paidByName: form.paidByName.trim(),
-        paidTo: form.paidByName.trim(),
-        amount: numberOf(form.amount),
-        billNumber: form.billNumber.trim(),
-        notes: form.notes.trim(),
+        expenseTitle: form.expenseName.trim(), date: form.expenseDate, category: form.category,
+        amount: numberOf(form.expenseAmount), expenseBy: form.expenseBy,
+        employeeId: form.expenseBy === "Employee" ? form.employeeId : undefined,
+        paidByName: form.expenseBy === "Employee" ? employee.name : "Company",
+        paidTo: form.paidTo.trim(), fundingSource: sourceValues[form.paymentSource],
+        expenseFor: form.expenseFor, linkedTo: form.linkedTo.trim(), businessPurpose: form.businessPurpose.trim(),
+        notes: form.supportingNote.trim(), paymentMode: form.paymentMode, approvalStatus: form.approvalStatus,
+        settlementStatus: form.settlementStatus, billNumber: form.billNumber.trim(), billReceipt: form.attachments[0] || null,
       });
       onOpenChange(false);
-    } catch {
-      // Page mutation displays the error toast.
-    }
+    } catch { /* Parent mutation displays the error toast. */ }
   };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add Event Expense</DialogTitle>
-          <DialogDescription>
-            Record the expense, funding source, approval, settlement, and
-            supporting proof.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form
-          id="add-event-expense"
-          onSubmit={submit}
-          className="grid gap-4 py-2 sm:grid-cols-2"
-        >
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="expense-title">Expense Title</Label>
-            <Input
-              id="expense-title"
-              value={form.expenseTitle}
-              onChange={(event) => update("expenseTitle", event.target.value)}
-              placeholder="Fuel for material dispatch"
-              required
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Category</Label>
-            <Select
-              value={form.category}
-              onValueChange={(value) => update("category", value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(options.categories || []).map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="expense-date">Expense Date</Label>
-            <Input
-              id="expense-date"
-              type="date"
-              value={form.date}
-              onChange={(event) => update("date", event.target.value)}
-              required
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="expense-amount">Amount (INR)</Label>
-            <Input
-              id="expense-amount"
-              type="number"
-              min="1"
-              step="0.01"
-              value={form.amount}
-              onChange={(event) => update("amount", event.target.value)}
-              required
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="expense-paid-by">Paid By</Label>
-            <Input
-              id="expense-paid-by"
-              value={form.paidByName}
-              onChange={(event) => update("paidByName", event.target.value)}
-              placeholder="Employee or company name"
-              required
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Funding Source</Label>
-            <Select
-              value={form.fundingSource}
-              onValueChange={updateFundingSource}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(options.fundingSources || []).map((source) => (
-                  <SelectItem key={source} value={source}>
-                    {source}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Payment Mode</Label>
-            <Select
-              value={form.paymentMode}
-              onValueChange={(value) => update("paymentMode", value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(options.paymentModes || []).map((mode) => (
-                  <SelectItem key={mode} value={mode}>
-                    {mode}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Approval Status</Label>
-            <Select
-              value={form.approvalStatus}
-              onValueChange={updateApprovalStatus}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(
-                  options.approvalStatuses || [
-                    "Approved",
-                    "Pending",
-                    "Rejected",
-                  ]
-                ).map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Settlement</Label>
-            <Select
-              value={form.settlementStatus}
-              onValueChange={(value) => update("settlementStatus", value)}
-              disabled={form.approvalStatus !== "Approved"}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(options.settlementStatuses || []).map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="expense-bill-number">Bill Number</Label>
-            <Input
-              id="expense-bill-number"
-              value={form.billNumber}
-              onChange={(event) => update("billNumber", event.target.value)}
-            />
-          </div>
-
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="expense-bill">Bill / Receipt</Label>
-            <Input
-              id="expense-bill"
-              type="file"
-              accept="image/*,.pdf,application/pdf"
-              onChange={(event) =>
-                update("billReceipt", event.target.files?.[0] || null)
-              }
-            />
-            <p className="text-[11px] text-muted-foreground">
-              PDF or image, up to the server upload limit.
-            </p>
-          </div>
-
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="expense-notes">Notes</Label>
-            <Textarea
-              id="expense-notes"
-              value={form.notes}
-              onChange={(event) => update("notes", event.target.value)}
-            />
-          </div>
-
-          {error ? (
-            <p className="text-sm text-destructive sm:col-span-2">{error}</p>
-          ) : null}
-        </form>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={saving}
-          >
-            Cancel
-          </Button>
-          <Button variant="custom" type="submit" form="add-event-expense" disabled={saving}>
-            {saving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="mr-2 h-4 w-4" />
-            )}
-            Add Expense
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+  if (!form.attachments) return null;
+  return <ExpenseFormDialog
+    open={open} onOpenChange={(value) => !saving && onOpenChange(value)}
+    profile={{ name: booking?.customer?.name || booking?.clientName || "Client", detail: [booking?.customer?.phone, booking?.eventName].filter(Boolean).join(" ? ") || "Client" }}
+    form={form} errors={errors} availableAdvance={null} onFieldChange={update} onFieldBlur={() => {}}
+    categoryOptions={options.categories || []}
+    paymentSourceOptions={form.expenseBy === "Company" ? ["Paid Directly by Company"] : Object.keys(sourceValues)}
+    attachmentTypes={["image/*", "application/pdf"]} attachmentHint="One PDF or image, up to the server upload limit."
+    onAddFiles={(files) => {
+      const file = files[0];
+      if (file && !(file.type.startsWith("image/") || file.type === "application/pdf")) {
+        setErrors((current) => ({ ...current, attachments: "Choose an image or PDF." }));
+        return;
+      }
+      update("attachments", file ? [file] : []);
+    }}
+    onRemoveFile={() => update("attachments", [])} onSubmit={submit} submitting={saving} allowSubmit showDraft={false}
+    additionalFields={<>
+      <FormSelectField label="Expense By" required value={form.expenseBy} options={["Company", "Employee"]} onValueChange={(value) => update("expenseBy", value)} />
+      {form.expenseBy === "Employee" && <CompactField label="Employee" required error={errors.employeeId}>
+        <Popover open={employeePickerOpen} onOpenChange={setEmployeePickerOpen}>
+          <PopoverTrigger asChild>
+            <Button ref={employeeTriggerRef} type="button" variant="outline" role="combobox" aria-label="Employee" aria-expanded={employeePickerOpen} disabled={saving || employeesQuery.isPending || employeesQuery.isError} className="h-8 w-full justify-between gap-2 px-2 text-[11px] font-normal">
+              {selectedEmployee ? <span className="flex min-w-0 items-center gap-2"><EmployeeAvatar employee={selectedEmployee} /><span className="truncate">{selectedEmployee.name}</span></span> : <span>{employeesQuery.isPending ? "Loading employees..." : "Select employee"}</span>}
+              <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent container={employeeTriggerRef.current?.closest('[role="dialog"]')} align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+            <Command filter={(_value, search, keywords) => keywords.join(" ").toLowerCase().includes(search.trim().toLowerCase()) ? 1 : 0}>
+              <CommandInput aria-label="Search employees" placeholder="Search by name or employee code..." className="text-xs" />
+              <CommandList className="max-h-56 overscroll-contain">
+                <CommandEmpty>No employees found.</CommandEmpty>
+                <CommandGroup>{employees.map((employee) => <CommandItem key={employee._id} value={employee._id} keywords={[employee.name, employee.employeeCode || ""]} onSelect={() => { update("employeeId", employee._id); setEmployeePickerOpen(false); }} className="text-xs">
+                  <EmployeeAvatar employee={employee} />
+                  <span className="min-w-0 flex-1"><span className="block truncate">{employee.name}</span>{employee.employeeCode && <span className="block text-[10px] text-muted-foreground">{employee.employeeCode}</span>}</span>
+                  {form.employeeId === employee._id && <Check aria-hidden="true" className="h-4 w-4 text-primary" />}
+                </CommandItem>)}</CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+        {employeesQuery.isError ? <Button type="button" variant="link" className="h-auto p-0 text-xs text-destructive" onClick={() => employeesQuery.refetch()}>Unable to load employees. Retry</Button> : !employeesQuery.isPending && !employees.length && <p className="text-[11px] text-muted-foreground">No employees available.</p>}
+      </CompactField>}
+      <FormSelectField label="Payment Mode" value={form.paymentMode} options={options.paymentModes?.length ? options.paymentModes : ["UPI"]} onValueChange={(value) => update("paymentMode", value)} />
+      <CompactField label="Bill Number"><Input aria-label="Bill Number" className="h-8 text-[11px]" value={form.billNumber} onChange={(event) => update("billNumber", event.target.value)} /></CompactField>
+      <FormSelectField label="Approval Status" value={form.approvalStatus} options={options.approvalStatuses || ["Approved", "Pending", "Rejected"]} onValueChange={(value) => update("approvalStatus", value)} />
+      <CompactField label="Settlement"><Select value={form.settlementStatus} disabled={form.approvalStatus !== "Approved"} onValueChange={(value) => update("settlementStatus", value)}><SelectTrigger aria-label="Settlement" className="h-8 text-[11px]"><SelectValue /></SelectTrigger><SelectContent>{(options.settlementStatuses || ["Company Paid", "Reimbursement Due", "Advance Adjusted", "Not Applicable"]).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></CompactField>
+    </>}
+  />;
 }
 
 export function MoreExpenseFiltersDialog({

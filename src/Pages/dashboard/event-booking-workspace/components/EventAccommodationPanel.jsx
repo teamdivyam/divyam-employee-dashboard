@@ -3,16 +3,16 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   BedDouble,
   Building2,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Download,
   Eye,
   Plus,
   Search,
-  UsersRound,
 } from 'lucide-react';
 
+import { initials } from '../eventBookingDashboard.utils';
+import { Avatar, AvatarFallback } from '@components/components/ui/avatar';
 import { Badge } from '@components/components/ui/badge';
 import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
@@ -47,13 +47,13 @@ const statusOptions = [
 
 const statusTone = (status) => {
   if (['Allocated', 'Confirmed'].includes(status)) {
-    return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300';
   }
-  if (status === 'Checked In') return 'border-blue-200 bg-blue-50 text-blue-700';
-  if (status === 'Checked Out') return 'border-violet-200 bg-violet-50 text-violet-700';
-  if (status === 'Cancelled') return 'border-red-200 bg-red-50 text-red-700';
+  if (status === 'Checked In') return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-300';
+  if (status === 'Checked Out') return 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-400/30 dark:bg-violet-400/10 dark:text-violet-300';
+  if (status === 'Cancelled') return 'border-red-200 bg-red-50 text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300';
 
-  return 'border-amber-200 bg-amber-50 text-amber-700';
+  return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300';
 };
 
 const formatDate = (value) => {
@@ -69,14 +69,21 @@ const formatDate = (value) => {
   }).format(date);
 };
 
-const nights = (start, end) => {
-  const from = new Date(start);
-  const to = new Date(end);
-
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 0;
-
-  return Math.max(0, Math.ceil((to - from) / 86400000));
+const stayDateTime = (date, time) => {
+  const label = formatDate(date);
+  if (label === '-' || !time) return label;
+  const match = String(time).match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return label;
+  const hour = Number(match[1]);
+  return label + ', ' + String(hour % 12 || 12).padStart(2, '0') + ':' + match[2] + (hour >= 12 ? ' PM' : ' AM');
 };
+
+const avatarTones = [
+  'bg-violet-100 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300',
+  'bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300',
+  'bg-cyan-100 text-cyan-700 dark:bg-cyan-400/15 dark:text-cyan-300',
+  'bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-300',
+];
 
 export default function EventAccommodationPanel({
   allocations,
@@ -129,18 +136,13 @@ export default function EventAccommodationPanel({
   }, [page, pages]);
 
   const download = () => {
-    const rows = [['Guest / Family', 'Property / Hotel', 'Room Numbers', 'Room Type', 'Check-in', 'Check-out', 'Guests Staying', 'Status'], ...filtered.map((item) => {
-      const guest = guestMap.get(idOf(item.guest));
-      const property = propertyMap.get(idOf(item.property));
-      return [guest?.name || '', property?.name || '', (item.roomNumbers || []).join(', '), item.roomType || '', formatDate(item.checkInDate), formatDate(item.checkOutDate), item.guestCount || 1, item.status || 'Pending Allocation'];
+    const rows = [['Guest / Family', 'Total Members', 'Property / Hotel', 'Location', 'Room Numbers', 'Room Type', 'No. of Rooms', 'Check-in', 'Check-out', 'Guests Staying', 'Status'], ...filtered.map((item) => {
+      const guest = guestMap.get(idOf(item.guest)); const property = propertyMap.get(idOf(item.property));
+      return [guest?.name || '', guest?.memberCount || 1, property?.name || '', property?.city || property?.address || '', (item.roomNumbers || []).join(', '), item.roomType || '', item.numberOfRooms || item.roomNumbers?.length || '', stayDateTime(item.checkInDate, item.checkInTime), stayDateTime(item.checkOutDate, item.checkOutTime), item.guestCount || 1, item.status || 'Pending Allocation'];
     })];
-    const csv = rows.map((row) => row.map((value) => `"${String(value ?? '').replaceAll('"', '""')}"`).join(',')).join('\r\n');
+    const csv = rows.map((row) => row.map((value) => { const text = String(value); return '"' + (/^[=+@-]/.test(text) ? "'" + text : text).replaceAll('"', '""') + '"'; }).join(',')).join('\r\n');
     const url = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'accommodation.csv';
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const link = document.createElement('a'); link.href = url; link.download = 'accommodation.csv'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const filters = (
@@ -193,15 +195,14 @@ export default function EventAccommodationPanel({
       <CardContent className="p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">{filters}<div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={onAddProperty}><Building2 className="h-4 w-4" />Manage Properties</Button><Button variant="outline" size="sm" onClick={download} disabled={!filtered.length}><Download className="h-4 w-4" />Download</Button><Button size="sm" onClick={onAllocate}><Plus className="h-4 w-4" />Allocate Stay</Button></div></div>
         <div className="overflow-hidden rounded-md border border-border">
-
           <div className="overflow-x-auto">
             <Table headerVariant="section" className="min-w-[1050px] table-fixed text-xs">
               <colgroup>
                 <col className="w-[18%]" />
                 <col className="w-[15%]" />
-                <col className="w-[10%]" />
+                <col className="w-[15%]" />
                 <col className="w-[20%]" />
-                <col className="w-[13%]" />
+                <col className="w-[10%]" />
                 <col className="w-[13%]" />
                 <col className="w-[10%]" />
               </colgroup>
@@ -223,24 +224,20 @@ export default function EventAccommodationPanel({
                   pageRows.map((item, index) => {
                     const guest = guestMap.get(idOf(item.guest));
                     const property = propertyMap.get(idOf(item.property));
-                    const nightCount = nights(item.checkInDate, item.checkOutDate);
 
                     return (
                       <TableRow key={item._id || `pending-${idOf(item.guest)}`}>
                         <TableCell className="pl-6">
                           <div className="flex items-center gap-2">
-                            <span
-                              className={`grid h-8 w-8 place-items-center rounded-full ${
-                                index % 2
-                                  ? 'bg-amber-50 text-amber-600'
-                                  : 'bg-emerald-50 text-emerald-600'
-                              }`}
-                            >
-                              <UsersRound className="h-4 w-4" />
-                            </span>
-                            <span className="font-semibold text-foreground">
-                              {guest?.name || 'Guest record'}
-                            </span>
+                            <Avatar className="h-9 w-9 shrink-0">
+                              <AvatarFallback className={'text-xs font-semibold ' + avatarTones[index % avatarTones.length]}>
+                                {initials(guest?.name || 'Guest')}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold text-foreground">{guest?.name || 'Guest record'}</p>
+                              <p className="mt-0.5 text-[10px] text-muted-foreground">{guest?.memberCount || 1} Members</p>
+                            </div>
                           </div>
                         </TableCell>
 
@@ -249,7 +246,7 @@ export default function EventAccommodationPanel({
                             <div>
                               <p className="font-semibold text-foreground">{property.name}</p>
                               <p className="mt-0.5 max-w-44 truncate text-[10px] text-muted-foreground">
-                                {property.address || '-'}
+                                {property.city || property.address || '-'}
                               </p>
                             </div>
                           ) : (
@@ -258,26 +255,17 @@ export default function EventAccommodationPanel({
                         </TableCell>
 
                         <TableCell>
-                          <p className="font-medium text-foreground">
-                            {(item.roomNumbers || []).join(', ') || 'Not Allocated'}
-                          </p>
-                          <p className="mt-0.5 text-[10px] text-muted-foreground">
-                            {item.roomType || ''}
-                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {(item.roomNumbers || []).length
+                              ? item.roomNumbers.map((number) => <Badge key={number} variant="secondary" className="rounded border-0 bg-primary/10 px-2 py-0.5 text-[10px] text-primary">{number}</Badge>)
+                              : <span className="text-[10px] text-muted-foreground">Not assigned</span>}
+                          </div>
+                          <p className="mt-1 text-[10px] text-muted-foreground">{item.roomType ? (item.numberOfRooms || item.roomNumbers?.length || 1) + ' ' + item.roomType : ''}</p>
                         </TableCell>
 
-                        <TableCell className="whitespace-nowrap">
-                          <p className="flex items-center gap-2 font-medium">
-                            <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-                            {formatDate(item.checkInDate)}
-                            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                            {formatDate(item.checkOutDate)}
-                          </p>
-                          {nightCount ? (
-                            <p className="mt-0.5 pl-5 text-[10px] text-muted-foreground">
-                              {nightCount} Night{nightCount === 1 ? '' : 's'}
-                            </p>
-                          ) : null}
+                        <TableCell className="whitespace-nowrap text-[10px] text-muted-foreground">
+                          <p>{stayDateTime(item.checkInDate, item.checkInTime)}</p>
+                          <p className="mt-0.5">{stayDateTime(item.checkOutDate, item.checkOutTime)}</p>
                         </TableCell>
 
                         <TableCell className="text-center font-semibold">
@@ -287,9 +275,10 @@ export default function EventAccommodationPanel({
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className={`rounded px-2 py-0.5 text-[9px] ${statusTone(item.status)}`}
+                            className={`gap-1.5 rounded border-0 px-2 py-1 text-[10px] ${statusTone(item.status)}`}
                           >
-                            {item.status || 'Pending Allocation'}
+                            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                            {!item.status || item.status === 'Pending Allocation' ? 'Pending' : item.status}
                           </Badge>
                         </TableCell>
 

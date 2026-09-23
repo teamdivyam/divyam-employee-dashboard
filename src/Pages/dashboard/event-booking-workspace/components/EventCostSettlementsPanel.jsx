@@ -47,6 +47,7 @@ const emptyOptions = {};
 const emptyList = [];
 
 export default function EventCostSettlementsPanel({
+  booking,
   readOnly = false,
   view,
   onViewChange,
@@ -203,6 +204,7 @@ export default function EventCostSettlementsPanel({
       />
       {!readOnly && (
         <AddExpenseDialog
+          booking={booking}
           open={expenseOpen}
           onOpenChange={setExpenseOpen}
           options={expenseOptions}

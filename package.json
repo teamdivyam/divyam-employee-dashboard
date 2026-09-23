@@ -40,6 +40,7 @@
     "date-fns-tz": "^3.2.0",
     "framer-motion": "^12.38.0",
     "joi": "^18.2.5",
+    "jspdf": "^4.2.1",
     "jwt-decode": "^4.0.0",
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.468.0",

@@ -161,6 +161,16 @@ const EventBookingWorkspaceService = {
     if (invoiceDocument) formData.append("invoiceDocument", invoiceDocument);
     return axiosRequest.post(eventPath(eventId, "/finance/invoices-receipts/invoices"), formData);
   },
+  getEventQuotations: ({ eventId, ...params }) =>
+    axiosRequest.get(`/event-booking/${eventId}/quotations`, { params }),
+  getEventQuotation: ({ eventId, quotationId }) =>
+    axiosRequest.get(`/event-booking/${eventId}/quotations/${quotationId}`),
+  createEventQuotation: ({ eventId, ...payload }) =>
+    axiosRequest.post(`/event-booking/${eventId}/quotations`, payload),
+  updateEventQuotation: ({ eventId, quotationId, ...payload }) =>
+    axiosRequest.patch(`/event-booking/${eventId}/quotations/${quotationId}`, payload),
+  deleteEventQuotation: ({ eventId, quotationId }) =>
+    axiosRequest.delete(`/event-booking/${eventId}/quotations/${quotationId}`),
   getEventDocuments: ({ eventId, ...params }) =>
     axiosRequest.get(eventPath(eventId, "/finance/documents"), { params }),
   uploadEventDocument: ({ eventId, document, ...values }) => {

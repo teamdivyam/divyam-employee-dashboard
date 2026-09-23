@@ -1,4 +1,6 @@
 /* eslint-disable react/prop-types */
+import EventQuotationsPanel from './EventQuotationsPanel';
+import EventMetricCards from './EventMetricCards';
 import { useEffect, useMemo, useState } from "react";
 import {
   Banknote,
@@ -11,6 +13,9 @@ import {
   ReceiptText,
   Search,
 } from "lucide-react";
+
+import EventReceiptPreviewDialog from "./EventReceiptPreviewDialog";
+import EventDeleteMenu from "./EventDeleteMenu";
 
 import TabComp from "@components/components/tab-comp";
 import { Badge } from "@components/components/ui/badge";
@@ -66,7 +71,7 @@ const linkClasses = {
   Other: "border-border bg-muted text-muted-foreground",
 };
 
-function InvoiceSummary({ summary = {} }) {
+export function InvoiceSummary({ summary = {} }) {
   const cards = [
     {
       label: "Issued Invoice Value",
@@ -93,51 +98,10 @@ function InvoiceSummary({ summary = {} }) {
       tone: "bg-red-500/10 text-red-600 dark:text-red-300",
     },
   ];
-  return (
-    <Card>
-      <CardContent className="p-0">
-        <div className="grid sm:grid-cols-2 xl:grid-cols-4">
-          {cards.map(({ label, value, icon: Icon, tone }, index) => (
-            <div
-              key={label}
-              className={`flex min-h-24 items-center gap-4 p-4 ${index ? "border-t border-border sm:border-l sm:border-t-0" : ""}`}
-            >
-              <span
-                className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ${tone}`}
-              >
-                <Icon className="h-6 w-6" />
-              </span>
-              <div>
-                <p className="text-xs text-muted-foreground">{label}</p>
-                <p
-                  className={`mt-1 text-xl font-bold ${label === "Overdue" ? "text-destructive" : label === "Total Received" ? "text-emerald-700 dark:text-emerald-300" : "text-foreground"}`}
-                >
-                  {value}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t bg-blue-50/70 px-4 py-2 text-xs text-blue-950 dark:bg-blue-950/25 dark:text-blue-200">
-          <span className="inline-flex items-center gap-2">
-            <CircleAlert className="h-4 w-4" />
-            Contract Value <strong>{currency(summary.contractValue)}</strong>
-          </span>
-          <span>•</span>
-          <span>
-            Invoiced <strong>{currency(summary.issuedInvoiceValue)}</strong>
-          </span>
-          <span>•</span>
-          <span>
-            Uninvoiced <strong>{currency(summary.uninvoiced)}</strong>
-          </span>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  return <EventMetricCards items={cards} />;
 }
 
-function ReceiptSummary({ summary = {} }) {
+export function ReceiptSummary({ summary = {} }) {
   const cards = [
     {
       label: "Total Receipts",
@@ -169,26 +133,7 @@ function ReceiptSummary({ summary = {} }) {
     },
   ];
 
-  return (
-    <Card>
-      <CardContent className="grid p-0 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map(({ label, value, icon: Icon, tone, valueClass }, index) => (
-          <div
-            key={label}
-            className={`flex min-h-24 items-center gap-4 p-4 ${index ? "border-t border-border sm:border-l sm:border-t-0" : ""}`}
-          >
-            <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ${tone}`}>
-              <Icon className="h-6 w-6" />
-            </span>
-            <div>
-              <p className="text-xs text-muted-foreground">{label}</p>
-              <p className={`mt-1 text-xl font-bold ${valueClass}`}>{value}</p>
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
+  return <EventMetricCards items={cards} />;
 }
 
 function CreateInvoiceDialog({ open, onOpenChange, options, saving, onSave }) {
@@ -446,7 +391,6 @@ function CreateInvoiceDialog({ open, onOpenChange, options, saving, onSave }) {
 function LoadingState() {
   return (
     <div className="space-y-3">
-      <Skeleton className="h-24 rounded-lg" />
       <Skeleton className="h-80 rounded-lg" />
     </div>
   );
@@ -458,7 +402,7 @@ function ErrorState({ error, onRetry }) {
       <CardContent className="flex min-h-56 flex-col items-center justify-center gap-3 p-8 text-center">
         <CircleAlert className="h-8 w-8 text-destructive" />
         <div>
-          <p className="font-semibold">Unable to load invoices and receipts</p>
+          <p className="font-semibold">Unable to load invoices</p>
           <p className="text-sm text-muted-foreground">
             {error?.response?.data?.message ||
               "Please check the connection and try again."}
@@ -474,6 +418,7 @@ function ErrorState({ error, onRetry }) {
 
 export default function EventInvoicesReceiptsPanel({
   readOnly = false,
+  booking,
   view,
   onViewChange,
   data,
@@ -483,33 +428,19 @@ export default function EventInvoicesReceiptsPanel({
   error,
   onRetry,
   onCreateInvoice,
+  onDeleteInvoice,
+  onDeleteReceipt,
   creatingInvoice,
 }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedReceipt, setSelectedReceipt] = useState(null);
-  const tabs = useMemo(
-    () => [
-      {
-        value: "invoices",
-        label: `Invoices (${numberOf(data?.counts?.invoices)})`,
-        icon: FileText,
-      },
-      {
-        value: "receipts",
-        label: `Receipts (${numberOf(data?.counts?.receipts)})`,
-        icon: ReceiptText,
-      },
-    ],
-    [data?.counts?.invoices, data?.counts?.receipts],
-  );
-  const setFilter = (key, value) =>
-    onFiltersChange({ ...filters, [key]: value, page: 1 });
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-        <TabComp
+  const tabs = useMemo(() => [
+    { value: "quotations", label: "Quotation", icon: FileText },
+    { value: "invoices", label: `Invoices (${numberOf(data?.counts?.invoices)})`, icon: ReceiptText },
+  ], [data?.counts?.invoices]);
+  const tabNavigation = (
+    <TabComp
           tabs={tabs}
           value={view}
           onValueChange={onViewChange}
@@ -519,18 +450,29 @@ export default function EventInvoicesReceiptsPanel({
           display="inline-block"
           flush
           className="shrink-0"
-          listClassName="[&_.tab-comp-trigger[data-state=active]]:!bg-blue-50 dark:[&_.tab-comp-trigger[data-state=active]]:!bg-blue-400/10"
-          ariaLabel="Invoices and receipts views"
+          listClassName="[&.tab-comp-detail-list.tab-comp-compact-list]:!h-9 [&_.tab-comp-trigger.tab-comp-detail-trigger.tab-comp-compact-trigger]:!h-9 [&_.tab-comp-trigger[data-state=active]]:!bg-blue-50 dark:[&_.tab-comp-trigger[data-state=active]]:!bg-blue-400/10"
+          ariaLabel="Quotation and invoices views"
         />
-        <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row xl:justify-end">
-          <div className="relative min-w-0 flex-1 xl:max-w-sm">
+  );
+  if (view === "quotations") return <Card className="min-w-0 overflow-hidden"><CardContent className="p-0"><EventQuotationsPanel tabs={tabNavigation} readOnly={readOnly} /></CardContent></Card>;
+  const setFilter = (key, value) =>
+    onFiltersChange({ ...filters, [key]: value, page: 1 });
+
+  return (
+    <div className="space-y-4">
+      <Card className="min-w-0 overflow-hidden">
+        <CardContent className="p-0">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
+        {tabNavigation}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <div className="relative min-w-44 flex-1 basis-44">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={filters.search}
               onChange={(event) => setFilter("search", event.target.value)}
-              className="pl-9"
-              placeholder="Search invoice or receipt..."
-              aria-label="Search invoices or receipts"
+              className="h-9 pl-9 text-xs"
+              placeholder="Search invoice number or title..."
+              aria-label="Search invoices"
             />
           </div>
           {view === "invoices" ? (
@@ -538,7 +480,7 @@ export default function EventInvoicesReceiptsPanel({
               value={filters.paymentStatus}
               onValueChange={(value) => setFilter("paymentStatus", value)}
             >
-              <SelectTrigger className="w-full sm:w-44">
+              <SelectTrigger className="h-9 w-full text-xs sm:w-44">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -555,7 +497,7 @@ export default function EventInvoicesReceiptsPanel({
             value={filters.dateRange}
             onValueChange={(value) => setFilter("dateRange", value)}
           >
-            <SelectTrigger className="w-full sm:w-40">
+            <SelectTrigger className="h-9 w-full text-xs sm:w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -565,12 +507,10 @@ export default function EventInvoicesReceiptsPanel({
               <SelectItem value="this-year">This year</SelectItem>
             </SelectContent>
           </Select>
-          {!readOnly && (
-            <Button variant="custom" onClick={() => setCreateOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Create Invoice
-            </Button>
-          )}
+          {!readOnly && <Button variant="custom" size="sm" onClick={() => setCreateOpen(true)} className="h-9 gap-2">
+            <Plus className="h-4 w-4" />
+            Create Invoice
+          </Button>}
         </div>
       </div>
       {loading && !data ? (
@@ -579,34 +519,18 @@ export default function EventInvoicesReceiptsPanel({
         <ErrorState error={error} onRetry={onRetry} />
       ) : (
         <>
-          {view === "receipts" ? (
-            <ReceiptSummary summary={data?.receiptSummary} />
-          ) : (
-            <InvoiceSummary summary={data?.summary} />
-          )}
-          <Card>
-            <CardContent className="p-0">
+
+          <div className="min-w-0">
               <div className="overflow-x-auto">
                 {view === "receipts" ? (
-                  <Table className="min-w-[1200px] table-fixed">
-                    <colgroup>
-                      <col className="w-[11%]" />
-                      <col className="w-[10%]" />
-                      <col className="w-[9%]" />
-                      <col className="w-[11%]" />
-                      <col className="w-[16%]" />
-                      <col className="w-[14%]" />
-                      <col className="w-[10%]" />
-                      <col className="w-[8%]" />
-                      <col className="w-[11%]" />
-                    </colgroup>
+                  <Table headerVariant="section" className="min-w-[1200px] table-fixed text-xs [&_tbody_.inline-flex]:text-[10px]">
+                    <colgroup><col className="w-[15%]" /><col className="w-[12%]" /><col className="w-[12%]" /><col className="w-[13%]" /><col className="w-[16%]" /><col className="w-[12%]" /><col className="w-[10%]" /><col className="w-[10%]" /></colgroup>
                     <TableHeader>
                       <TableRow className="bg-muted/40">
                         <TableHead>Receipt No.</TableHead>
                         <TableHead>Payment Date</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead>Payment Mode</TableHead>
-                        <TableHead>Linked To</TableHead>
                         <TableHead>Reference</TableHead>
                         <TableHead>Issued On</TableHead>
                         <TableHead>Status</TableHead>
@@ -631,16 +555,6 @@ export default function EventInvoicesReceiptsPanel({
                               {currency(receipt.amount)}
                             </TableCell>
                             <TableCell>{receipt.paymentMode || "—"}</TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                className={linkClasses.Milestone}
-                              >
-                                {receipt.linkedToLabel ||
-                                  receipt.linkedInvoiceNumber ||
-                                  "Event Payment"}
-                              </Badge>
-                            </TableCell>
                             <TableCell>{receipt.reference || "—"}</TableCell>
                             <TableCell>
                               {shortDate(
@@ -659,7 +573,7 @@ export default function EventInvoicesReceiptsPanel({
                                 {receipt.receiptStatus || "Issued"}
                               </Badge>
                             </TableCell>
-                            <TableCell className="sticky right-0 bg-card text-right">
+                            <TableCell className="sticky right-0 bg-card text-right"><div className="flex justify-end gap-1">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -667,15 +581,16 @@ export default function EventInvoicesReceiptsPanel({
                                 onClick={() => setSelectedReceipt(receipt)}
                               >
                                 <Eye className="mr-2 h-4 w-4" />
-                                View Receipt
+                                View
                               </Button>
-                            </TableCell>
+                              {!readOnly && <EventDeleteMenu label={receipt.receiptNumber || 'receipt'} onDelete={onDeleteReceipt ? () => { if (window.confirm('Void this receipt and its client payment?')) onDeleteReceipt(receipt); } : undefined} />}
+                            </div></TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
                           <TableCell
-                            colSpan={9}
+                            colSpan={8}
                             className="h-40 text-center text-muted-foreground"
                           >
                             No receipts match the current filters.
@@ -685,7 +600,7 @@ export default function EventInvoicesReceiptsPanel({
                     </TableBody>
                   </Table>
                 ) : (
-                  <Table className="min-w-[1120px] table-fixed">
+                  <Table headerVariant="section" className="min-w-[1120px] table-fixed text-xs [&_tbody_.inline-flex]:text-[10px]">
                     <colgroup>
                       <col className="w-[16%]" />
                       <col className="w-[11%]" />
@@ -761,7 +676,7 @@ export default function EventInvoicesReceiptsPanel({
                                 {invoice.paymentStatus}
                               </Badge>
                             </TableCell>
-                            <TableCell className="sticky right-0 bg-card text-right">
+                            <TableCell className="sticky right-0 bg-card text-right"><div className="flex justify-end gap-1">
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -771,7 +686,8 @@ export default function EventInvoicesReceiptsPanel({
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Invoice
                               </Button>
-                            </TableCell>
+                              {!readOnly && <EventDeleteMenu label={invoice.invoiceNo || 'invoice'} onDelete={onDeleteInvoice ? () => { if (window.confirm(`Delete invoice ${invoice.invoiceNo}?`)) onDeleteInvoice(invoice); } : undefined} />}
+                            </div></TableCell>
                           </TableRow>
                         ))
                       ) : (
@@ -794,19 +710,18 @@ export default function EventInvoicesReceiptsPanel({
                   onFiltersChange({ ...filters, ...values })
                 }
               />
-            </CardContent>
-          </Card>
+          </div>
         </>
       )}
-      {!readOnly && (
-        <CreateInvoiceDialog
-          open={createOpen}
-          onOpenChange={setCreateOpen}
-          options={data?.options || {}}
-          saving={creatingInvoice}
-          onSave={onCreateInvoice}
-        />
-      )}
+        </CardContent>
+      </Card>
+      {!readOnly && <CreateInvoiceDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        options={data?.options || {}}
+        saving={creatingInvoice}
+        onSave={onCreateInvoice}
+      />}
       <Dialog
         open={Boolean(selectedInvoice)}
         onOpenChange={(open) => !open && setSelectedInvoice(null)}
@@ -877,68 +792,8 @@ export default function EventInvoicesReceiptsPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog
-        open={Boolean(selectedReceipt)}
-        onOpenChange={(open) => !open && setSelectedReceipt(null)}
-      >
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{selectedReceipt?.receiptTitle}</DialogTitle>
-            <DialogDescription>
-              {selectedReceipt?.receiptNumber} ·{" "}
-              {shortDate(selectedReceipt?.receiptDate)}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3 rounded-lg border p-4 text-sm sm:grid-cols-2">
-            <div>
-              <p className="text-xs text-muted-foreground">Amount</p>
-              <p className="font-semibold">
-                {currency(selectedReceipt?.amount)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Payment Mode</p>
-              <p className="font-semibold">{selectedReceipt?.paymentMode}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Linked Invoice</p>
-              <p className="font-semibold">
-                {selectedReceipt?.linkedInvoiceNumber}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Transaction</p>
-              <p className="font-semibold">{selectedReceipt?.transactionId}</p>
-            </div>
-          </div>
-          {selectedReceipt?.receiptDocuments?.length ? (
-            <div className="flex flex-wrap gap-2">
-              {selectedReceipt.receiptDocuments.map((document) => (
-                <Button
-                  key={idOf(document) || document.fileUrl}
-                  variant="outline"
-                  size="sm"
-                  asChild
-                >
-                  <a href={document.fileUrl} target="_blank" rel="noreferrer">
-                    <Eye className="mr-2 h-4 w-4" />
-                    {document.fileName || "View proof"}
-                  </a>
-                </Button>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              This receipt was generated without an uploaded proof.
-            </p>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedReceipt(null)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+      <EventReceiptPreviewDialog receipt={selectedReceipt} booking={booking} onClose={() => setSelectedReceipt(null)} />
     </div>
   );
 }

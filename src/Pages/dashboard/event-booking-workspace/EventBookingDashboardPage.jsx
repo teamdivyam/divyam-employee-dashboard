@@ -6,9 +6,9 @@ import {
   BadgeIndianRupee,
   CalendarCheck2,
   CalendarDays,
-  CheckCircle2,
+  CreditCard,
   ChevronDown,
-  ClipboardCheck,
+  Hourglass,
   Clock3,
   List,
   Loader2,
@@ -33,6 +33,7 @@ import BookingCalendar from './components/EventBookingCalendar';
 import AddBookingDialog from './components/AddBookingDialog';
 import { EventBookingDashboardFilters } from './components/EventBookingDashboardFilters';
 import EventBookingMetricCard from './components/EventBookingMetricCard';
+import { formatCurrency } from './components/EventDetailComponents';
 import EventBookingStatusDialog from './components/EventBookingStatusDialog';
 import InactiveBookingTable from './components/InactiveBookingTable';
 import BookingTable from './components/BookingTable';
@@ -314,19 +315,21 @@ export default function EventBookingDashboardPage() {
     onUpdateStatus: openStatusDialog,
   };
 
+  const paymentSummary = analytics.paymentSummary || {};
+  const activeBookings = cards.activeBookings ?? cards.totalBookings;
+  const { totalBookingValue, totalReceived, totalPending, advanceReceived } = paymentSummary;
+  const money = (value) => value == null ? '—' : formatCurrency(value);
+  const percentage = (value) => value == null || totalBookingValue == null
+    ? '—' : totalBookingValue > 0 ? Math.round((value / totalBookingValue) * 100) : 0;
+  const otherReceived = totalReceived != null && advanceReceived != null
+    ? Math.max(0, totalReceived - advanceReceived) : null;
   const metricItems = [
-    { label: 'Active Bookings', value: cards.activeBookings ?? cards.totalBookings, icon: CalendarDays, tone: 'blue', tab: 'all' },
-    { label: 'Upcoming 30 Days', value: cards.upcoming30Days ?? cards.upcomingEvents, icon: CalendarCheck2, tone: 'green', tab: 'all' },
-    { label: 'Planning Attention', value: cards.planningAttention, icon: AlertTriangle, tone: 'amber', tab: 'planning' },
-    { label: 'Approvals Pending', value: cards.approvalsPending, icon: ClipboardCheck, tone: 'violet', tab: 'planning' },
-    {
-      label: 'Payment Attention',
-      value: cards.paymentAttention,
-      icon: BadgeIndianRupee,
-      tone: 'red',
-      tab: 'all',
-    },
-    { label: 'Completed This Month', value: cards.completedThisMonth ?? cards.completedEvents, icon: CheckCircle2, tone: 'green', tab: 'completed' },
+    { label: 'Active Bookings', value: activeBookings, icon: CalendarDays, tone: 'blue', tab: 'all', description: 'Currently in execution pipeline' },
+    { label: 'Upcoming 30 Days', value: cards.upcoming30Days ?? cards.upcomingEvents, icon: CalendarCheck2, tone: 'green', tab: 'all', description: 'Events starting in next 30 days' },
+    { label: 'Active Booking Value', value: money(totalBookingValue), icon: BadgeIndianRupee, tone: 'violet', description: `Total contract value (${activeBookings ?? '—'} bookings)` },
+    { label: 'Total Received', value: money(totalReceived), icon: CreditCard, tone: 'green', tab: 'all', description: `${percentage(totalReceived)}% of booking value received`, footer: `Advance: ${money(advanceReceived)} | Other: ${money(otherReceived)}` },
+    { label: 'Outstanding Receivable', value: money(totalPending), icon: Hourglass, tone: 'amber', tab: 'all', description: `${percentage(totalPending)}% still pending` },
+    { label: 'Payment Due / Overdue', value: '—', icon: AlertTriangle, tone: 'red', description: cards.paymentAttention == null ? 'Due / overdue amount unavailable' : `${cards.paymentAttention} ${cards.paymentAttention === 1 ? 'booking needs' : 'bookings need'} attention` },
   ];
   const tabs = [
     { value: 'all', label: 'All Bookings' },
@@ -373,9 +376,9 @@ export default function EventBookingDashboardPage() {
       </header>
 
       <section className="w-full min-w-0 max-w-full shrink-0 bg-background" aria-label="Booking overview metrics">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
           {metricItems.map((item) => (
-            <EventBookingMetricCard key={item.label} {...item} onOpen={() => setTab(item.tab)} />
+            <EventBookingMetricCard key={item.label} {...item} loading={analyticsQuery.isLoading} onOpen={item.tab ? () => setTab(item.tab) : undefined} />
           ))}
         </div>
       </section>

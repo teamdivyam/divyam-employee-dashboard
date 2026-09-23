@@ -71,7 +71,7 @@ const financeTabs = [
   { key: "commercial", label: "Commercial", icon: IndianRupee },
   { key: "payments", label: "Client Payments", icon: WalletCards },
   { key: "costs", label: "Cost & Settlements", icon: Banknote },
-  { key: "invoices", label: "Invoices & Receipts", icon: ReceiptText },
+  { key: "invoices", label: "Quotation & Invoices", icon: ReceiptText },
   { key: "documents", label: "Documents", icon: FileArchive },
 ];
 function FinanceNav({ active, eventId, searchParams }) {
@@ -1005,7 +1005,7 @@ export default function EventFinancePage() {
     : "vendors";
   const requestedInvoiceView = searchParams.get("invoiceTab");
   const invoiceView =
-    requestedInvoiceView === "receipts" ? "receipts" : "invoices";
+    requestedInvoiceView === "invoices" ? "invoices" : "quotations";
   const [changeOpen, setChangeOpen] = useState(false);
   const [selectedChange, setSelectedChange] = useState(null);
   const [noteOpen, setNoteOpen] = useState(false);
@@ -1187,7 +1187,7 @@ export default function EventFinancePage() {
       (
         await AdminService.getEventInvoicesReceipts({
           eventId,
-          view: invoiceView,
+          view: "invoices",
           search: debouncedInvoiceSearch || undefined,
           paymentStatus:
             invoiceView === "invoices" && invoiceFilters.paymentStatus !== "all"
@@ -1562,7 +1562,7 @@ export default function EventFinancePage() {
     setInvoiceFilters((current) => ({ ...current, page: 1 }));
     const next = new URLSearchParams(searchParams);
     next.set("tab", "invoices");
-    if (value === "invoices") next.delete("invoiceTab");
+    if (value === "quotations") next.delete("invoiceTab");
     else next.set("invoiceTab", value);
     navigate(
       `/dashboard/assigned-events/${eventId}/finance?${next.toString()}`,
@@ -1619,6 +1619,7 @@ export default function EventFinancePage() {
       />
     ) : section === "costs" ? (
       <EventCostSettlementsPanel
+        booking={booking}
         readOnly={!canManageFinance}
         view={costView}
         onViewChange={selectCostView}
@@ -1651,6 +1652,7 @@ export default function EventFinancePage() {
       />
     ) : section === "invoices" ? (
       <EventInvoicesReceiptsPanel
+        booking={booking}
         readOnly={!canManageFinance}
         view={invoiceView}
         onViewChange={selectInvoiceView}

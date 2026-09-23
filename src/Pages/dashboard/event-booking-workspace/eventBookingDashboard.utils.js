@@ -26,6 +26,12 @@ export const avatarUrl = (person) => person?.profilePicture?.small
   || person?.avatar
   || '';
 
+export const customerPhone = (booking) => {
+  const phone = String(booking.customer?.phone ?? '').trim();
+  if (!phone) return '-';
+  return `+91 ${phone.replace(/^\+91\s*/, '')}`;
+};
+
 export const bookingCode = (booking) => {
   if (booking.eventCode) return booking.eventCode;
   const year = new Date(booking.eventDate || booking.createdAt || Date.now()).getFullYear();

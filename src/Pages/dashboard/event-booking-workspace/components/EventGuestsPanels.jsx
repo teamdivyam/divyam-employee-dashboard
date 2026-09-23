@@ -26,7 +26,7 @@ const coverageLabel = (item, functions) => {
 export default function EventGuestsPanels({ functions, requirements, peakGuests, onUpdateCounts, onAddRequirement, onEditRequirement, onUnavailable }) {
   return (
     <Card id="guests-overview" className="crm-card overflow-hidden">
-      <EventGuestsNav active="counts" onSelect={(key, label) => key !== 'counts' && onUnavailable(key, label)} actions={<Button variant="outline" size="sm" className="h-9 gap-2 border-blue-300 text-blue-700" onClick={onUpdateCounts}><UserRound className="h-4 w-4" />Manage Guests</Button>} />
+      <EventGuestsNav active="counts" onSelect={(key, label) => key !== 'counts' && onUnavailable(key, label)} actions={<Button variant="custom" size="sm" className="h-9 gap-2" onClick={onUpdateCounts}><UserRound className="h-4 w-4" />Manage Guests</Button>} />
 
       <CardContent className="grid gap-4 p-4 xl:grid-cols-2">
         <section className="overflow-hidden rounded-lg border border-border">
