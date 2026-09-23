@@ -401,9 +401,9 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
     }));
   };
 
-  const eventSummary = [form.eventType, form.eventStartDate, form.eventCity].filter(Boolean).join(' â€¢ ');
+  const eventSummary = [form.eventType, form.eventStartDate, form.eventCity].filter(Boolean).join(' • ');
   const commercialSummary = commercialEditable && total > 0
-    ? `â‚¹${total.toLocaleString('en-IN')} â€¢ â‚¹${pending.toLocaleString('en-IN')} pending`
+    ? `₹${total.toLocaleString('en-IN')} • ₹${pending.toLocaleString('en-IN')} pending`
     : form.bookingStatus;
 
   return (
@@ -434,7 +434,7 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
               </div>
             </div>
 
-            <SectionCard number="1" title="Client Information" tone="blue" summary={matchedCustomer ? `Existing Client â€¢ ${matchedCustomer.name}` : 'Enter client mobile'} expanded={expanded.client} onToggle={() => setExpanded((current) => ({ ...current, client: !current.client }))}>
+            <SectionCard number="1" title="Client Information" tone="blue" summary={matchedCustomer ? `Existing Client • ${matchedCustomer.name}` : 'Enter client mobile'} expanded={expanded.client} onToggle={() => setExpanded((current) => ({ ...current, client: !current.client }))}>
               <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
                 <Field label="Client Name" required icon={UserRound}><Input className={iconInputClass} value={form.clientName} onChange={(event) => update('clientName', event.target.value)} placeholder="Enter client name" /></Field>
                 <Field label="Primary Mobile" required><div className="flex"><span className="flex h-7 items-center rounded-l-md border border-r-0 border-input bg-muted/40 px-2.5 text-[11px]">+91</span><Input className="h-7 rounded-l-none pl-2.5 text-[11px] shadow-none" inputMode="numeric" value={form.primaryMobile} onChange={(event) => update('primaryMobile', onlyDigits(event.target.value))} placeholder="98765 43210" /></div></Field>

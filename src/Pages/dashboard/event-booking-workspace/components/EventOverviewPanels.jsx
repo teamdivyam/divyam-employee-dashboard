@@ -1,90 +1,79 @@
 /* eslint-disable react/prop-types */
-import {
-  CalendarDays,
-  CheckCircle2,
-  ClipboardCheck,
-  FileCheck2,
-  FileText,
-  Flag,
-  IndianRupee,
-  MapPin,
-  PackageCheck,
-  UsersRound,
-  Utensils,
-} from 'lucide-react';
-
+import { ArrowRight, CalendarDays, CheckCircle2, ClipboardCheck, Clock3, ExternalLink, Handshake, PackageCheck, FileText, IndianRupee, MapPin, Pencil, UsersRound, UserRound } from 'lucide-react';
+import { dateRangeLabel, sortFunctionsByFromDate } from '../eventFunction.utils';
 import { Badge } from '@components/components/ui/badge';
+import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './EventTable';
 import { currencyAmount, eventDateLabel } from '../eventBookingDashboard.utils';
+import { linkedServiceFunctions, overviewDate, overviewTime } from '../eventOverview.utils';
 
-const Ring = ({ value, tone = '#2563eb' }) => {
-  const percentage = Math.max(0, Math.min(100, Number(value || 0)));
-  return <div className="relative h-14 w-14 shrink-0"><div className="h-full w-full rounded-full" style={{ background: `conic-gradient(${tone} ${percentage * 3.6}deg, #e5e7eb 0deg)` }} /><div className="absolute inset-[5px] grid place-items-center rounded-full bg-card text-xs font-bold">{percentage}%</div></div>;
+const successTone = 'border-0 bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300';
+const pendingTone = 'border-0 bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300';
+const readinessIcons = {
+  'Client Approvals': { icon: UsersRound, tone: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300' },
+  'Vendor Readiness': { icon: Handshake, tone: 'bg-violet-50 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300' },
+  'Inventory Readiness': { icon: PackageCheck, tone: 'bg-amber-50 text-amber-600 dark:bg-amber-400/10 dark:text-amber-300' },
+  'Checklist Readiness': { icon: ClipboardCheck, tone: 'bg-blue-50 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300' },
 };
 
-const SnapshotRow = ({ icon: Icon, label, value }) => <div className="grid grid-cols-[18px_105px_minmax(0,1fr)] items-start gap-2 text-xs"><Icon className="mt-0.5 h-4 w-4 text-muted-foreground" /><span className="text-muted-foreground">{label}</span><span className="font-medium text-foreground">{value || '-'}</span></div>;
-
-export function BookingSnapshot({ booking, summary }) {
-  return (
-    <Card className="crm-card"><CardContent className="p-4"><h2 className="mb-4 text-sm font-bold">Booking Snapshot</h2><div className="grid gap-5 md:grid-cols-2 md:divide-x md:divide-border"><div className="space-y-4"><SnapshotRow icon={CalendarDays} label="Event Type" value={booking.eventType} /><SnapshotRow icon={CalendarDays} label="Event Dates" value={eventDateLabel(booking)} /><SnapshotRow icon={MapPin} label="Venue" value={[booking.venue, booking.city].filter(Boolean).join(', ')} /><SnapshotRow icon={UsersRound} label="Est. Guests" value={summary.guestRange} /></div><div className="space-y-4 md:pl-5"><SnapshotRow icon={ClipboardCheck} label="Functions" value={booking.functions?.length || booking.noOfFunctions || 0} /><SnapshotRow icon={Utensils} label="Services" value={summary.services.join(', ') || 'Not selected'} /><SnapshotRow icon={FileText} label="Final Proposal" value={summary.finalProposal} /><SnapshotRow icon={IndianRupee} label="Booking Value" value={currencyAmount(summary.bookingValue)} /></div></div></CardContent></Card>
-  );
+function OverviewStatus({ status }) {
+  const complete = ['Confirmed', 'Approved', 'Finalised', 'Finalized', 'Completed', 'Paid', 'Received'].includes(status);
+  return <Badge variant="outline" className={`whitespace-nowrap rounded px-2 py-0.5 text-[10px] ${complete ? successTone : status ? pendingTone : 'text-muted-foreground'}`}>{status || 'Not set'}</Badge>;
 }
 
-export function ReadinessPayment({ summary }) {
-  const items = [
-    { label: 'Planning Readiness', value: summary.readiness, title: `${summary.readiness}% Ready`, detail: `${summary.pendingItems} key items pending`, status: summary.readiness >= 80 ? 'On Track' : 'Needs Attention', tone: '#2563eb', bar: 'bg-blue-600' },
-    { label: 'Payment Status', value: summary.payment.clampedPercentage, title: `${summary.payment.clampedPercentage}% Paid`, detail: `${currencyAmount(summary.payment.pending)} Pending${summary.payment.dueLabel ? ` • ${summary.payment.dueLabel}` : ''}`, status: summary.payment.clampedPercentage === 100 ? 'Paid' : 'Partially Paid', tone: '#16a34a', bar: 'bg-emerald-600' },
-  ];
-  return (
-    <Card className="crm-card"><CardContent className="p-4"><h2 className="mb-2 text-sm font-bold">Readiness &amp; Payment</h2><div className="divide-y divide-border">{items.map((item) => <div key={item.label} className="grid gap-3 py-3 sm:grid-cols-[58px_150px_minmax(120px,1fr)_auto] sm:items-center"><Ring value={item.value} tone={item.tone} /><div><p className="text-xs font-medium">{item.label}</p><p className="mt-1 text-base font-bold">{item.title}</p></div><div><div className="h-2 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${item.bar}`} style={{ width: `${item.value}%` }} /></div><p className="mt-2 text-[10px] text-muted-foreground">{item.detail}</p></div><Badge className={item.value >= 80 ? 'border-0 bg-emerald-50 text-emerald-700 hover:bg-emerald-50' : 'border-0 bg-amber-50 text-amber-700 hover:bg-amber-50'}>{item.status}</Badge></div>)}</div></CardContent></Card>
-  );
+function OverviewCard({ title, action, onAction, children }) {
+  return <Card className="min-w-0 overflow-hidden rounded-lg border-border bg-card shadow-sm"><CardContent className="p-3"><div className="mb-2 flex min-h-7 items-center justify-between gap-2 border-b border-border pb-2"><h2 className="text-sm font-semibold text-foreground">{title}</h2>{action && <Button variant="ghost" size="sm" className="h-6 gap-1 px-1 text-[11px] text-primary" onClick={onAction}>{action}{action === 'Edit' ? <Pencil className="h-3 w-3" /> : <ArrowRight className="h-3 w-3" />}</Button>}</div>{children}</CardContent></Card>;
 }
 
-const approvalTones = [
-  'border-orange-100 bg-orange-50/50 text-orange-600',
-  'border-emerald-100 bg-emerald-50/50 text-emerald-600',
-  'border-violet-100 bg-violet-50/50 text-violet-600',
-  'border-blue-100 bg-blue-50/50 text-blue-600',
-];
+const SnapshotRow = ({ icon: Icon, label, children }) => <div className="grid grid-cols-[14px_92px_minmax(0,1fr)] items-start gap-2 text-[11px]"><Icon className="mt-0.5 h-3.5 w-3.5 text-muted-foreground" /><span className="text-muted-foreground">{label}</span><div className="min-w-0 break-words font-medium text-foreground">{children ?? '-'}</div></div>;
 
-export function ApprovalsPanel({ approvals }) {
-  const icons = [Flag, Utensils, FileCheck2, PackageCheck];
-  return <Card className="crm-card"><CardContent className="p-4"><h2 className="mb-3 text-sm font-bold">Approvals &amp; Pending Items</h2><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{approvals.map((item, index) => { const Icon = icons[index]; return <div key={item.label} className={`flex min-h-16 items-center gap-3 rounded-lg border p-3 ${approvalTones[index]}`}><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/70"><Icon className="h-4 w-4" /></span><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><p className="truncate text-xs font-semibold text-foreground">{item.label}</p><Badge variant="outline" className={item.count ? 'border-red-100 bg-red-50 text-[9px] text-red-600' : 'border-emerald-100 bg-emerald-50 text-[9px] text-emerald-700'}>{item.count ? `${item.count} pending` : 'Complete'}</Badge></div><p className="mt-1 truncate text-[10px] text-muted-foreground">{item.detail}</p></div></div>; })}</div></CardContent></Card>;
+function OverviewTable({ headings, rows, renderRow, empty }) {
+  return <Table className="text-[11px] [&_th]:h-8 [&_th]:whitespace-nowrap [&_th]:px-2 [&_td]:px-2 [&_td]:py-2"><TableHeader><TableRow className="bg-muted/60 hover:bg-muted/60">{headings.map((heading) => <TableHead key={heading}>{heading}</TableHead>)}</TableRow></TableHeader><TableBody>{rows.length ? rows.map(renderRow) : <TableRow><TableCell colSpan={headings.length} className="h-24 text-center text-muted-foreground">{empty}</TableCell></TableRow>}</TableBody></Table>;
 }
 
-const activityTones = ['bg-emerald-50 text-emerald-600', 'bg-blue-50 text-blue-600', 'bg-violet-50 text-violet-600', 'bg-amber-50 text-amber-600'];
+function ProgressBar({ value }) {
+  return <div role="progressbar" aria-label="Readiness" aria-valuenow={value ?? 0} aria-valuemin={0} aria-valuemax={100} className="h-1.5 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${value === 100 ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${value ?? 0}%` }} /></div>;
+}
 
-export function RecentActivity({ activity }) {
-  return (
-    <Card id="event-recent-activity" className="crm-card">
-      <CardContent className="p-4">
-        <h2 className="mb-2 text-sm font-bold">Recent Activity</h2>
-        {activity.length ? (
-          <div className="divide-y divide-border">
-            {activity.map((item, index) => {
-              const tone = activityTones[index % activityTones.length];
-              return (
-                <div key={item._id || index} className="grid gap-3 py-2.5 text-xs sm:grid-cols-[26px_220px_minmax(0,1fr)_180px_auto] sm:items-center">
-                  <span className={`grid h-6 w-6 place-items-center rounded-full ${tone}`}>
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                  </span>
-                  <p className="font-semibold text-foreground">{item.title || 'Event updated'}</p>
-                  <p className="text-muted-foreground">{item.description || item.note || '-'}</p>
-                  <p className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <CalendarDays className="h-3.5 w-3.5" />
-                    {item.formattedDate}
-                  </p>
-                  <Badge variant="outline" className={`justify-self-start border-transparent text-[9px] ${tone}`}>
-                    {item.type || 'Activity'}
-                  </Badge>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="grid min-h-24 place-items-center text-xs text-muted-foreground">No event activity recorded yet.</div>
-        )}
-      </CardContent>
-    </Card>
-  );
+export function BookingSnapshot({ booking, details, onEdit }) {
+  return <OverviewCard title="Booking Snapshot" action="Edit" onAction={onEdit}><div className="grid gap-4 md:grid-cols-2 md:divide-x md:divide-border"><div className="space-y-2.5">
+    <SnapshotRow icon={CalendarDays} label="Event Type">{booking.eventType}</SnapshotRow>
+    <SnapshotRow icon={CalendarDays} label="Event Dates">{eventDateLabel(booking, { includeWeekday: true })}</SnapshotRow>
+    <SnapshotRow icon={MapPin} label="Venue">{[booking.venue, booking.city].filter(Boolean).join(', ') || '-'}</SnapshotRow>
+    <SnapshotRow icon={UsersRound} label="Estimated Guests">{booking.guestCount ?? '-'}</SnapshotRow>
+    <SnapshotRow icon={UsersRound} label="Peak Guests">{details.peakGuests}</SnapshotRow>
+    <SnapshotRow icon={ClipboardCheck} label="Booking Status"><OverviewStatus status={booking.bookingStatus} /></SnapshotRow>
+  </div><div className="space-y-2.5 md:pl-4">
+    <SnapshotRow icon={ClipboardCheck} label="Functions">{booking.functions?.length ?? booking.noOfFunctions ?? 0}</SnapshotRow>
+    <SnapshotRow icon={FileText} label="Final Proposal">{details.proposal?.fileUrl ? <a href={details.proposal.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-start gap-1 text-primary underline">View Proposal<ExternalLink className="h-3 w-3 shrink-0" /></a> : 'Not available'}</SnapshotRow>
+    <SnapshotRow icon={IndianRupee} label="Booking Value">{currencyAmount(details.total)}</SnapshotRow>
+    <SnapshotRow icon={Clock3} label="Created On">{overviewDate(booking.createdAt, true)}</SnapshotRow>
+    <SnapshotRow icon={UserRound} label="Created By">{booking.createdBy?.name || booking.createdByName || '-'}</SnapshotRow>
+  </div></div></OverviewCard>;
+}
+
+export function ReadinessPlanning({ booking, summary, details, onView }) {
+  const readiness = Math.max(0, Math.min(100, Number(summary.readiness) || 0));
+  return <OverviewCard title="Readiness & Planning" action="View All" onAction={onView}>
+    <div className="mb-3 flex items-center gap-3 border-b border-border pb-3"><div className="relative h-16 w-16 shrink-0"><svg viewBox="0 0 64 64" className="h-full w-full -rotate-90" aria-hidden="true"><circle cx="32" cy="32" r="27" fill="none" strokeWidth="6" className="stroke-muted" /><circle cx="32" cy="32" r="27" fill="none" strokeWidth="6" strokeLinecap="round" className="stroke-primary" strokeDasharray={`${readiness * 1.696} 169.6`} /></svg><span className="absolute inset-0 grid place-items-center text-sm font-semibold">{readiness}%</span></div><div className="min-w-0 flex-1"><p className="text-xs font-semibold">Overall Planning Readiness</p><p className="my-1 text-[10px] text-primary">{readiness === 100 ? 'Ready' : readiness >= 80 ? 'Mostly on track' : 'Needs attention'}</p><ProgressBar value={readiness} /></div></div>
+    <div className="space-y-2.5">{details.readinessRows.map((item) => { const { icon: Icon, tone } = readinessIcons[item.label] || { icon: ClipboardCheck, tone: 'bg-muted text-muted-foreground' }; return <div key={item.label} className="grid grid-cols-[minmax(120px,1.1fr)_30px_minmax(25px,1fr)_auto] items-center gap-2 text-[10px]"><span className="flex min-w-0 items-center gap-2 text-muted-foreground"><span className={`grid h-6 w-6 shrink-0 place-items-center rounded ${tone}`}><Icon className="h-3.5 w-3.5" aria-hidden="true" /></span><span>{item.label}</span></span><span className="font-semibold">{item.percentage == null ? '-' : `${item.percentage}%`}</span><ProgressBar value={item.percentage} /><Badge variant="outline" className={`rounded px-1.5 text-[9px] ${!item.total ? 'text-muted-foreground' : item.pending ? pendingTone : successTone}`}>{!item.total ? 'Not started' : item.pending ? `${item.pending} pending` : 'Complete'}</Badge></div>; })}</div>
+    {booking.executionReadiness?.remarks && <p className="mt-3 text-[10px] text-muted-foreground">{booking.executionReadiness.remarks}</p>}
+  </OverviewCard>;
+}
+
+export function FunctionsOverview({ details, onView }) {
+  return <OverviewCard title="Functions Overview" action="View Event Plan" onAction={onView}><OverviewTable headings={['#', 'Function', 'Date', 'Start Time', 'End Time', 'Est. Guests', 'Status']} rows={sortFunctionsByFromDate(details.functions)} empty="No functions added yet." renderRow={(item, index) => <TableRow key={item._id || index}><TableCell>{index + 1}</TableCell><TableCell className="font-semibold">{item.name || '-'}</TableCell><TableCell className="whitespace-nowrap">{dateRangeLabel(item.fromDate ?? item.date, item.toDate)}</TableCell><TableCell className="whitespace-nowrap">{overviewTime(item.startTime)}</TableCell><TableCell className="whitespace-nowrap">{overviewTime(item.endTime)}</TableCell><TableCell>{item.guestCount ?? '-'}</TableCell><TableCell><OverviewStatus status={item.status} /></TableCell></TableRow>} /></OverviewCard>;
+}
+
+export function ServicesOverview({ details, onView }) {
+  return <OverviewCard title="Services Overview" action="View Services" onAction={onView}><OverviewTable headings={['#', 'Service', 'Required For (Function)', 'Service Date(s)', 'Planning Status']} rows={details.services} empty="No services selected yet." renderRow={(item, index) => { const functions = linkedServiceFunctions(item, details.functions); const dates = [...new Set(functions.flatMap((fn) => [fn.fromDate || fn.date, fn.toDate]).filter(Boolean))].sort(); const dateLabel = dates.length > 1 ? `${overviewDate(dates[0])} – ${overviewDate(dates.at(-1))}` : overviewDate(dates[0]); return <TableRow key={item._id || index}><TableCell>{index + 1}</TableCell><TableCell className="font-semibold">{item.name || item.service || '-'}</TableCell><TableCell>{functions.map((fn) => fn.name).join(', ') || 'Not linked'}</TableCell><TableCell>{dateLabel}</TableCell><TableCell><OverviewStatus status={item.status} /></TableCell></TableRow>; }} /></OverviewCard>;
+}
+
+export function PaymentSummary({ details }) {
+  return <OverviewCard title="Payment Summary"><div className="grid grid-cols-2 items-center gap-3 sm:grid-cols-4">{[['Total Booking Value', details.total, 'text-foreground'], ['Amount Received', details.received, 'text-emerald-600 dark:text-emerald-400'], ['Outstanding', details.pending, 'text-destructive']].map(([label, amount, tone]) => <div key={label}><p className="mb-1 text-[10px] text-muted-foreground">{label}</p><p className={`text-sm font-semibold ${tone}`}>{currencyAmount(amount)}</p></div>)}<div className={`flex items-center justify-center gap-1.5 rounded-md p-2 text-xs font-semibold ${details.percentage === 100 ? successTone : pendingTone}`}><CheckCircle2 className="h-4 w-4 shrink-0" />{details.percentage}% Paid</div></div></OverviewCard>;
+}
+
+export function PaymentHistory({ details, onView }) {
+  return <OverviewCard title="Payment History" action="View All" onAction={onView}><OverviewTable headings={['#', 'Payment Date', 'Amount', 'Payment Mode', 'Status', 'Reference']} rows={details.history.slice(0, 5)} empty="No payments recorded yet." renderRow={(item, index) => <TableRow key={item._id || index}><TableCell>{index + 1}</TableCell><TableCell className="whitespace-nowrap">{overviewDate(item.transactionDate || item.paymentDate || item.paidOn || item.createdAt)}</TableCell><TableCell className="font-semibold">{currencyAmount(item.amount)}</TableCell><TableCell>{item.paymentMode || '-'}</TableCell><TableCell><OverviewStatus status={item.status} /></TableCell><TableCell>{item.transactionId || item.reference || item.receiptNumber || '-'}</TableCell></TableRow>} /></OverviewCard>;
 }

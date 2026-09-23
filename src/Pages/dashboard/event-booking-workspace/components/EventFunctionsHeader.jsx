@@ -1,4 +1,5 @@
 /* eslint-disable react/prop-types */
+import { useContext } from 'react';
 import {
   CalendarDays,
   ChevronRight,
@@ -18,6 +19,8 @@ import { Card, CardContent } from '@components/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/components/ui/dropdown-menu';
 import { avatarUrl, bookingCode, initials } from '../eventBookingDashboard.utils';
 import { getBookingStatus } from '../eventRecordAdapters';
+import { EventSummaryContext } from './EventSummaryContext';
+import EventSummaryCards from './EventSummaryCards';
 
 const compactDate = (date) => {
   if (!date) return '-';
@@ -45,6 +48,7 @@ const metricTones = {
 };
 
 export default function EventFunctionsHeader({ booking, metrics = {}, metricItems: suppliedMetricItems, onBack, onEdit, onMarkReady, onOpenPlanning, primaryActionLabel = 'Open Planning', showMetrics = true, compactMetrics = false }) {
+  const summaryTarget = useContext(EventSummaryContext);
   const clientName = booking.customer?.name || booking.eventName || 'Event Booking';
   const defaultMetricItems = [
     { label: 'Functions', value: metrics.functions, caption: metrics.functionsCaption || 'Confirmed', icon: CalendarDays, tone: 'violet' },
@@ -54,6 +58,10 @@ export default function EventFunctionsHeader({ booking, metrics = {}, metricItem
     { label: 'Approvals Pending', value: metrics.approvals, caption: 'Awaiting client', icon: Hourglass, tone: 'amber' },
   ];
   const metricItems = suppliedMetricItems || defaultMetricItems;
+
+  if (summaryTarget !== undefined) {
+    return <EventSummaryCards metrics={metrics} metricItems={suppliedMetricItems} showMetrics={showMetrics} />;
+  }
 
   return (
     <>

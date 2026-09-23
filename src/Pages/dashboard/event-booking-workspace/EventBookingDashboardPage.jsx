@@ -16,10 +16,10 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import styles from './EventBookingDashboardPage.module.css';
 
 import AdminService from '../../../services/event-booking-workspace.service';
 import TabComp from '@components/components/tab-comp';
-import MonthFilterControl from '@components/components/MonthFilterControl';
 import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
 import {
@@ -85,7 +85,7 @@ export default function EventBookingDashboardPage() {
   const requestedTab = searchParams.get('tab');
   const activeTab = VALID_TABS.includes(requestedTab) ? requestedTab : 'all';
   const [layout, setLayout] = useState(searchParams.get('layout') === 'calendar' ? 'calendar' : 'list');
-  const [month, setMonth] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
+  const [month] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
   const [pagination, dispatch] = useReducer(paginationReducer, { page: 1, totalRows: 0, totalPages: 1 });
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [formOpen, setFormOpen] = useState(false);
@@ -346,24 +346,14 @@ export default function EventBookingDashboardPage() {
     day: '2-digit', month: 'short', year: 'numeric',
   }).format(now)}`;
   return (
-    <div className="crm-page min-h-screen w-full min-w-0 max-w-full overflow-x-hidden p-3 sm:p-4 lg:p-5">
-      <header className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Events &amp; Bookings</h1>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {activeTab === 'completed'
-              ? 'View completed events and manage post-event closure, payments, and final documentation.'
-              : activeTab === 'closed'
-                ? 'View on-hold and cancelled bookings, reasons, last planning status and financial settlement.'
-                : 'Manage confirmed bookings, planning readiness, execution and completion.'}
-          </p>
-        </div>
+    <div className={`crm-page w-full min-w-0 max-w-full p-3 sm:p-4 lg:p-5 ${layout === 'list' ? styles.listPage : 'min-h-screen overflow-x-hidden'}`}>
+      <header className="mb-2 flex shrink-0 justify-end bg-background">
         <div className="flex flex-wrap items-center gap-2">
-          {activeTab === 'today' ? (
+          {activeTab === 'today' && (
             <Button variant="outline" className="h-9 gap-2 px-3 text-xs">
               <CalendarDays className="h-4 w-4" /> {todayLabel} <ChevronDown className="h-3.5 w-3.5" />
             </Button>
-          ) : <MonthFilterControl filters={month} onFilterChange={setMonth} className="h-9" />}
+          )}
           <div className="flex h-9 overflow-hidden rounded-md border border-border bg-card">
             <Button variant="ghost" className={`h-9 rounded-none px-3 text-xs ${layout === 'list' ? 'bg-blue-50 text-blue-700' : ''}`} onClick={() => setPageLayout('list')}>
               <List className="mr-1.5 h-4 w-4" /> List View
@@ -382,7 +372,7 @@ export default function EventBookingDashboardPage() {
         </div>
       </header>
 
-      <section className="w-full min-w-0 max-w-full" aria-label="Booking overview metrics">
+      <section className="w-full min-w-0 max-w-full shrink-0 bg-background" aria-label="Booking overview metrics">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {metricItems.map((item) => (
             <EventBookingMetricCard key={item.label} {...item} onOpen={() => setTab(item.tab)} />
@@ -394,13 +384,13 @@ export default function EventBookingDashboardPage() {
         tabs={tabs}
         value={activeTab}
         onValueChange={setTab}
-        className="admin-task-tabs mt-4 w-full min-w-0 max-w-full overflow-hidden"
+        className="admin-task-tabs mt-4 w-full min-w-0 max-w-full shrink-0 overflow-hidden bg-background"
         listClassName="admin-task-tab-list"
         ariaLabel="Booking workflow sections"
       />
 
-      <Card className="crm-card mt-3 w-full min-w-0 max-w-full overflow-hidden">
-        <CardContent className="w-full min-w-0 max-w-full overflow-hidden p-3">
+      <Card className={`crm-card mt-3 w-full min-w-0 max-w-full overflow-hidden ${layout === 'list' ? 'flex min-h-96 flex-1 flex-col' : ''}`}>
+        <CardContent className={`w-full min-w-0 max-w-full overflow-hidden p-3 ${layout === 'list' ? styles.listContent : ''}`}>
           <EventBookingDashboardFilters
             activeTab={activeTab}
             cities={cities}
@@ -409,7 +399,7 @@ export default function EventBookingDashboardPage() {
             setFilter={setFilter}
           />
 
-          {bookingsQuery.isFetching ? (
+          {bookingsQuery.isLoading ? (
             <div className="grid h-80 place-items-center rounded-lg border border-border"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
           ) : bookingsQuery.isError ? (
             <div className="grid h-52 place-items-center rounded-lg border border-dashed border-border text-center">
@@ -482,6 +472,7 @@ export default function EventBookingDashboardPage() {
       </Card>
 
       <AddBookingDialog
+        key={setupBooking?._id || 'new-booking'}
         open={formOpen}
         onOpenChange={(open) => {
           setFormOpen(open);

@@ -6,8 +6,8 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Download,
   Eye,
-  Filter,
   Plus,
   Search,
   UsersRound,
@@ -16,14 +16,6 @@ import {
 import { Badge } from '@components/components/ui/badge';
 import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@components/components/ui/dropdown-menu';
 import { Input } from '@components/components/ui/input';
 import {
   Select,
@@ -94,12 +86,10 @@ export default function EventAccommodationPanel({
   onAllocate,
   onEditAllocation,
   onAddProperty,
-  onEditProperty,
 }) {
   const [search, setSearch] = useState('');
   const [propertyFilter, setPropertyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [pendingOnly, setPendingOnly] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -125,69 +115,37 @@ export default function EventAccommodationPanel({
         if (term && !searchableContent.includes(term)) return false;
         if (propertyFilter !== 'all' && idOf(item.property) !== propertyFilter) return false;
         if (statusFilter !== 'all' && item.status !== statusFilter) return false;
-        if (pendingOnly && item.status !== 'Pending Allocation') return false;
-
         return true;
       }),
-    [allocations, guestMap, pendingOnly, propertyFilter, propertyMap, search, statusFilter],
+    [allocations, guestMap, propertyFilter, propertyMap, search, statusFilter],
   );
 
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-  useEffect(() => setPage(1), [pendingOnly, propertyFilter, search, statusFilter]);
+  useEffect(() => setPage(1), [propertyFilter, search, statusFilter]);
   useEffect(() => {
     if (page > pages) setPage(pages);
   }, [page, pages]);
 
-  const stayRequired = guests
-    .filter(
-      (item) => item.stayRequired || (item.hospitalityNeeds || []).includes('Stay'),
-    )
-    .reduce((total, item) => total + Number(item.memberCount || 1), 0);
-  const allocated = allocations
-    .filter((item) => !['Pending Allocation', 'Cancelled'].includes(item.status))
-    .reduce((total, item) => total + Number(item.guestCount || 1), 0);
-  const roomsReserved = new Set(
-    allocations.flatMap((item) => item.roomNumbers || []).filter(Boolean),
-  ).size;
+  const download = () => {
+    const rows = [['Guest / Family', 'Property / Hotel', 'Room Numbers', 'Room Type', 'Check-in', 'Check-out', 'Guests Staying', 'Status'], ...filtered.map((item) => {
+      const guest = guestMap.get(idOf(item.guest));
+      const property = propertyMap.get(idOf(item.property));
+      return [guest?.name || '', property?.name || '', (item.roomNumbers || []).join(', '), item.roomType || '', formatDate(item.checkInDate), formatDate(item.checkOutDate), item.guestCount || 1, item.status || 'Pending Allocation'];
+    })];
+    const csv = rows.map((row) => row.map((value) => `"${String(value ?? '').replaceAll('"', '""')}"`).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'accommodation.csv';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
-  const summaries = [
-    {
-      label: 'Stay Required',
-      value: stayRequired,
-      icon: BedDouble,
-      tone: 'text-emerald-600 bg-emerald-50',
-    },
-    {
-      label: 'Allocated',
-      value: allocated,
-      icon: Building2,
-      tone: 'text-blue-600 bg-blue-50',
-    },
-    {
-      label: 'Pending',
-      value: Math.max(0, stayRequired - allocated),
-      icon: CalendarDays,
-      tone: 'text-amber-600 bg-amber-50',
-    },
-    {
-      label: 'Rooms Reserved',
-      value: roomsReserved,
-      icon: BedDouble,
-      tone: 'text-violet-600 bg-violet-50',
-    },
-    {
-      label: 'Properties',
-      value: properties.length,
-      icon: Building2,
-      tone: 'text-cyan-600 bg-cyan-50',
-    },
-  ];
-
-  const actions = (
-    <div className="flex max-w-full shrink-0 flex-nowrap gap-2 overflow-x-auto pb-0.5">
-      <div className="relative w-44 shrink-0">
+  const filters = (
+    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+      <div className="relative min-w-44 flex-1 basis-44">
         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           value={search}
@@ -225,86 +183,19 @@ export default function EventAccommodationPanel({
         </SelectContent>
       </Select>
 
-      <Button
-        variant={pendingOnly ? 'default' : 'outline'}
-        size="sm"
-        className="h-9 shrink-0 gap-2"
-        onClick={() => setPendingOnly((value) => !value)}
-      >
-        <Filter className="h-4 w-4" />
-        More Filters
-      </Button>
     </div>
   );
 
   return (
     <Card id="accommodation-plan" className="crm-card overflow-hidden">
-      <EventGuestsNav active="accommodation" onSelect={onGuestTab} actions={actions} />
+      <EventGuestsNav active="accommodation" onSelect={onGuestTab} />
 
       <CardContent className="p-4">
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="grid flex-1 grid-cols-2 gap-2 rounded-lg border border-border p-3 sm:grid-cols-5">
-            {summaries.map(({ label, value, icon: Icon, tone }, index) => (
-              <div
-                key={label}
-                className={`flex items-center gap-2 px-2 ${
-                  index ? 'sm:border-l sm:border-border' : ''
-                }`}
-              >
-                <span
-                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${tone}`}
-                >
-                  <Icon className="h-4 w-4" />
-                </span>
-                <div>
-                  <p className="text-[10px] font-semibold text-muted-foreground">{label}</p>
-                  <p className="text-xl font-bold text-foreground">
-                    {value.toLocaleString('en-IN')}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex shrink-0 gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <Building2 className="h-4 w-4" />
-                  Manage Properties
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Event Properties</DropdownMenuLabel>
-                <DropdownMenuItem onSelect={onAddProperty}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add property
-                </DropdownMenuItem>
-                {properties.length ? <DropdownMenuSeparator /> : null}
-                {properties.map((property) => (
-                  <DropdownMenuItem
-                    key={idOf(property)}
-                    onSelect={() => onEditProperty(property)}
-                  >
-                    Edit {property.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Button className="gap-2 bg-blue-600 hover:bg-blue-700" onClick={onAllocate}>
-              <Plus className="h-4 w-4" />
-              Allocate Stay
-            </Button>
-          </div>
-        </div>
-        <div className="overflow-hidden rounded-lg border border-border">
-          <div className="border-b border-border px-4 py-3">
-            <h2 className="text-sm font-bold text-foreground">Accommodation Plan</h2>
-          </div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">{filters}<div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={onAddProperty}><Building2 className="h-4 w-4" />Manage Properties</Button><Button variant="outline" size="sm" onClick={download} disabled={!filtered.length}><Download className="h-4 w-4" />Download</Button><Button size="sm" onClick={onAllocate}><Plus className="h-4 w-4" />Allocate Stay</Button></div></div>
+        <div className="overflow-hidden rounded-md border border-border">
 
           <div className="overflow-x-auto">
-            <Table className="min-w-[1050px] table-fixed text-xs">
+            <Table headerVariant="section" className="min-w-[1050px] table-fixed text-xs">
               <colgroup>
                 <col className="w-[18%]" />
                 <col className="w-[15%]" />
@@ -318,10 +209,10 @@ export default function EventAccommodationPanel({
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
                   <TableHead className="pl-6">Guest / Family</TableHead>
-                  <TableHead>Property</TableHead>
-                  <TableHead>Room(s)</TableHead>
-                  <TableHead>Stay Dates</TableHead>
-                  <TableHead className="text-center">Guests</TableHead>
+                  <TableHead>Property / Hotel</TableHead>
+                  <TableHead>Rooms</TableHead>
+                  <TableHead>Stay Window</TableHead>
+                  <TableHead className="text-center">Guests Staying</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="pr-6 text-right">Action</TableHead>
                 </TableRow>
@@ -466,13 +357,6 @@ export default function EventAccommodationPanel({
           </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3 text-xs text-blue-700">
-          <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-blue-600 text-[11px] font-bold text-white">
-            i
-          </span>
-          Guests marked Stay Required in the Guest List are managed here for room allocation
-          and check-in coordination.
-        </div>
       </CardContent>
     </Card>
   );

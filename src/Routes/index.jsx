@@ -14,9 +14,9 @@ import MyProfilePage from "../Pages/dashboard/my-profile/MyProfilePage";
 import MyTasksPage from "../Pages/dashboard/my-tasks/MyTasksPage";
 import AssignedClientsPage from "../Pages/dashboard/assigned-clients/AssignedClientsPage";
 import EventBookingDashboardPage from "../Pages/dashboard/event-booking-workspace/EventBookingDashboardPage";
-import EventOverviewPage from "../Pages/dashboard/event-booking-workspace/EventOverviewPage";
-import EventFunctionsPage from "../Pages/dashboard/event-booking-workspace/EventFunctionsPage";
-import EventServicesPage from "../Pages/dashboard/event-booking-workspace/EventServicesPage";
+import EventOverviewPage from "../Pages/dashboard/event-booking-workspace/EventOverviewModernPage";
+import EventFunctionsPage from "../Pages/dashboard/event-booking-workspace/EventFunctionsAdminPage";
+import EventServicesPage from "../Pages/dashboard/event-booking-workspace/EventServicesAdminPage";
 import EventGuestsPage from "../Pages/dashboard/event-booking-workspace/EventGuestsPage";
 import EventGuestListPage from "../Pages/dashboard/event-booking-workspace/EventGuestListPage";
 import EventAccommodationPage from "../Pages/dashboard/event-booking-workspace/EventAccommodationPage";
@@ -32,6 +32,7 @@ import EventRunSheetPage from "../Pages/dashboard/event-booking-workspace/EventR
 import EventRolesResponsibilitiesPage from "../Pages/dashboard/event-booking-workspace/EventRolesResponsibilitiesPage";
 import EventFinancePage from "../Pages/dashboard/event-booking-workspace/EventFinancePage";
 import EventActivityPage from "../Pages/dashboard/event-booking-workspace/EventActivityPage";
+import EventBookingLayout from "../Pages/dashboard/event-booking-workspace/EventBookingLayout";
 import VendorCoordinationPage from "../Pages/dashboard/vendor-coordination/VendorCoordinationPage";
 import InventoryEssentialsPage from "../Pages/dashboard/inventory-essentials/InventoryEssentialsPage";
 import DocumentsPage from "../Pages/dashboard/documents/DocumentsPage";
@@ -87,25 +88,27 @@ const DashBoardRoutes = () => {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="my-tasks" element={<MyTasksPage />} />
             <Route path="assigned-events" element={<EventBookingDashboardPage />} />
-            <Route path="assigned-events/:eventId" element={<EventOverviewPage />} />
-            <Route path="assigned-events/:eventId/plan/functions" element={<EventFunctionsPage />} />
-            <Route path="assigned-events/:eventId/plan/services" element={<EventServicesPage />} />
-            <Route path="assigned-events/:eventId/plan/guests" element={<EventGuestsPage />} />
-            <Route path="assigned-events/:eventId/plan/guests/list" element={<EventGuestListPage />} />
-            <Route path="assigned-events/:eventId/plan/guests/accommodation" element={<EventAccommodationPage />} />
-            <Route path="assigned-events/:eventId/plan/guests/transport" element={<EventTransportPage />} />
-            <Route path="assigned-events/:eventId/plan/guests/hospitality" element={<EventHospitalityPage />} />
-            <Route path="assigned-events/:eventId/plan/preferences" element={<EventVisualPreferencesPage />} />
-            <Route path="assigned-events/:eventId/plan/approvals" element={<EventClientApprovalsPage />} />
-            <Route path="assigned-events/:eventId/operations" element={<EventOperationsPage />} />
-            <Route path="assigned-events/:eventId/operations/vendors" element={<EventVendorsPage />} />
-            <Route path="assigned-events/:eventId/operations/inventory" element={<EventInventoryPage />} />
-            <Route path="assigned-events/:eventId/operations/logistics" element={<EventLogisticsPage />} />
-            <Route path="assigned-events/:eventId/operations/run-sheet" element={<EventRunSheetPage />} />
-            <Route path="assigned-events/:eventId/operations/roles-responsibilities" element={<EventRolesResponsibilitiesPage />} />
-            <Route path="assigned-events/:eventId/finance" element={<EventFinancePage />} />
-            <Route path="assigned-events/:eventId/finance/:section" element={<EventFinancePage />} />
-            <Route path="assigned-events/:eventId/activity" element={<EventActivityPage />} />
+            <Route path="assigned-events/:eventId" element={<EventBookingLayout />}>
+              <Route index element={<EventOverviewPage />} />
+              <Route path="plan/functions" element={<EventFunctionsPage />} />
+              <Route path="plan/services" element={<EventServicesPage />} />
+              <Route path="plan/guests" element={<EventGuestsPage />} />
+              <Route path="plan/guests/list" element={<EventGuestListPage />} />
+              <Route path="plan/guests/accommodation" element={<EventAccommodationPage />} />
+              <Route path="plan/guests/transport" element={<EventTransportPage />} />
+              <Route path="plan/guests/hospitality" element={<EventHospitalityPage />} />
+              <Route path="plan/preferences" element={<EventVisualPreferencesPage />} />
+              <Route path="plan/approvals" element={<EventClientApprovalsPage />} />
+              <Route path="operations" element={<EventOperationsPage />} />
+              <Route path="operations/vendors" element={<EventVendorsPage />} />
+              <Route path="operations/inventory" element={<EventInventoryPage />} />
+              <Route path="operations/logistics" element={<EventLogisticsPage />} />
+              <Route path="operations/run-sheet" element={<EventRunSheetPage />} />
+              <Route path="operations/roles-responsibilities" element={<EventRolesResponsibilitiesPage />} />
+              <Route path="finance" element={<EventFinancePage />} />
+              <Route path="finance/:section" element={<EventFinancePage />} />
+              <Route path="activity" element={<EventActivityPage />} />
+            </Route>
             <Route path="assigned-clients" element={<AssignedClientsPage />} />
             <Route path="assigned-clients/:clientId" element={<DetailAssignedClientPage />} />
             <Route

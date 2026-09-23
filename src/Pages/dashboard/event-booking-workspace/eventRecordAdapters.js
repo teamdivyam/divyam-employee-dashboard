@@ -1,7 +1,7 @@
 const idOf = (value) => String(value?._id || value || '');
 
 export const getBookingStatus = (booking) =>
-  booking?.bookingStatus || booking?.status || 'Status not set';
+  booking?.bookingStatus || 'Status not set';
 
 export const getEventServiceName = (service) =>
   typeof service === 'string' ? service : service?.name || service?.service || '';

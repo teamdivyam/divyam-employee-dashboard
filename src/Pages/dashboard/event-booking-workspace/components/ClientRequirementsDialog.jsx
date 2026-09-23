@@ -44,7 +44,7 @@ import {
 } from '../../../../validator/client.validator';
 
 const eventTypes = ['Wedding', 'Reception', 'Engagement', 'Birthday', 'Corporate Event', 'Anniversary', 'Other'];
-const budgetOptions = ['Below â‚¹5L', 'â‚¹5L â€“ â‚¹8L', 'â‚¹8L â€“ â‚¹12L', 'â‚¹12L â€“ â‚¹25L', 'â‚¹25L+'];
+const budgetOptions = ['Below ₹5L', '₹5L – ₹8L', '₹8L – ₹12L', '₹12L – ₹25L', '₹25L+'];
 const styleOptions = ['Luxury / Traditional', 'Royal / Heritage', 'Modern / Minimal', 'Floral / Pastel', 'Custom / To Be Discussed'];
 const functionOptions = ['Haldi', 'Mehndi', 'Sangeet', 'Wedding', 'Reception', 'Other'];
 const serviceOptions = ['Catering', 'DÃ©cor', 'Hospitality', 'Wedding Planning', 'Complete Wedding Management', 'Service & Presentation', 'Other'];
@@ -150,7 +150,7 @@ const eventLabel = (customer) => {
   const event = customer?.eventType || customer?.eventTitle || 'Event';
   const date = customer?.eventDate ? new Date(customer.eventDate) : null;
   if (!date || Number.isNaN(date.getTime())) return event;
-  return `${event} â€“ ${date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+  return `${event} – ${date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`;
 };
 
 function SummaryCard({ icon: Icon, label, value, tone = 'blue' }) {
@@ -416,7 +416,7 @@ export default function ClientRequirementsDialog({ open, onOpenChange, customer,
                 </div>
                 <Field label="Venue / Location"><Input className={inputClass} value={form.venue} onChange={(event) => update('venue', event.target.value)} placeholder="Venue name" /></Field>
                 <Field label="Event City"><Input className={inputClass} value={form.eventCity} onChange={(event) => update('eventCity', event.target.value)} placeholder="City" /></Field>
-                <Field label="Estimated Guests"><Input className={inputClass} value={form.guestRange} onChange={(event) => update('guestRange', event.target.value)} placeholder="e.g. 500 â€“ 600" /></Field>
+                <Field label="Estimated Guests"><Input className={inputClass} value={form.guestRange} onChange={(event) => update('guestRange', event.target.value)} placeholder="e.g. 500 – 600" /></Field>
                 <Field label="Budget Range">
                   <Select value={form.budgetRange} onValueChange={(value) => update('budgetRange', value)}>
                     <SelectTrigger className={inputClass}><SelectValue placeholder="Select budget range" /></SelectTrigger>
@@ -447,7 +447,7 @@ export default function ClientRequirementsDialog({ open, onOpenChange, customer,
                     {form.functionDetails.map((item, index) => (
                       <div key={item._id || `${item.name}-${index}`} className="grid gap-2 px-3 py-2.5 text-xs sm:grid-cols-[minmax(110px,0.8fr)_minmax(140px,1fr)_minmax(120px,0.9fr)_auto] sm:items-center">
                         <div><p className="font-semibold text-foreground">{item.name}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{item.status}</p></div>
-                        <p className="text-muted-foreground">{item.date || 'Date pending'}{item.time ? ` Â· ${item.time}` : ''}</p>
+                        <p className="text-muted-foreground">{item.date || 'Date pending'}{item.time ? ` · ${item.time}` : ''}</p>
                         <p className="truncate text-muted-foreground">{item.venue || 'Venue pending'}</p>
                         <div className="flex justify-end gap-1">
                           <Button type="button" variant="ghost" size="icon" onClick={() => startFunction(index)} className="h-7 w-7" aria-label={`Edit ${item.name}`}><Pencil className="h-3.5 w-3.5" /></Button>
@@ -464,7 +464,7 @@ export default function ClientRequirementsDialog({ open, onOpenChange, customer,
                       <Field label="Function" required><Select value={functionDraft.name} onValueChange={(value) => updateFunctionDraft('name', value)}><SelectTrigger className={inputClass}><SelectValue placeholder="Select function" /></SelectTrigger><SelectContent>{functionOptions.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent></Select></Field>
                       <div className="grid grid-cols-2 gap-2"><Field label="Date"><Input type="date" className={inputClass} value={functionDraft.date || ''} onChange={(event) => updateFunctionDraft('date', event.target.value)} /></Field><Field label="Time"><Input type="time" className={inputClass} value={functionDraft.time || ''} onChange={(event) => updateFunctionDraft('time', event.target.value)} /></Field></div>
                       <Field label="Venue"><Input className={inputClass} value={functionDraft.venue} onChange={(event) => updateFunctionDraft('venue', event.target.value)} placeholder="Function venue" /></Field>
-                      <Field label="Guests"><Input className={inputClass} value={functionDraft.guests} onChange={(event) => updateFunctionDraft('guests', event.target.value)} placeholder="e.g. 150 or 500 â€“ 600" /></Field>
+                      <Field label="Guests"><Input className={inputClass} value={functionDraft.guests} onChange={(event) => updateFunctionDraft('guests', event.target.value)} placeholder="e.g. 150 or 500 – 600" /></Field>
                       <Field label="Status"><Select value={functionDraft.status} onValueChange={(value) => updateFunctionDraft('status', value)}><SelectTrigger className={inputClass}><SelectValue /></SelectTrigger><SelectContent>{functionStatuses.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent></Select></Field>
                       <Field label="Required Services" className="md:col-span-2"><ChoiceChips options={serviceOptions} value={functionDraft.services} onChange={(value) => updateFunctionDraft('services', value)} /></Field>
                     </div>

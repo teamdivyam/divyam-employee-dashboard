@@ -90,7 +90,7 @@ export default function EventGuestsPage() {
   };
 
   return (
-    <div className="crm-page min-h-screen space-y-4 p-3 sm:p-4 lg:p-5">
+    <div className="min-w-0 space-y-4">
       <EventFunctionsHeader booking={booking} metrics={metrics} onBack={() => navigate('/dashboard/assigned-events')} onEdit={() => setEditBookingOpen(true)} onMarkReady={() => readyMutation.mutate()} onOpenPlanning={() => document.getElementById('guests-overview')?.scrollIntoView({ behavior: 'smooth' })} />
       <EventDetailTabs activePrimary="plan" activePlan="guests" showPlanTabs onSelect={selectTab} />
       <EventGuestsPanels functions={functions} requirements={requirements} peakGuests={peakGuests} onUpdateCounts={() => setCountsOpen(true)} onAddRequirement={() => setRequirementDialog({})} onEditRequirement={setRequirementDialog} onUnavailable={(key, label) => key === 'list' ? navigate(`/dashboard/assigned-events/${eventId}/plan/guests/list`) : key === 'accommodation' ? navigate(`/dashboard/assigned-events/${eventId}/plan/guests/accommodation`) : key === 'transport' ? navigate(`/dashboard/assigned-events/${eventId}/plan/guests/transport`) : key === 'hospitality' ? navigate(`/dashboard/assigned-events/${eventId}/plan/guests/hospitality`) : toast.info(`${label} will be available here.`)} />

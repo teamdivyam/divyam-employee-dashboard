@@ -1,0 +1,21 @@
+/* Keep event subsection navigation smaller than the main workspace tabs. */
+.nestedTabs :global(.tab-comp-detail-list.tab-comp-compact-list),
+.nestedTabs :global(.tab-comp-trigger.tab-comp-detail-trigger.tab-comp-compact-trigger) {
+  height: 2.125rem !important;
+}
+
+.nestedTabs :global(.tab-comp-trigger.tab-comp-detail-trigger.tab-comp-content-trigger) {
+  gap: 0.375rem;
+  padding-inline: 0.75rem !important;
+  border-bottom-width: 2px !important;
+  font-size: 0.75rem;
+}
+
+.nestedTabs [role='tab'] svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.nestedTabs + * {
+  margin-top: 1rem !important;
+}

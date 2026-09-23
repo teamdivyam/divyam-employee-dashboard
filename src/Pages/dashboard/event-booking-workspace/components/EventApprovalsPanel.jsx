@@ -9,6 +9,7 @@ import { Input } from '@components/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './EventTable';
 import { approvalStatuses, approvalStatusTone, approvalTypes } from '../eventApproval.utils';
+import EventSummaryCards from './EventSummaryCards';
 
 const idOf = (value) => String(value?._id || value || '');
 const formatDate = (value) => {
@@ -96,38 +97,18 @@ export default function EventApprovalsPanel({ approvals = [], functions = [], on
     ready: approvals.filter((item) => item.status === 'Ready to Finalise').length,
   }), [approvals]);
   const stats = [
-    { label: 'Total', value: counts.total, icon: CalendarDays, tone: 'text-violet-600 bg-violet-50' },
-    { label: 'Approved', value: counts.approved, icon: CheckCircle2, tone: 'text-emerald-600 bg-emerald-50' },
-    { label: 'Pending', value: counts.pending, icon: Clock3, tone: 'text-orange-600 bg-orange-50' },
-    { label: 'Change Requested', value: counts.change, icon: RotateCcw, tone: 'text-rose-600 bg-rose-50' },
-    { label: 'Ready to Finalise', value: counts.ready, icon: Star, tone: 'text-blue-600 bg-blue-50' },
+    { label: 'Total', value: counts.total, icon: CalendarDays, tone: 'violet' },
+    { label: 'Approved', value: counts.approved, icon: CheckCircle2, tone: 'emerald' },
+    { label: 'Pending', value: counts.pending, icon: Clock3, tone: 'orange' },
+    { label: 'Change Requested', value: counts.change, icon: RotateCcw, tone: 'rose' },
+    { label: 'Ready to Finalise', value: counts.ready, icon: Star, tone: 'blue' },
   ];
 
   return (
     <Card id="client-approvals" className="crm-card overflow-hidden">
+      <EventSummaryCards metricItems={stats} />
       <CardContent className="p-0">
         <div className="flex flex-col gap-3 border-b border-border px-4 py-3 2xl:flex-row 2xl:flex-wrap 2xl:items-center 2xl:gap-2">
-          <div className="flex min-w-0 shrink-0 items-center overflow-x-auto py-0.5">
-            {stats.map(({ label, value, icon: Icon, tone }, index) => (
-              <div
-                key={label}
-                className={`flex min-w-[100px] shrink-0 items-center gap-2 px-3 ${
-                  index ? 'border-l border-border' : 'pl-0'
-                }`}
-              >
-                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${tone}`}>
-                  <Icon className="h-4 w-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-base font-bold leading-4 text-foreground">{value}</p>
-                  <p className="mt-1 whitespace-nowrap text-[10px] font-medium leading-3 text-muted-foreground">
-                    {label}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-
           <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(128px,1fr)_100px_88px_100px_auto] 2xl:min-w-[540px]">
             <div className="relative min-w-0">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -183,7 +164,8 @@ export default function EventApprovalsPanel({ approvals = [], functions = [], on
 
             <Button
               onClick={onAdd}
-              className="h-9 w-full gap-1.5 whitespace-nowrap bg-blue-600 px-4 text-xs hover:bg-blue-700 lg:w-auto"
+              variant="custom"
+              className="h-9 w-full gap-1.5 whitespace-nowrap px-4 text-xs lg:w-auto"
             >
               <Plus className="h-4 w-4" />
               Add Approval

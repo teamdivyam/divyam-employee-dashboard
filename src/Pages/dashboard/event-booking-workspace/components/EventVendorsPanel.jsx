@@ -103,7 +103,7 @@ export default function EventVendorsPanel({ booking, onAdd, onEdit }) {
           <Select value={serviceFilter} onValueChange={setServiceFilter}><SelectTrigger className="h-9 w-20 shrink-0 px-2 text-[10px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Services</SelectItem>{services.map((service) => <SelectItem key={service} value={service}>{service}</SelectItem>)}</SelectContent></Select>
           <Select value={functionFilter} onValueChange={setFunctionFilter}><SelectTrigger className="h-9 w-20 shrink-0 px-2 text-[10px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Functions</SelectItem>{functions.map((item) => <SelectItem key={idOf(item)} value={idOf(item)}>{item.name}</SelectItem>)}</SelectContent></Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="h-9 w-24 shrink-0 px-2 text-[10px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Status</SelectItem>{statuses.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent></Select>
-          <Button size="sm" onClick={onAdd} className="h-9 shrink-0 gap-1 bg-blue-600 px-2.5 text-[10px] hover:bg-blue-700"><Plus className="h-3.5 w-3.5" />Assign Vendor</Button>
+          <Button variant="custom" size="sm" onClick={onAdd} className="h-9 shrink-0 gap-1 px-2.5 text-[10px]"><Plus className="h-3.5 w-3.5" />Assign Vendor</Button>
         </div>
       </div>
 

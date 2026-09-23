@@ -506,7 +506,7 @@ body {
   .tab-comp-list {
     height: 2.75rem !important;
     justify-content: flex-start !important;
-    gap: 6px !important;
+    gap: 8px !important;
     overflow-x: auto;
     overflow-y: hidden;
     border: 1px solid hsl(var(--border));
@@ -526,8 +526,8 @@ body {
     background-color: transparent !important;
     padding: 0 0.75rem !important;
     color: hsl(var(--foreground)) !important;
-    font-size: 8px;
-    font-weight: 400;
+    font-size: 13px !important;
+    font-weight: 500 !important;
     box-shadow: none !important;
     transition: color 150ms ease, border-color 150ms ease;
   }
@@ -539,6 +539,73 @@ body {
 
   .tab-comp-trigger[data-state="active"] {
     border-bottom-color: hsl(var(--tab-accent)) !important;
+  }
+
+  /* Spacious equal-width navigation for record/detail workspaces. */
+  .tab-comp-detail-list {
+    height: 3.375rem !important;
+    width: 100%;
+    justify-content: stretch !important;
+    gap: 0 !important;
+    border-left: 0;
+    border-right: 0;
+    border-top: 0;
+    border-radius: 0 !important;
+    padding: 0 0.5rem !important;
+    box-shadow: none;
+  }
+
+  .tab-comp-trigger.tab-comp-detail-trigger {
+    height: 3.375rem !important;
+    min-width: 9rem;
+    flex: 1 0 9rem;
+    justify-content: center;
+    gap: 0.5rem;
+    border-bottom-width: 3px !important;
+    padding: 0 1rem !important;
+    color: hsl(var(--muted-foreground)) !important;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .tab-comp-trigger.tab-comp-detail-trigger:hover {
+    background-color: hsl(var(--muted) / 0.45) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .tab-comp-trigger.tab-comp-detail-trigger[data-state="active"] {
+    background-color: transparent !important;
+    color: hsl(var(--primary)) !important;
+    border-bottom-color: hsl(var(--primary)) !important;
+  }
+
+  /* Content-width detail navigation for record workspaces with a small tab set. */
+  .tab-comp-detail-list.tab-comp-content-list {
+    justify-content: flex-start !important;
+    padding-inline: 0.75rem !important;
+  }
+
+  .tab-comp-list.tab-comp-flush-list {
+    background-color: transparent !important;
+    padding-inline: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .tab-comp-trigger.tab-comp-detail-trigger.tab-comp-content-trigger {
+    min-width: 0;
+    flex: 0 0 auto;
+    padding-inline: 1.5rem !important;
+  }
+
+  .tab-comp-detail-list.tab-comp-compact-list,
+  .tab-comp-trigger.tab-comp-detail-trigger.tab-comp-compact-trigger {
+    height: 3rem !important;
+  }
+
+  @media (max-width: 640px) {
+    .tab-comp-trigger.tab-comp-detail-trigger.tab-comp-content-trigger {
+      padding-inline: 1rem !important;
+    }
   }
 
   .employee-task-tab-list {

@@ -1,0 +1,39 @@
+.listPage {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 4rem);
+  overflow: auto;
+}
+
+.listContent {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.listContent > * {
+  flex-shrink: 0;
+}
+
+.listScrollArea {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: hsl(var(--card));
+}
+
+.listScrollArea > :global(.event-booking-table-fit) {
+  overflow: visible;
+}
+
+.listScrollArea > :global(.event-booking-table-fit) > div {
+  overflow: visible !important;
+}
+
+.listContent :global(.event-booking-table-fit) thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: hsl(var(--muted));
+}

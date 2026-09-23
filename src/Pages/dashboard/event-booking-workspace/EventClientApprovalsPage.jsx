@@ -71,8 +71,8 @@ export default function EventClientApprovalsPage() {
   };
 
   return (
-    <div className="crm-page min-h-screen space-y-4 p-3 sm:p-4 lg:p-5">
-      <EventFunctionsHeader booking={booking} metrics={metrics} onBack={() => navigate('/dashboard/assigned-events')} onEdit={() => setEditBookingOpen(true)} onMarkReady={() => readyMutation.mutate()} onOpenPlanning={() => document.getElementById('client-approvals')?.scrollIntoView({ behavior: 'smooth' })} />
+    <div className="min-w-0 space-y-4">
+      <EventFunctionsHeader booking={booking} metrics={metrics} showMetrics={false} onBack={() => navigate('/dashboard/assigned-events')} onEdit={() => setEditBookingOpen(true)} onMarkReady={() => readyMutation.mutate()} onOpenPlanning={() => document.getElementById('client-approvals')?.scrollIntoView({ behavior: 'smooth' })} />
       <EventDetailTabs activePrimary="plan" activePlan="approvals" showPlanTabs onSelect={selectTab} />
       <EventApprovalsPanel approvals={approvals} functions={functions} onAdd={() => setCreateOpen(true)} onView={viewApproval} />
 

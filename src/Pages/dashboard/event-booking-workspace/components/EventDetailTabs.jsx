@@ -1,4 +1,5 @@
 /* eslint-disable react/prop-types */
+import { useContext } from "react";
 import {
   CalendarDays,
   CheckCircle2,
@@ -9,6 +10,8 @@ import {
   WalletCards,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
+import { EventSummaryContext } from "./EventSummaryContext";
+import EventPlanTabs from "./EventPlanTabs";
 
 const primaryTabs = [
   { key: "overview", label: "Overview", icon: CheckCircle2 },
@@ -57,6 +60,7 @@ export default function EventDetailTabs({
   onSelect,
   showPlanTabs = false,
 }) {
+  const summaryTarget = useContext(EventSummaryContext);
   const navigate = useNavigate();
   const { eventId } = useParams();
   const selectPrimary = (key) => {
@@ -72,6 +76,9 @@ export default function EventDetailTabs({
     if (routeByTab[key]) navigate(routeByTab[key]);
     else onSelect?.(key);
   };
+  if (summaryTarget !== undefined) {
+    return showPlanTabs ? <EventPlanTabs activePlan={activePlan} onSelect={onSelect} /> : null;
+  }
   return (
     <>
       <nav

@@ -131,7 +131,7 @@ export default function EventHospitalityPage() {
   };
 
   return (
-    <div className="crm-page min-h-screen space-y-4 p-3 sm:p-4 lg:p-5">
+    <div className="min-w-0 space-y-4">
       <EventFunctionsHeader
         booking={booking}
         metrics={{}}

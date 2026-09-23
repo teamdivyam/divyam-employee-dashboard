@@ -19,49 +19,50 @@ const preferenceTone = (status = '') => {
   return 'bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300';
 };
 
-export default function VisualPreferencesGallery({ preferences = [], functionNames = [], onAdd }) {
+export default function VisualPreferencesGallery({ preferences = [], functionNames = [], onAdd, onView, toolbarAction, showSort = true, className = 'p-3 sm:p-4' }) {
   const [functionFilter, setFunctionFilter] = useState('All');
   const [sortOrder, setSortOrder] = useState('recent');
 
   const filters = useMemo(() => [
     'All',
-    ...new Set([...functionNames, ...preferences.map((item) => item.functionName)].filter(Boolean)),
+    ...new Set([...functionNames, ...preferences.map((item) => item.functionName || 'General Event')].filter(Boolean)),
   ], [functionNames, preferences]);
+  const activeFilter = filters.includes(functionFilter) ? functionFilter : 'All';
 
   const visiblePreferences = useMemo(() => preferences
-    .filter((item) => functionFilter === 'All' || item.functionName === functionFilter)
+    .filter((item) => activeFilter === 'All' || (item.functionName || 'General Event') === activeFilter)
     .sort((left, right) => {
       const leftTime = new Date(left.createdAt || 0).getTime();
       const rightTime = new Date(right.createdAt || 0).getTime();
       return sortOrder === 'oldest' ? leftTime - rightTime : rightTime - leftTime;
-    }), [functionFilter, preferences, sortOrder]);
+    }), [activeFilter, preferences, sortOrder]);
 
   return (
-    <div className="p-3 sm:p-4">
+    <div className={className}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex max-w-full gap-1.5 overflow-x-auto pb-0.5">
           {filters.map((filter) => (
-            <Button key={filter} type="button" variant={functionFilter === filter ? 'default' : 'outline'} size="sm" onClick={() => setFunctionFilter(filter)} className={`h-7 shrink-0 px-3 text-[10px] ${functionFilter === filter ? 'bg-pink-600 hover:bg-pink-700' : ''}`}>
+            <Button key={filter} type="button" variant={activeFilter === filter ? 'default' : 'outline'} size="sm" onClick={() => setFunctionFilter(filter)} className={`h-7 shrink-0 px-3 text-[10px] ${activeFilter === filter ? 'bg-pink-600 hover:bg-pink-700' : ''}`}>
               {filter}
             </Button>
           ))}
         </div>
-        <Select value={sortOrder} onValueChange={setSortOrder}>
+        {toolbarAction}
+        {showSort && <Select value={sortOrder} onValueChange={setSortOrder}>
           <SelectTrigger className="h-7 w-[150px] text-[10px]"><SelectValue /></SelectTrigger>
           <SelectContent><SelectItem value="recent">Recently Added</SelectItem><SelectItem value="oldest">Oldest First</SelectItem></SelectContent>
-        </Select>
+        </Select>}
       </div>
 
       {visiblePreferences.length ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
           {visiblePreferences.map((item, index) => (
-            <article key={item._id || `${item.title}-${index}`} className="group overflow-hidden rounded-lg border border-border bg-card transition-shadow hover:shadow-md">
-              <a href={item.imageUrl} target="_blank" rel="noreferrer" className="relative block aspect-[4/3] overflow-hidden bg-muted" aria-label={`Open ${item.title || 'client preference'} image`}>
+            <article key={item._id || `${item.title}-${index}`} className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card transition-shadow hover:shadow-md">
+              <div className="relative"><a href={item.imageUrl} target="_blank" rel="noreferrer" onClick={onView ? (event) => { event.preventDefault(); onView(item); } : undefined} className="relative block aspect-[4/3] overflow-hidden bg-muted" aria-label={`Open ${item.title || 'client preference'} image`}>
                 <img src={item.imageUrl} alt={item.title || 'Client preference'} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
                 <Badge variant="secondary" className="absolute left-2 top-2 border-0 bg-background/90 text-[9px] text-foreground shadow-sm backdrop-blur-sm">{item.source || 'Client Shared'}</Badge>
                 {item.recordStatus === 'Draft' ? <Badge variant="secondary" className="absolute right-2 top-2 border-0 bg-slate-900/70 text-[9px] text-white">Draft</Badge> : null}
-                <span className="absolute bottom-2 right-2 grid h-7 w-7 place-items-center rounded-full bg-slate-950/70 text-white opacity-0 transition-opacity group-hover:opacity-100"><ExternalLink className="h-3.5 w-3.5" /></span>
-              </a>
+              </a><a href={item.imageUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open image for ${item.title || 'preference'} in a new tab`} className="absolute bottom-2 right-2 grid h-7 w-7 place-items-center rounded-full bg-slate-950/70 text-white"><ExternalLink className="h-3.5 w-3.5" /></a></div>
               <div className="space-y-1.5 p-2.5">
                 <p className="truncate text-[11px] font-semibold text-foreground">{item.title}</p>
                 <p className="truncate text-[9px] text-muted-foreground">{item.category} <span aria-hidden="true">·</span> {item.functionName}</p>

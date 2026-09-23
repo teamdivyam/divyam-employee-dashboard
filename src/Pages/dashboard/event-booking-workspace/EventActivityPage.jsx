@@ -518,7 +518,7 @@ export default function EventActivityPage() {
   if (!booking) return <div className="crm-page p-5"><Card><CardContent className="p-8 text-center">Event booking not found.</CardContent></Card></div>;
 
   return (
-    <div className="crm-page min-h-screen space-y-3 p-3 sm:p-4 lg:p-5">
+    <div className="min-w-0 space-y-3">
       <EventFunctionsHeader
         booking={booking}
         metrics={metrics}
@@ -549,7 +549,7 @@ export default function EventActivityPage() {
           <SelectContent><SelectItem value="all">All Team Members</SelectItem>{(activityQuery.data?.options?.teamMembers || []).map((member) => <SelectItem key={member.value} value={member.value}>{member.label}</SelectItem>)}</SelectContent>
         </Select>
         <DateRangeFilter filters={filters} onChange={mergeFilters} />
-        <Button className="h-9 w-full gap-2 px-3 xl:w-auto" onClick={() => setNoteOpen(true)}><Plus className="h-4 w-4" />Add Internal Note</Button>
+        <Button variant="custom" className="h-9 w-full gap-2 px-3 xl:w-auto" onClick={() => setNoteOpen(true)}><Plus className="h-4 w-4" />Add Internal Note</Button>
       </div>
 
       {activityQuery.isLoading && !activityQuery.data ? (

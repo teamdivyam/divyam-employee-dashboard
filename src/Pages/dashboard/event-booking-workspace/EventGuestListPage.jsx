@@ -61,12 +61,12 @@ export default function EventGuestListPage() {
   };
 
   return (
-    <div className="crm-page min-h-screen space-y-4 p-3 sm:p-4 lg:p-5">
-      <EventFunctionsHeader booking={booking} metrics={metrics} onBack={() => navigate('/dashboard/assigned-events')} onEdit={() => setEditBookingOpen(true)} onMarkReady={() => readyMutation.mutate()} onOpenPlanning={() => document.getElementById('guest-list')?.scrollIntoView({ behavior: 'smooth' })} />
+    <div className="min-w-0 space-y-4">
+      <EventFunctionsHeader booking={booking} metrics={metrics} showMetrics={false} onBack={() => navigate('/dashboard/assigned-events')} onEdit={() => setEditBookingOpen(true)} onMarkReady={() => readyMutation.mutate()} onOpenPlanning={() => document.getElementById('guest-list')?.scrollIntoView({ behavior: 'smooth' })} />
       <EventDetailTabs activePrimary="plan" activePlan="guests" showPlanTabs onSelect={selectEventTab} />
       <EventGuestListPanel guests={guests} functions={functions} onGuestTab={selectGuestTab} onAdd={() => setGuestDialog({})} onEdit={setGuestDialog} onImport={() => setImportOpen(true)} />
 
-      <EventGuestDialog open={Boolean(guestDialog)} onOpenChange={(open) => !open && setGuestDialog(null)} item={guestDialog} functions={functions} saving={createMutation.isPending || updateGuestMutation.isPending} onSave={saveGuest} />
+      <EventGuestDialog booking={booking} open={Boolean(guestDialog)} onOpenChange={(open) => !open && setGuestDialog(null)} item={guestDialog} functions={functions} saving={createMutation.isPending || updateGuestMutation.isPending} onSave={saveGuest} />
       <EventGuestImportDialog open={importOpen} onOpenChange={setImportOpen} functions={functions} saving={importMutation.isPending} onImport={(records) => records.length ? importMutation.mutate(records) : toast.error('No valid guest rows found in the CSV file')} />
       <EditBookingDialog open={editBookingOpen} onOpenChange={setEditBookingOpen} booking={booking} employees={employees} saving={updateBookingMutation.isPending} onSave={(payload) => updateBookingMutation.mutate(payload)} />
     </div>

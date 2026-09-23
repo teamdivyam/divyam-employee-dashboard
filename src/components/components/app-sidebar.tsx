@@ -180,6 +180,9 @@ export function ActiveSidebarHeading() {
   const activeItem = navMain.find((item) => (
     isNavItemActive(pathname, item)
   )) || navMain[0];
+  const heading = /^\/dashboard\/assigned-events\/[^/]+/.test(pathname)
+    ? "Events & Bookings"
+    : activeItem.title;
   const Icon = activeItem.icon || LayoutDashboard;
   const iconTileClassName = "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-blue-600 shadow-sm dark:text-blue-400";
 
@@ -194,7 +197,7 @@ export function ActiveSidebarHeading() {
           <Icon className="h-4 w-4" aria-hidden="true" />
         </span>
       )}
-      <h1 className="truncate text-lg font-semibold tracking-tight text-foreground sm:text-lg">{activeItem.title}</h1>
+      <h1 className="truncate text-lg font-semibold tracking-tight text-foreground sm:text-lg">{heading}</h1>
     </div>
   );
 }

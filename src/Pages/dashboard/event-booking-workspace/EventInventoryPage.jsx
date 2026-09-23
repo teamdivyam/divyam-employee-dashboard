@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Boxes, CalendarDays, Eye, Loader2, Plus, Search } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import AdminService from '../../../services/event-booking-workspace.service';
@@ -14,10 +14,9 @@ import { Input } from '@components/components/ui/input';
 import { Label } from '@components/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/EventTable';
-import { EditBookingDialog, getBookingDetail, getEmployees } from './components/EventBookingComponents';
-import EventDetailTabs from './components/EventDetailTabs';
-import EventFunctionsHeader from './components/EventFunctionsHeader';
+import { getEmployees } from './components/EventBookingComponents';
 import EventOperationsNav from './components/EventOperationsNav';
+import EventSummaryCards from './components/EventSummaryCards';
 import { getFinalPreferenceCount } from './eventBookingDashboard.utils';
 
 const PAGE_SIZE = 10;
@@ -48,6 +47,12 @@ const statusTone = (status) => {
 
 function InventoryRequirementDialog({ open, onOpenChange, requirement, functions, employees, vendors, source, saving, onSave }) {
   const [form, setForm] = useState(emptyForm);
+  const vendorOptions = useMemo(() => {
+    const currentVendor = requirement?.vendor && typeof requirement.vendor === 'object' ? requirement.vendor : null;
+    return currentVendor && !vendors.some((item) => idOf(item) === idOf(currentVendor))
+      ? [currentVendor, ...vendors]
+      : vendors;
+  }, [requirement, vendors]);
 
   useEffect(() => {
     if (!open) return;
@@ -75,7 +80,7 @@ function InventoryRequirementDialog({ open, onOpenChange, requirement, functions
     event.preventDefault();
     const selectedFunction = functions.find((item) => idOf(item) === form.functionId);
     const employee = employees.find((item) => idOf(item) === form.coordinator);
-    const vendor = vendors.find((item) => idOf(item) === form.vendor);
+    const vendor = vendorOptions.find((item) => idOf(item) === form.vendor);
     onSave({
       source: form.source,
       itemName: form.itemName.trim(),
@@ -96,27 +101,57 @@ function InventoryRequirementDialog({ open, onOpenChange, requirement, functions
     });
   };
 
+  const required = Math.max(0, Number(form.requiredQuantity || 0));
+  const reserved = Math.min(required, Math.max(0, Number(form.reservedQuantity || 0)));
+  const remaining = Math.max(0, required - reserved);
+  const readiness = remaining === 0 ? (form.source === 'Vendor' ? 'Confirmed' : 'Reserved') : reserved > 0 ? (form.source === 'Vendor' ? 'Partial' : 'Partially Reserved') : 'Shortage';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-        <DialogHeader><DialogTitle>{requirement ? 'Update' : 'Add'} {form.source} Inventory Requirement</DialogTitle></DialogHeader>
-        <form id="event-inventory-form" onSubmit={submit} className="grid gap-4 py-2 sm:grid-cols-2">
-          <div className="space-y-1.5"><Label>Source</Label><Select value={form.source} onValueChange={(value) => setForm((current) => ({ ...current, source: value, vendor: 'none', status: 'Pending' }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Company">Company</SelectItem><SelectItem value="Vendor">Vendor</SelectItem></SelectContent></Select></div>
-          {form.source === 'Vendor' && <div className="space-y-1.5"><Label>Vendor</Label><Select value={form.vendor} onValueChange={(value) => setValue('vendor', value)}><SelectTrigger><SelectValue placeholder="Select vendor" /></SelectTrigger><SelectContent><SelectItem value="none">Select vendor</SelectItem>{vendors.map((item) => <SelectItem key={idOf(item)} value={idOf(item)}>{item.companyName || item.name}</SelectItem>)}</SelectContent></Select></div>}
-          <div className="space-y-1.5"><Label>Item name</Label><Input value={form.itemName} onChange={(event) => setValue('itemName', event.target.value)} placeholder="Banquet Chairs" required /></div>
-          <div className="space-y-1.5"><Label>Category</Label><Input value={form.category} onChange={(event) => setValue('category', event.target.value)} placeholder="Furniture" required /></div>
-          <div className="space-y-1.5"><Label>SKU (optional)</Label><Input value={form.sku} onChange={(event) => setValue('sku', event.target.value)} /></div>
-          <div className="space-y-1.5"><Label>Required quantity</Label><Input type="number" min="1" value={form.requiredQuantity} onChange={(event) => setValue('requiredQuantity', event.target.value)} required /></div>
-          <div className="space-y-1.5"><Label>Reserved quantity</Label><Input type="number" min="0" value={form.reservedQuantity} onChange={(event) => setValue('reservedQuantity', event.target.value)} required /></div>
-          <div className="space-y-1.5"><Label>Unit</Label><Input value={form.unitLabel} onChange={(event) => setValue('unitLabel', event.target.value)} /></div>
-          <div className="space-y-1.5"><Label>Applies to</Label><Select value={form.functionId} onValueChange={(value) => setValue('functionId', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Functions</SelectItem>{functions.map((item) => <SelectItem key={idOf(item)} value={idOf(item)}>{item.name}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-1.5"><Label>Dispatch date & time</Label><Input type="datetime-local" value={form.dispatchAt} onChange={(event) => setValue('dispatchAt', event.target.value)} /></div>
-          <div className="space-y-1.5"><Label>Return date & time</Label><Input type="datetime-local" value={form.returnAt} onChange={(event) => setValue('returnAt', event.target.value)} /></div>
-          <div className="space-y-1.5"><Label>Coordinator</Label><Select value={form.coordinator} onValueChange={(value) => setValue('coordinator', value)}><SelectTrigger><SelectValue placeholder="Select coordinator" /></SelectTrigger><SelectContent><SelectItem value="none">Not assigned</SelectItem>{employees.map((item) => <SelectItem key={idOf(item)} value={idOf(item)}>{item.name}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-1.5"><Label>Status</Label><Select value={form.status} onValueChange={(value) => setValue('status', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{(form.source === 'Vendor' ? vendorStatuses : companyStatuses).map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-1.5 sm:col-span-2"><Label>Notes</Label><Input value={form.notes} onChange={(event) => setValue('notes', event.target.value)} placeholder="Optional notes" /></div>
+      <DialogContent className="flex h-[90vh] max-w-5xl flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="shrink-0 border-b border-border/80 px-6 py-4 text-left">
+          <div className="flex items-start gap-3.5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/80 bg-card shadow-xs"><Boxes className="h-6 w-6" /></div>
+            <div><DialogTitle className="text-xl font-bold tracking-tight">{requirement ? 'Edit Item Allocation' : `Add ${form.source} Requirement`}</DialogTitle><p className="mt-0.5 text-xs text-muted-foreground">{requirement ? 'Update requirement and allocation for this event.' : 'Configure the inventory item and its event fulfilment.'}</p></div>
+          </div>
+        </DialogHeader>
+        <form id="event-inventory-form" onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+          <div className="flex-1 space-y-6 overflow-y-auto p-6">
+            <Card className="overflow-hidden border border-border/80 bg-card shadow-xs">
+              <div className="flex items-center gap-2 border-b border-blue-100 bg-blue-50/50 px-5 py-2.5"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold text-white">1</span><span className="text-xs font-bold tracking-wider text-blue-600">ITEM &amp; SOURCE</span></div>
+              <CardContent className="grid gap-4 p-5 md:grid-cols-3">
+                {form.source === 'Vendor' ? <div className="space-y-1.5"><Label className="text-xs font-semibold">Vendor *</Label><Select value={form.vendor} onValueChange={(value) => setValue('vendor', value)}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select vendor" /></SelectTrigger><SelectContent><SelectItem value="none">Select vendor</SelectItem>{vendorOptions.map((item) => <SelectItem key={idOf(item)} value={idOf(item)}>{item.companyName || item.name}</SelectItem>)}</SelectContent></Select></div> : null}
+                <div className="space-y-1.5"><Label className="text-xs font-semibold">Item Name *</Label><Input className="h-9 text-xs" value={form.itemName} onChange={(event) => setValue('itemName', event.target.value)} placeholder="Enter item name" required /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold">Category *</Label><Input className="h-9 text-xs" value={form.category} onChange={(event) => setValue('category', event.target.value)} placeholder="Enter category" required /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold">SKU (Optional)</Label><Input className="h-9 text-xs" value={form.sku} onChange={(event) => setValue('sku', event.target.value)} /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold">Unit</Label><Input className="h-9 text-xs" value={form.unitLabel} onChange={(event) => setValue('unitLabel', event.target.value)} /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold">Status</Label><Select value={form.status} onValueChange={(value) => setValue('status', value)}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{(form.source === 'Vendor' ? vendorStatuses : companyStatuses).map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
+              </CardContent>
+            </Card>
+            <Card className="overflow-hidden border border-border/80 bg-card shadow-xs">
+              <div className="flex items-center gap-2 border-b border-blue-100 bg-blue-50/50 px-5 py-2.5"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold text-white">2</span><span className="text-xs font-bold tracking-wider text-blue-600">QUANTITY &amp; EVENT FULFILMENT</span></div>
+              <CardContent className="grid gap-4 p-5 md:grid-cols-3">
+                <div className="space-y-1.5"><Label className="text-xs font-semibold">Required Quantity *</Label><Input className="h-9 text-xs" type="number" min="1" value={form.requiredQuantity} onChange={(event) => setValue('requiredQuantity', event.target.value)} required /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold">Confirmed Quantity</Label><Input className="h-9 text-xs" type="number" min="0" value={form.reservedQuantity} onChange={(event) => setValue('reservedQuantity', event.target.value)} required /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold">Applies To</Label><Select value={form.functionId} onValueChange={(value) => setValue('functionId', value)}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Functions</SelectItem>{functions.map((item) => <SelectItem key={idOf(item)} value={idOf(item)}>{item.name}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold">Delivery Date &amp; Time</Label><Input className="h-9 text-xs" type="datetime-local" value={form.dispatchAt} onChange={(event) => setValue('dispatchAt', event.target.value)} /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold">Return / Pickup</Label><Input className="h-9 text-xs" type="datetime-local" value={form.returnAt} onChange={(event) => setValue('returnAt', event.target.value)} /></div>
+                <div className="space-y-1.5"><Label className="text-xs font-semibold">Coordinator</Label><Select value={form.coordinator} onValueChange={(value) => setValue('coordinator', value)}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select coordinator" /></SelectTrigger><SelectContent><SelectItem value="none">Not assigned</SelectItem>{employees.map((item) => <SelectItem key={idOf(item)} value={idOf(item)}>{item.name}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-1.5 md:col-span-3"><Label className="text-xs font-semibold">Notes (Optional)</Label><Input className="h-9 text-xs" value={form.notes} onChange={(event) => setValue('notes', event.target.value)} placeholder="Add handling, delivery, or pickup notes" /></div>
+              </CardContent>
+            </Card>
+            <Card className="overflow-hidden border border-emerald-200 bg-emerald-50/30 shadow-xs">
+              <div className="border-b border-emerald-200 px-5 py-2.5 text-xs font-bold tracking-wider text-emerald-700">ALLOCATION PREVIEW</div>
+              <CardContent className="grid gap-3 p-5 sm:grid-cols-4">
+                <div><p className="text-[10px] text-muted-foreground">Required</p><p className="mt-1 text-base font-bold tabular-nums">{required}</p></div>
+                <div><p className="text-[10px] text-muted-foreground">Confirmed</p><p className="mt-1 text-base font-bold tabular-nums text-emerald-700">{reserved}</p></div>
+                <div><p className="text-[10px] text-muted-foreground">Remaining</p><p className={`mt-1 text-base font-bold tabular-nums ${remaining ? 'text-rose-600' : 'text-emerald-700'}`}>{remaining}</p></div>
+                <div><p className="text-[10px] text-muted-foreground">Expected Status</p><Badge variant="outline" className={`mt-1 ${statusTone(readiness)}`}>{readiness}</Badge></div>
+              </CardContent>
+            </Card>
+          </div>
+          <DialogFooter className="shrink-0 border-t border-border/80 bg-card px-6 py-4"><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" disabled={saving || !form.itemName.trim() || !form.category.trim() || (form.source === 'Vendor' && form.vendor === 'none')}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{requirement ? 'Save Changes' : `Add ${form.source} Requirement`}</Button></DialogFooter>
         </form>
-        <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" form="event-inventory-form" disabled={saving || !form.itemName.trim() || !form.category.trim() || (form.source === 'Vendor' && form.vendor === 'none')}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{requirement ? 'Save Changes' : 'Add Requirement'}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -185,10 +220,10 @@ function EventInventoryPanel({ data, onAdd, onView }) {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2">
-          <Button type="button" variant={source === 'Company' ? 'default' : 'outline'} size="sm" onClick={() => selectSource('Company')} className="min-w-32">Company ({summary.company || 0})</Button>
-          <Button type="button" variant={source === 'Vendor' ? 'default' : 'outline'} size="sm" onClick={() => selectSource('Vendor')} className="min-w-32">Vendor ({summary.vendor || 0})</Button>
+          <Button type="button" variant={source === 'Company' ? 'custom' : 'outline'} size="sm" onClick={() => selectSource('Company')} className="min-w-32">Company ({summary.company || 0})</Button>
+          <Button type="button" variant={source === 'Vendor' ? 'custom' : 'outline'} size="sm" onClick={() => selectSource('Vendor')} className="min-w-32">Vendor ({summary.vendor || 0})</Button>
         </div>
-        <Button size="sm" onClick={() => onAdd(source)} className="h-9 gap-1.5 bg-blue-600 text-xs hover:bg-blue-700"><Plus className="h-4 w-4" />Add {source} Requirement</Button>
+        <Button variant="custom" size="sm" onClick={() => onAdd(source)} className="h-9 gap-1.5 text-xs"><Plus className="h-4 w-4" />Add {source} Requirement</Button>
       </div>
 
       <Card className="overflow-hidden border-border shadow-sm"><CardContent className="p-0">
@@ -226,12 +261,10 @@ export default function EventInventoryPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedRequirement, setSelectedRequirement] = useState(null);
   const [dialogSource, setDialogSource] = useState('Company');
-  const [editBookingOpen, setEditBookingOpen] = useState(false);
 
-  const bookingQuery = useQuery({ queryKey: ['event-booking-detail', eventId], queryFn: async () => (await AdminService.getEventBookingDetail({ eventId })).data, enabled: Boolean(eventId) });
+  const { booking, bookingQuery } = useOutletContext();
   const inventoryQuery = useQuery({ queryKey: ['event-booking-inventory', eventId], queryFn: async () => (await AdminService.getEventInventory({ eventId, limit: 100 })).data, enabled: Boolean(eventId) });
   const managersQuery = useQuery({ queryKey: ['event-booking-managers'], queryFn: async () => (await AdminService.getEventBookingManagers({ limit: 100 })).data });
-  const booking = getBookingDetail(bookingQuery.data);
   const employees = getEmployees(managersQuery.data);
   const functions = useMemo(() => booking?.functions || [], [booking]);
   const vendors = useMemo(() => {
@@ -252,27 +285,16 @@ export default function EventInventoryPage() {
     onSuccess: () => { toast.success(selectedRequirement ? 'Inventory requirement updated' : 'Inventory requirement added'); setDialogOpen(false); setSelectedRequirement(null); inventoryQuery.refetch(); bookingQuery.refetch(); },
     onError: (error) => toast.error(error.response?.data?.message || 'Unable to save inventory requirement'),
   });
-  const updateBookingMutation = useMutation({ mutationFn: (payload) => AdminService.updateEventBooking({ eventId, ...payload }), onSuccess: () => { toast.success('Booking updated'); setEditBookingOpen(false); bookingQuery.refetch(); }, onError: (error) => toast.error(error.response?.data?.message || 'Unable to update booking') });
-  const readyMutation = useMutation({ mutationFn: () => AdminService.markEventExecutionReady({ eventId }), onSuccess: () => { toast.success('Event marked execution ready'); bookingQuery.refetch(); }, onError: (error) => toast.error(error.response?.data?.message || 'Unable to mark event ready') });
 
   if (bookingQuery.isLoading || inventoryQuery.isLoading) return <div className="crm-page grid min-h-[70vh] place-items-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!booking) return <div className="crm-page p-5"><Card className="crm-card"><CardContent className="p-8 text-center"><p className="font-semibold">Event booking not found</p><Button variant="outline" className="mt-4" onClick={() => navigate('/dashboard/assigned-events')}>Back to bookings</Button></CardContent></Card></div>;
 
-  const selectTab = (key) => {
-    if (key === 'overview') navigate(`/dashboard/assigned-events/${eventId}`);
-    else if (key === 'plan') navigate(`/dashboard/assigned-events/${eventId}/plan/functions`);
-    else if (key === 'operations') navigate(`/dashboard/assigned-events/${eventId}/operations`);
-    else if (key === 'activity') toast.info('Event activity will be available here.');
-    else if (key === 'finance') toast.info('Finance & Files will be available here.');
-  };
   const openAdd = (source) => { setSelectedRequirement(null); setDialogSource(source); setDialogOpen(true); };
   const openView = (item) => { setSelectedRequirement(item); setDialogSource(item.source || 'Company'); setDialogOpen(true); };
 
-  return <div className="crm-page min-h-screen space-y-3 p-3 sm:p-4 lg:p-5">
-    <EventFunctionsHeader booking={booking} metrics={metrics} onBack={() => navigate('/dashboard/assigned-events')} onEdit={() => setEditBookingOpen(true)} onMarkReady={() => readyMutation.mutate()} onOpenPlanning={() => document.getElementById('event-inventory')?.scrollIntoView({ behavior: 'smooth' })} primaryActionLabel="Open Operations Plan" />
-    <EventDetailTabs activePrimary="operations" onSelect={selectTab} />
+  return <div className="min-w-0 space-y-3">
+    <EventSummaryCards metrics={metrics} />
     <div id="event-inventory"><EventInventoryPanel data={inventoryQuery.data} onAdd={openAdd} onView={openView} /></div>
     <InventoryRequirementDialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setSelectedRequirement(null); }} requirement={selectedRequirement} functions={functions} employees={employees} vendors={vendors} source={dialogSource} saving={inventoryMutation.isPending} onSave={(payload) => inventoryMutation.mutate(payload)} />
-    <EditBookingDialog open={editBookingOpen} onOpenChange={setEditBookingOpen} booking={booking} employees={employees} saving={updateBookingMutation.isPending} onSave={(payload) => updateBookingMutation.mutate(payload)} />
   </div>;
 }

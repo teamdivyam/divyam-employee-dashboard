@@ -5,12 +5,16 @@ import {
   ChevronRight,
   Download,
   Eye,
-  Filter,
   MessageCircle,
   Phone,
   Plus,
   Search,
   UserRound,
+  UsersRound,
+  CheckCircle2,
+  Clock3,
+  Crown,
+  BedDouble,
 } from "lucide-react";
 
 import { Badge } from "@components/components/ui/badge";
@@ -36,6 +40,7 @@ import {
 import EventGuestsNav from "./EventGuestsNav";
 import { initials } from "../eventBookingDashboard.utils";
 import { getEventGuestNeeds } from "../eventRecordAdapters";
+import EventSummaryCards from "./EventSummaryCards";
 
 const idOf = (value) => String(value?._id || value || "");
 const functionTones = [
@@ -75,7 +80,6 @@ export default function EventGuestListPanel({
   const [search, setSearch] = useState("");
   const [functionFilter, setFunctionFilter] = useState("all");
   const [rsvpFilter, setRsvpFilter] = useState("all");
-  const [needsOnly, setNeedsOnly] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const functionMap = useMemo(
@@ -100,14 +104,13 @@ export default function EventGuestListPanel({
           return false;
         if (rsvpFilter !== "all" && item.rsvpStatus !== rsvpFilter)
           return false;
-        if (needsOnly && !getEventGuestNeeds(item).length) return false;
         return true;
       }),
-    [functionFilter, guests, needsOnly, rsvpFilter, search],
+    [functionFilter, guests, rsvpFilter, search],
   );
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
-  useEffect(() => setPage(1), [functionFilter, needsOnly, rsvpFilter, search]);
+  useEffect(() => setPage(1), [functionFilter, rsvpFilter, search]);
   useEffect(() => {
     if (page > pages) setPage(pages);
   }, [page, pages]);
@@ -133,21 +136,22 @@ export default function EventGuestListPanel({
     [guests],
   );
   const summaryItems = [
-    { label: "Total Guests", value: totals.total, tone: "text-foreground" },
-    { label: "Confirmed", value: totals.confirmed, tone: "text-emerald-600" },
-    { label: "Pending RSVP", value: totals.pending, tone: "text-amber-600" },
-    { label: "VIP Guests", value: totals.vip, tone: "text-violet-600" },
-    { label: "Stay Required", value: totals.stay, tone: "text-blue-600" },
+    { label: "Total Guests", value: totals.total, tone: "blue", icon: UsersRound },
+    { label: "Confirmed", value: totals.confirmed, tone: "emerald", icon: CheckCircle2 },
+    { label: "Pending RSVP", value: totals.pending, tone: "amber", icon: Clock3 },
+    { label: "VIP Guests", value: totals.vip, tone: "violet", icon: Crown },
+    { label: "Stay Required", value: totals.stay, tone: "cyan", icon: BedDouble },
   ];
 
   return (
     <Card id="guest-list" className="crm-card overflow-hidden">
-      <EventGuestsNav
-        active="list"
-        onSelect={onGuestTab}
-        actions={
-          <div className="flex max-w-full shrink-0 flex-nowrap gap-2 overflow-x-auto pb-0.5">
-            <div className="relative w-44 shrink-0">
+      <EventSummaryCards metricItems={summaryItems.map((item) => ({ ...item, value: item.value.toLocaleString("en-IN") }))} />
+      <EventGuestsNav active="list" onSelect={onGuestTab} />
+
+      <CardContent className="p-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            <div className="relative min-w-44 flex-1 basis-44">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 value={search}
@@ -182,43 +186,16 @@ export default function EventGuestListPanel({
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              variant={needsOnly ? "default" : "outline"}
-              size="sm"
-              className="h-9 shrink-0 gap-2"
-              onClick={() => setNeedsOnly((value) => !value)}
-            >
-              <Filter className="h-4 w-4" />
-              More Filters
-            </Button>
           </div>
-        }
-      />
-
-      <CardContent className="p-4">
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="grid flex-1 grid-cols-2 gap-2 rounded-lg border border-border p-3 sm:grid-cols-5">
-            {summaryItems.map((item, index) => (
-              <div
-                key={item.label}
-                className={`px-2 ${index ? "sm:border-l sm:border-border" : ""}`}
-              >
-                <p className="text-[10px] font-semibold text-muted-foreground">
-                  {item.label}
-                </p>
-                <p className={`mt-1 text-xl font-bold ${item.tone}`}>
-                  {item.value.toLocaleString("en-IN")}
-                </p>
-              </div>
-            ))}
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <Button variant="outline" className="gap-2" onClick={onImport}>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" className="h-9 gap-2" onClick={onImport}>
               <Download className="h-4 w-4" />
               Import Guest List
             </Button>
             <Button
-              className="gap-2 bg-blue-600 hover:bg-blue-700"
+              variant="custom"
+              size="sm"
+              className="h-9 gap-2"
               onClick={onAdd}
             >
               <Plus className="h-4 w-4" />
@@ -228,16 +205,16 @@ export default function EventGuestListPanel({
         </div>
         <div className="overflow-hidden rounded-lg border border-border">
           <div className="overflow-x-auto">
-            <Table className="min-w-[950px] table-fixed text-xs">
+            <Table headerVariant="section" className="min-w-[950px] table-fixed text-xs">
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead className="w-[20%] pl-6">Guest / Family</TableHead>
-                  <TableHead className="w-[13%]">Contact</TableHead>
-                  <TableHead className="w-[17%] text-center">Members</TableHead>
+                  <TableHead className="w-[18%] text-center">Guest / Family</TableHead>
+                  <TableHead className="w-[16%]">Contact</TableHead>
+                  <TableHead className="w-[7%] text-center">Members</TableHead>
                   <TableHead className="w-[17%]">Functions</TableHead>
                   <TableHead className="w-[12%]">RSVP Status</TableHead>
                   <TableHead className="w-[20%]">Hospitality Needs</TableHead>
-                  <TableHead className="w-[8%] pr-6 text-right">
+                  <TableHead className="w-[13%] text-center">
                     Action
                   </TableHead>
                 </TableRow>

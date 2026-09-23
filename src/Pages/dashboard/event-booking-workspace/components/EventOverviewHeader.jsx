@@ -1,4 +1,5 @@
 /* eslint-disable react/prop-types */
+import { useContext } from 'react';
 import {
   CalendarDays,
   ChevronRight,
@@ -16,6 +17,9 @@ import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/components/ui/dropdown-menu';
 import { avatarUrl, bookingCode, currencyAmount, eventDateLabel, initials } from '../eventBookingDashboard.utils';
+import { getBookingStatus } from '../eventRecordAdapters';
+import { EventSummaryContext } from './EventSummaryContext';
+import EventSummarySlot from './EventSummarySlot';
 
 const metricTones = {
   violet: 'bg-violet-100 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300',
@@ -32,6 +36,7 @@ const metricCardTones = {
 };
 
 export default function EventOverviewHeader({ booking, summary, onBack, onOpenPlanning, onEdit, onMarkReady, onViewTasks }) {
+  const summaryTarget = useContext(EventSummaryContext);
   const clientName = booking.customer?.name || booking.eventName || 'Event Booking';
   const cards = [
     {
@@ -64,13 +69,22 @@ export default function EventOverviewHeader({ booking, summary, onBack, onOpenPl
     },
   ];
 
+  if (summaryTarget !== undefined) {
+    return <EventSummarySlot><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      {cards.map(({ label, value, caption, icon: Icon, tone }) => (
+        <Card key={label} className={`crm-card ${metricCardTones[tone]}`}><CardContent className="flex min-h-24 items-center gap-3 p-4"><span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${metricTones[tone]}`}><Icon className="h-5 w-5" /></span><div className="min-w-0"><p className="text-[10px] text-muted-foreground">{label}</p><p className="mt-1 truncate text-sm font-bold text-foreground">{value}</p><p className="mt-1 truncate text-[10px] text-muted-foreground">{caption}</p></div></CardContent></Card>
+      ))}
+      <Card className={`crm-card ${metricCardTones.violet}`}><CardContent className="flex min-h-24 items-center gap-3 p-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-violet-100 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300"><ListChecks className="h-5 w-5" /></span><div><p className="text-[10px] text-muted-foreground">Open Tasks</p><p className="mt-1 text-lg font-bold text-foreground">{summary.openTasks}</p><button type="button" onClick={onViewTasks} className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-blue-600">View Tasks<ChevronRight className="h-3.5 w-3.5" /></button></div></CardContent></Card>
+    </div></EventSummarySlot>;
+  }
+
   return (
     <>
       <div className="flex flex-col gap-4 pb-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-center gap-4">
           <Avatar className="h-16 w-16 rounded-lg border border-violet-100"><AvatarImage src={avatarUrl(booking.customer)} /><AvatarFallback className="rounded-lg bg-violet-50 text-xl font-semibold text-violet-700">{initials(clientName)}</AvatarFallback></Avatar>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-3"><h1 className="truncate text-2xl font-bold text-foreground">{clientName}</h1><Badge className="border-0 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Booking Confirmed</Badge></div>
+            <div className="flex flex-wrap items-center gap-3"><h1 className="truncate text-2xl font-bold text-foreground">{clientName}</h1><Badge className="border-0 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">{getBookingStatus(booking)}</Badge></div>
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"><span>{bookingCode(booking)}</span><span>•</span><span>{booking.eventType || '-'}</span><span>•</span><span className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{eventDateLabel(booking, { includeWeekday: true })}</span><span>•</span><span>{[booking.venue, booking.city].filter(Boolean).join(', ') || '-'}</span></div>
           </div>
         </div>

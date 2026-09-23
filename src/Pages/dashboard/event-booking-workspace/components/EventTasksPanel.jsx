@@ -119,7 +119,7 @@ export default function EventTasksPanel({ booking, sideContent, onCreateTask, on
               <Select value={taskType} onValueChange={setTaskType}><SelectTrigger className="h-8 w-28 shrink-0 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Task Types</SelectItem>{taskTypes.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>
               <Select value={status} onValueChange={setStatus}><SelectTrigger className="h-8 w-24 shrink-0 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Status</SelectItem>{statuses.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>
               <Select value={priority} onValueChange={setPriority}><SelectTrigger className="h-8 w-24 shrink-0 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Priority</SelectItem>{priorities.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>
-              <Button size="sm" onClick={onCreateTask} className="h-8 shrink-0 gap-1.5 whitespace-nowrap bg-blue-600 px-3 text-xs hover:bg-blue-700"><Plus className="h-4 w-4" />Create Task</Button>
+              <Button variant="custom" size="sm" onClick={onCreateTask} className="h-8 shrink-0 gap-1.5 whitespace-nowrap px-3 text-xs"><Plus className="h-4 w-4" />Create Task</Button>
             </div>
           </div>
 

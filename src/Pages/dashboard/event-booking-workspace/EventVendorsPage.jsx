@@ -86,7 +86,7 @@ export default function EventVendorsPage() {
   const openEdit = (assignment) => { setSelectedAssignment(assignment); setPreferredVendorId(''); setDialogOpen(true); };
 
   return (
-    <div className="crm-page min-h-screen w-full min-w-0 max-w-full space-y-3 overflow-x-hidden p-3 sm:p-4 lg:p-5">
+    <div className="min-w-0 space-y-3">
       <EventFunctionsHeader booking={booking} metrics={metrics} onBack={() => navigate('/dashboard/assigned-events')} onEdit={() => setEditBookingOpen(true)} onMarkReady={() => readyMutation.mutate()} onOpenPlanning={() => document.getElementById('event-vendors')?.scrollIntoView({ behavior: 'smooth' })} primaryActionLabel="Open Operations Plan" />
       <EventDetailTabs activePrimary="operations" onSelect={selectTab} />
       <div id="event-vendors" className="w-full min-w-0 max-w-full"><EventVendorsPanel booking={booking} onAdd={openCreate} onEdit={openEdit} /></div>

@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
 import { CalendarDays, ChevronRight, Clock3, Eye, Hand, Heart, PartyPopper, Plus, UsersRound } from 'lucide-react';
+import { dateRangeLabel, sortFunctionsByFromDate } from '../eventFunction.utils';
 
 import { Badge } from '@components/components/ui/badge';
 import { Button } from '@components/components/ui/button';
@@ -9,15 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 const icons = [PartyPopper, Hand, Heart, CalendarDays];
 const iconTones = ['bg-amber-50 text-amber-600', 'bg-emerald-50 text-emerald-600', 'bg-rose-50 text-rose-600', 'bg-violet-50 text-violet-600'];
 const serviceTones = ['border-emerald-200 bg-emerald-50 text-emerald-700', 'border-violet-200 bg-violet-50 text-violet-700', 'border-blue-200 bg-blue-50 text-blue-700', 'border-rose-200 bg-rose-50 text-rose-700'];
-
-const dateParts = (value) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return { date: '-', day: '' };
-  return {
-    date: new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date),
-    day: new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(date),
-  };
-};
 
 const timeLabel = (start, end) => {
   const format = (value) => {
@@ -43,35 +35,34 @@ export default function EventFunctionsTable({ functions, defaultServices, onAdd,
   return (
     <Card id="functions-overview" className="crm-card overflow-hidden">
       <div className="flex items-center justify-between border-b border-border px-6 py-3">
-        <h2 className="text-base font-bold text-foreground">Functions Overview</h2>
-        <Button size="sm" className="h-9 gap-2 bg-blue-600 px-4 hover:bg-blue-700" onClick={onAdd}><Plus className="h-4 w-4" />Add Function</Button>
+        <h2 className="text-base font-semibold text-foreground">Functions Overview</h2>
+        <Button size="sm" className="h-9 gap-2" variant="custom" onClick={onAdd}><Plus className="h-4 w-4" />Add Function</Button>
       </div>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
-          <Table className="min-w-[1050px] table-fixed text-xs">
+          <Table headerVariant="section" className="min-w-[1050px] table-fixed text-xs">
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="w-[16%] pl-12">Function</TableHead>
+                <TableHead className="w-[13%] text-center">Function</TableHead>
                 <TableHead className="w-[16%]">Date &amp; Time</TableHead>
                 <TableHead className="w-[17%]">Venue</TableHead>
-                <TableHead className="w-[9%]">Guests</TableHead>
-                <TableHead className="w-[21%]">Linked Services</TableHead>
+                <TableHead className="w-[7%]">Guests</TableHead>
+                <TableHead className="w-[26%]">Linked Services</TableHead>
                 <TableHead className="w-[10%]">Status</TableHead>
-                <TableHead className="w-[11%] pr-12 text-right">Action</TableHead>
+                <TableHead className="w-[11%] text-center">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {functions.length ? functions.map((item, index) => {
+              {functions.length ? sortFunctionsByFromDate(functions).map((item, index) => {
                 const Icon = icons[index % icons.length];
-                const scheduled = dateParts(item.fromDate || item.date);
                 const linkedServices = item.linkedServices ?? defaultServices;
                 return (
                   <TableRow key={item._id || `${item.name}-${index}`}>
                     <TableCell className="pl-6"><div className="flex items-center gap-3"><span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${iconTones[index % iconTones.length]}`}><Icon className="h-4 w-4" /></span><span className="font-semibold text-foreground">{item.name}</span></div></TableCell>
-                    <TableCell><p className="flex items-center gap-2 font-medium"><CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />{scheduled.date}<span className="text-muted-foreground">• {scheduled.day}</span></p><p className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground"><Clock3 className="h-3.5 w-3.5" />{timeLabel(item.startTime, item.endTime)}</p></TableCell>
-                    <TableCell><p className="font-medium text-foreground">{item.area || item.venue || 'Venue pending'}</p><p className="mt-1 text-[11px] text-muted-foreground">{item.area && item.venue ? item.venue : ''}</p></TableCell>
+                    <TableCell><p className="flex items-center gap-2 font-medium"><CalendarDays className="h-3.5 w-3.5 text-muted-foreground" /><span>{dateRangeLabel(item.fromDate ?? item.date, item.toDate)}</span></p><p className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground"><Clock3 className="h-3.5 w-3.5" />{timeLabel(item.startTime, item.endTime)}</p></TableCell>
+                    <TableCell><p className="font-medium text-foreground">{item.venue || 'Venue pending'}</p></TableCell>
                     <TableCell><span className="flex items-center gap-2 font-semibold"><UsersRound className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />{item.guestCount || 0}</span></TableCell>
-                    <TableCell><div className="flex flex-wrap gap-1.5">{linkedServices.length ? linkedServices.slice(0, 4).map((service, serviceIndex) => <Badge key={service} variant="outline" className={`rounded px-2 py-0.5 text-[9px] ${serviceTones[serviceIndex % serviceTones.length]}`}>{service}</Badge>) : <span className="text-muted-foreground">No services linked</span>}</div></TableCell>
+                    <TableCell><div className="flex flex-wrap gap-1.5">{linkedServices.length ? linkedServices.map((service, serviceIndex) => <Badge key={service} variant="outline" className={`rounded px-2 py-0.5 text-[9px] ${serviceTones[serviceIndex % serviceTones.length]}`}>{service}</Badge>) : <span className="text-muted-foreground">No services linked</span>}</div></TableCell>
                     <TableCell><Badge variant="outline" className={`whitespace-nowrap rounded px-2 py-0.5 text-[10px] ${statusTone(item.status)}`}>{item.status || 'Planned'}</Badge></TableCell>
                     <TableCell className="pr-6 text-right"><div className="flex items-center justify-end"><Button variant="outline" size="sm" className="h-8 gap-1.5 px-3 text-blue-700" onClick={() => onEdit(item)}><Eye className="h-4 w-4" />View</Button></div></TableCell>
                   </TableRow>

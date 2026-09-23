@@ -101,7 +101,7 @@ export default function EventVisualPreferencesPage() {
   };
 
   return (
-    <div className="crm-page min-h-screen space-y-4 p-3 sm:p-4 lg:p-5">
+    <div className="min-w-0 space-y-4">
       <EventFunctionsHeader booking={booking} metrics={metrics} onBack={() => navigate('/dashboard/assigned-events')} onEdit={() => setEditBookingOpen(true)} onMarkReady={() => readyMutation.mutate()} onOpenPlanning={() => document.getElementById('visual-preferences')?.scrollIntoView({ behavior: 'smooth' })} />
       <EventDetailTabs activePrimary="plan" activePlan="preferences" showPlanTabs onSelect={selectTab} />
       <EventVisualPreferencesPanel preferences={preferences} functions={functions} onAdd={openPreferenceDialog} />

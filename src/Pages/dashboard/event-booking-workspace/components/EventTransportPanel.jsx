@@ -3,27 +3,20 @@ import { useEffect, useMemo, useState } from "react";
 import {
   BusFront,
   CarFront,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Download,
   Eye,
-  Filter,
   MapPinned,
-  MoreVertical,
   Plus,
   Search,
-  UsersRound,
 } from "lucide-react";
 
 import { Badge } from "@components/components/ui/badge";
 import { Button } from "@components/components/ui/button";
 import { Card, CardContent } from "@components/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@components/components/ui/dropdown-menu";
 import { Input } from "@components/components/ui/input";
 import {
   Select,
@@ -41,6 +34,7 @@ import {
   TableRow,
 } from "./EventTable";
 import EventGuestsNav from "./EventGuestsNav";
+import EventSummaryCards from "./EventSummaryCards";
 
 const idOf = (value) => String(value?._id || value || "");
 const routeKey = (item) => `${item.origin || ""}|||${item.destination || ""}`;
@@ -85,12 +79,10 @@ export default function EventTransportPanel({
   onAddTransport,
   onEditTransport,
   onAddVehicle,
-  onEditVehicle,
 }) {
   const [search, setSearch] = useState("");
   const [routeFilter, setRouteFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [pendingOnly, setPendingOnly] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const guestMap = useMemo(
@@ -137,13 +129,11 @@ export default function EventTransportPanel({
           return false;
         if (statusFilter !== "all" && item.status !== statusFilter)
           return false;
-        if (pendingOnly && item.status !== "Pending Assignment") return false;
         return true;
       }),
     [
       assignments,
       guestMap,
-      pendingOnly,
       routeFilter,
       search,
       statusFilter,
@@ -152,7 +142,7 @@ export default function EventTransportPanel({
   );
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
-  useEffect(() => setPage(1), [pendingOnly, routeFilter, search, statusFilter]);
+  useEffect(() => setPage(1), [routeFilter, search, statusFilter]);
   useEffect(() => {
     if (page > pages) setPage(pages);
   }, [page, pages]);
@@ -174,42 +164,57 @@ export default function EventTransportPanel({
     {
       label: "Transport Required",
       value: required,
-      icon: BusFront,
-      tone: "text-emerald-600 bg-emerald-50",
+      icon: CarFront,
+      tone: "blue",
     },
     {
       label: "Assigned",
       value: assigned,
-      icon: CarFront,
-      tone: "text-blue-600 bg-blue-50",
+      icon: CheckCircle2,
+      tone: "emerald",
     },
     {
       label: "Pending Assignment",
       value: Math.max(0, required - assigned),
       icon: Clock3,
-      tone: "text-amber-600 bg-amber-50",
+      tone: "amber",
     },
     {
       label: "Vehicles",
       value: vehicles.length,
       icon: BusFront,
-      tone: "text-violet-600 bg-violet-50",
+      tone: "blue",
     },
     {
       label: "Routes",
       value: routes.length,
       icon: MapPinned,
-      tone: "text-cyan-600 bg-cyan-50",
+      tone: "blue",
     },
   ];
-  const actions = (
-    <div className="flex max-w-full shrink-0 flex-nowrap gap-2 overflow-x-auto pb-0.5">
-      <div className="relative w-44 shrink-0">
+  const download = () => {
+    const rows = [['Guest / Family', 'Pickup', 'Drop', 'Vehicle', 'Registration', 'Driver', 'Date', 'Time', 'Guests', 'Status'], ...filtered.map((item) => {
+      const guest = guestMap.get(idOf(item.guest));
+      const vehicle = vehicleMap.get(idOf(item.vehicle));
+      const schedule = scheduleLabel(item.scheduledAt);
+      return [guest?.name || '', item.origin || '', item.destination || '', vehicle?.name || '', vehicle?.registrationNumber || '', vehicle?.driverName || '', schedule.date, schedule.time, item.guestCount || 1, item.status || 'Pending Assignment'];
+    })];
+    const csv = rows.map((row) => row.map((value) => `"${String(value ?? '').replaceAll('"', '""')}"`).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'transport.csv';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const filters = (
+    <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 overflow-x-auto pb-1">
+      <div className="relative min-w-56 flex-1">
         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search guest / family"
+          placeholder="Search guest / family, route or driver..."
           className="h-9 pl-9 text-xs"
         />
       </div>
@@ -239,121 +244,35 @@ export default function EventTransportPanel({
           ))}
         </SelectContent>
       </Select>
-      <Button
-        variant={pendingOnly ? "default" : "outline"}
-        size="sm"
-        className="h-9 shrink-0 gap-2"
-        onClick={() => setPendingOnly((value) => !value)}
-      >
-        <Filter className="h-4 w-4" />
-        More Filters
-      </Button>
     </div>
   );
 
   return (
     <Card id="transport-plan" className="crm-card overflow-hidden">
-      <EventGuestsNav
-        active="transport"
-        onSelect={onGuestTab}
-        actions={actions}
+      <EventSummaryCards
+        metricItems={summaries.map((item) => ({
+          ...item,
+          value: item.value.toLocaleString("en-IN"),
+        }))}
       />
+      <EventGuestsNav active="transport" onSelect={onGuestTab} />
       <CardContent className="p-4">
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="grid flex-1 grid-cols-2 gap-2 rounded-lg border border-border p-3 sm:grid-cols-5">
-            {summaries.map(({ label, value, icon: Icon, tone }, index) => (
-              <div
-                key={label}
-                className={`flex items-center gap-2 px-2 ${index ? "sm:border-l sm:border-border" : ""}`}
-              >
-                <span
-                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${tone}`}
-                >
-                  <Icon className="h-4 w-4" />
-                </span>
-                <div>
-                  <p className="text-[10px] font-semibold text-muted-foreground">
-                    {label}
-                  </p>
-                  <p className="text-xl font-bold text-foreground">
-                    {value.toLocaleString("en-IN")}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              onClick={onAddVehicle}
-            >
-              <CarFront className="h-4 w-4" />
-              Add Vehicle
-            </Button>
-            {vehicles.length ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    aria-label="Edit saved vehicles"
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {vehicles.map((vehicle) => (
-                    <DropdownMenuItem
-                      key={idOf(vehicle)}
-                      onSelect={() => onEditVehicle(vehicle)}
-                    >
-                      Edit {vehicle.name}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
-            <Button
-              type="button"
-              className="gap-2 bg-blue-600 hover:bg-blue-700"
-              onClick={onAddTransport}
-            >
-              <Plus className="h-4 w-4" />
-              Add Transport
-            </Button>
-          </div>
-        </div>
+        <div className="mb-3 flex flex-nowrap items-center gap-2 overflow-x-auto">{filters}<Button variant="outline" size="sm" className="h-9 shrink-0" onClick={download} disabled={!filtered.length}><Download className="h-4 w-4" />Download</Button><Button variant="outline" size="sm" className="h-9 shrink-0" onClick={onAddVehicle}><CarFront className="h-4 w-4" />Manage Vehicle</Button><Button variant="custom" size="sm" className="h-9 shrink-0" onClick={onAddTransport}><Plus className="h-4 w-4" />Add Transport</Button></div>
         <div className="overflow-hidden rounded-lg border border-border">
-          <div className="border-b border-border px-4 py-3">
-            <h2 className="text-sm font-bold text-foreground">
-              Transport Plan
-            </h2>
-          </div>
           <div className="overflow-x-auto">
-            <Table className="min-w-[1100px] table-fixed text-xs">
+            <Table headerVariant="section" className="min-w-[1100px] table-fixed text-xs">
               <colgroup>
-                <col className="w-[16%]" />
-                <col className="w-[20%]" />
-                <col className="w-[11%]" />
-                <col className="w-[12%]" />
-                <col className="w-[14%]" />
-                <col className="w-[9%]" />
-                <col className="w-[9%]" />
-                <col className="w-[9%]" />
+                <col className="w-[4%]" /><col className="w-[15%]" /><col className="w-[11%]" /><col className="w-[19%]" /><col className="w-[20%]" /><col className="w-[12%]" /><col className="w-[7%]" /><col className="w-[8%]" /><col className="w-[9%]" />
               </colgroup>
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead className="pl-6">Guest / Family</TableHead>
+                  <TableHead>#</TableHead>
+                  <TableHead>Guest / Family</TableHead>
+                  <TableHead>Movement</TableHead>
                   <TableHead>Route</TableHead>
-                  <TableHead>Pickup / Drop</TableHead>
-                  <TableHead>Vehicle</TableHead>
+                  <TableHead>Vehicle &amp; Driver</TableHead>
                   <TableHead>Schedule</TableHead>
-                  <TableHead className="text-center">
-                    <span className="relative -left-4">Guests</span>
-                  </TableHead>
+                  <TableHead>Guests</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="pr-6 text-right">Action</TableHead>
                 </TableRow>
@@ -366,18 +285,15 @@ export default function EventTransportPanel({
                     const schedule = scheduleLabel(item.scheduledAt);
                     return (
                       <TableRow key={item._id || `pending-${idOf(item.guest)}`}>
-                        <TableCell className="pl-6">
+                        <TableCell>{(page - 1) * pageSize + index + 1}</TableCell>
+                        <TableCell>
                           <div className="flex items-center gap-2">
-                            <span
-                              className={`grid h-8 w-8 place-items-center rounded-full ${index % 2 ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600"}`}
-                            >
-                              <UsersRound className="h-4 w-4" />
-                            </span>
                             <span className="font-semibold text-foreground">
                               {guest?.name || "Guest record"}
                             </span>
                           </div>
                         </TableCell>
+                        <TableCell>{item.transferType ? <Badge variant="secondary" className="whitespace-nowrap rounded px-2 py-1 text-[10px] text-blue-700">{item.transferType}</Badge> : '-'}</TableCell>
                         <TableCell>
                           {item.origin || item.destination ? (
                             <div className="flex items-center gap-2">
@@ -396,9 +312,6 @@ export default function EventTransportPanel({
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="font-medium text-blue-700">
-                          {item.transferType || "-"}
-                        </TableCell>
                         <TableCell>
                           {vehicle ? (
                             <div className="flex items-center gap-2">
@@ -412,6 +325,7 @@ export default function EventTransportPanel({
                                     vehicle.vehicleType ||
                                     "-"}
                                 </p>
+                                {vehicle.driverName ? <p className="text-[10px] text-muted-foreground">{vehicle.driverName}{vehicle.driverContact ? ` · ${vehicle.driverContact}` : ''}</p> : null}
                               </div>
                             </div>
                           ) : (
@@ -431,11 +345,7 @@ export default function EventTransportPanel({
                             </p>
                           ) : null}
                         </TableCell>
-                        <TableCell className="text-center font-semibold">
-                          <span className="relative -left-4 inline-block">
-                            {item.guestCount || guest?.memberCount || 1}
-                          </span>
-                        </TableCell>
+                        <TableCell className="font-semibold">{item.guestCount || guest?.memberCount || 1}</TableCell>
                         <TableCell>
                           <Badge
                             variant="outline"
@@ -462,7 +372,7 @@ export default function EventTransportPanel({
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-40 text-center">
+                    <TableCell colSpan={9} className="h-40 text-center">
                       <BusFront className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
                       <p className="font-semibold text-foreground">
                         No transport records found
@@ -506,13 +416,6 @@ export default function EventTransportPanel({
               </Button>
             </div>
           </div>
-        </div>
-        <div className="mt-4 flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-3 text-xs text-blue-700">
-          <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-blue-600 text-[11px] font-bold text-white">
-            i
-          </span>
-          Guests marked Transport Required in the Guest List are managed here
-          for pickup, drop and route coordination.
         </div>
       </CardContent>
     </Card>
