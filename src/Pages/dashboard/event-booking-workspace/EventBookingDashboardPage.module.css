@@ -16,7 +16,7 @@
   flex-shrink: 0;
 }
 
-.listScrollArea {
+.listContent > .listScrollArea {
   flex: 1;
   min-height: 0;
   overflow: auto;

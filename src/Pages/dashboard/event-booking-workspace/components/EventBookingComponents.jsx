@@ -219,6 +219,7 @@ export const getTotalPages = (data) => data?.totalPages || data?.pagination?.tot
 const statusClass = (status) => {
   switch (status) {
     case 'Confirmed':
+    case 'Execution Ready':
     case 'Completed':
       return 'crm-status-completed';
     case 'Planning':
@@ -386,10 +387,14 @@ export function AssignManagerDialog({ open, onOpenChange, booking, employees = [
   );
 }
 
+export const bookingStatusLabel = (status) => status === 'Confirmed'
+  ? 'Booking Confirmed'
+  : status || 'Not set';
+
 export function StatusBadge({ status }) {
   return (
     <Badge variant="outline" className={`rounded-md px-2 py-0.5 text-[11px] ${statusClass(status)}`}>
-      {status || '-'}
+      {bookingStatusLabel(status)}
     </Badge>
   );
 }

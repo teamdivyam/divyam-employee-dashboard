@@ -14,7 +14,7 @@ import {
 } from './EventTable';
 import {
   avatarUrl,
-  bookingCode,
+  customerPhone,
   closureDetails,
   eventDateLabel,
   initials,
@@ -34,7 +34,7 @@ export default function CompletedBookingTable({
   onUpdateStatus,
 }) {
   return (
-    <div className="event-booking-table-fit w-full min-w-0 max-w-full overflow-x-auto rounded-lg border border-border">
+    <div className="event-booking-table-fit w-full min-w-0 max-w-full overflow-x-auto">
       <Table className="w-full table-fixed text-xs">
         <colgroup>
           <col className="w-[13%]" />
@@ -75,7 +75,7 @@ export default function CompletedBookingTable({
                       <button type="button" onClick={() => openEventOverview(booking)} className="block w-full truncate text-left font-semibold hover:text-blue-600">
                         {booking.customer?.name || booking.eventName || 'Unknown client'}
                       </button>
-                      <p className="truncate text-[10px] text-muted-foreground">{bookingCode(booking)}</p>
+                      <p className="truncate text-[10px] text-muted-foreground">{customerPhone(booking)}</p>
                       <Badge variant="outline" className="mt-1 h-4 rounded border-emerald-200 bg-emerald-50 px-1.5 text-[9px] text-emerald-700">Completed</Badge>
                     </div>
                   </div>

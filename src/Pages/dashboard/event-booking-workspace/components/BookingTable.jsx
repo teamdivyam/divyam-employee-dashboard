@@ -34,26 +34,20 @@ import {
 } from './EventTable';
 import {
   avatarUrl,
-  bookingCode,
+  customerPhone,
   daysRemaining,
   eventDateLabel,
   getKeyPendingItems,
   initials,
-  planningStage,
-  planningStageStep,
-  planningViewStage,
   readinessPercentage,
-  stageClass,
 } from '../eventBookingDashboard.utils';
 import {
-  ExecutionReadinessProgress,
   FinalPending,
   KeyPending,
-  OnboardingProgress,
   PaymentProgress,
-  PlanningProgress,
   Readiness,
 } from './EventBookingProgress';
+import { StatusBadge } from './EventBookingComponents';
 
 export function BookingActionsMenu({
   booking,
@@ -126,7 +120,6 @@ export function BookingActionsMenu({
 
 export default function BookingTable({
   bookings,
-  isNewBookingView,
   isPlanningView,
   isExecutionReadyView,
   openBooking,
@@ -135,80 +128,54 @@ export default function BookingTable({
   openDocuments,
   openPayments,
   openEventOverview,
-  openPlanning,
   openBookingSetup,
   markingReadyId,
   onMarkReady,
   onUpdateStatus,
+  onChangeReadiness,
+  updatingReadiness,
 }) {
-  const headings = isNewBookingView
-    ? ['Booking / Client', 'Event Details', 'Event Manager', 'Event Date', 'Onboarding', 'Payment Progress', 'Action']
-    : isPlanningView
-      ? ['Booking / Client', 'Event Details', 'Event Manager', 'Event Date', 'Planning Stage', 'Progress', 'Key Pending', 'Payment Progress', 'Action']
+  const hasPendingColumn = isPlanningView || isExecutionReadyView;
+  const headings = [
+    'Booking / Client',
+    'Event Details',
+    'Event Manager',
+    'Event Date',
+    'Planning Stage',
+    'Readiness',
+    ...(isPlanningView
+      ? ['Key Pending']
       : isExecutionReadyView
-        ? ['Booking / Client', 'Event Details', 'Event Manager', 'Event Date', 'Readiness', 'Final Pending', 'Payment', 'Action']
-        : ['Booking / Client', 'Event Details', 'Event Manager', 'Event Date', 'Planning Stage', 'Readiness', 'Payment Progress', 'Action'];
+        ? ['Final Pending']
+        : []),
+    'Payment Progress',
+    'Action',
+  ];
 
   return (
-    <div className="event-booking-table-fit w-full min-w-0 max-w-full overflow-x-auto rounded-lg border border-border">
-      <Table className={`w-full table-fixed text-xs ${(isPlanningView || isExecutionReadyView) ? 'min-w-[1180px]' : ''}`}>
-        {isNewBookingView ? (
-          <colgroup>
-            <col className="w-[15%]" />
-            <col className="w-[16%]" />
-            <col className="w-[14%]" />
-            <col className="w-[12%]" />
-            <col className="w-[15%]" />
-            <col className="w-[15%]" />
-            <col className="w-[13%]" />
-          </colgroup>
-        ) : isPlanningView ? (
-          <colgroup>
-            <col className="w-[11%]" />
-            <col className="w-[12%]" />
-            <col className="w-[12%]" />
-            <col className="w-[11%]" />
-            <col className="w-[12%]" />
-            <col className="w-[9%]" />
-            <col className="w-[11%]" />
-            <col className="w-[10%]" />
-            <col className="w-[12%]" />
-          </colgroup>
-        ) : isExecutionReadyView ? (
-          <colgroup>
-            <col className="w-[13%]" />
-            <col className="w-[14%]" />
-            <col className="w-[14%]" />
-            <col className="w-[11%]" />
-            <col className="w-[11%]" />
-            <col className="w-[14%]" />
-            <col className="w-[11%]" />
-            <col className="w-[12%]" />
-          </colgroup>
-        ) : (
-          <colgroup>
-            <col className="w-[14%]" />
-            <col className="w-[14%]" />
-            <col className="w-[15%]" />
-            <col className="w-[11%]" />
-            <col className="w-[11%]" />
-            <col className="w-[12%]" />
-            <col className="w-[11%]" />
-            <col className="w-[12%]" />
-          </colgroup>
-        )}
+    <div className="event-booking-table-fit w-full min-w-0 max-w-full overflow-x-auto">
+      <Table className={`w-full table-fixed text-xs ${hasPendingColumn ? 'min-w-[1180px]' : ''}`}>
+        <colgroup>
+          <col className={hasPendingColumn ? 'w-[15%]' : 'w-[18%]'} />
+          <col className={hasPendingColumn ? 'w-[14%]' : 'w-[17%]'} />
+          <col className={hasPendingColumn ? 'w-[11%]' : 'w-[12%]'} />
+          <col className="w-[9%]" />
+          <col className="w-[11%]" />
+          <col className={hasPendingColumn ? 'w-[11%]' : 'w-[13%]'} />
+          {hasPendingColumn ? <col className="w-[10%]" /> : null}
+          <col className="w-[11%]" />
+          <col className={hasPendingColumn ? 'w-[8%]' : 'w-[9%]'} />
+        </colgroup>
         <TableHeader className="bg-muted/60">
           <TableRow className="h-11 border-b border-border bg-muted/60 hover:bg-muted/60">
             {headings.map((heading) => (
-              <TableHead key={heading} scope="col" className={`${heading === 'Action' ? 'text-center' : 'text-left'} h-11 whitespace-nowrap px-3 text-[11px] font-bold leading-none tracking-[0.01em] text-foreground first:pl-4 last:pr-4`}>{heading}</TableHead>
+              <TableHead key={heading} scope="col" className={`${heading === 'Action' || heading === 'Booking / Client' ? 'text-center' : 'text-left'} h-11 whitespace-nowrap px-3 text-[11px] font-bold leading-none tracking-[0.01em] text-foreground first:pl-4 last:pr-4`}>{heading}</TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
           {bookings.length ? bookings.map((booking) => {
             const manager = booking.assignedManager;
-            const stage = isPlanningView ? planningViewStage(booking) : planningStage(booking);
-            const stageStep = planningStageStep(stage);
             const requiresSetup = booking.isCrmOnly || booking.onboardingStatus === 'Pending';
             const executionPercentage = readinessPercentage(booking);
             const canMarkReady = isExecutionReadyView
@@ -217,24 +184,16 @@ export default function BookingTable({
               && getKeyPendingItems(booking).length === 0
               && !booking.isCrmOnly;
             const teamCount = Math.max(0, (booking.assignedTeam?.length || 0) - (manager ? 1 : 0));
-            const primaryActionLabel = isNewBookingView
-              ? requiresSetup ? 'Continue Setup' : 'View Booking'
-              : isPlanningView
-                ? 'Open Planning'
-              : isExecutionReadyView
+            const primaryActionLabel = isExecutionReadyView
                 ? canMarkReady ? 'Mark Ready' : 'Open Readiness'
               : requiresSetup
                 ? 'Continue Setup'
               : booking.bookingStatus === 'Completed'
                 ? 'View Booking'
-                : 'Open Booking';
+                : 'View';
             const handlePrimaryAction = () => {
               if (canMarkReady) {
                 onMarkReady(booking);
-                return;
-              }
-              if (isPlanningView) {
-                openPlanning(booking);
                 return;
               }
               if (requiresSetup) openBookingSetup(booking);
@@ -243,27 +202,14 @@ export default function BookingTable({
             const remainingLabel = daysRemaining(booking);
             return (
               <TableRow key={booking._id} className="text-xs">
-                <TableCell className="min-w-0 p-2">
-                  <button type="button" onClick={() => openEventOverview(booking)} className="flex w-full min-w-0 items-center gap-2.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
-                    <Avatar className="h-9 w-9 shrink-0 border border-violet-100"><AvatarImage src={avatarUrl(booking.customer)} /><AvatarFallback className="bg-violet-50 text-xs text-violet-700">{initials(booking.customer?.name || booking.eventName)}</AvatarFallback></Avatar>
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold hover:text-blue-600">{booking.customer?.name || booking.eventName || 'Unknown client'}</p>
-                      <p className="truncate text-[10px] text-muted-foreground">{bookingCode(booking)}</p>
-                      <Badge variant="outline" className={`mt-1 h-4 rounded px-1.5 text-[9px] ${booking.bookingStatus === 'Cancelled' ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
-                        {booking.bookingStatus === 'Cancelled'
-                          ? 'On Hold'
-                          : booking.bookingStatus === 'Completed'
-                            ? 'Completed'
-                            : (isPlanningView || isExecutionReadyView) ? 'Confirmed' : 'Active'}
-                      </Badge>
-                    </div>
-                  </button>
-                </TableCell>
+                <BookingClientCell booking={booking} onOpen={openEventOverview} />
                 <TableCell className="min-w-0 p-2">
                   <p className="truncate font-semibold">{booking.eventType || booking.eventName || '-'}</p>
                   <p className="mt-1 truncate text-[10px] text-muted-foreground">{booking.venue || 'Venue pending'}{booking.city ? `, ${booking.city}` : ''}</p>
-                  <p className="mt-1 flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground"><CalendarDays className="h-3 w-3 shrink-0" /><span className="truncate">{eventDateLabel(booking)} <span aria-hidden="true">·</span> {booking.noOfFunctions || booking.functions?.length || 0} Functions</span></p>
-                  <p className="mt-1 flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground"><UsersRound className="h-3 w-3 shrink-0" /><span className="truncate">{booking.guestCount || 0} Guests</span></p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+                    <span className="inline-flex items-center gap-1"><UsersRound className="h-3 w-3 shrink-0" />{booking.guestCount || 0} Guests</span>
+                    <span className="inline-flex items-center gap-1"><CalendarDays className="h-3 w-3 shrink-0" />{booking.noOfFunctions || booking.functions?.length || 0} Functions</span>
+                  </div>
                 </TableCell>
                 <TableCell className="min-w-0 p-2">
                   <div className="flex min-w-0 items-center gap-2">
@@ -276,29 +222,18 @@ export default function BookingTable({
                   <p className="truncate font-semibold">{eventDateLabel(booking)}</p>
                   {remainingLabel ? <p className={`mt-1 truncate text-[10px] ${booking.bookingStatus === 'Completed' ? 'text-red-500' : 'text-blue-600 dark:text-blue-400'}`}>{remainingLabel}</p> : null}
                 </TableCell>
-                {isNewBookingView ? (
-                  <TableCell className="min-w-0 align-top px-3 py-2"><OnboardingProgress booking={booking} /></TableCell>
-                ) : isPlanningView ? (
-                  <>
-                    <TableCell className="min-w-0 p-2">
-                      <Badge variant="outline" title={stage} className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] ${stageClass(stage)}`}>{stage}</Badge>
-                      <p className="mt-1 truncate text-[9px] text-muted-foreground">Stage {stageStep} of 5</p>
-                    </TableCell>
-                    <TableCell className="min-w-0 align-top p-2"><PlanningProgress booking={booking} /></TableCell>
-                    <TableCell className="min-w-0 align-top p-2"><KeyPending booking={booking} /></TableCell>
-                  </>
-                ) : isExecutionReadyView ? (
-                  <>
-                    <TableCell className="min-w-0 align-top p-2"><ExecutionReadinessProgress booking={booking} /></TableCell>
-                    <TableCell className="min-w-0 align-top p-2"><FinalPending booking={booking} /></TableCell>
-                  </>
-                ) : (
-                  <>
-                    <TableCell className="min-w-0 p-2"><Badge variant="outline" title={stage} className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] ${stageClass(stage)}`}>{stage}</Badge></TableCell>
-                    <TableCell className="min-w-0 p-2"><Readiness booking={booking} /></TableCell>
-                  </>
-                )}
-                <TableCell className={`min-w-0 align-top py-2 ${isNewBookingView ? 'px-3' : 'px-2'}`}><PaymentProgress booking={booking} /></TableCell>
+                <TableCell className="min-w-0 p-2">
+                  <StatusBadge status={booking.bookingStatus} />
+                </TableCell>
+                <TableCell className="min-w-0 p-2">
+                  <Readiness
+                    booking={booking}
+                    onChange={onChangeReadiness}
+                    disabled={updatingReadiness}
+                  />
+                </TableCell>
+                {hasPendingColumn ? <TableCell className="min-w-0 align-top p-2">{isPlanningView ? <KeyPending booking={booking} /> : <FinalPending booking={booking} />}</TableCell> : null}
+                <TableCell className="min-w-0 align-top p-2"><PaymentProgress booking={booking} /></TableCell>
                 <TableCell className="min-w-0 p-2">
                   {canMarkReady ? (
                     <div className="flex justify-end">
@@ -310,7 +245,7 @@ export default function BookingTable({
                     </div>
                   ) : (
                     <div className="flex justify-end">
-                      <Button variant="outline" className="h-8 min-w-[92px] whitespace-nowrap rounded-r-none border-border bg-transparent px-2 text-[10px] font-semibold text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200" onClick={handlePrimaryAction}>{primaryActionLabel}</Button>
+                      <Button variant="outline" className={`h-8 ${primaryActionLabel === 'View' ? 'min-w-12' : 'min-w-[92px]'} whitespace-nowrap rounded-r-none border-border bg-transparent px-2 text-[10px] font-semibold text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200`} onClick={handlePrimaryAction}>{primaryActionLabel}</Button>
                     <BookingActionsMenu booking={booking} openBooking={openBooking} openBookingEdit={openBookingEdit} openManagerAssignment={openManagerAssignment} openDocuments={openDocuments} openPayments={openPayments} onUpdateStatus={onUpdateStatus} />
                     </div>
                   )}
@@ -323,5 +258,34 @@ export default function BookingTable({
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+export function BookingClientCell({ booking, onOpen }) {
+  const clientName = booking.customer?.name || booking.eventName || 'Unknown client';
+  const displayClientName = Array.from(clientName).length > 25
+    ? `${Array.from(clientName).slice(0, 25).join('')}...`
+    : clientName;
+
+  return (
+    <TableCell className="min-w-0 p-2">
+      <button type="button" onClick={() => onOpen(booking)} className="flex w-full min-w-0 items-center gap-2.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+        <Avatar className="h-9 w-9 shrink-0 border border-violet-100">
+          <AvatarImage src={avatarUrl(booking.customer)} />
+          <AvatarFallback className="bg-violet-50 text-xs text-violet-700">{initials(clientName)}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <p title={clientName} className="truncate font-semibold hover:text-blue-600">{displayClientName}</p>
+          <p className="truncate text-[10px] text-muted-foreground">{customerPhone(booking)}</p>
+          <Badge variant="outline" className={`mt-1 h-4 rounded px-1.5 text-[9px] ${booking.bookingStatus === 'Cancelled' ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+            {booking.bookingStatus === 'Cancelled'
+              ? 'On Hold'
+              : booking.bookingStatus === 'Completed'
+                ? 'Completed'
+                : 'Active'}
+          </Badge>
+        </div>
+      </button>
+    </TableCell>
   );
 }

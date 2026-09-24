@@ -1,4 +1,11 @@
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+/* eslint-disable react/prop-types */
+import { AlertTriangle, CheckCircle2, ChevronDown } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@components/components/ui/dropdown-menu';
 
 import {
   currencyAmount,
@@ -8,7 +15,7 @@ import {
   readinessPercentage,
 } from '../eventBookingDashboard.utils';
 
-export function Readiness({ booking }) {
+export function Readiness({ booking, onChange, disabled }) {
   const percentage = readinessPercentage(booking);
   const pending = Math.max(0,
     Number(booking.executionReadiness?.totalTasks || 0)
@@ -24,7 +31,34 @@ export function Readiness({ booking }) {
         {percentage === 100 ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : percentage}
       </span>
       <div className="min-w-0">
-        <p className="text-xs font-semibold text-foreground">{percentage}%</p>
+        {onChange ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                disabled={disabled || booking.isCrmOnly || booking.bookingStatus === 'Completed'}
+                aria-label={`Change readiness: ${percentage}%`}
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-0.5 text-xs font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {percentage}%
+                <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {[10, 25, 50, 75, 100].map((value) => (
+                <DropdownMenuItem
+                  key={value}
+                  disabled={value === percentage}
+                  onSelect={() => onChange(booking, value)}
+                >
+                  {value}%
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <p className="text-xs font-semibold text-foreground">{percentage}%</p>
+        )}
         <p className="truncate text-[10px] text-muted-foreground">
           {percentage === 100 ? 'All set' : pending ? `${pending} critical pending` : 'Planning in progress'}
         </p>
@@ -126,7 +160,7 @@ export function FinalPending({ booking }) {
 }
 
 export function PaymentProgress({ booking }) {
-  const { clampedPercentage, dueLabel, pending } = getPaymentMetrics(booking);
+  const { clampedPercentage, pending } = getPaymentMetrics(booking);
   const tone = clampedPercentage >= 70
     ? 'text-emerald-600 dark:text-emerald-400'
     : clampedPercentage >= 30
@@ -139,7 +173,7 @@ export function PaymentProgress({ booking }) {
       : 'bg-destructive';
 
   return (
-    <div className="min-w-0 space-y-1">
+    <div className="w-32 max-w-full space-y-1">
       <p className={`text-[11px] font-semibold ${tone}`}>{clampedPercentage}% Paid</p>
       <div
         className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
@@ -152,7 +186,6 @@ export function PaymentProgress({ booking }) {
         <div className={`h-full rounded-full ${barTone}`} style={{ width: `${clampedPercentage}%` }} />
       </div>
       <p className="truncate text-[10px] font-semibold text-foreground">{currencyAmount(pending)} Pending</p>
-      <p className="truncate text-[9px] text-muted-foreground">{dueLabel}</p>
     </div>
   );
 }
