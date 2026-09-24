@@ -210,6 +210,23 @@ export default function EventBookingDashboardPage() {
     },
     onError: (error) => toast.error(error.response?.data?.message || error.message || 'Unable to update event status'),
   });
+  const readinessMutation = useMutation({
+    mutationFn: async ({ eventId: bookingId, percentage }) => (
+      await AdminService.updateEventBooking({
+        eventId: bookingId,
+        executionReadiness: { percentage },
+      })
+    ).data,
+    onSuccess: async (response) => {
+      toast.success(response?.message || 'Readiness updated');
+      await refreshDashboard(response?.event);
+    },
+    onError: (error) => toast.error(
+      error.response?.data?.message
+      || error.message
+      || 'Unable to update readiness',
+    ),
+  });
   const analytics = analyticsQuery.data?.analytics || {};
   const cards = analytics.cards || {};
   const counts = analytics.tabs || {};
@@ -393,7 +410,14 @@ export default function EventBookingDashboardPage() {
       />
 
       <Card className={`crm-card mt-3 w-full min-w-0 max-w-full overflow-hidden ${layout === 'list' ? 'flex min-h-96 flex-1 flex-col' : ''}`}>
-        <CardContent className={`w-full min-w-0 max-w-full overflow-hidden p-3 ${layout === 'list' ? styles.listContent : ''}`}>
+        <CardContent className={`w-full min-w-0 max-w-full overflow-hidden ${layout === 'list' ? `p-0 ${styles.listContent}` : 'p-3'}`}>
+          <div className={layout === 'list' ? 'relative border-b border-border px-4 pt-3' : 'relative'}>
+            {bookingsQuery.isFetching && !bookingsQuery.isLoading ? (
+              <span role="status" className="pointer-events-none absolute right-0 top-full z-10 mt-1 flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[10px] text-muted-foreground">
+                <Loader2 aria-hidden="true" className="h-3 w-3 animate-spin" />
+                Updating bookings
+              </span>
+            ) : null}
           <EventBookingDashboardFilters
             activeTab={activeTab}
             cities={cities}
@@ -401,11 +425,13 @@ export default function EventBookingDashboardPage() {
             filters={filters}
             setFilter={setFilter}
           />
+          </div>
 
+          <div className={layout === 'list' ? styles.listScrollArea : undefined} aria-busy={bookingsQuery.isFetching}>
           {bookingsQuery.isLoading ? (
-            <div className="grid h-80 place-items-center rounded-lg border border-border"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
+            <div className="grid h-80 place-items-center"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
           ) : bookingsQuery.isError ? (
-            <div className="grid h-52 place-items-center rounded-lg border border-dashed border-border text-center">
+            <div className="grid h-52 place-items-center text-center">
               <div><AlertTriangle className="mx-auto mb-2 h-6 w-6 text-destructive" /><p className="text-sm font-medium">Unable to load bookings</p><Button variant="link" className="h-auto p-0 text-xs" onClick={refresh}>Try again</Button></div>
             </div>
           ) : layout === 'calendar' ? (
@@ -425,19 +451,38 @@ export default function EventBookingDashboardPage() {
               />
             ) : <BookingTable
               bookings={visibleBookings}
-              isNewBookingView={activeTab === 'new'}
               isPlanningView={activeTab === 'planning'}
               isExecutionReadyView={activeTab === 'execution_ready'}
               openEventOverview={openEventOverview}
-              openPlanning={(booking) => navigate(`/dashboard/assigned-events/${booking._id}/plan/functions`)}
               markingReadyId={markReadyMutation.isPending ? markReadyMutation.variables : null}
               onMarkReady={(booking) => markReadyMutation.mutate(booking._id)}
+              updatingReadiness={readinessMutation.isPending}
+              onChangeReadiness={(booking, percentage) => readinessMutation.mutate({
+                eventId: booking._id,
+                percentage,
+              })}
+              updatingStage={statusMutation.isPending || markReadyMutation.isPending || revokeReadyMutation.isPending}
+              onChangeBookingStage={(booking, bookingStatus) => {
+                if (['On Hold', 'Cancelled'].includes(bookingStatus)) {
+                  openStatusDialog(booking, bookingStatus);
+                } else if (bookingStatus === 'Execution Ready') {
+                  markReadyMutation.mutate(booking._id);
+                } else if (booking.bookingStatus === 'Execution Ready') {
+                  revokeReadyMutation.mutate({
+                    eventId: booking._id,
+                    bookingStatus,
+                    note: 'Returned from Execution Ready using the Assigned Events stage control.',
+                  });
+                } else {
+                  statusMutation.mutate({ eventId: booking._id, bookingStatus });
+                }
+              }}
               {...bookingActionProps}
             />
           )}
 
           {layout === 'list' ? (
-            <div className="mt-3 flex flex-col gap-2 border-t border-border p-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-muted-foreground">Showing {startEntry} to {endEntry} of {totalRows} {activeTab === 'completed' ? 'completed ' : ''}bookings</p>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => dispatch({ type: 'previous' })}>Previous</Button>
@@ -457,7 +502,7 @@ export default function EventBookingDashboardPage() {
               </div>
             </div>
           ) : null}
-          <div className="mt-3 flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50/70 px-3 py-2 text-[11px] text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
+          <div className={`flex items-center gap-2 bg-blue-50/50 px-4 py-3 text-xs text-blue-700 dark:bg-blue-400/5 dark:text-blue-300 ${layout === 'list' ? 'border-t border-border' : 'mt-3 rounded-lg border border-blue-100 dark:border-blue-400/20'}`}>
             <Clock3 className="h-4 w-4 shrink-0" />
             {activeTab === 'planning'
               ? 'Bookings in planning are tracked here until all critical approvals, vendors and execution details are complete.'
@@ -470,6 +515,7 @@ export default function EventBookingDashboardPage() {
                     : activeTab === 'closed'
                       ? 'On-hold bookings retain their planning progress and can be resumed. Cancelled bookings remain until financial settlement is complete.'
                     : 'Bookings are linked to Clients & CRM enquiries and synced across all modules for real-time updates.'}
+          </div>
           </div>
         </CardContent>
       </Card>

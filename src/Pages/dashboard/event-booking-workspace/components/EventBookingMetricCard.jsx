@@ -9,13 +9,13 @@ const tones = {
   red: 'bg-red-50/80 text-red-600 dark:bg-red-400/10 dark:text-red-300',
 };
 
-export default function MetricCard({ label, value, icon: Icon, tone, description, footer, onOpen, loading }) {
+export default function MetricCard({ label, value, icon: Icon, tone, onOpen, loading }) {
   const Content = onOpen ? 'button' : 'div';
   return (
     <Card className={`min-w-0 overflow-hidden border-0 shadow-none ${tones[tone]}`}>
       <Content
         {...(onOpen ? { type: 'button', onClick: onOpen } : {})}
-        className="flex h-full w-full min-w-0 flex-col rounded-lg p-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="flex h-full w-full min-w-0 flex-col rounded-lg p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         aria-busy={loading}
       >
         <div className="flex w-full items-start gap-2.5">
@@ -25,12 +25,10 @@ export default function MetricCard({ label, value, icon: Icon, tone, description
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-medium leading-5 text-foreground">{label}</p>
-            <p className="mt-1 break-words text-base font-bold leading-tight tracking-tight text-foreground">{loading ? '�' : value ?? '�'}</p>
+            <p className="mt-1 break-words text-base font-bold leading-tight tracking-tight text-foreground">{loading ? '—' : value ?? '—'}</p>
           </div>
           {/* {onOpen && <ChevronRight className="mt-5 h-4 w-4 shrink-0" aria-hidden="true" />} */}
         </div>
-        <p className={`mt-3 text-[11px] leading-4 ${tone === 'amber' || tone === 'red' ? '' : 'text-muted-foreground'}`}>{description}</p>
-        {footer && <p className="mt-2 w-full rounded bg-emerald-100/60 px-1.5 py-1 text-[10px] leading-4 text-muted-foreground dark:bg-emerald-400/10">{footer}</p>}
       </Content>
     </Card>
   );
