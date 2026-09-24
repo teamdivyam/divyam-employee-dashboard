@@ -47,7 +47,7 @@ import {
   PaymentProgress,
   Readiness,
 } from './EventBookingProgress';
-import { bookingStatusClass, bookingStatusLabel } from './EventBookingComponents';
+import { StatusBadge } from './EventBookingComponents';
 
 export function BookingActionsMenu({
   booking,
@@ -132,8 +132,6 @@ export default function BookingTable({
   markingReadyId,
   onMarkReady,
   onUpdateStatus,
-  onChangeBookingStage,
-  updatingStage,
   onChangeReadiness,
   updatingReadiness,
 }) {
@@ -225,11 +223,7 @@ export default function BookingTable({
                   {remainingLabel ? <p className={`mt-1 truncate text-[10px] ${booking.bookingStatus === 'Completed' ? 'text-red-500' : 'text-blue-600 dark:text-blue-400'}`}>{remainingLabel}</p> : null}
                 </TableCell>
                 <TableCell className="min-w-0 p-2">
-                  <BookingStageSelect
-                    booking={booking}
-                    onChange={onChangeBookingStage}
-                    disabled={updatingStage}
-                  />
+                  <StatusBadge status={booking.bookingStatus} />
                 </TableCell>
                 <TableCell className="min-w-0 p-2">
                   <Readiness
@@ -264,52 +258,6 @@ export default function BookingTable({
         </TableBody>
       </Table>
     </div>
-  );
-}
-
-const allBookingStageLabels = {
-  'New Booking': 'New Booking',
-  Planning: 'In Planning',
-  'Proposal Pending': 'Proposal Pending',
-  'Proposal Sent': 'Proposal Sent',
-  Confirmed: 'Booking Confirmed',
-  'Execution Ready': 'Execution Ready',
-  Completed: 'Completed',
-  'On Hold': 'On Hold',
-  Cancelled: 'Cancelled',
-};
-
-function BookingStageSelect({ booking, onChange, disabled }) {
-  const currentStage = booking.bookingStatus;
-  const stageLabel = (status) => allBookingStageLabels[status]
-    || bookingStatusLabel(status);
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          disabled={disabled || booking.isCrmOnly || !onChange}
-          aria-label={`Change booking stage: ${stageLabel(currentStage)}`}
-          className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${bookingStatusClass(currentStage)}`}
-        >
-          {stageLabel(currentStage)}
-          <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        {Object.keys(allBookingStageLabels).map((status) => (
-          <DropdownMenuItem
-            key={status}
-            disabled={status === currentStage}
-            onSelect={() => onChange(booking, status)}
-          >
-            {stageLabel(status)}
-            {status === currentStage ? <Check className="ml-auto h-4 w-4" /> : null}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 

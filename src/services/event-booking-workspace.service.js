@@ -24,6 +24,8 @@ const EventBookingWorkspaceService = {
     typeof FormData !== "undefined" && formData instanceof FormData
       ? axiosRequest.patch(eventPath(eventId), formData, { headers: { "Content-Type": undefined } })
       : axiosRequest.patch(eventPath(eventId), payload),
+  updateEventWorkflow: ({ eventId, ...payload }) =>
+    axiosRequest.patch(eventPath(eventId, "/workflow"), payload),
   markEventExecutionReady: ({ eventId, remarks }) =>
     axiosRequest.patch(eventPath(eventId, "/execution-ready"), { remarks }),
   revokeEventExecutionReady: ({ eventId, bookingStatus, note }) =>

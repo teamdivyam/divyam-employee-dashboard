@@ -202,7 +202,7 @@ export default function EventBookingDashboardPage() {
     onError: (error) => toast.error(error.response?.data?.message || error.message || 'Unable to resume booking'),
   });
   const statusMutation = useMutation({
-    mutationFn: async (payload) => (await AdminService.updateEventBooking(payload)).data,
+    mutationFn: async (payload) => (await AdminService.updateEventWorkflow(payload)).data,
     onSuccess: async (response) => {
       toast.success(response?.message || 'Event status updated');
       setStatusBooking(null);
@@ -212,7 +212,7 @@ export default function EventBookingDashboardPage() {
   });
   const readinessMutation = useMutation({
     mutationFn: async ({ eventId: bookingId, percentage }) => (
-      await AdminService.updateEventBooking({
+      await AdminService.updateEventWorkflow({
         eventId: bookingId,
         executionReadiness: { percentage },
       })
@@ -461,22 +461,6 @@ export default function EventBookingDashboardPage() {
                 eventId: booking._id,
                 percentage,
               })}
-              updatingStage={statusMutation.isPending || markReadyMutation.isPending || revokeReadyMutation.isPending}
-              onChangeBookingStage={(booking, bookingStatus) => {
-                if (['On Hold', 'Cancelled'].includes(bookingStatus)) {
-                  openStatusDialog(booking, bookingStatus);
-                } else if (bookingStatus === 'Execution Ready') {
-                  markReadyMutation.mutate(booking._id);
-                } else if (booking.bookingStatus === 'Execution Ready') {
-                  revokeReadyMutation.mutate({
-                    eventId: booking._id,
-                    bookingStatus,
-                    note: 'Returned from Execution Ready using the Assigned Events stage control.',
-                  });
-                } else {
-                  statusMutation.mutate({ eventId: booking._id, bookingStatus });
-                }
-              }}
               {...bookingActionProps}
             />
           )}
