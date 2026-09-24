@@ -2,11 +2,11 @@ import PropTypes from 'prop-types';
 import { Card } from '@components/components/ui/card';
 
 const tones = {
-  blue: 'bg-blue-50/80 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300',
-  green: 'bg-emerald-50/80 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300',
-  amber: 'bg-amber-50/80 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300',
-  violet: 'bg-violet-50/80 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300',
-  red: 'bg-red-50/80 text-red-600 dark:bg-red-400/10 dark:text-red-300',
+  blue: 'bg-blue-100/70 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300',
+  green: 'bg-emerald-100/70 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300',
+  amber: 'bg-amber-100/70 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300',
+  violet: 'bg-violet-100/70 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300',
+  red: 'bg-red-100/70 text-red-600 dark:bg-red-400/10 dark:text-red-300',
 };
 
 export default function MetricCard({ label, value, icon: Icon, tone, onOpen, loading }) {
