@@ -106,7 +106,7 @@ export default function EventVisualPreferencesPage() {
       <EventDetailTabs activePrimary="plan" activePlan="preferences" showPlanTabs onSelect={selectTab} />
       <EventVisualPreferencesPanel preferences={preferences} functions={functions} onAdd={openPreferenceDialog} />
 
-      <AddVisualPreferenceDialog open={preferenceOpen} onOpenChange={setPreferenceOpen} customer={preferenceCustomer} isSaving={preferenceMutation.isPending} onSubmit={(formData) => preferenceMutation.mutate({ customerId, formData })} />
+      <AddVisualPreferenceDialog open={preferenceOpen} onOpenChange={setPreferenceOpen} customer={preferenceCustomer} booking={booking} isSaving={preferenceMutation.isPending} onSubmit={(formData) => preferenceMutation.mutate({ customerId, formData })} />
       <EditBookingDialog open={editBookingOpen} onOpenChange={setEditBookingOpen} booking={booking} employees={employees} saving={updateBookingMutation.isPending} onSave={(payload) => updateBookingMutation.mutate(payload)} />
     </div>
   );

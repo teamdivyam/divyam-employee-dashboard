@@ -95,7 +95,7 @@ export default function EventVendorsPanel({ booking, onAdd, onEdit }) {
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <div className="w-full min-w-0 max-w-full space-y-3 overflow-hidden">
+    <div className="space-y-3">
       <div className="flex w-full items-center justify-between gap-2 overflow-x-auto pb-0.5">
         <EventOperationsNav active="vendors" />
         <div className="flex shrink-0 items-center justify-end gap-1.5">
@@ -107,20 +107,20 @@ export default function EventVendorsPanel({ booking, onAdd, onEdit }) {
         </div>
       </div>
 
-      <Card className="crm-card w-full min-w-0 max-w-full overflow-hidden">
-        <CardContent className="w-full min-w-0 max-w-full overflow-hidden p-0">
-          <div className="w-full min-w-0 max-w-full overflow-x-auto">
-            <Table className="min-w-[1060px] table-fixed text-xs">
+      <Card className="crm-card overflow-hidden">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table className="min-w-[1100px] table-fixed text-xs">
               <colgroup>
-                <col className="w-[17%]" />
-                <col className="w-[14%]" />
-                <col className="w-[8%]" />
-                <col className="w-[12%]" />
+                <col className="w-[16%]" />
                 <col className="w-[13%]" />
                 <col className="w-[8%]" />
-                <col className="w-[15%]" />
+                <col className="w-[11%]" />
+                <col className="w-[13%]" />
+                <col className="w-[8%]" />
+                <col className="w-[14%]" />
                 <col className="w-[7%]" />
-                <col className="w-[6%]" />
+                <col className="w-[10%]" />
               </colgroup>
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -180,7 +180,7 @@ export default function EventVendorsPanel({ booking, onAdd, onEdit }) {
                           </DropdownMenu>
                         ) : <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-muted-foreground"><FileText className="h-3.5 w-3.5" />0 Docs</span>}
                       </TableCell>
-                      <TableCell className="px-3 py-3 text-right"><Button variant="outline" size="sm" className="h-8 gap-1.5 border-blue-300 bg-transparent px-3 text-blue-700 hover:bg-blue-50 hover:text-blue-800" onClick={() => onEdit(assignment)}><Eye className="h-4 w-4" />View</Button></TableCell>
+                      <TableCell className="px-2 py-3 text-right"><div className="flex justify-end"><Button variant="outline" size="sm" className="h-8 gap-1 border-blue-300 bg-transparent px-2.5 text-blue-700 hover:bg-blue-50 hover:text-blue-800" onClick={() => onEdit(assignment)}><Eye className="h-4 w-4" />View</Button></div></TableCell>
                     </TableRow>
                   );
                 }) : (

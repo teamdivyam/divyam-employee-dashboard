@@ -23,6 +23,7 @@ import { toast } from "sonner";
 
 import AdminService from "../../../services/event-booking-workspace.service";
 import TabComp from "@components/components/tab-comp";
+import nestedTabStyles from "./components/EventNestedTabs.module.css";
 import { Badge } from "@components/components/ui/badge";
 import { Button } from "@components/components/ui/button";
 import { Card, CardContent } from "@components/components/ui/card";
@@ -56,13 +57,24 @@ import {
   getBookingDetail,
   getEmployees,
 } from "./components/EventBookingComponents";
-import EventClientPaymentsPanel from "./components/EventClientPaymentsPanel";
+import EventClientPaymentsPanel, {
+  ClientPaymentSummary,
+} from "./components/EventClientPaymentsPanel";
 import EventCostSettlementsPanel from "./components/EventCostSettlementsPanel";
-import EventDocumentsPanel from "./components/EventDocumentsPanel";
+import {
+  ExpenseSummary,
+  VendorSummary,
+} from "./components/EventCostSettlementSummary";
+import EventDocumentsPanel, {
+  DocumentSummary,
+} from "./components/EventDocumentsPanel";
 import EventInvoicesReceiptsPanel from "./components/EventInvoicesReceiptsPanel";
 import EventDetailTabs from "./components/EventDetailTabs";
 import EventFunctionsHeader from "./components/EventFunctionsHeader";
+import EventSummarySlot from "./components/EventSummarySlot";
+import { Skeleton } from "@components/components/ui/skeleton";
 import { getFinalPreferenceCount } from "./eventBookingDashboard.utils";
+import { buildClientPaymentRows } from "./eventClientPayments.utils";
 import { currency, idOf, numberOf, shortDate } from "./eventFinance.utils";
 import useDebouncedValue from "../../../hooks/useDebouncedValue";
 import useCurrentEmployee from "../../../hooks/useCurrentEmployee";
@@ -96,6 +108,7 @@ function FinanceNav({ active, eventId, searchParams }) {
       distribution="content"
       density="compact"
       ariaLabel="Finance and files sections"
+      className={nestedTabStyles.nestedTabs}
     />
   );
 }
@@ -1073,30 +1086,35 @@ export default function EventFinancePage() {
     enabled: Boolean(eventId),
   });
   const clientPaymentsQuery = useQuery({
-    queryKey: [
-      "event-client-payments",
-      eventId,
-      debouncedPaymentSearch,
-      paymentFilters.status,
-      paymentFilters.milestone,
-      paymentFilters.page,
-      paymentFilters.limit,
-    ],
-    queryFn: async () =>
-      (
+    queryKey: ["event-client-payments", eventId],
+    queryFn: async () => {
+      const first = (
         await AdminService.getEventClientPayments({
           eventId,
-          search: debouncedPaymentSearch || undefined,
-          status:
-            paymentFilters.status === "all" ? undefined : paymentFilters.status,
-          milestone:
-            paymentFilters.milestone === "all"
-              ? undefined
-              : paymentFilters.milestone,
-          page: paymentFilters.page,
-          limit: paymentFilters.limit,
+          page: 1,
+          limit: 100,
         })
-      ).data?.clientPayments,
+      ).data?.clientPayments;
+      if (!first) return first;
+
+      const milestones = [...(first.milestones || [])];
+      for (
+        let page = 2;
+        page <= (first.pagination?.totalPages || 1);
+        page += 1
+      ) {
+        const next = (
+          await AdminService.getEventClientPayments({
+            eventId,
+            page,
+            limit: 100,
+          })
+        ).data?.clientPayments;
+        milestones.push(...(next?.milestones || []));
+      }
+
+      return { ...first, milestones };
+    },
     enabled: Boolean(eventId) && section === "payments",
   });
   const vendorSettlementsQuery = useQuery({
@@ -1568,6 +1586,25 @@ export default function EventFinancePage() {
       `/dashboard/assigned-events/${eventId}/finance?${next.toString()}`,
     );
   };
+  const clientPaymentData = buildClientPaymentRows(
+    clientPaymentsQuery.data,
+    booking,
+    { ...paymentFilters, search: debouncedPaymentSearch },
+  );
+  const clientPaymentSummary = clientPaymentData?.summary;
+  const showClientPaymentSummary =
+    section === "payments" &&
+    !(clientPaymentsQuery.isError && !clientPaymentsQuery.data);
+  const costSummaryQuery =
+    costView === "expenses" ? eventExpensesQuery : vendorSettlementsQuery;
+  const showCostSummary =
+    section === "costs" &&
+    !(costSummaryQuery.isError && !costSummaryQuery.data);
+  const showDocumentSummary =
+    section === "documents" &&
+    !(eventDocumentsQuery.isError && !eventDocumentsQuery.data);
+  const showFinanceSummary =
+    showClientPaymentSummary || showCostSummary || showDocumentSummary;
   const financeContent =
     section === "commercial" ? (
       <CommercialPanel
@@ -1588,7 +1625,9 @@ export default function EventFinancePage() {
     ) : section === "payments" ? (
       <EventClientPaymentsPanel
         readOnly={!canManageFinance}
-        data={clientPaymentsQuery.data}
+        booking={booking}
+        summary={clientPaymentSummary}
+        data={clientPaymentData}
         filters={paymentFilters}
         onFiltersChange={setPaymentFilters}
         loading={
@@ -1671,6 +1710,7 @@ export default function EventFinancePage() {
       />
     ) : (
       <EventDocumentsPanel
+        booking={booking}
         data={eventDocumentsQuery.data}
         filters={documentFilters}
         onFiltersChange={setDocumentFilters}
@@ -1698,8 +1738,33 @@ export default function EventFinancePage() {
             ?.scrollIntoView({ behavior: "smooth" })
         }
         primaryActionLabel="Open Finance Plan"
+        showMetrics={!showFinanceSummary}
       />
       <EventDetailTabs activePrimary="finance" onSelect={selectTab} />
+      {showFinanceSummary ? (
+        <EventSummarySlot>
+          {(showClientPaymentSummary
+            ? clientPaymentsQuery.isLoading && !clientPaymentsQuery.data
+            : showCostSummary
+              ? costSummaryQuery.isLoading && !costSummaryQuery.data
+              : eventDocumentsQuery.isLoading && !eventDocumentsQuery.data) ? (
+            <Skeleton
+              className="h-24 rounded-lg"
+              aria-label="Loading finance summary"
+            />
+          ) : showClientPaymentSummary ? (
+            <ClientPaymentSummary summary={clientPaymentSummary} />
+          ) : showCostSummary ? (
+            costView === "expenses" ? (
+              <ExpenseSummary summary={eventExpensesQuery.data?.summary} />
+            ) : (
+              <VendorSummary summary={vendorSettlementsQuery.data?.summary} />
+            )
+          ) : (
+            <DocumentSummary summary={eventDocumentsQuery.data?.summary} />
+          )}
+        </EventSummarySlot>
+      ) : null}
       <div id="event-finance" className="space-y-3">
         <FinanceNav
           active={section}

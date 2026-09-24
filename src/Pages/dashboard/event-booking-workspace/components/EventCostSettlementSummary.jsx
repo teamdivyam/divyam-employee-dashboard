@@ -1,10 +1,10 @@
 /* eslint-disable react/prop-types */
+import EventMetricCards from "./EventMetricCards";
 import {
   Banknote,
   CircleAlert,
   Coins,
   FileText,
-  Info,
   ReceiptText,
   UsersRound,
 } from "lucide-react";
@@ -53,33 +53,7 @@ export function VendorSummary({ summary = {} }) {
     },
   ];
 
-  return (
-    <Card>
-      <CardContent className="grid gap-0 p-0 sm:grid-cols-2 xl:grid-cols-5">
-        {cards.map(({ label, value, caption, icon: Icon, tone }, index) => (
-          <div
-            key={label}
-            className={`flex min-h-24 items-center gap-3 p-4 ${index ? "border-t border-border sm:border-l sm:border-t-0" : ""}`}
-          >
-            <span
-              className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${tone}`}
-            >
-              <Icon className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">{label}</p>
-              <p
-                className={`mt-1 truncate text-xl font-bold ${label === "Overdue" ? "text-destructive" : "text-foreground"}`}
-              >
-                {value}
-              </p>
-              <p className="text-[11px] text-muted-foreground">{caption}</p>
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
+  return <EventMetricCards items={cards} />;
 }
 
 export function ExpenseSummary({ summary = {} }) {
@@ -111,41 +85,12 @@ export function ExpenseSummary({ summary = {} }) {
     },
   ];
 
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {cards.map(({ label, value, icon: Icon, tone, info }) => (
-        <Card key={label}>
-          <CardContent className="flex min-h-24 items-center gap-4 p-4">
-            <span
-              className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ${tone}`}
-            >
-              <Icon className="h-6 w-6" />
-            </span>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">
-                {label}
-              </p>
-              <p className="mt-1 flex items-center gap-2 text-xl font-bold text-foreground">
-                {value}
-                {info ? (
-                  <Info
-                    className="h-4 w-4 text-muted-foreground"
-                    aria-label="Personal expenses awaiting reimbursement"
-                  />
-                ) : null}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
+  return <EventMetricCards items={cards} />;
 }
 
 export function LoadingState() {
   return (
     <div className="space-y-3">
-      <Skeleton className="h-24 rounded-lg" />
       <Skeleton className="h-80 rounded-lg" />
     </div>
   );

@@ -1,14 +1,13 @@
 /* eslint-disable react/prop-types */
-import { useEffect, useState } from "react";
+import EventMetricCards from "./EventMetricCards";
+import { useState } from "react";
 import {
   CircleAlert,
-  Eye,
   FileImage,
   FileSpreadsheet,
   FileText,
   Files,
   HardDrive,
-  Loader2,
   LockKeyhole,
   Plus,
   Search,
@@ -18,16 +17,7 @@ import {
 import { Badge } from "@components/components/ui/badge";
 import { Button } from "@components/components/ui/button";
 import { Card, CardContent } from "@components/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@components/components/ui/dialog";
 import { Input } from "@components/components/ui/input";
-import { Label } from "@components/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -44,9 +34,11 @@ import {
   TableHeader,
   TableRow,
 } from "./EventTable";
-import { Textarea } from "@components/components/ui/textarea";
 import { fileSize, idOf, numberOf, shortDate } from "../eventFinance.utils";
+import { bookingCode, initials } from "../eventBookingDashboard.utils";
+import { documentOptions } from "../eventDocument.constants";
 import FinancePaginationFooter from "./FinancePaginationFooter";
+import UploadDocumentDialog from "./UploadDocumentDialog";
 
 const categoryClasses = {
   Proposal:
@@ -80,20 +72,10 @@ const categoryClasses = {
 };
 
 const visibilityClasses = {
-  "Client Visible":
+  "Client Shareable":
     "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
   "Internal Only":
     "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-};
-
-const defaultForm = {
-  documentName: "",
-  documentType: "Document",
-  linkedModule: "Event",
-  visibility: "Internal Only",
-  version: "1",
-  notes: "",
-  document: null,
 };
 
 function DocumentIcon({ document }) {
@@ -117,7 +99,7 @@ function DocumentIcon({ document }) {
   );
 }
 
-function DocumentSummary({ summary = {} }) {
+export function DocumentSummary({ summary = {} }) {
   const cards = [
     {
       label: "Total Documents",
@@ -157,213 +139,12 @@ function DocumentSummary({ summary = {} }) {
     },
   ];
 
-  return (
-    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-      {cards.map(({ label, value, icon: Icon, tone, surface, valueTone }) => (
-        <Card key={label} className={`${surface} shadow-sm`}>
-          <CardContent className="flex items-center gap-3 p-3">
-            <span
-              className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${tone}`}
-            >
-              <Icon className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-muted-foreground">
-                {label}
-              </p>
-              <p className={`mt-0.5 text-lg font-bold ${valueTone}`}>{value}</p>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
-
-function UploadDocumentDialog({ open, onOpenChange, options, saving, onSave }) {
-  const [form, setForm] = useState(defaultForm);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!open) return;
-    setForm({
-      ...defaultForm,
-      documentType: options.categories?.includes("Document")
-        ? "Document"
-        : options.categories?.[0] || "Document",
-      linkedModule: options.linkedModules?.includes("Event")
-        ? "Event"
-        : options.linkedModules?.[0] || "Event",
-      visibility: options.visibilities?.includes("Internal Only")
-        ? "Internal Only"
-        : options.visibilities?.[0] || "Internal Only",
-    });
-    setError("");
-  }, [open, options]);
-
-  const update = (key, value) =>
-    setForm((current) => ({ ...current, [key]: value }));
-
-  const submit = async (event) => {
-    event.preventDefault();
-    if (!form.document) {
-      setError("Please select a document to upload.");
-      return;
-    }
-    try {
-      await onSave({
-        ...form,
-        documentName:
-          form.documentName.trim() ||
-          form.document.name.replace(/\.[^.]+$/, ""),
-        notes: form.notes.trim(),
-        version: numberOf(form.version) || 1,
-      });
-      onOpenChange(false);
-    } catch {
-      // The page mutation displays the request error.
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Upload Event Document</DialogTitle>
-          <DialogDescription>
-            Add a finance or event file and control where it is visible.
-          </DialogDescription>
-        </DialogHeader>
-        <form
-          id="upload-event-document"
-          onSubmit={submit}
-          className="grid gap-3 py-1 sm:grid-cols-2"
-        >
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="event-document-file">Document File</Label>
-            <Input
-              id="event-document-file"
-              type="file"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp"
-              onChange={(event) =>
-                update("document", event.target.files?.[0] || null)
-              }
-              required
-            />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="event-document-name">File Name</Label>
-            <Input
-              id="event-document-name"
-              value={form.documentName}
-              onChange={(event) => update("documentName", event.target.value)}
-              placeholder="Defaults to the uploaded file name"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Category</Label>
-            <Select
-              value={form.documentType}
-              onValueChange={(value) => update("documentType", value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(options.categories || []).map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Linked Module</Label>
-            <Select
-              value={form.linkedModule}
-              onValueChange={(value) => update("linkedModule", value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(options.linkedModules || []).map((module) => (
-                  <SelectItem key={module} value={module}>
-                    {module}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Visibility</Label>
-            <Select
-              value={form.visibility}
-              onValueChange={(value) => update("visibility", value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(options.visibilities || []).map((visibility) => (
-                  <SelectItem key={visibility} value={visibility}>
-                    {visibility}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="event-document-version">Version</Label>
-            <Input
-              id="event-document-version"
-              type="number"
-              min="1"
-              step="1"
-              value={form.version}
-              onChange={(event) => update("version", event.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="event-document-notes">Notes</Label>
-            <Textarea
-              id="event-document-notes"
-              value={form.notes}
-              onChange={(event) => update("notes", event.target.value)}
-              placeholder="Optional internal note"
-            />
-          </div>
-          {error ? (
-            <p className="text-sm text-destructive sm:col-span-2">{error}</p>
-          ) : null}
-        </form>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={saving}
-          >
-            Cancel
-          </Button>
-          <Button variant="custom" type="submit" form="upload-event-document" disabled={saving}>
-            {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )}
-            Upload Document
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+  return <EventMetricCards items={cards} />;
 }
 
 function LoadingState() {
   return (
     <div className="space-y-2">
-      <Skeleton className="h-24 rounded-lg" />
       <Skeleton className="h-80 rounded-lg" />
     </div>
   );
@@ -390,6 +171,7 @@ function ErrorState({ error, onRetry }) {
 }
 
 export default function EventDocumentsPanel({
+  booking,
   data,
   filters,
   onFiltersChange,
@@ -405,13 +187,16 @@ export default function EventDocumentsPanel({
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-col gap-2 xl:flex-row xl:justify-end">
-        <div className="relative min-w-0 flex-1 xl:max-w-sm">
+      <Card className="min-w-0 overflow-hidden">
+        <CardContent className="p-0">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
+        <div className="relative min-w-44 flex-1 basis-44">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            maxLength={200}
             value={filters.search}
             onChange={(event) => setFilter("search", event.target.value)}
-            className="h-9 pl-9"
+            className="h-9 pl-9 text-xs"
             placeholder="Search documents..."
             aria-label="Search event documents"
           />
@@ -420,12 +205,12 @@ export default function EventDocumentsPanel({
           value={filters.category}
           onValueChange={(value) => setFilter("category", value)}
         >
-          <SelectTrigger className="h-9 w-full sm:w-40">
+          <SelectTrigger className="h-9 w-full text-xs sm:w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Category</SelectItem>
-            {(data?.options?.categories || []).map((category) => (
+            {(data?.options?.categories || [...documentOptions.uploadCategories, "Quotation", "Invoice", "Receipt"]).map((category) => (
               <SelectItem key={category} value={category}>
                 {category}
               </SelectItem>
@@ -436,12 +221,12 @@ export default function EventDocumentsPanel({
           value={filters.visibility}
           onValueChange={(value) => setFilter("visibility", value)}
         >
-          <SelectTrigger className="h-9 w-full sm:w-40">
+          <SelectTrigger className="h-9 w-full text-xs sm:w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Visibility</SelectItem>
-            {(data?.options?.visibilities || []).map((visibility) => (
+            {(data?.options?.visibilities || documentOptions.visibilities).map((visibility) => (
               <SelectItem key={visibility} value={visibility}>
                 {visibility}
               </SelectItem>
@@ -452,12 +237,12 @@ export default function EventDocumentsPanel({
           value={filters.linkedModule}
           onValueChange={(value) => setFilter("linkedModule", value)}
         >
-          <SelectTrigger className="h-9 w-full sm:w-44">
+          <SelectTrigger className="h-9 w-full text-xs sm:w-44">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Linked Module</SelectItem>
-            {(data?.options?.linkedModules || []).map((module) => (
+            {(data?.options?.linkedModules || documentOptions.linkedModules).map((module) => (
               <SelectItem key={module} value={module}>
                 {module}
               </SelectItem>
@@ -480,54 +265,96 @@ export default function EventDocumentsPanel({
       ) : error && !data ? (
         <ErrorState error={error} onRetry={onRetry} />
       ) : (
-        <>
-          <DocumentSummary summary={data?.summary} />
-          <Card className="overflow-hidden shadow-sm">
-            <CardContent className="p-0">
+        <div className="min-w-0">
               <div className="overflow-x-auto">
-                <Table className="min-w-[1120px] table-fixed">
+                <Table
+                  headerVariant="section"
+                  className="min-w-[1120px] table-fixed"
+                >
                   <colgroup>
-                    <col className="w-[19%]" />
-                    <col className="w-[11%]" />
-                    <col className="w-[13%]" />
-                    <col className="w-[11%]" />
-                    <col className="w-[13%]" />
-                    <col className="w-[11%]" />
-                    <col className="w-[8%]" />
-                    <col className="w-[14%]" />
+                    {[25, 14, 14, 14, 10, 15, 8].map((width, index) => (
+                      <col key={index} style={{ width: `${width}%` }} />
+                    ))}
                   </colgroup>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead className="h-10">File Name</TableHead>
+                      <TableHead className="h-10">Document</TableHead>
                       <TableHead className="h-10">Category</TableHead>
                       <TableHead className="h-10">Linked To</TableHead>
                       <TableHead className="h-10">Visibility</TableHead>
-                      <TableHead className="h-10">Uploaded By</TableHead>
-                      <TableHead className="h-10">Uploaded On</TableHead>
-                      <TableHead className="h-10">Version</TableHead>
-                      <TableHead className="sticky right-0 z-10 h-10 bg-muted pr-4 text-right">
-                        Action
-                      </TableHead>
+                      <TableHead className="h-10">Document Date</TableHead>
+                      <TableHead className="h-10">Added By</TableHead>
+                      <TableHead className="h-10">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {data?.documents?.length ? (
-                      data.documents.map((document) => (
+                      data.documents.map((document) => {
+                        const editable =
+                          document.sourceType === "event" ||
+                          (!document.sourceType && document.canDelete === true);
+                        const shareable = [
+                          "Client Shareable",
+                          "Client Visible",
+                        ].includes(document.visibility);
+                        const visibility = shareable
+                          ? "Client Shareable"
+                          : document.visibility;
+                        const VisibilityIcon = shareable
+                          ? Users
+                          : LockKeyhole;
+                        const url = /^https?:\/\//i.test(
+                          document.fileUrl || "",
+                        )
+                          ? document.fileUrl
+                          : undefined;
+                        let filename = "";
+                        try {
+                          filename = url
+                            ? decodeURIComponent(
+                                new URL(url).pathname.split("/").pop(),
+                              )
+                            : "";
+                        } catch {
+                          // Keep the document title when a filename is unavailable.
+                        }
+                        const uploadedAt = new Date(document.uploadedOn);
+                        const timestamp = !Number.isNaN(uploadedAt.getTime())
+                          ? uploadedAt.toLocaleString("en-IN", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "-";
+
+                        return (
                         <TableRow
-                          key={idOf(document) || document.fileUrl}
-                          className="group"
+                          key={`${document.sourceType || "document"}-${idOf(document) || document.fileUrl}`}
                         >
-                          <TableCell className="py-2">
+                          <TableCell className="py-3">
                             <div className="flex min-w-0 items-center gap-3">
                               <DocumentIcon document={document} />
                               <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-1">
+                                  <p className="break-words font-medium">
+                                    {document.documentName}
+                                  </p>
+                                  {!editable ? (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[9px]"
+                                    >
+                                      Related Attachment
+                                    </Badge>
+                                  ) : null}
+                                </div>
                                 <p
-                                  className="truncate font-medium text-blue-950 dark:text-blue-200"
-                                  title={document.documentName}
+                                  className="mt-1 truncate text-[10px] text-muted-foreground"
+                                  title={filename}
                                 >
-                                  {document.documentName}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
+                                  {filename ? `${filename} · ` : ""}
                                   {fileSize(document.fileSize)}
                                 </p>
                               </div>
@@ -536,49 +363,63 @@ export default function EventDocumentsPanel({
                           <TableCell>
                             <Badge
                               variant="outline"
-                              className={`min-w-20 justify-center ${
+                              className={
                                 categoryClasses[document.documentType] ||
                                 categoryClasses.Other
-                              }`}
+                              }
                             >
                               {document.documentType}
                             </Badge>
                           </TableCell>
-                          <TableCell className="font-medium text-blue-950 dark:text-blue-200">
-                            {document.linkedModule || "Event"}
+                          <TableCell>
+                            <p className="font-medium">
+                              {document.linkedModule || "Event"}
+                            </p>
+                            <p className="mt-1 text-[10px] text-muted-foreground">
+                              {bookingCode(booking || data?.event || {})}
+                            </p>
                           </TableCell>
                           <TableCell>
                             <Badge
                               variant="outline"
-                              className={`min-w-24 justify-center ${
-                                visibilityClasses[document.visibility] ||
-                                "border-border bg-muted text-muted-foreground"
-                              }`}
+                              className={`gap-1 text-[10px] ${visibilityClasses[visibility] || ""}`}
                             >
-                              {document.visibility}
+                              <VisibilityIcon className="h-3 w-3" />
+                              {visibility || "-"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="font-medium">
-                            {document.uploadedByName || "Admin"}
+                          <TableCell>
+                            {shortDate(document.documentDate)}
                           </TableCell>
                           <TableCell>
-                            {shortDate(document.uploadedOn)}
+                            <div className="flex items-center gap-2">
+                              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-primary/10 text-[10px] font-semibold text-primary">
+                                {initials(document.uploadedByName || "Admin")}
+                              </span>
+                              <div>
+                                <p className="text-xs font-medium">
+                                  {document.uploadedByName || "Admin"}
+                                </p>
+                                <p className="mt-1 text-[10px] text-muted-foreground">
+                                  {timestamp}
+                                </p>
+                              </div>
+                            </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="secondary">
-                              v{numberOf(document.version) || 1}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="sticky right-0 bg-card pr-4 text-right group-hover:bg-muted/50">
-                            {document.fileUrl ? (
-                              <Button size="sm" variant="outline" asChild className="gap-1 text-blue-700">
+                            {url ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                asChild
+                                className="h-8 px-2 text-primary"
+                              >
                                 <a
-                                  href={document.fileUrl}
+                                  href={url}
                                   target="_blank"
                                   rel="noreferrer"
                                 >
-                                  <Eye className="h-4 w-4" />
-                                  View File
+                                  View
                                 </a>
                               </Button>
                             ) : (
@@ -586,11 +427,12 @@ export default function EventDocumentsPanel({
                             )}
                           </TableCell>
                         </TableRow>
-                      ))
+                        );
+                      })
                     ) : (
                       <TableRow>
                         <TableCell
-                          colSpan={8}
+                          colSpan={7}
                           className="h-40 text-center text-muted-foreground"
                         >
                           No documents match the current filters.
@@ -607,18 +449,21 @@ export default function EventDocumentsPanel({
                   onFiltersChange({ ...filters, ...values })
                 }
               />
-            </CardContent>
-          </Card>
-        </>
+        </div>
       )}
+        </CardContent>
+      </Card>
 
-      <UploadDocumentDialog
-        open={uploadOpen}
-        onOpenChange={setUploadOpen}
-        options={data?.options || {}}
-        saving={uploading}
-        onSave={onUpload}
-      />
+      {uploadOpen ? (
+        <UploadDocumentDialog
+          key="new"
+          booking={booking}
+          options={data?.options || {}}
+          saving={uploading}
+          onClose={() => setUploadOpen(false)}
+          onSave={onUpload}
+        />
+      ) : null}
     </div>
   );
 }

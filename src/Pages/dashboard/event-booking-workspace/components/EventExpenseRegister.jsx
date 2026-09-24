@@ -4,7 +4,6 @@ import { ArrowUpDown, Eye, FileText, MoreVertical } from "lucide-react";
 
 import { Badge } from "@components/components/ui/badge";
 import { Button } from "@components/components/ui/button";
-import { Card, CardContent } from "@components/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +27,7 @@ import {
   TableRow,
 } from "./EventTable";
 import { currency, idOf, shortDate } from "../eventFinance.utils";
-import { ErrorState, ExpenseSummary, LoadingState } from "./EventCostSettlementSummary";
+import { ErrorState, LoadingState } from "./EventCostSettlementSummary";
 import FinancePaginationFooter from "./FinancePaginationFooter";
 
 const approvalClasses = {
@@ -216,11 +215,9 @@ export default function EventExpenseRegister({
 
   return (
     <div className="space-y-3">
-      <ExpenseSummary summary={data?.summary} />
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table className="min-w-[1050px]">
+      <div className="min-w-0">
+          <div className="max-w-full overflow-x-auto">
+            <Table headerVariant="section" className="min-w-[1050px] text-xs">
               <TableHeader>
                 <TableRow className="bg-muted/40">
                   <TableHead>Expense / Category</TableHead>
@@ -232,7 +229,7 @@ export default function EventExpenseRegister({
                       onSort={updateSort}
                     />
                   </TableHead>
-                  <TableHead className="text-right">
+                  <TableHead className="text-right text-xs font-medium">
                     <SortButton
                       label="Amount"
                       sortBy="amount"
@@ -245,7 +242,7 @@ export default function EventExpenseRegister({
                   <TableHead>Approval</TableHead>
                   <TableHead>Settlement</TableHead>
                   <TableHead>Proof</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
+                  <TableHead className="text-right text-xs font-medium">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -253,7 +250,7 @@ export default function EventExpenseRegister({
                   data.expenses.map((expense) => (
                     <TableRow key={idOf(expense)}>
                       <TableCell>
-                        <p className="font-medium text-foreground">
+                        <p className="text-xs font-normal text-foreground">
                           {expense.expenseTitle}
                         </p>
                         <p className="text-[11px] text-muted-foreground">
@@ -263,11 +260,11 @@ export default function EventExpenseRegister({
                       <TableCell className="whitespace-nowrap">
                         {shortDate(expense.date)}
                       </TableCell>
-                      <TableCell className="text-right font-semibold">
+                      <TableCell className="text-right text-xs font-medium">
                         {currency(expense.amount)}
                       </TableCell>
                       <TableCell>
-                        <p className="font-medium">{expense.paidByName}</p>
+                        <p className="text-xs font-normal text-foreground">{expense.paidByName}</p>
                         <p className="text-[11px] text-muted-foreground">
                           {expense.fundingSource}
                         </p>
@@ -312,7 +309,7 @@ export default function EventExpenseRegister({
                             </a>
                           </Button>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-destructive">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-destructive">
                             <FileText className="h-4 w-4" />
                             Missing
                           </span>
@@ -346,8 +343,7 @@ export default function EventExpenseRegister({
               onFiltersChange({ ...filters, ...values })
             }
           />
-        </CardContent>
-      </Card>
+      </div>
 
       <ExpenseDetailDialog
         expense={expenseDetail}

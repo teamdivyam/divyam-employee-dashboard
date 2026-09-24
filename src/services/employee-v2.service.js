@@ -44,6 +44,18 @@ employeeV2Request.interceptors.response.use(
 );
 
 const EmployeeV2Service = {
+    getInventoryV2Items: (params = {}) =>
+        employeeV2Request.get("/inventoryv2/items", { params }),
+    listInventoryV2Allocations: (params = {}) =>
+        employeeV2Request.get("/inventoryv2/allocations", { params }),
+    getInventoryV2AllocationById: (id) =>
+        employeeV2Request.get(`/inventoryv2/allocations/${encodeURIComponent(id)}`),
+    createInventoryV2Allocation: (payload) =>
+        employeeV2Request.post("/inventoryv2/allocations", payload),
+    updateInventoryV2Allocation: (id, payload) =>
+        employeeV2Request.patch(`/inventoryv2/allocations/${encodeURIComponent(id)}`, payload),
+    prepareInventoryV2AllocationIssue: (id, payload) =>
+        employeeV2Request.post(`/inventoryv2/allocations/${encodeURIComponent(id)}/prepare-issue`, payload),
     login: (formData) => employeeV2Request.post("/auth/loginAndRedirect", formData),
     refresh: () => employeeV2Request.post("/auth/refresh"),
     logout: () => employeeV2Request.post("/auth/logout"),

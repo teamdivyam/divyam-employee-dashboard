@@ -1,0 +1,28 @@
+export const documentOptions = {
+  uploadCategories: [
+    "Proposal",
+    "Agreement",
+    "Menu",
+    "Image",
+    "Document",
+    "Vendor",
+    "Finance",
+    "Operations",
+    "Compliance",
+    "Client Document",
+    "Design",
+    "Internal",
+    "Other",
+  ],
+  linkedModules: [
+    "Commercial",
+    "Booking",
+    "Invoices & Receipts",
+    "Client Payments",
+    "Vendor Settlement",
+    "Cost & Settlements",
+    "Event Plan",
+    "Event",
+  ],
+  visibilities: ["Internal Only", "Client Shareable"],
+};

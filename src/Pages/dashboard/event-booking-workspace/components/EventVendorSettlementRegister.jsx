@@ -3,7 +3,6 @@ import { Eye, IndianRupee, MoreVertical, Pencil } from "lucide-react";
 
 import { Badge } from "@components/components/ui/badge";
 import { Button } from "@components/components/ui/button";
-import { Card, CardContent } from "@components/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +21,6 @@ import { currency, idOf, shortDate } from "../eventFinance.utils";
 import {
   ErrorState,
   LoadingState,
-  VendorSummary,
 } from "./EventCostSettlementSummary";
 import FinancePaginationFooter from "./FinancePaginationFooter";
 
@@ -68,10 +66,10 @@ function SettlementActions({ settlement, onView, onEdit, onRecord, readOnly }) {
       <Button
         size="sm"
         variant="outline"
-        className="gap-1 text-blue-700"
+        className="gap-1.5 border-blue-300 bg-transparent text-blue-700 hover:bg-blue-50 hover:text-blue-800"
         onClick={() => onView(settlement)}
       >
-        <Eye className="mr-2 h-4 w-4" />
+        <Eye className="h-4 w-4" />
         View
       </Button>
       {!readOnly && <DropdownMenu>
@@ -120,40 +118,28 @@ export default function EventVendorSettlementRegister({
 
   return (
     <div className="space-y-3">
-      <VendorSummary summary={data?.summary} />
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table className="min-w-[1100px] table-fixed [&_tbody_td:nth-child(5)]:pr-8 [&_tbody_td:nth-child(6)]:pl-8 [&_thead_th:nth-child(5)]:pr-8 [&_thead_th:nth-child(6)]:pl-8">
-              <colgroup>
-                <col className="w-[17%]" />
-                <col className="w-[12%]" />
-                <col className="w-[10%]" />
-                <col className="w-[9%]" />
-                <col className="w-[12%]" />
-                <col className="w-[12%]" />
-                <col className="w-[14%]" />
-                <col className="w-[14%]" />
-              </colgroup>
+      <div className="min-w-0">
+          <div className="max-w-full overflow-x-auto">
+            <Table headerVariant="section" className="min-w-[1100px] text-xs">
               <TableHeader>
                 <TableRow className="bg-muted/40">
                   <TableHead>Vendor</TableHead>
                   <TableHead>Service</TableHead>
-                  <TableHead className="text-right">Final Cost</TableHead>
-                  <TableHead className="text-right">Paid</TableHead>
-                  <TableHead className="text-right">Outstanding</TableHead>
+                  <TableHead className="text-right text-xs font-medium">Final Cost</TableHead>
+                  <TableHead className="text-right text-xs font-medium">Paid</TableHead>
+                  <TableHead className="text-right text-xs font-medium">Outstanding</TableHead>
                   <TableHead>Due Date</TableHead>
-                  <TableHead className="text-right">
+                  <TableHead className="text-right text-xs font-medium">
                     Settlement Status
                   </TableHead>
-                  <TableHead className="text-right">Action</TableHead>
+                  <TableHead className="text-right text-xs font-medium">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data?.settlements?.length ? (
                   data.settlements.map((settlement) => (
                     <TableRow key={idOf(settlement)}>
-                      <TableCell className="font-medium">
+                      <TableCell className="text-xs font-normal text-foreground">
                         {settlement.vendorName}
                       </TableCell>
                       <TableCell>
@@ -163,17 +149,17 @@ export default function EventVendorSettlementRegister({
                           {settlement.service}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right text-xs font-medium">
                         {currency(settlement.finalCost)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right text-xs font-medium">
                         {currency(settlement.paidAmount)}
                       </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="text-right text-xs font-medium">
                         {currency(settlement.outstandingAmount)}
                       </TableCell>
                       <TableCell>{shortDate(settlement.dueDate)}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right text-xs font-medium">
                         <StatusBadge status={settlement.settlementStatus} />
                       </TableCell>
                       <TableCell>
@@ -207,8 +193,7 @@ export default function EventVendorSettlementRegister({
               onFiltersChange({ ...filters, ...values })
             }
           />
-        </CardContent>
-      </Card>
+      </div>
     </div>
   );
 }

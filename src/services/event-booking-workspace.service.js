@@ -84,6 +84,12 @@ const EventBookingWorkspaceService = {
     axiosRequest.patch(eventPath(eventId, `/operations/inventory/${requirementId}`), formData),
   deleteEventInventoryRequirement: ({ eventId, requirementId }) =>
     axiosRequest.delete(eventPath(eventId, `/operations/inventory/${requirementId}`)),
+  getCompanyInventoryItems: ({ eventId, ...params }) =>
+    axiosRequest.get(eventPath(eventId, "/operations/company-inventory/items"), { params }),
+  listCompanyInventoryAllocations: ({ eventId, ...params }) =>
+    axiosRequest.get(eventPath(eventId, "/operations/company-inventory/allocations"), { params }),
+  createCompanyInventoryAllocation: ({ eventId, payload }) =>
+    axiosRequest.post(eventPath(eventId, "/operations/company-inventory/allocations"), payload),
   getEventLogistics: ({ eventId, ...params }) =>
     axiosRequest.get(eventPath(eventId, "/operations/logistics"), { params }),
   addEventLogisticsMovement: ({ eventId, ...formData }) =>
@@ -103,7 +109,11 @@ const EventBookingWorkspaceService = {
   uploadEventChecklistProofs: ({ eventId, itemId, files }) => {
     const formData = new FormData();
     Array.from(files || []).forEach((file) => formData.append("files", file));
-    return axiosRequest.post(eventPath(eventId, `/operations/run-sheet/${itemId}/proofs`), formData);
+    return axiosRequest.post(
+      eventPath(eventId, `/operations/run-sheet/${itemId}/proofs`),
+      formData,
+      { headers: { "Content-Type": undefined } },
+    );
   },
   getEventRoleResponsibilities: ({ eventId, ...params }) =>
     axiosRequest.get(eventPath(eventId, "/operations/roles-responsibilities"), { params }),
@@ -175,9 +185,19 @@ const EventBookingWorkspaceService = {
     axiosRequest.get(eventPath(eventId, "/finance/documents"), { params }),
   uploadEventDocument: ({ eventId, document, ...values }) => {
     const formData = new FormData();
-    appendValues(formData, values);
+    appendValues(formData, {
+      ...values,
+      visibility:
+        values.visibility === "Client Shareable"
+          ? "Client Visible"
+          : values.visibility,
+    });
     if (document) formData.append("document", document);
-    return axiosRequest.post(eventPath(eventId, "/finance/documents"), formData);
+    return axiosRequest.post(
+      eventPath(eventId, "/finance/documents"),
+      formData,
+      { headers: { "Content-Type": undefined } },
+    );
   },
   attachEventAcceptedProposal: ({ eventId, file, ...values }) => {
     const formData = new FormData();
@@ -205,7 +225,9 @@ const EventBookingWorkspaceService = {
   updateEventClientApproval: ({ eventId, approvalId, ...formData }) =>
     axiosRequest.patch(eventPath(eventId, `/approvals/${approvalId}`), formData),
   adminAddCustomerPreference: ({ eventId, customerId, formData }) =>
-    axiosRequest.post(eventPath(eventId, `/customers/${customerId}/preference`), formData),
+    axiosRequest.post(eventPath(eventId, `/customers/${customerId}/preference`), formData, { headers: { "Content-Type": undefined } }),
+  adminUpdateCustomerPreference: ({ eventId, customerId, preferenceId, formData }) =>
+    axiosRequest.patch(eventPath(eventId, `/customers/${customerId}/preference/${preferenceId}`), formData, { headers: { "Content-Type": undefined } }),
   getVendors: ({ eventId, ...params }) =>
     axiosRequest.get(eventPath(eventId, "/vendor-options"), { params }),
   addVendorDocument: ({ eventId, vendorId, formData }) =>

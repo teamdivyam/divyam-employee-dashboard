@@ -3,6 +3,7 @@ import { useState } from "react";
 import { FileText, UsersRound } from "lucide-react";
 
 import TabComp from "@components/components/tab-comp";
+import { Card, CardContent } from "@components/components/ui/card";
 import {
   AddExpenseDialog,
   MoreExpenseFiltersDialog,
@@ -110,7 +111,9 @@ export default function EventCostSettlementsPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+      <Card className="min-w-0 overflow-hidden">
+        <CardContent className="p-0">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
         <TabComp
           tabs={costTabs}
           value={view}
@@ -121,7 +124,7 @@ export default function EventCostSettlementsPanel({
           display="inline-block"
           flush
           className="shrink-0"
-          listClassName="[&_.tab-comp-trigger[data-state=active]]:!bg-blue-50 dark:[&_.tab-comp-trigger[data-state=active]]:!bg-blue-400/10"
+          listClassName="[&.tab-comp-detail-list.tab-comp-compact-list]:!h-9 [&_.tab-comp-trigger.tab-comp-detail-trigger.tab-comp-compact-trigger]:!h-9 [&_.tab-comp-trigger[data-state=active]]:!bg-blue-50 dark:[&_.tab-comp-trigger[data-state=active]]:!bg-blue-400/10"
           ariaLabel="Cost and settlement views"
         />
 
@@ -169,6 +172,9 @@ export default function EventCostSettlementsPanel({
           onRecordPayment={openRecordDialog}
         />
       )}
+
+        </CardContent>
+      </Card>
 
       {!readOnly && (
         <>

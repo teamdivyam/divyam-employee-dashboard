@@ -1,6 +1,9 @@
 /* eslint-disable react/prop-types */
+import EventMetricCards from "./EventMetricCards";
+import EventReceiptPreviewDialog from "./EventReceiptPreviewDialog";
 import { useEffect, useMemo, useState } from "react";
 import {
+  ArrowDown,
   CalendarClock,
   CheckCircle2,
   CircleAlert,
@@ -8,14 +11,19 @@ import {
   Download,
   Eye,
   FileText,
+  Info,
   IndianRupee,
+  List,
   Loader2,
+  MapPin,
   MoreVertical,
   Pencil,
+  PieChart,
   Plus,
   ReceiptText,
   Search,
   Trash2,
+  UploadCloud,
 } from "lucide-react";
 
 import {
@@ -28,6 +36,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@components/components/ui/alert-dialog";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@components/components/ui/avatar";
 import { Badge } from "@components/components/ui/badge";
 import { Button } from "@components/components/ui/button";
 import { Card, CardContent } from "@components/components/ui/card";
@@ -65,6 +78,12 @@ import {
 } from "./EventTable";
 import { Textarea } from "@components/components/ui/textarea";
 import { currency, idOf, numberOf, shortDate } from "../eventFinance.utils";
+import {
+  avatarUrl,
+  bookingCode,
+  eventDateLabel,
+  initials,
+} from "../eventBookingDashboard.utils";
 
 const statusClasses = {
   Paid: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
@@ -88,7 +107,7 @@ function PaymentStatusBadge({ status }) {
   );
 }
 
-function SummaryCards({ summary = {} }) {
+export function ClientPaymentSummary({ summary = {} }) {
   const metrics = [
     {
       label: "Contract Value",
@@ -134,34 +153,7 @@ function SummaryCards({ summary = {} }) {
     },
   ];
 
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-      {metrics.map(
-        ({ label, value, caption, icon: Icon, tone, cardTone }) => (
-          <Card key={label} className={`crm-card ${cardTone}`}>
-            <CardContent className="flex min-h-24 items-center gap-3 p-4">
-              <span
-                className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ${tone}`}
-              >
-                <Icon className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-lg font-bold text-foreground">
-                  {value}
-                </p>
-                <p className="text-xs font-semibold text-foreground">
-                  {label}
-                </p>
-                <p className="mt-1 truncate text-[11px] text-muted-foreground">
-                  {caption}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ),
-      )}
-    </div>
-  );
+  return <EventMetricCards items={metrics} />;
 }
 
 const emptyMilestone = {
@@ -173,7 +165,17 @@ const emptyMilestone = {
   notes: "",
 };
 
-function MilestoneDialog({ open, onOpenChange, milestone, saving, onSave }) {
+function MilestoneDialog({
+  open,
+  onOpenChange,
+  milestone,
+  saving,
+  onSave,
+  readOnly = false,
+  booking,
+  summary,
+  plannedAmount,
+}) {
   const [form, setForm] = useState(emptyMilestone);
   const [error, setError] = useState("");
 
@@ -201,6 +203,7 @@ function MilestoneDialog({ open, onOpenChange, milestone, saving, onSave }) {
     setForm((current) => ({ ...current, [key]: value }));
   const submit = async (event) => {
     event.preventDefault();
+    if (readOnly) return;
     const amount = numberOf(form.amount);
     if (!form.name.trim() || !form.dueDate || amount <= 0) {
       setError("Name, due date, and an amount greater than zero are required.");
@@ -225,113 +228,369 @@ function MilestoneDialog({ open, onOpenChange, milestone, saving, onSave }) {
     }
   };
 
+  const contract = numberOf(summary?.contractValue);
+  const amount = numberOf(form.amount);
+  const percentage = contract > 0 ? (amount / contract) * 100 : 0;
+  const alreadyPlanned =
+    plannedAmount == null
+      ? null
+      : plannedAmount -
+        (milestone && milestone.status !== "Cancelled"
+          ? numberOf(milestone.amount)
+          : 0);
+  const remaining =
+    alreadyPlanned == null
+      ? null
+      : contract -
+        alreadyPlanned -
+        (form.status === "Cancelled" ? 0 : amount);
+  const money = (value) => (value == null ? "—" : currency(value));
+  const percent = (value) =>
+    value == null || !contract
+      ? "—"
+      : `${((value / contract) * 100).toFixed(2)}%`;
+  const clientName =
+    booking?.customer?.name ||
+    booking?.clientName ||
+    booking?.eventName ||
+    "Client";
+  const stat = (label, value, caption, Icon, green = false) => (
+    <div
+      key={label}
+      className="flex min-w-0 items-center gap-3 rounded border border-border/50 bg-card/80 p-3"
+    >
+      <span
+        className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${
+          green
+            ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10"
+            : "bg-blue-50 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300"
+        }`}
+      >
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[10px] text-muted-foreground">{label}</p>
+        <p className="text-sm font-bold">{money(value)}</p>
+        <p className="text-[10px] text-muted-foreground">{caption}</p>
+      </div>
+    </div>
+  );
+  const sectionHeading = (number, title, description) => (
+    <div className="flex items-center gap-3 bg-blue-50/70 px-3 py-2 dark:bg-blue-400/10">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-blue-600 text-sm font-bold text-white">
+        {number}
+      </span>
+      <div>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <p className="text-[11px] text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            {milestone ? "Edit Payment Milestone" : "Add Payment Milestone"}
+      <DialogContent className="flex max-h-[94dvh] w-[calc(100vw-1.5rem)] max-w-5xl flex-col gap-0 overflow-hidden rounded-lg p-0">
+        <DialogHeader className="px-4 pb-3 pt-4 pr-12">
+          <DialogTitle className="text-xl font-bold">
+            {readOnly
+              ? "View Milestone"
+              : milestone
+                ? "Edit Milestone"
+                : "Add Milestone"}
           </DialogTitle>
-          <DialogDescription>
-            Set the agreed amount and due date for this client payment stage.
+          <DialogDescription className="text-[11px]">
+            Create a payment milestone for this booking. Client payments can be
+            recorded against these milestones.
           </DialogDescription>
         </DialogHeader>
-        <form
-          id="payment-milestone-form"
-          onSubmit={submit}
-          className="grid gap-4 py-2 sm:grid-cols-2"
-        >
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="milestone-name">Milestone</Label>
-            <Input
-              id="milestone-name"
-              value={form.name}
-              maxLength={150}
-              onChange={(event) => update("name", event.target.value)}
-              placeholder="Planning Milestone"
-              required
-            />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="milestone-description">Description</Label>
-            <Textarea
-              id="milestone-description"
-              value={form.description}
-              maxLength={500}
-              onChange={(event) => update("description", event.target.value)}
-              placeholder="After design finalisation and initial planning"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="milestone-due-date">Due Date</Label>
-            <Input
-              id="milestone-due-date"
-              type="date"
-              value={form.dueDate}
-              onChange={(event) => update("dueDate", event.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="milestone-amount">Amount (INR)</Label>
-            <Input
-              id="milestone-amount"
-              type="number"
-              min="1"
-              step="0.01"
-              value={form.amount}
-              onChange={(event) => update("amount", event.target.value)}
-              required
-            />
-          </div>
-          {milestone ? (
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label>Status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(value) => update("status", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Scheduled">
-                    Active (calculated automatically)
-                  </SelectItem>
-                  <SelectItem value="Cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
+        <div className="min-h-0 space-y-3 overflow-y-auto px-4 pb-3">
+          <div className="grid gap-3 rounded-md border border-border bg-blue-50/50 p-2.5 dark:bg-blue-400/5 lg:grid-cols-[1.2fr_1.5fr]">
+            <div className="flex min-w-0 items-center gap-3">
+              <Avatar className="h-11 w-11 rounded-md">
+                <AvatarImage src={avatarUrl(booking?.customer)} alt={clientName} />
+                <AvatarFallback className="rounded-md bg-violet-100 text-sm font-semibold text-violet-700 dark:bg-violet-400/15 dark:text-violet-300">
+                  {initials(clientName)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold">{clientName}</p>
+                  {booking?.bookingStatus ? (
+                    <Badge
+                      variant="outline"
+                      className="border-0 bg-emerald-50 px-2 text-[10px] text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300"
+                    >
+                      {booking.bookingStatus}
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  {booking
+                    ? `${bookingCode(booking)} · ${booking.eventType || "Event"} · ${eventDateLabel(booking)}`
+                    : ""}
+                </p>
+                <p className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  {[booking?.venue, booking?.city].filter(Boolean).join(", ") ||
+                    "Venue not set"}
+                </p>
+              </div>
             </div>
-          ) : null}
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="milestone-notes">Internal Notes</Label>
-            <Textarea
-              id="milestone-notes"
-              value={form.notes}
-              maxLength={1000}
-              onChange={(event) => update("notes", event.target.value)}
-              placeholder="Optional internal note"
-            />
+            <div className="grid gap-2 sm:grid-cols-3">
+              {stat("Contract Value", contract, "Incl. GST", FileText)}
+              {stat(
+                "Milestones Planned",
+                plannedAmount,
+                `${percent(plannedAmount)} of contract`,
+                List,
+              )}
+              {stat(
+                "Unallocated Amount",
+                plannedAmount == null ? null : contract - plannedAmount,
+                `${percent(
+                  plannedAmount == null ? null : contract - plannedAmount,
+                )} remaining`,
+                PieChart,
+              )}
+            </div>
           </div>
-          {error ? (
-            <p className="text-sm text-destructive sm:col-span-2" role="alert">
-              {error}
-            </p>
-          ) : null}
-        </form>
-        <DialogFooter>
+          <form
+            id="payment-milestone-form"
+            onSubmit={submit}
+            className="space-y-3 [&_input]:h-8 [&_input]:text-xs [&_label]:text-[11px] [&_label]:font-semibold [&_textarea]:text-xs"
+          >
+            <fieldset disabled={readOnly || saving} className="space-y-3">
+              <section className="overflow-hidden rounded-md border border-border">
+                {sectionHeading(
+                  1,
+                  "Milestone Details",
+                  "Enter the milestone information and payment schedule.",
+                )}
+                <div className="space-y-3 p-3">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="milestone-name">
+                        Milestone Type <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="milestone-name"
+                        value={form.name}
+                        maxLength={150}
+                        onChange={(event) => update("name", event.target.value)}
+                        placeholder="Booking Advance"
+                        required
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        Enter the milestone category.
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="milestone-percentage">
+                        Milestone Percentage
+                      </Label>
+                      <Input
+                        id="milestone-percentage"
+                        readOnly
+                        value={`${percentage.toFixed(2)}%`}
+                        className="bg-muted/40"
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        Percentage of total contract value.
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="milestone-amount">
+                        Amount (INR) <span className="text-destructive">*</span>
+                      </Label>
+                      <div className="flex overflow-hidden rounded-md border border-input">
+                        <span className="grid w-9 shrink-0 place-items-center border-r border-input bg-muted/50">
+                          <IndianRupee className="h-3.5 w-3.5" />
+                        </span>
+                        <Input
+                          id="milestone-amount"
+                          type="number"
+                          min="1"
+                          step="0.01"
+                          value={form.amount}
+                          onChange={(event) =>
+                            update("amount", event.target.value)
+                          }
+                          className="rounded-none border-0"
+                          required
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        {percentage.toFixed(2)}% of {currency(contract)}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="milestone-due-date">
+                        Due Date <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="milestone-due-date"
+                        type="date"
+                        value={form.dueDate}
+                        onChange={(event) =>
+                          update("dueDate", event.target.value)
+                        }
+                        required
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        Select the expected payment date.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="milestone-description">
+                      Description / Payment Condition{" "}
+                      <span className="font-normal text-muted-foreground">
+                        (Optional)
+                      </span>
+                    </Label>
+                    <Textarea
+                      id="milestone-description"
+                      value={form.description}
+                      maxLength={500}
+                      onChange={(event) =>
+                        update("description", event.target.value)
+                      }
+                      placeholder="Payable at the time of booking confirmation."
+                      className="min-h-14"
+                      rows={2}
+                    />
+                    <p className="text-right text-[10px] text-muted-foreground">
+                      {form.description.length}/500
+                    </p>
+                  </div>
+                  {milestone ? (
+                    <div className="space-y-1">
+                      <Label>Status</Label>
+                      <Select
+                        value={form.status}
+                        onValueChange={(value) => update("status", value)}
+                        disabled={readOnly || saving}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Scheduled">
+                            Active (calculated automatically)
+                          </SelectItem>
+                          <SelectItem value="Cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : null}
+                  <div className="flex items-start gap-2 rounded border border-blue-100 bg-blue-50/70 px-3 py-2 text-[10px] text-muted-foreground dark:border-blue-400/20 dark:bg-blue-400/10">
+                    <Info className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-300" />
+                    <p>
+                      {milestone ? (
+                        "Client payments can be recorded against active milestones from the Record Payment section."
+                      ) : (
+                        <>
+                          This milestone will be created as{" "}
+                          <strong className="text-blue-600 dark:text-blue-300">
+                            Scheduled
+                          </strong>
+                          . Client payments can be recorded against this milestone
+                          from the Record Payment section.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="overflow-hidden rounded-md border border-border">
+                {sectionHeading(
+                  2,
+                  "Schedule Summary",
+                  `This summary shows the updated milestone plan after ${
+                    milestone ? "saving" : "adding"
+                  } this milestone.`,
+                )}
+                <div className="space-y-3 p-3">
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    {stat("Contract Value", contract, "100%", FileText)}
+                    {stat(
+                      "Already Planned",
+                      alreadyPlanned,
+                      percent(alreadyPlanned),
+                      List,
+                    )}
+                    {stat(
+                      "This Milestone",
+                      form.status === "Cancelled" ? 0 : amount,
+                      form.status === "Cancelled"
+                        ? "Cancelled"
+                        : `${percentage.toFixed(2)}%`,
+                      Plus,
+                      true,
+                    )}
+                    {stat(
+                      "Remaining Unallocated",
+                      remaining,
+                      percent(remaining),
+                      PieChart,
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="milestone-notes">
+                      Internal Note{" "}
+                      <span className="font-normal text-muted-foreground">
+                        (Optional)
+                      </span>
+                    </Label>
+                    <Textarea
+                      id="milestone-notes"
+                      value={form.notes}
+                      maxLength={1000}
+                      onChange={(event) => update("notes", event.target.value)}
+                      placeholder="Add any internal notes for your team..."
+                      className="min-h-14"
+                      rows={2}
+                    />
+                    <p className="text-right text-[10px] text-muted-foreground">
+                      {form.notes.length}/1000
+                    </p>
+                  </div>
+                </div>
+              </section>
+            </fieldset>
+            {error ? (
+              <p className="text-xs text-destructive" role="alert">
+                {error}
+              </p>
+            ) : null}
+          </form>
+        </div>
+        <DialogFooter className="flex-row justify-between px-4 pb-4 pt-2 sm:justify-between">
           <Button
             type="button"
             variant="outline"
+            className="h-9 px-5 text-xs"
             onClick={() => onOpenChange(false)}
             disabled={saving}
           >
-            Cancel
+            {readOnly ? "Close" : "Cancel"}
           </Button>
-          <Button variant="custom" type="submit" form="payment-milestone-form" disabled={saving}>
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {milestone ? "Save Changes" : "Add Milestone"}
-          </Button>
+          {!readOnly ? (
+            <Button
+              type="submit"
+              form="payment-milestone-form"
+              className="h-9 gap-2 bg-blue-600 px-5 text-xs text-white hover:bg-blue-700"
+              disabled={saving}
+            >
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              {milestone ? "Save Changes" : "Add Milestone"}
+            </Button>
+          ) : null}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -356,6 +615,9 @@ function RecordPaymentDialog({
   saving,
   onSave,
   paymentModes,
+  booking,
+  summary = {},
+  readOnly = false,
 }) {
   const [form, setForm] = useState(emptyPayment);
   const [error, setError] = useState("");
@@ -369,9 +631,9 @@ function RecordPaymentDialog({
 
   useEffect(() => {
     if (!open) return;
-    const selected =
-      payableMilestones.find((item) => idOf(item) === idOf(initialMilestone)) ||
-      payableMilestones[0];
+    const selected = payableMilestones.find(
+      (item) => idOf(item) === idOf(initialMilestone),
+    );
     setForm({
       ...emptyPayment,
       milestoneId: idOf(selected),
@@ -383,6 +645,9 @@ function RecordPaymentDialog({
   const selectedMilestone = payableMilestones.find(
     (item) => idOf(item) === form.milestoneId,
   );
+  const maximumAmount = form.milestoneId
+    ? numberOf(selectedMilestone?.balance)
+    : numberOf(summary.pendingAmount);
   const update = (key, value) =>
     setForm((current) => ({ ...current, [key]: value }));
   const chooseFiles = (files) => {
@@ -396,15 +661,14 @@ function RecordPaymentDialog({
   };
   const submit = async (event) => {
     event.preventDefault();
+    if (readOnly) return;
     const amount = numberOf(form.amount);
     if (
-      !selectedMilestone ||
+      (form.milestoneId && !selectedMilestone) ||
       amount <= 0 ||
-      amount > numberOf(selectedMilestone.balance)
+      amount > maximumAmount
     ) {
-      setError(
-        `Enter an amount up to ${currency(selectedMilestone?.balance)}.`,
-      );
+      setError(`Enter an amount up to ${currency(maximumAmount)}.`);
       return;
     }
     try {
@@ -423,28 +687,104 @@ function RecordPaymentDialog({
     }
   };
 
+  const contract = numberOf(summary.contractValue);
+  const received = numberOf(summary.totalReceived);
+  const pending = numberOf(summary.pendingAmount);
+  const amount = Math.max(0, numberOf(form.amount));
+  const updatedReceived = received + amount;
+  const updatedPending = Math.max(0, pending - amount);
+  const percentage = (value) =>
+    contract > 0 ? `${((value / contract) * 100).toFixed(1)}%` : "0%";
+  const clientName = booking?.customer?.name || booking?.clientName || "Client";
+  const heading = (number, title, description) => (
+    <div className="flex items-center gap-3 bg-primary/[0.04] px-3 py-2">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+        {number}
+      </span>
+      <div>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <p className="text-[11px] text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  );
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Record Client Payment</DialogTitle>
-          <DialogDescription>
-            Apply a received payment to one of the outstanding milestones.
+    <Dialog
+      open={open}
+      onOpenChange={(next) => !saving && onOpenChange(next)}
+    >
+      <DialogContent className="flex max-h-[94dvh] w-[calc(100vw-1.5rem)] max-w-5xl flex-col gap-0 overflow-hidden rounded-lg p-0">
+        <DialogHeader className="px-4 pb-3 pt-4 pr-12 text-left">
+          <DialogTitle className="text-xl font-bold">Record Payment</DialogTitle>
+          <DialogDescription className="text-xs">
+            Record the payment received from the client against this booking.
           </DialogDescription>
         </DialogHeader>
+        <div className="min-h-0 space-y-3 overflow-y-auto px-4 pb-3">
+          <div className="grid gap-3 rounded-md border border-primary/10 bg-primary/[0.04] p-2.5 lg:grid-cols-2">
+            <div className="flex min-w-0 items-center gap-3">
+              <Avatar className="h-12 w-12 shrink-0 rounded-md">
+                <AvatarImage src={avatarUrl(booking?.customer)} alt={clientName} />
+                <AvatarFallback className="rounded-md bg-primary/10 font-semibold text-primary">
+                  {initials(clientName)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold">{clientName}</p>
+                  {booking?.bookingStatus ? (
+                    <Badge variant="outline" className="text-[10px]">
+                      {booking.bookingStatus}
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  {bookingCode(booking || {})} &middot; {booking?.eventType || "Event"} &middot; {eventDateLabel(booking || {}, { includeWeekday: true })}
+                </p>
+                <p className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  {[booking?.venue, booking?.city].filter(Boolean).join(", ") || "Venue not set"}
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {[
+                ["Contract Value", contract, "Incl. GST", FileText, "bg-primary/10 text-primary"],
+                ["Total Received", received, percentage(received), ArrowDown, "bg-emerald-500/10 text-emerald-600"],
+                ["Pending Amount", pending, percentage(pending), Clock3, "bg-rose-500/10 text-rose-600"],
+              ].map(([label, value, caption, Icon, tone]) => (
+                <div key={label} className="flex min-w-0 items-center gap-2 rounded border border-border/60 bg-card/70 p-2">
+                  <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${tone}`}>
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">{label}</p>
+                    <p className="text-sm font-bold">{currency(value)}</p>
+                    <p className="text-[10px] text-muted-foreground">{caption}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         {payableMilestones.length ? (
           <form
             id="record-client-payment-form"
             onSubmit={submit}
-            className="grid gap-4 py-2 sm:grid-cols-2"
+            className="grid overflow-hidden rounded-md border border-border sm:grid-cols-2 lg:grid-cols-3 [&_input]:h-8 [&_input]:text-xs [&_label]:text-[11px] [&_label]:font-semibold [&_textarea]:text-xs"
           >
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label>Milestone</Label>
+            <div className="sm:col-span-2 lg:col-span-3">
+              {heading(1, "Payment Details", "Enter the payment information received from the client.")}
+            </div>
+            <div className="space-y-1.5 p-3">
+              <Label>Payment Against</Label>
               <Select
-                value={form.milestoneId}
-                onValueChange={(value) => update("milestoneId", value)}
+                value={form.milestoneId || "general"}
+                onValueChange={(value) =>
+                  update("milestoneId", value === "general" ? "" : value)
+                }
+                disabled={readOnly || saving}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="Select milestone" />
                 </SelectTrigger>
                 <SelectContent>
@@ -453,26 +793,39 @@ function RecordPaymentDialog({
                       {item.name} · {currency(item.balance)} due
                     </SelectItem>
                   ))}
+                  <SelectItem value="general">
+                    Booking Advance / General Payment
+                  </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="payment-amount">Amount (INR)</Label>
-              <Input
-                id="payment-amount"
-                type="number"
-                min="1"
-                max={numberOf(selectedMilestone?.balance)}
-                step="0.01"
-                value={form.amount}
-                onChange={(event) => update("amount", event.target.value)}
-                required
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Balance: {currency(selectedMilestone?.balance)}
+              <p className="text-[10px] text-muted-foreground">
+                Use this if payment is not linked to a specific milestone.
               </p>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 p-3">
+              <Label htmlFor="payment-amount">Amount Received</Label>
+              <div className="flex overflow-hidden rounded-md border border-input">
+                <span className="grid w-9 shrink-0 place-items-center border-r border-input bg-muted/40">
+                  <IndianRupee className="h-3.5 w-3.5" />
+                </span>
+                <Input
+                  id="payment-amount"
+                  type="number"
+                  min="1"
+                  max={maximumAmount}
+                  step="0.01"
+                  value={form.amount}
+                  onChange={(event) => update("amount", event.target.value)}
+                  disabled={readOnly || saving}
+                  required
+                  className="rounded-none border-0"
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Max allowed: {currency(maximumAmount)}
+              </p>
+            </div>
+            <div className="space-y-1.5 p-3">
               <Label htmlFor="payment-date">Payment Date</Label>
               <Input
                 id="payment-date"
@@ -481,16 +834,21 @@ function RecordPaymentDialog({
                 onChange={(event) =>
                   update("transactionDate", event.target.value)
                 }
+                disabled={readOnly || saving}
                 required
               />
+              <p className="text-[10px] text-muted-foreground">
+                Select the date the payment was received.
+              </p>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 p-3">
               <Label>Payment Mode</Label>
               <Select
                 value={form.paymentMode}
                 onValueChange={(value) => update("paymentMode", value)}
+                disabled={readOnly || saving}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -502,8 +860,10 @@ function RecordPaymentDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="payment-reference">Transaction Reference</Label>
+            <div className="space-y-1.5 p-3">
+              <Label htmlFor="payment-reference">
+                Transaction / UTR / Reference No.
+              </Label>
               <Input
                 id="payment-reference"
                 value={form.transactionReference}
@@ -511,17 +871,75 @@ function RecordPaymentDialog({
                   update("transactionReference", event.target.value)
                 }
                 placeholder="UTR / bank reference"
+                disabled={readOnly || saving}
               />
+              <p className="text-[10px] text-muted-foreground">
+                Enter UTR / Transaction ID from bank statement.
+              </p>
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="payment-receipts">Receipt / Payment Proof</Label>
-              <Input
-                id="payment-receipts"
-                type="file"
-                accept="image/*,.pdf,application/pdf"
-                multiple
-                onChange={(event) => chooseFiles(event.target.files)}
-              />
+            <div className="space-y-1.5 p-3">
+              <Label>Received In</Label>
+              <Select disabled>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Account selection unavailable" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unavailable" disabled>
+                    No receiving accounts available
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">
+                Receiving accounts are not supported yet.
+              </p>
+            </div>
+            <div className="mx-3 mb-3 grid gap-3 rounded-md border border-primary/10 bg-primary/[0.04] p-3 sm:col-span-2 sm:grid-cols-2 lg:col-span-3 lg:grid-cols-[2fr_1fr_1.2fr_1.2fr]">
+              <div className="flex items-start gap-2">
+                <Info className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div>
+                  <p className="text-xs font-semibold">Current Status After This Payment</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    These amounts will be updated after recording this payment.
+                  </p>
+                </div>
+              </div>
+              {[
+                ["Contract Value", contract, "", "text-foreground"],
+                ["Total Received (Updated)", updatedReceived, percentage(updatedReceived), "text-emerald-700"],
+                ["Pending Amount (Updated)", updatedPending, percentage(updatedPending), "text-primary"],
+              ].map(([label, value, percent, tone]) => (
+                <div key={label} className="border-border sm:border-l sm:pl-4">
+                  <p className="text-[10px] text-muted-foreground">{label}</p>
+                  <p className={`mt-1 text-sm font-bold ${tone}`}>
+                    {currency(value)}{" "}
+                    <span className="ml-1 text-[10px] font-normal text-muted-foreground">{percent}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="sm:col-span-2 lg:col-span-3">
+              {heading(2, "Receipt & Notes", "Upload payment proof and add any additional notes (optional).")}
+            </div>
+            <div className="space-y-1.5 p-3 sm:col-span-1 lg:col-span-2">
+              <Label htmlFor="payment-receipts">Payment Proof</Label>
+              <div className="relative flex min-h-16 items-center justify-center gap-3 rounded-md border border-dashed border-input bg-muted/20 p-3">
+                <UploadCloud className="h-6 w-6 text-muted-foreground" />
+                <div>
+                  <p className="text-xs font-semibold">Upload File</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Images, PDF (up to 5 files, max 10 MB each)
+                  </p>
+                </div>
+                <Input
+                  id="payment-receipts"
+                  type="file"
+                  accept="image/*,.pdf,application/pdf"
+                  multiple
+                  disabled={readOnly || saving}
+                  className="absolute inset-0 !h-full w-full cursor-pointer opacity-0"
+                  onChange={(event) => chooseFiles(event.target.files)}
+                />
+              </div>
               <p className="text-[11px] text-muted-foreground">
                 Up to 5 files, 10 MB each
                 {form.receipts.length
@@ -529,13 +947,15 @@ function RecordPaymentDialog({
                   : ""}
               </p>
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="payment-notes">Notes</Label>
+            <div className="space-y-1.5 p-3 sm:col-span-1 lg:col-span-1">
+              <Label htmlFor="payment-notes">Internal Note</Label>
               <Textarea
                 id="payment-notes"
                 value={form.notes}
                 onChange={(event) => update("notes", event.target.value)}
-                placeholder="Optional payment note"
+                placeholder="Add an internal payment note"
+                disabled={readOnly || saving}
+                className="min-h-16"
               />
             </div>
             {error ? (
@@ -552,16 +972,17 @@ function RecordPaymentDialog({
             There are no outstanding milestones available for payment.
           </div>
         )}
-        <DialogFooter>
+        </div>
+        <DialogFooter className="shrink-0 flex-row justify-between gap-3 px-4 pb-4 pt-2 sm:justify-between">
           <Button
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={saving}
           >
-            Cancel
+            {readOnly ? "Close" : "Cancel"}
           </Button>
-          {payableMilestones.length ? (
+          {payableMilestones.length && !readOnly ? (
             <Button
               variant="custom"
               type="submit"
@@ -582,10 +1003,7 @@ function RecordPaymentDialog({
   );
 }
 
-function ReceiptsDialog({ milestone, onOpenChange }) {
-  const payments = (milestone?.paymentTransactions || []).filter(
-    (item) => item && !item.isDeleted,
-  );
+function ReceiptsDialog({ milestone, payments, onOpenChange, onView }) {
   return (
     <Dialog
       open={Boolean(milestone)}
@@ -595,7 +1013,7 @@ function ReceiptsDialog({ milestone, onOpenChange }) {
         <DialogHeader>
           <DialogTitle>{milestone?.name || "Payment"} Receipts</DialogTitle>
           <DialogDescription>
-            Recorded payments and uploaded proof for this milestone.
+            Select a payment to preview its receipt.
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[55vh] space-y-3 overflow-y-auto py-2">
@@ -603,48 +1021,24 @@ function ReceiptsDialog({ milestone, onOpenChange }) {
             payments.map((payment) => (
               <div
                 key={idOf(payment)}
-                className="rounded-lg border border-border p-3"
+                className="flex items-center justify-between gap-3 rounded-lg border border-border p-3"
               >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="font-semibold text-foreground">
-                      {currency(payment.amount)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {shortDate(payment.transactionDate)} ·{" "}
-                      {payment.paymentMode || "-"}
-                    </p>
-                  </div>
-                  <Badge variant="outline">
+                <div>
+                  <p className="font-semibold">
                     {payment.receiptNumber || payment.transactionId}
-                  </Badge>
-                </div>
-                {payment.receiptDocuments?.length ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {payment.receiptDocuments.map((document) => (
-                      <Button
-                        key={idOf(document) || document.fileUrl}
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        className="gap-2"
-                      >
-                        <a
-                          href={document.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <Eye className="h-4 w-4" />
-                          {document.fileName || "View receipt"}
-                        </a>
-                      </Button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    No proof file was attached.
                   </p>
-                )}
+                  <p className="text-xs text-muted-foreground">
+                    {shortDate(payment.transactionDate)} · {currency(payment.amount)}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onView(payment)}
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  View
+                </Button>
               </div>
             ))
           ) : (
@@ -666,11 +1060,6 @@ function ReceiptsDialog({ milestone, onOpenChange }) {
 function LoadingState() {
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {Array.from({ length: 5 }, (_, index) => (
-          <Skeleton key={index} className="h-24 rounded-lg" />
-        ))}
-      </div>
       <Skeleton className="h-80 rounded-lg" />
     </div>
   );
@@ -678,6 +1067,8 @@ function LoadingState() {
 
 export default function EventClientPaymentsPanel({
   readOnly = false,
+  booking,
+  summary = {},
   data,
   filters,
   onFiltersChange,
@@ -696,10 +1087,49 @@ export default function EventClientPaymentsPanel({
 }) {
   const [milestoneDialog, setMilestoneDialog] = useState(false);
   const [selectedMilestone, setSelectedMilestone] = useState(null);
+  const [milestoneViewOnly, setMilestoneViewOnly] = useState(false);
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [paymentMilestone, setPaymentMilestone] = useState(null);
   const [receiptMilestone, setReceiptMilestone] = useState(null);
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [deleteMilestone, setDeleteMilestone] = useState(null);
+
+  const milestonePayments = (milestone) => {
+    const linkedIds = new Set(
+      (milestone?.paymentTransactions || []).map(idOf),
+    );
+    const candidates = [
+      ...(milestone?.paymentTransactions || []).filter(
+        (item) => item && typeof item === "object",
+      ),
+      ...(booking?.payments || []).filter(
+        (item) =>
+          linkedIds.has(idOf(item)) ||
+          idOf(item.eventFinance?.milestoneId) === idOf(milestone),
+      ),
+    ];
+    return [
+      ...new Map(
+        candidates
+          .filter((item) => !item.isDeleted && item.amount != null)
+          .map((item) => [idOf(item), item]),
+      ).values(),
+    ];
+  };
+  const viewReceipt = (payment) => {
+    setReceiptMilestone(null);
+    setSelectedReceipt({
+      ...payment,
+      paymentDate: payment.paymentDate || payment.transactionDate,
+      issuedOn: payment.issuedOn || payment.createdAt || payment.transactionDate,
+      paymentStatus: payment.paymentStatus || payment.status,
+    });
+  };
+  const openReceipts = (milestone) => {
+    const payments = milestonePayments(milestone);
+    if (payments.length === 1) viewReceipt(payments[0]);
+    else setReceiptMilestone(milestone);
+  };
 
   if (loading && !data) return <LoadingState />;
   if (error && !data)
@@ -721,7 +1151,6 @@ export default function EventClientPaymentsPanel({
       </Card>
     );
 
-  const summary = data?.summary || {};
   const milestones = data?.milestones || [];
   const options = data?.options || {};
   const pagination = data?.pagination || {
@@ -739,14 +1168,34 @@ export default function EventClientPaymentsPanel({
   const hasOutstanding = paymentMilestones.some(
     (item) => item.status !== "Cancelled" && numberOf(item.balance) > 0,
   );
+  const hasUnfilteredMilestones =
+    !filters.search?.trim() &&
+    (!filters.status || filters.status === "all") &&
+    (!filters.milestone || filters.milestone === "all");
+  const plannedAmount =
+    hasUnfilteredMilestones &&
+    allMilestoneOptions.length >= pagination.totalMilestones &&
+    allMilestoneOptions.every((item) => item.amount != null)
+      ? allMilestoneOptions
+          .filter((item) => item.status !== "Cancelled")
+          .reduce((sum, item) => sum + numberOf(item.amount), 0)
+      : hasUnfilteredMilestones && milestones.length >= pagination.totalMilestones
+        ? milestones
+            .filter(
+              (item) =>
+                !item.isStandalonePayment && item.status !== "Cancelled",
+            )
+            .reduce((sum, item) => sum + numberOf(item.amount), 0)
+        : null;
   const setFilter = (key, value) =>
     onFiltersChange({
       ...filters,
       [key]: value,
       page: key === "page" ? value : 1,
     });
-  const openMilestone = (milestone = null) => {
+  const openMilestone = (milestone = null, viewOnly = false) => {
     setSelectedMilestone(milestone);
+    setMilestoneViewOnly(viewOnly);
     setMilestoneDialog(true);
   };
   const openPayment = (milestone = null) => {
@@ -764,16 +1213,6 @@ export default function EventClientPaymentsPanel({
 
   return (
     <div className="space-y-4">
-      <SummaryCards summary={summary} />
-      {!summary.milestonesMatchContract && allMilestoneOptions.length ? (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>
-            Milestones differ from the contract value by{" "}
-            {currency(Math.abs(numberOf(summary.milestoneVariance)))}.
-          </span>
-        </div>
-      ) : null}
       <Card>
         <CardContent className="p-0">
           <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
@@ -927,16 +1366,16 @@ export default function EventClientPaymentsPanel({
                         {shortDate(milestone.lastPaymentDate)}
                       </TableCell>
                       <TableCell>
-                        {milestone.receiptCount ? (
+                        {milestonePayments(milestone).length ? (
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setReceiptMilestone(milestone)}
+                            onClick={() => openReceipts(milestone)}
                             className="h-8 gap-1.5 px-2 text-primary"
                           >
                             <ReceiptText className="h-4 w-4" />
-                            {milestone.receiptCount} file
-                            {milestone.receiptCount === 1 ? "" : "s"}
+                            {milestonePayments(milestone).length} receipt
+                            {milestonePayments(milestone).length === 1 ? "" : "s"}
                           </Button>
                         ) : (
                           <span className="text-xs text-muted-foreground">
@@ -946,21 +1385,22 @@ export default function EventClientPaymentsPanel({
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
-                          {readOnly || milestone.status === "Paid" ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setReceiptMilestone(milestone)}
-                              className="gap-1.5 border-blue-300 bg-transparent text-blue-700 hover:bg-blue-50 hover:text-blue-800"
-                            >
-                              <Eye className="h-4 w-4" />
-                              View
-                            </Button>
-                          ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={milestone.isStandalonePayment}
+                            onClick={() => openMilestone(milestone, true)}
+                            className="gap-1.5 border-blue-300 bg-transparent text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                          >
+                            <Eye className="h-4 w-4" />
+                            View
+                          </Button>
+                          {!readOnly && milestone.status !== "Paid" ? (
                             <Button
                               variant="outline"
                               size="sm"
                               disabled={
+                                milestone.isStandalonePayment ||
                                 milestone.status === "Cancelled" ||
                                 numberOf(milestone.balance) <= 0
                               }
@@ -970,7 +1410,7 @@ export default function EventClientPaymentsPanel({
                               <IndianRupee className="h-4 w-4" />
                               Record
                             </Button>
-                          )}
+                          ) : null}
                           {!readOnly && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -1091,46 +1531,56 @@ export default function EventClientPaymentsPanel({
           </div>
         </CardContent>
       </Card>
-      {!readOnly && (
-        <>
-          <MilestoneDialog
-            open={milestoneDialog}
-            onOpenChange={setMilestoneDialog}
-            milestone={selectedMilestone}
-            saving={savingMilestone}
-            onSave={(payload) =>
-              selectedMilestone
-                ? onUpdateMilestone(selectedMilestone, payload)
-                : onAddMilestone(payload)
-            }
-          />
-          <RecordPaymentDialog
-            open={paymentDialog}
-            onOpenChange={setPaymentDialog}
-            milestones={paymentMilestones}
-            initialMilestone={paymentMilestone}
-            saving={recordingPayment}
-            onSave={onRecordPayment}
-            paymentModes={
-              options.paymentModes || [
-                "Bank Transfer",
-                "UPI",
-                "NEFT",
-                "RTGS",
-                "IMPS",
-                "Card",
-                "Cash",
-                "Cheque",
-                "Wallet",
-                "Other",
-              ]
-            }
-          />
-        </>
-      )}
+      <MilestoneDialog
+        open={milestoneDialog}
+        onOpenChange={setMilestoneDialog}
+        milestone={selectedMilestone}
+        booking={booking}
+        summary={summary}
+        plannedAmount={plannedAmount}
+        saving={savingMilestone}
+        readOnly={readOnly || milestoneViewOnly}
+        onSave={(payload) =>
+          selectedMilestone
+            ? onUpdateMilestone(selectedMilestone, payload)
+            : onAddMilestone(payload)
+        }
+      />
+      <RecordPaymentDialog
+        open={paymentDialog}
+        onOpenChange={setPaymentDialog}
+        milestones={paymentMilestones}
+        initialMilestone={paymentMilestone}
+        saving={recordingPayment}
+        onSave={onRecordPayment}
+        paymentModes={
+          options.paymentModes || [
+            "Bank Transfer",
+            "UPI",
+            "NEFT",
+            "RTGS",
+            "IMPS",
+            "Card",
+            "Cash",
+            "Cheque",
+            "Wallet",
+            "Other",
+          ]
+        }
+        booking={booking}
+        summary={summary}
+        readOnly={readOnly}
+      />
       <ReceiptsDialog
         milestone={receiptMilestone}
+        payments={receiptMilestone ? milestonePayments(receiptMilestone) : []}
+        onView={viewReceipt}
         onOpenChange={setReceiptMilestone}
+      />
+      <EventReceiptPreviewDialog
+        receipt={selectedReceipt}
+        booking={booking}
+        onClose={() => setSelectedReceipt(null)}
       />
       {!readOnly && <AlertDialog
         open={Boolean(deleteMilestone)}
