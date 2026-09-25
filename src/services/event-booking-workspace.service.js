@@ -41,10 +41,18 @@ const EventBookingWorkspaceService = {
     axiosRequest.post(eventPath(eventId, "/services"), formData),
   updateEventService: ({ eventId, serviceId, ...formData }) =>
     axiosRequest.patch(eventPath(eventId, `/services/${serviceId}`), formData),
-  addEventHospitalityRequirement: ({ eventId, ...formData }) =>
-    axiosRequest.post(eventPath(eventId, "/hospitality"), formData),
-  updateEventHospitalityRequirement: ({ eventId, requirementId, ...formData }) =>
-    axiosRequest.patch(eventPath(eventId, `/hospitality/${requirementId}`), formData),
+  addEventHospitalityRequirement: ({ eventId, formData, ...payload }) =>
+    axiosRequest.post(
+      eventPath(eventId, "/hospitality"),
+      formData || payload,
+      formData ? { headers: { "Content-Type": undefined } } : undefined,
+    ),
+  updateEventHospitalityRequirement: ({ eventId, requirementId, formData, ...payload }) =>
+    axiosRequest.patch(
+      eventPath(eventId, `/hospitality/${requirementId}`),
+      formData || payload,
+      formData ? { headers: { "Content-Type": undefined } } : undefined,
+    ),
   addEventGuest: ({ eventId, ...formData }) =>
     axiosRequest.post(eventPath(eventId, "/guests"), formData),
   updateEventGuest: ({ eventId, guestId, ...formData }) =>
