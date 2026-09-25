@@ -438,6 +438,52 @@ const EmployeeV2Service = {
         employeeV2Request.delete(`/tasks/${encodeURIComponent(taskId)}`),
     getTaskAnalyticsV2: ({ month } = {}) =>
         employeeV2Request.get("/tasks/analytics", { params: { month } }),
+    getMyScorecard: ({ month, signal } = {}) =>
+        employeeV2Request.get("/scorecard/me", {
+            params: { month },
+            signal,
+        }),
+    addMyScorecardGoal: ({ month, text } = {}) =>
+        employeeV2Request.post("/scorecard/me/goals", { month, text }),
+    updateMyScorecardGoal: ({ goalId, text, isCompleted } = {}) =>
+        employeeV2Request.patch(
+            `/scorecard/me/goals/${encodeURIComponent(goalId)}`,
+            {
+                ...(text !== undefined ? { text } : {}),
+                ...(isCompleted !== undefined ? { isCompleted } : {}),
+            },
+        ),
+    submitScorecardFeedback: ({
+        employeeId,
+        month,
+        rating,
+        ratings,
+        comment,
+        appreciation,
+        improvementSuggestion,
+    } = {}) =>
+        employeeV2Request.post(
+            `/scorecard/employees/${encodeURIComponent(employeeId)}/reviews`,
+            {
+                month,
+                type: "Team Feedback",
+                ...(rating !== undefined ? { rating } : {}),
+                ...(ratings ? { ratings } : {}),
+                ...(comment !== undefined ? { comment } : {}),
+                appreciation,
+                improvementSuggestion,
+            },
+        ),
+    getMyTeamFeedbackDashboard: ({ month, search, status, signal } = {}) =>
+        employeeV2Request.get("/scorecard/team-feedback", {
+            params: { month, search, status },
+            signal,
+        }),
+    getMyTeamFeedbackSubmission: ({ employeeId, month, signal } = {}) =>
+        employeeV2Request.get(
+            `/scorecard/team-feedback/${encodeURIComponent(employeeId)}`,
+            { params: { month }, signal },
+        ),
     updateTaskProgress: ({ taskId, status, progressPercent, priority, note, attachments = [] } = {}) => {
         if (!attachments.length) {
             return employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/progress`, {
