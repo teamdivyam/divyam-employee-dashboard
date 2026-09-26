@@ -464,7 +464,7 @@ const EmployeeV2Service = {
             `/tasks/${encodeURIComponent(taskId)}/checklist/${encodeURIComponent(itemId)}`,
             { isCompleted },
         ),
-    updateTaskDetails: ({ taskId, taskTitle, description, instructions, expectedOutcome, relatedTo, dueDate, dueTime, priority, visibility, referenceAttachments = [], removedReferenceAttachmentIds = [] } = {}) => {
+    updateTaskDetails: ({ taskId, taskTitle, description, instructions, expectedOutcome, relatedTo, dueDate, dueTime, priority, visibility, primaryOwnerId, collaboratorIds, reviewerId, referenceAttachments = [], removedReferenceAttachmentIds = [] } = {}) => {
         const formData = new FormData();
         formData.append("payload", JSON.stringify({
             taskTitle,
@@ -476,6 +476,9 @@ const EmployeeV2Service = {
             dueTime,
             priority,
             visibility,
+            primaryOwnerId,
+            collaboratorIds,
+            reviewerId,
             removedReferenceAttachmentIds,
         }));
         referenceAttachments.forEach((file) => formData.append("referenceAttachments", file));

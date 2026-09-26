@@ -45,15 +45,18 @@ const statusTone = (status) => {
 };
 
 function EventInventoryPanel({ data, onAdd, onView }) {
-  const requirements = useMemo(() => data?.inventory || [], [data]);
+  const requirements = useMemo(() => (data?.inventory || []).filter((item) => item.status !== 'Cancelled'), [data]);
   const [source, setSource] = useState('Company');
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [status, setStatus] = useState('all');
   const [page, setPage] = useState(1);
   const categories = data?.filters?.categories || [];
-  const summary = data?.summary || {};
-  const activeStatuses = source === 'Vendor' ? vendorStatuses : companyStatuses;
+  const summary = useMemo(() => requirements.reduce((counts, item) => ({
+    ...counts,
+    [item.source]: (counts[item.source] || 0) + 1,
+  }), { Company: 0, Vendor: 0 }), [requirements]);
+  const activeStatuses = (source === 'Vendor' ? vendorStatuses : companyStatuses).filter((item) => item !== 'Cancelled');
 
   const filtered = useMemo(() => requirements.filter((item) => {
     const query = search.trim().toLowerCase();

@@ -349,7 +349,7 @@ export default function EventBookingDashboardPage() {
     { label: 'Payment Due / Overdue', value: '—', icon: AlertTriangle, tone: 'red', description: cards.paymentAttention == null ? 'Due / overdue amount unavailable' : `${cards.paymentAttention} ${cards.paymentAttention === 1 ? 'booking needs' : 'bookings need'} attention` },
   ];
   const tabs = [
-    { value: 'all', label: 'All Bookings' },
+    { value: 'all', label: 'All Bookings', notificationCount: counts.all },
     { value: 'planning', label: 'In Planning', notificationCount: counts.planning },
     { value: 'execution_ready', label: 'Execution Ready', notificationCount: counts.executionReady },
     { value: 'today', label: 'Live / Today', notificationCount: counts.today },
