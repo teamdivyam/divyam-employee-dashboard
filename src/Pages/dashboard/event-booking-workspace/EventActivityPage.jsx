@@ -17,7 +17,7 @@ import {
   Search,
   UserRound,
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import AdminService from "../../../services/event-booking-workspace.service";
@@ -48,9 +48,7 @@ import {
   SelectValue,
 } from "@components/components/ui/select";
 import { Textarea } from "@components/components/ui/textarea";
-import EventDetailTabs from "./components/EventDetailTabs";
-import EventFunctionsHeader from "./components/EventFunctionsHeader";
-import { getBookingDetail } from "./components/EventBookingComponents";
+import EventSummaryCards from "./components/EventSummaryCards";
 import { getFinalPreferenceCount } from "./eventBookingDashboard.utils";
 import useDebouncedValue from "../../../hooks/useDebouncedValue";
 
@@ -116,6 +114,25 @@ const moduleTones = {
   Documents: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-300",
   "Client Updates": "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-300",
   "Tasks & Workflow": "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-300",
+};
+
+// Stable pseudo-random colors keep each activity visually distinct without
+// changing color whenever the list re-renders or the user changes pages.
+const activityColorPalette = [
+  { dot: "bg-emerald-500", surface: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" },
+  { dot: "bg-violet-600", surface: "bg-violet-500/10 text-violet-600 dark:text-violet-300" },
+  { dot: "bg-blue-600", surface: "bg-blue-500/10 text-blue-600 dark:text-blue-300" },
+  { dot: "bg-orange-500", surface: "bg-orange-500/10 text-orange-600 dark:text-orange-300" },
+  { dot: "bg-pink-500", surface: "bg-pink-500/10 text-pink-600 dark:text-pink-300" },
+  { dot: "bg-cyan-600", surface: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300" },
+  { dot: "bg-purple-600", surface: "bg-purple-500/10 text-purple-600 dark:text-purple-300" },
+  { dot: "bg-teal-600", surface: "bg-teal-500/10 text-teal-700 dark:text-teal-300" },
+];
+
+const activityColor = (activity) => {
+  const seed = String(activity?._id || `${activity?.type || ""}-${activity?.title || ""}-${activity?.activityDate || ""}`);
+  const hash = [...seed].reduce((value, character) => ((value * 31) + character.charCodeAt(0)) >>> 0, 0);
+  return activityColorPalette[hash % activityColorPalette.length];
 };
 
 const validDate = (value) => {
@@ -320,16 +337,17 @@ function ActivityAction({ eventId, action }) {
 
 function ActivityRow({ activity, eventId }) {
   const presentation = activityPresentation[activity.type] || activityPresentation.Other;
+  const color = activityColor(activity);
   const Icon = presentation.icon;
   return (
     <div className="border-t border-border first:border-t-0">
-      <div className="hidden min-w-[960px] grid-cols-[70px_28px_minmax(240px,1fr)_150px_150px_165px_125px] items-center md:grid">
+      <div className="hidden min-w-[960px] grid-cols-[70px_28px_minmax(200px,1fr)_190px_150px_165px_125px] items-center md:grid">
         <div className="px-2.5 py-1.5 text-xs text-muted-foreground">{timeLabel(activity.activityDate)}</div>
         <div className="relative flex h-full items-center justify-center before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border">
-          <span className={`z-10 h-2.5 w-2.5 rounded-full ring-4 ring-card ${presentation.dot}`} />
+          <span className={`z-10 h-2.5 w-2.5 rounded-full ring-4 ring-card ${color.dot}`} />
         </div>
         <div className="flex min-w-0 items-center gap-2 px-2.5 py-1.5">
-          <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${presentation.surface}`}>
+          <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${color.surface}`}>
             <Icon className="h-4 w-4" />
           </span>
           <div className="min-w-0">
@@ -343,7 +361,7 @@ function ActivityRow({ activity, eventId }) {
           </Badge>
         </div>
         <div className="flex min-w-0 items-center gap-2 px-2.5 py-1.5">
-          <Avatar className="h-7 w-7"><AvatarFallback className="bg-blue-50 text-[11px] font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">{initials(activity.actor?.name)}</AvatarFallback></Avatar>
+          <Avatar className="h-7 w-7"><AvatarFallback className={`text-[11px] font-semibold ${color.surface}`}>{initials(activity.actor?.name)}</AvatarFallback></Avatar>
           <span className="truncate text-xs">{activity.actor?.name || "Admin"}</span>
         </div>
         <div className="px-2.5 py-1.5 text-xs text-muted-foreground">{dateTimeLabel(activity.activityDate)}</div>
@@ -351,7 +369,7 @@ function ActivityRow({ activity, eventId }) {
       </div>
 
       <div className="flex gap-2.5 p-2.5 md:hidden">
-        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${presentation.surface}`}><Icon className="h-4 w-4" /></span>
+        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${color.surface}`}><Icon className="h-4 w-4" /></span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <p className="font-semibold text-blue-950 dark:text-blue-200">{activity.title}</p>
@@ -434,16 +452,11 @@ function ActivityPagination({ pagination, onChange }) {
 
 export default function EventActivityPage() {
   const { eventId } = useParams();
-  const navigate = useNavigate();
   const [filters, setFilters] = useState(defaultFilters);
   const [noteOpen, setNoteOpen] = useState(false);
   const debouncedSearch = useDebouncedValue(filters.search, 350);
 
-  const bookingQuery = useQuery({
-    queryKey: ["event-booking-detail", eventId],
-    queryFn: async () => (await AdminService.getEventBookingDetail({ eventId })).data,
-    enabled: Boolean(eventId),
-  });
+  const { booking, bookingQuery } = useOutletContext();
   const activityQuery = useQuery({
     queryKey: [
       "event-activities",
@@ -482,7 +495,6 @@ export default function EventActivityPage() {
     onError: (error) => toast.error(error.response?.data?.message || "Unable to add internal note"),
   });
 
-  const booking = getBookingDetail(bookingQuery.data);
   const functions = useMemo(() => booking?.functions || [], [booking]);
   const services = useMemo(
     () =>
@@ -519,17 +531,7 @@ export default function EventActivityPage() {
 
   return (
     <div className="min-w-0 space-y-3">
-      <EventFunctionsHeader
-        booking={booking}
-        metrics={metrics}
-        compactMetrics
-        onBack={() => navigate("/dashboard/assigned-events")}
-        onEdit={() => navigate(`/dashboard/assigned-events/${eventId}`)}
-        onMarkReady={() => navigate(`/dashboard/assigned-events/${eventId}`)}
-        onOpenPlanning={() => navigate(`/dashboard/assigned-events/${eventId}/operations`)}
-        primaryActionLabel="Open Operations Plan"
-      />
-      <EventDetailTabs activePrimary="activity" />
+      <EventSummaryCards metrics={metrics} compactMetrics />
 
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_160px_160px_176px_176px_auto] xl:items-center">
         <div className="relative min-w-0">

@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -36,6 +36,7 @@ import { Label } from "@components/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/components/ui/select";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@components/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@components/components/ui/avatar";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@components/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@components/components/ui/popover";
 import { Separator } from "@components/components/ui/separator";
 
@@ -115,6 +116,19 @@ function PersonSummary({ label, name, role, profileImage, compact = false, suffi
   );
 }
 
+function PersonOption({ employee }) {
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      <Avatar className="h-7 w-7 shrink-0">
+        <AvatarImage src={getAvatarUrl(employee?.profileImage?.smallUrl)} alt={employee?.name} />
+        <AvatarFallback className="bg-blue-900 text-[9px] font-semibold text-white">{getInitials(employee?.name) || "?"}</AvatarFallback>
+      </Avatar>
+      <span className="truncate">{employee?.name}</span>
+      <span className="ml-auto text-[10px] text-muted-foreground">{employee?.accessRole}</span>
+    </span>
+  );
+}
+
 function SectionHeader({ index, tone, title, trailing, className = "" }) {
   const styles = {
     blue: "border-blue-200 bg-blue-50/70 text-blue-700 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-300",
@@ -173,6 +187,10 @@ export default function TaskDetailDialog({
   const [newDueDate, setNewDueDate] = useState("");
   const [dueDateReason, setDueDateReason] = useState("");
   const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [isEditingPeople, setIsEditingPeople] = useState(false);
+  const [editPrimaryOwnerId, setEditPrimaryOwnerId] = useState("");
+  const [editCollaboratorIds, setEditCollaboratorIds] = useState([]);
+  const [editReviewerId, setEditReviewerId] = useState("");
   const [editTaskTitle, setEditTaskTitle] = useState("");
   const [editRelatedToName, setEditRelatedToName] = useState("");
   const [editInstructions, setEditInstructions] = useState("");
@@ -190,6 +208,26 @@ export default function TaskDetailDialog({
   const escalationSectionRef = useRef(null);
   const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
+  const employeesQuery = useQuery({
+    queryKey: ["task-assignable-employees"],
+    queryFn: async () => {
+      const response = await EmployeeV2Service.getTaskAssignmentEmployees({ limit: 100 });
+      return [...(response.data?.data?.employees || [])].sort((first, second) =>
+        String(first.name || "").localeCompare(String(second.name || ""), undefined, { sensitivity: "base", numeric: true })
+      );
+    },
+    enabled: Boolean(task?._id && isEditingPeople),
+  });
+  const employeeOptions = useMemo(() => {
+    const values = [
+      ...(employeesQuery.data || []),
+      currentEmployee ? { ...currentEmployee, _id: currentEmployee._id || currentEmployee.employeeId } : null,
+      task?.assignedTo ? { _id: task.assignedTo, name: task.assignedToName, accessRole: task.assignedToRole, profileImage: task.assignedToProfileImage } : null,
+      ...(task?.collaborators || []).map((participant) => ({ _id: participant.employee, name: participant.name, accessRole: participant.role, profileImage: participant.profileImage })),
+      task?.reviewer ? { _id: task.reviewer, name: task.reviewerName, accessRole: task.reviewerRole, profileImage: task.reviewerProfileImage } : null,
+    ].filter((employee) => employee?._id);
+    return Array.from(new Map(values.map((employee) => [String(employee._id), employee])).values());
+  }, [currentEmployee, employeesQuery.data, task]);
   const isRecipient = task && currentEmployee && task.assignedTo === currentEmployee._id;
   const isRequester = task && currentEmployee && task.createdBy === currentEmployee._id;
   const isReviewer = task && currentEmployee && task.reviewer === currentEmployee._id;
@@ -268,6 +306,10 @@ export default function TaskDetailDialog({
     setNewDueDate("");
     setDueDateReason("");
     setIsEditingInfo(false);
+    setIsEditingPeople(false);
+    setEditPrimaryOwnerId(String(task?.assignedTo || ""));
+    setEditCollaboratorIds((task?.collaborators || []).map((participant) => String(participant.employee)));
+    setEditReviewerId(String(task?.reviewer || ""));
     setEditTaskTitle(task?.taskTitle || "");
     setEditRelatedToName(task?.relatedTo?.name || "");
     setEditInstructions(task?.instructions || "");
@@ -473,6 +515,56 @@ export default function TaskDetailDialog({
         setRemovedReferenceAttachmentIds([]);
         setIsEditingInfo(false);
       },
+    });
+  };
+
+  const resetPeopleDraft = () => {
+    setEditPrimaryOwnerId(String(task?.assignedTo || ""));
+    setEditCollaboratorIds((task?.collaborators || []).map((participant) => String(participant.employee)));
+    setEditReviewerId(String(task?.reviewer || ""));
+  };
+
+  const handlePrimaryOwnerChange = (employeeId) => {
+    setEditPrimaryOwnerId(employeeId);
+    setEditCollaboratorIds((ids) => ids.filter((id) => id !== employeeId));
+    setEditReviewerId((id) => id === employeeId ? "" : id);
+  };
+
+  const toggleCollaborator = (employeeId) => setEditCollaboratorIds((ids) =>
+    ids.includes(employeeId) ? ids.filter((id) => id !== employeeId) : [...ids, employeeId]
+  );
+
+  const handleSavePeople = () => {
+    const primaryOwnerId = task.taskType === "Self Task" ? String(task.assignedTo) : editPrimaryOwnerId;
+    const currentCollaboratorIds = (task.collaborators || []).map((participant) => String(participant.employee)).sort();
+    const nextCollaboratorIds = [...editCollaboratorIds].sort();
+    if (!primaryOwnerId) {
+      toast.error("Select a primary owner");
+      return;
+    }
+    if (editCollaboratorIds.includes(primaryOwnerId)) {
+      toast.error("Primary owner cannot also be a collaborator");
+      return;
+    }
+    if (editReviewerId && editReviewerId === primaryOwnerId) {
+      toast.error("Primary owner cannot also be the reviewer");
+      return;
+    }
+    if (primaryOwnerId === String(task.assignedTo)
+      && currentCollaboratorIds.join(",") === nextCollaboratorIds.join(",")
+      && editReviewerId === String(task.reviewer || "")) {
+      toast.info("No People & Responsibility changes to save");
+      setIsEditingPeople(false);
+      return;
+    }
+
+    editTaskMutation.mutate({
+      taskId: task.taskId || task._id,
+      primaryOwnerId,
+      collaboratorIds: nextCollaboratorIds,
+      reviewerId: editReviewerId || null,
+    }, {
+      onSuccess: () => setIsEditingPeople(false),
     });
   };
 
@@ -891,20 +983,25 @@ export default function TaskDetailDialog({
             index={2}
             tone="green"
             title="People & Responsibility"
-            trailing={`${task.assignedToName || "Unassigned"} • ${(task.collaborators || []).length} collaborator${task.collaborators?.length === 1 ? "" : "s"}${task.reviewerName ? " • Reviewer assigned" : ""}`}
+            trailing={<div className="flex items-center gap-2"><span className="hidden sm:inline">{`${task.assignedToName || "Unassigned"} • ${(task.collaborators || []).length} collaborator${task.collaborators?.length === 1 ? "" : "s"}${task.reviewerName ? " • Reviewer assigned" : ""}`}</span>{canEditTaskInfo ? <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[11px] text-emerald-700" onClick={() => { if (isEditingPeople) resetPeopleDraft(); setIsEditingPeople((value) => !value); }}>{isEditingPeople ? <XCircle className="h-3 w-3" /> : <Pencil className="h-3 w-3" />}{isEditingPeople ? "Cancel" : "Edit"}</Button> : null}</div>}
           />
           <div className="rounded-b-lg border border-t-0 border-emerald-200 p-3 dark:border-emerald-400/30">
-            <div className="grid divide-y divide-border sm:grid-cols-4 sm:divide-x sm:divide-y-0">
-              <PersonSummary label="Primary Owner" name={task.assignedToName} role={task.assignedToRole} profileImage={task.assignedToProfileImage} />
-              <div className="space-y-1.5 px-3 py-1">
-                <p className="text-[11px] text-muted-foreground">Collaborators</p>
-                {(task.collaborators || []).length ? task.collaborators.map((participant) => (
-                  <PersonSummary key={participant._id || participant.employee} compact name={participant.name} role={participant.role} profileImage={participant.profileImage} suffix={String(participant.employee) === String(currentEmployee?._id) ? "You" : undefined} />
-                )) : <p className="text-xs font-medium text-foreground">None</p>}
+            {isEditingPeople ? (
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="space-y-1.5"><Label className="text-xs">Primary Owner</Label>{task.taskType === "Self Task" ? <div className="flex h-9 items-center rounded-md border px-3 text-xs">{task.assignedToName}</div> : <Select value={editPrimaryOwnerId} onValueChange={handlePrimaryOwnerChange}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder={employeesQuery.isFetching ? "Loading..." : "Select owner"} /></SelectTrigger><SelectContent>{employeeOptions.map((employee) => <SelectItem key={employee._id} value={String(employee._id)}><PersonOption employee={employee} /></SelectItem>)}</SelectContent></Select>}</div>
+                <div className="space-y-1.5"><Label className="text-xs">Collaborators</Label><DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" className="h-9 w-full justify-start text-xs"><Plus className="mr-1.5 h-3.5 w-3.5" />Add Collaborators ({editCollaboratorIds.length})</Button></DropdownMenuTrigger><DropdownMenuContent className="max-h-72 w-72 overflow-y-auto" align="start">{employeeOptions.filter((employee) => String(employee._id) !== editPrimaryOwnerId && String(employee._id) !== String(task.createdBy)).map((employee) => <DropdownMenuCheckboxItem key={employee._id} checked={editCollaboratorIds.includes(String(employee._id))} onCheckedChange={() => toggleCollaborator(String(employee._id))} onSelect={(event) => event.preventDefault()}><PersonOption employee={employee} /></DropdownMenuCheckboxItem>)}</DropdownMenuContent></DropdownMenu></div>
+                <div className="space-y-1.5"><Label className="text-xs">Reviewer / Reporting Head</Label><Select value={editReviewerId || "none"} onValueChange={(value) => setEditReviewerId(value === "none" ? "" : value)}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select reviewer" /></SelectTrigger><SelectContent><SelectItem value="none">No reviewer</SelectItem>{employeeOptions.filter((employee) => String(employee._id) !== editPrimaryOwnerId).map((employee) => <SelectItem key={employee._id} value={String(employee._id)}><PersonOption employee={employee} /></SelectItem>)}</SelectContent></Select></div>
+                {editCollaboratorIds.length ? <div className="flex flex-wrap gap-1.5 sm:col-span-3">{editCollaboratorIds.map((employeeId) => { const employee = employeeOptions.find((item) => String(item._id) === employeeId); return <span key={employeeId} className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[11px]">{employee?.name || "Employee"}<button type="button" aria-label={`Remove ${employee?.name || "collaborator"}`} onClick={() => toggleCollaborator(employeeId)}><XCircle className="h-3 w-3" /></button></span>; })}</div> : null}
+                <div className="flex justify-end gap-2 sm:col-span-3"><Button type="button" variant="outline" size="sm" onClick={() => { resetPeopleDraft(); setIsEditingPeople(false); }}>Cancel</Button><Button type="button" size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" disabled={editTaskMutation.isPending || employeesQuery.isFetching} onClick={handleSavePeople}>{editTaskMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}Save People</Button></div>
               </div>
-              <PersonSummary label="Reviewer / Reporting Head" name={task.reviewerName || "Not assigned"} role={task.reviewerRole} profileImage={task.reviewerProfileImage} />
-              <PersonSummary label="Assigned By" name={task.createdByName} role={task.createdByRole} profileImage={task.createdByProfileImage} />
-            </div>
+            ) : (
+              <div className="grid divide-y divide-border sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+                <PersonSummary label="Primary Owner" name={task.assignedToName} role={task.assignedToRole} profileImage={task.assignedToProfileImage} />
+                <div className="space-y-1.5 px-3 py-1"><p className="text-[11px] text-muted-foreground">Collaborators</p>{(task.collaborators || []).length ? task.collaborators.map((participant) => <PersonSummary key={participant._id || participant.employee} compact name={participant.name} role={participant.role} profileImage={participant.profileImage} suffix={String(participant.employee) === String(currentEmployee?._id) ? "You" : undefined} />) : <p className="text-xs font-medium text-foreground">None</p>}</div>
+                <PersonSummary label="Reviewer / Reporting Head" name={task.reviewerName || "Not assigned"} role={task.reviewerRole} profileImage={task.reviewerProfileImage} />
+                <PersonSummary label="Assigned By" name={task.createdByName} role={task.createdByRole} profileImage={task.createdByProfileImage} />
+              </div>
+            )}
             {isCollaborator ? (
               <div className="mt-3 flex items-start gap-1.5 rounded-md border border-blue-100 bg-blue-50 px-2.5 py-1.5 text-[11px] text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />

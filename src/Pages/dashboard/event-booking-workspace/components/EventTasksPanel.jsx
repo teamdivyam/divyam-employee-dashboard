@@ -48,7 +48,7 @@ const priorityTone = (priority = "") => ({
 }[priority] || "border-border bg-muted/40 text-muted-foreground");
 
 export default function EventTasksPanel({ booking, sideContent, onCreateTask, onViewTask }) {
-  const [tab, setTab] = useState("all");
+  const [tab, setTab] = useState("open");
   const [search, setSearch] = useState("");
   const [taskType, setTaskType] = useState("all");
   const [status, setStatus] = useState("all");
@@ -64,7 +64,6 @@ export default function EventTasksPanel({ booking, sideContent, onCreateTask, on
   }, [booking.eventTasks, booking.workflowTasks]);
 
   const tabs = [
-    { value: "all", label: "All Tasks" },
     { value: "open", label: "Open" },
     { value: "overdue", label: "Overdue" },
     { value: "completed", label: "Completed" },
@@ -78,8 +77,7 @@ export default function EventTasksPanel({ booking, sideContent, onCreateTask, on
     const term = search.trim().toLowerCase();
     const searchable = [task.taskTitle, task.taskType, task.relatedTo?.name, task.assignedTo?.name, task.assignedToName]
       .filter(Boolean).join(" ").toLowerCase();
-    const matchesTab = tab === "all"
-      || (tab === "open" && !TERMINAL_STATUSES.includes(task.status) && !REVIEW_STATUSES.includes(task.status) && !isOverdue(task))
+    const matchesTab = (tab === "open" && !TERMINAL_STATUSES.includes(task.status) && !REVIEW_STATUSES.includes(task.status) && !isOverdue(task))
       || (tab === "overdue" && isOverdue(task))
       || (tab === "completed" && task.status === "Completed")
       || (tab === "awaiting_review" && REVIEW_STATUSES.includes(task.status));

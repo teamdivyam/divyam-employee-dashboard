@@ -154,17 +154,17 @@ export default function BookingTable({
 
   return (
     <div className="event-booking-table-fit w-full min-w-0 max-w-full overflow-x-auto">
-      <Table className={`w-full table-fixed text-xs ${hasPendingColumn ? 'min-w-[1180px]' : ''}`}>
+      <Table className={`w-full table-fixed text-xs ${hasPendingColumn ? 'min-w-[1320px]' : 'min-w-[1140px]'}`}>
         <colgroup>
-          <col className={hasPendingColumn ? 'w-[15%]' : 'w-[18%]'} />
           <col className={hasPendingColumn ? 'w-[14%]' : 'w-[17%]'} />
-          <col className={hasPendingColumn ? 'w-[11%]' : 'w-[12%]'} />
+          <col className={hasPendingColumn ? 'w-[13%]' : 'w-[16%]'} />
+          <col className={hasPendingColumn ? 'w-[10%]' : 'w-[11%]'} />
           <col className="w-[9%]" />
-          <col className="w-[11%]" />
-          <col className={hasPendingColumn ? 'w-[11%]' : 'w-[13%]'} />
+          <col className="w-[10%]" />
+          <col className={hasPendingColumn ? 'w-[10%]' : 'w-[12%]'} />
           {hasPendingColumn ? <col className="w-[10%]" /> : null}
-          <col className="w-[11%]" />
-          <col className={hasPendingColumn ? 'w-[8%]' : 'w-[9%]'} />
+          <col className={hasPendingColumn ? 'w-[12%]' : 'w-[13%]'} />
+          <col className="w-36" />
         </colgroup>
         <TableHeader className="bg-muted/60">
           <TableRow className="h-11 border-b border-border bg-muted/60 hover:bg-muted/60">

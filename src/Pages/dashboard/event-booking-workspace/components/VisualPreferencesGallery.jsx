@@ -64,8 +64,12 @@ export default function VisualPreferencesGallery({ preferences = [], functionNam
                 {item.recordStatus === 'Draft' ? <Badge variant="secondary" className="absolute right-2 top-2 border-0 bg-slate-900/70 text-[9px] text-white">Draft</Badge> : null}
               </a><a href={item.imageUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open image for ${item.title || 'preference'} in a new tab`} className="absolute bottom-2 right-2 grid h-7 w-7 place-items-center rounded-full bg-slate-950/70 text-white"><ExternalLink className="h-3.5 w-3.5" /></a></div>
               <div className="space-y-1.5 p-2.5">
-                <p className="truncate text-[11px] font-semibold text-foreground">{item.title}</p>
-                <p className="truncate text-[9px] text-muted-foreground">{item.category} <span aria-hidden="true">·</span> {item.functionName}</p>
+                <div className="flex min-w-0 items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[11px] font-semibold text-foreground">{item.title}</p>
+                    <p className="truncate text-[9px] text-muted-foreground">{item.category} <span aria-hidden="true">·</span> {item.functionName}</p>
+                  </div>
+                </div>
                 <Badge variant="outline" className={`border-0 text-[9px] font-medium ${preferenceTone(item.status)}`}>{item.status || 'Under Review'}</Badge>
                 <p className="line-clamp-2 text-[10px] leading-4 text-muted-foreground">{item.likes}</p>
               </div>

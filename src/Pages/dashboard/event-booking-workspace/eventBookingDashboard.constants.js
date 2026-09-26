@@ -1,5 +1,5 @@
 export const PAGE_SIZE = 5;
-export const VALID_TABS = ['all', 'new', 'planning', 'execution_ready', 'today', 'completed', 'closed'];
+export const VALID_TABS = ['all', 'planning', 'execution_ready', 'today', 'completed', 'closed'];
 export const EMPTY_FILTERS = {
   eventType: 'all',
   city: 'all',
