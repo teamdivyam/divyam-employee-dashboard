@@ -350,7 +350,6 @@ export default function EventBookingDashboardPage() {
   ];
   const tabs = [
     { value: 'all', label: 'All Bookings' },
-    { value: 'new', label: 'New Bookings', notificationCount: counts.new },
     { value: 'planning', label: 'In Planning', notificationCount: counts.planning },
     { value: 'execution_ready', label: 'Execution Ready', notificationCount: counts.executionReady },
     { value: 'today', label: 'Live / Today', notificationCount: counts.today },
