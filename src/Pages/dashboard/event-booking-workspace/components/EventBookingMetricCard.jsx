@@ -25,7 +25,15 @@ export default function MetricCard({ label, value, icon: Icon, tone, onOpen, loa
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-medium leading-5 text-foreground">{label}</p>
-            <p className="mt-1 break-words text-base font-bold leading-tight tracking-tight text-foreground">{loading ? '—' : value ?? '—'}</p>
+            <p className="mt-1 break-words text-base font-bold leading-tight tracking-tight text-foreground">
+              {loading
+                ? '—'
+                : value == null || value === ''
+                  ? '—'
+                  : Number.isNaN(Number(value))
+                    ? value
+                    : Math.trunc(Number(value))}
+            </p>
           </div>
           {/* {onOpen && <ChevronRight className="mt-5 h-4 w-4 shrink-0" aria-hidden="true" />} */}
         </div>

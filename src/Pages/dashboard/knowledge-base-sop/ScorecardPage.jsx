@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Star, TrendingUp, UsersRound } from "lucide-react";
+import { ShieldCheck, Star, TrendingUp, UsersRound } from "lucide-react";
 import EmployeeV2Service from "@/services/employee-v2.service";
 import useDebouncedValue from "@/hooks/useDebouncedValue";
 import TabComp from "@components/components/tab-comp";
@@ -194,9 +194,27 @@ export default function ScorecardPage() {
   const scorecard = data?.scorecard;
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground md:p-5">
-      <div className="mx-auto max-w-[1800px] space-y-4">
-        <div className="flex flex-col gap-3 border-b border-border pb-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="min-h-[calc(100vh-4rem)] bg-background p-3 text-foreground md:p-4">
+      <div className="mx-auto max-w-[1800px] space-y-3">
+        <div className="border-b border-border">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-blue-100 bg-blue-50 text-primary dark:border-blue-400/20 dark:bg-blue-400/10">
+                <ShieldCheck className="h-5 w-5" />
+              </span>
+              <div>
+                <h1 className="text-lg font-semibold text-foreground">My Scorecard</h1>
+                <p className="text-[11px] text-muted-foreground">Track your performance, get feedback and grow.</p>
+              </div>
+            </div>
+            <ScorecardHeader
+              month={month}
+              onMonthChange={(value) => value && setMonth(value)}
+              status={scorecard?.status}
+              showStatus={activeTab === "performance"}
+              helpMode={activeTab === "team-feedback" ? "feedback" : "scorecard"}
+            />
+          </div>
           <TabComp
             tabs={SCORECARD_TABS}
             value={activeTab}
@@ -205,15 +223,8 @@ export default function ScorecardPage() {
             distribution="content"
             density="compact"
             display="inline-block"
-            className="shrink-0"
+            className="mt-2 shrink-0"
             ariaLabel="Scorecard sections"
-          />
-          <ScorecardHeader
-            month={month}
-            onMonthChange={(value) => value && setMonth(value)}
-            status={scorecard?.status}
-            showStatus={activeTab === "performance"}
-            helpMode={activeTab === "team-feedback" ? "feedback" : "scorecard"}
           />
         </div>
 
@@ -242,12 +253,12 @@ export default function ScorecardPage() {
             onRetry={() => scorecardQuery.refetch()}
           />
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <ScoreOverview scorecard={scorecard} />
 
-            <div className="grid items-start gap-4 2xl:grid-cols-[1.2fr_1fr]">
+            <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,0.96fr)_minmax(0,1.04fr)]">
               <ScoreBreakdown components={scorecard?.components} />
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <TrendPanel trend={data?.trend} />
                 <FeedbackSummary
                   feedback={data?.feedbackSummary}
@@ -256,7 +267,7 @@ export default function ScorecardPage() {
               </div>
             </div>
 
-            <div className="grid items-stretch gap-4 md:grid-cols-2 2xl:grid-cols-4">
+            <div className="grid items-stretch gap-3 md:grid-cols-2 xl:grid-cols-4">
               <InsightList
                 title="Your Strengths"
                 subtitle="What you are doing really well."

@@ -99,7 +99,7 @@ const formatDate = (date) => {
 export function Panel({ title, subtitle, icon: Icon, action, children, className = "" }) {
   return (
     <section className={`rounded-lg border border-border bg-card shadow-sm ${className}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3 px-4 pt-4">
+      <div className="flex flex-wrap items-start justify-between gap-2 px-3 pt-3">
         <div className="flex items-start gap-2.5">
           {Icon ? <Icon className="mt-0.5 h-5 w-5 text-primary" /> : null}
           <div>
@@ -109,7 +109,7 @@ export function Panel({ title, subtitle, icon: Icon, action, children, className
         </div>
         {action}
       </div>
-      <div className="p-4">{children}</div>
+      <div className="p-3">{children}</div>
     </section>
   );
 }
@@ -206,26 +206,26 @@ export function ScoreOverview({ scorecard }) {
   const components = scorecard?.components || [];
   const score = clamp(scorecard?.score);
   return (
-    <div className="grid gap-3 xl:grid-cols-[1.45fr_repeat(5,minmax(0,0.72fr))]">
-      <section className="flex min-h-[142px] items-center gap-5 rounded-lg border border-border bg-card p-4 shadow-sm">
+    <div className="grid gap-2 xl:grid-cols-[1.45fr_repeat(5,minmax(0,0.72fr))]">
+      <section className="flex h-[136px] items-center gap-4 rounded-lg border border-border bg-card p-3 shadow-sm">
         <div
-          className="relative grid h-28 w-28 shrink-0 place-items-center rounded-full"
+          className="relative grid h-24 w-24 shrink-0 place-items-center rounded-full"
           style={{ background: `conic-gradient(#10b981 ${score * 3.6}deg, hsl(var(--muted)) 0deg)` }}
           aria-label={`${score} out of 100`}
         >
-          <div className="grid h-[88px] w-[88px] place-items-center rounded-full bg-card text-center">
+          <div className="grid h-[74px] w-[74px] place-items-center rounded-full bg-card text-center">
             <div>
-              <p className="text-3xl font-semibold text-foreground">{score}</p>
+              <p className="text-2xl font-semibold text-foreground">{score}</p>
               <p className="text-xs font-medium text-muted-foreground">/ 100</p>
             </div>
           </div>
         </div>
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">Provisional Score</p>
-          <span className="mt-2 inline-flex rounded-md bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300">
+          <span className="mt-1.5 inline-flex rounded-md bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300">
             {scorecard?.label || "Requires Attention"}
           </span>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+          <p className="mt-1.5 text-[11px] leading-4 text-muted-foreground">
             {scorecard?.status === "Published"
               ? "Your final score for this month is published."
               : "Your score remains provisional until the month is closed."}
@@ -236,7 +236,7 @@ export function ScoreOverview({ scorecard }) {
       {components.map((component) => {
         const change = Number(component.changeFromPreviousMonth) || 0;
         return (
-          <section key={component.key} className="min-h-[142px] rounded-lg border border-border bg-card p-3 shadow-sm">
+          <section key={component.key} className="h-[136px] rounded-lg border border-border bg-card p-3 shadow-sm">
             <div className="flex items-center gap-2">
               <ComponentIcon component={component} />
               <div className="min-w-0">
@@ -246,8 +246,8 @@ export function ScoreOverview({ scorecard }) {
                 </p>
               </div>
             </div>
-            <p className="mt-2 text-xl font-semibold text-foreground">{component.percentage}%</p>
-            <p className={`mt-1 flex items-center gap-1 text-xs font-medium ${change >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+            <p className="mt-1.5 text-lg font-semibold text-foreground">{component.percentage}%</p>
+            <p className={`mt-0.5 flex items-center gap-1 text-[11px] font-medium ${change >= 0 ? "text-emerald-600" : "text-red-500"}`}>
               {change >= 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
               {change > 0 ? "+" : ""}{change}% <span className="font-normal text-muted-foreground">vs last month</span>
             </p>
@@ -267,7 +267,7 @@ export function ScoreBreakdown({ components }) {
       className="min-w-0"
     >
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[690px] text-left">
+        <table className="w-full min-w-[560px] text-left">
           <thead>
             <tr className="border-y border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground">
               <th className="px-3 py-2">Component</th>
@@ -282,29 +282,29 @@ export function ScoreBreakdown({ components }) {
               const meta = COMPONENT_META[component.key] || COMPONENT_META.taskPerformance;
               return (
                 <tr key={component.key} className="border-b border-border last:border-0">
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-3">
-                      <ComponentIcon component={component} />
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <ComponentIcon component={component} className="h-9 w-9" />
                       <div>
                         <p className="text-xs font-semibold text-foreground">{component.label}</p>
-                        <p className="mt-0.5 max-w-[230px] text-[11px] text-muted-foreground">{component.description}</p>
+                        <p className="mt-0.5 max-w-[180px] text-[10px] leading-4 text-muted-foreground">{component.description}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-xs font-semibold text-foreground">{component.weight}%</td>
-                  <td className={`px-3 py-3 text-xs font-semibold ${TONES[meta.tone].text}`}>
+                  <td className="px-3 py-2 text-xs font-semibold text-foreground">{component.weight}%</td>
+                  <td className={`px-3 py-2 text-xs font-semibold ${TONES[meta.tone].text}`}>
                     {component.score} / {component.maxScore}
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-24 overflow-hidden rounded-full bg-muted">
+                      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
                         <div className={`h-full rounded-full ${TONES[meta.tone].bar}`} style={{ width: `${clamp(component.percentage)}%` }} />
                       </div>
                       <span className="text-[11px] font-medium text-muted-foreground">{component.percentage}%</span>
                     </div>
                   </td>
-                  <td className="px-3 py-3">
-                    <span className="inline-flex rounded-md bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300">
+                  <td className="px-3 py-2">
+                    <span className="inline-flex rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300">
                       {component.remark}
                     </span>
                   </td>
@@ -325,7 +325,7 @@ export function TrendPanel({ trend }) {
   }));
   return (
     <Panel title="Monthly Score Trend" subtitle="Overall score for the last six months." icon={TrendingUp}>
-      <div className="h-[210px] w-full">
+      <div className="h-[160px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 16, right: 16, left: -24, bottom: 0 }}>
             <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="3 3" />
@@ -363,7 +363,7 @@ export function FeedbackSummary({ feedback, notice }) {
         </span>
       }
     >
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-3">
         {(feedback || []).map((item, index) => {
           const tone = REVIEW_TONES[index] || "blue";
           const meta = {
@@ -373,13 +373,13 @@ export function FeedbackSummary({ feedback, notice }) {
           };
           const Icon = meta[item.type] || Star;
           return (
-            <div key={item.type} className="flex items-center gap-3 rounded-lg border border-border p-3">
-              <span className={`grid h-11 w-11 place-items-center rounded-full ${TONES[tone].icon}`}>
-                <Icon className="h-5 w-5" />
+            <div key={item.type} className="flex items-center gap-2 rounded-lg border border-border p-2">
+              <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${TONES[tone].icon}`}>
+                <Icon className="h-4 w-4" />
               </span>
               <div>
                 <p className="text-[11px] font-semibold text-muted-foreground">{item.type}</p>
-                <p className="mt-1 text-lg font-semibold text-foreground">{item.averageRating} / 5</p>
+                <p className="mt-0.5 text-base font-semibold text-foreground">{item.averageRating} / 5</p>
                 <p className="text-[10px] text-muted-foreground">
                   Based on {item.responseCount} {item.responseCount === 1 ? "response" : "responses"}
                 </p>
@@ -396,11 +396,11 @@ export function InsightList({ title, subtitle, icon: Icon, items, numbered = fal
   return (
     <Panel title={title} subtitle={subtitle} icon={Icon} className="h-full">
       {items?.length ? (
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {items.map((item, index) => (
-            <div key={`${item}-${index}`} className="flex items-start gap-2.5 text-xs leading-5 text-foreground">
+            <div key={`${item}-${index}`} className="flex items-start gap-2 text-[11px] leading-4 text-foreground">
               {numbered ? (
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-orange-50 text-xs font-semibold text-orange-600 dark:bg-orange-400/10 dark:text-orange-300">
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-orange-50 text-[11px] font-semibold text-orange-600 dark:bg-orange-400/10 dark:text-orange-300">
                   {index + 1}
                 </span>
               ) : (
@@ -427,9 +427,9 @@ export function GoalsPanel({ goals, onAdd, onToggle, isUpdating }) {
       action={<Button type="button" variant="outline" size="sm" onClick={onAdd}><Plus className="h-3.5 w-3.5" /> Add goal</Button>}
     >
       {goals?.length ? (
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {goals.map((goal) => (
-            <div key={goal._id} className="flex items-start gap-2.5 text-xs leading-5 text-foreground">
+            <div key={goal._id} className="flex items-start gap-2 text-[11px] leading-4 text-foreground">
               <button
                 type="button"
                 disabled={isUpdating}
@@ -511,38 +511,38 @@ export function TeamFeedbackPanel({
   const progress = clamp(summary.progressPercentage);
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="space-y-3">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <FeedbackMetric icon={UsersRound} tone="blue" value={summary.total || 0} label="Team Members" note="Excluding yourself" />
         <FeedbackMetric icon={CircleCheckBig} tone="green" value={summary.completed || 0} label="Completed" note="Feedback given" />
         <FeedbackMetric icon={Clock3} tone="orange" value={summary.pending || 0} label="Pending" note={summary.dueDate ? `Complete before ${formatDate(summary.dueDate)}` : "Awaiting feedback"} />
-        <section className="flex items-center gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
+        <section className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 shadow-sm">
           <div
-            className="grid h-16 w-16 shrink-0 place-items-center rounded-full"
+            className="grid h-12 w-12 shrink-0 place-items-center rounded-full"
             style={{ background: `conic-gradient(#7c3aed ${progress * 3.6}deg, hsl(var(--muted)) 0deg)` }}
           >
-            <div className="h-11 w-11 rounded-full bg-card" />
+            <div className="h-8 w-8 rounded-full bg-card" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-2xl font-semibold text-foreground">{progress}%</p>
+            <p className="text-xl font-semibold text-foreground">{progress}%</p>
             <p className="text-xs font-semibold text-foreground">Overall Progress</p>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-blue-600" style={{ width: `${progress}%` }} />
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} />
             </div>
           </div>
         </section>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-blue-900 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-start gap-3">
-          <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-300" />
+      <div className="flex flex-col gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-blue-900 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-2">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-300" />
           <div>
             <p className="text-xs font-semibold">Monthly team feedback helps us build a stronger, more collaborative team.</p>
-            <p className="mt-1 text-[11px] opacity-80">Your feedback is confidential and individual responses are never shared with team members.</p>
+            <p className="mt-0.5 text-[10px] opacity-80">Your feedback is confidential and individual responses are never shared with team members.</p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-red-700 dark:bg-red-400/10 dark:text-red-300">
-          <CalendarClock className="h-4 w-4" />
+        <div className="flex shrink-0 items-center gap-2 rounded-md bg-red-50 px-2.5 py-1.5 text-red-700 dark:bg-red-400/10 dark:text-red-300">
+          <CalendarClock className="h-3.5 w-3.5" />
           <div>
             <p className="text-[10px] font-semibold">Monthly Feedback Due</p>
             <p className="text-xs font-semibold">{summary.dueDate ? formatDate(summary.dueDate) : "Not available"}</p>
@@ -551,20 +551,20 @@ export function TeamFeedbackPanel({
       </div>
 
       <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-        <div className="grid gap-3 p-3 md:grid-cols-[1fr_280px_auto]">
+        <div className="grid gap-2 p-2 md:grid-cols-[1fr_220px_auto]">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={filters.search}
               onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
               placeholder="Search by name or role..."
-              className="pl-9"
+              className="h-8 pl-9 text-xs"
             />
           </div>
           <select
             value={filters.status}
             onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
-            className="h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground"
+            className="h-8 rounded-md border border-input bg-background px-3 text-xs text-foreground"
             aria-label="Feedback status"
           >
             <option value="All">All Status</option>
@@ -576,7 +576,7 @@ export function TeamFeedbackPanel({
           </Button>
         </div>
 
-        <div className="mt-2 overflow-x-auto border-t border-border">
+        <div className="overflow-x-auto border-t border-border">
           <table className="w-full min-w-[760px] table-fixed text-left">
             <colgroup>
               <col className="w-[30%]" />
@@ -586,10 +586,10 @@ export function TeamFeedbackPanel({
             </colgroup>
             <thead className="border-b border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground">
               <tr>
-                <th className="px-12 py-3">Employee</th>
-                <th className="px-12 py-3">Role</th>
-                <th className="px-12 py-3">Status</th>
-                <th className="py-3 pl-6 pr-20 text-right">Action</th>
+                <th className="px-6 py-2">Employee</th>
+                <th className="px-6 py-2">Role</th>
+                <th className="px-6 py-2">Status</th>
+                <th className="py-2 pl-6 pr-8 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -599,7 +599,7 @@ export function TeamFeedbackPanel({
                 ))
               ) : employees.length ? employees.map((employee) => (
                 <tr key={employee._id} className="border-t border-border text-xs">
-                  <td className="px-6 py-2.5">
+                  <td className="px-6 py-2">
                     <div className="flex items-center gap-3">
                       <EmployeeAvatar employee={employee} />
                       <div>
@@ -608,8 +608,8 @@ export function TeamFeedbackPanel({
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-2.5 text-muted-foreground">{employee.designation}</td>
-                  <td className="px-6 py-2.5">
+                  <td className="px-6 py-2 text-muted-foreground">{employee.designation}</td>
+                  <td className="px-6 py-2">
                     <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium ${
                       employee.status === "Completed"
                         ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300"
@@ -619,12 +619,12 @@ export function TeamFeedbackPanel({
                       {employee.status}
                     </span>
                   </td>
-                  <td className="px-6 py-2.5 text-right">
+                  <td className="px-6 py-2 text-right">
                     <Button
                       type="button"
                       size="sm"
                       variant={employee.status === "Completed" ? "outline" : "default"}
-                      className="min-w-[126px]"
+                      className="min-w-[112px]"
                       onClick={() => onOpenSubmission(employee)}
                     >
                       {employee.status === "Completed" ? "View Submission" : "Rate Now"}
@@ -639,7 +639,7 @@ export function TeamFeedbackPanel({
         </div>
       </section>
 
-      <div className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-lg border border-orange-100 bg-orange-50 px-4 py-3 text-[11px] text-orange-900 dark:border-orange-400/20 dark:bg-orange-400/10 dark:text-orange-200">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-lg border border-orange-100 bg-orange-50 px-3 py-2 text-[10px] text-orange-900 dark:border-orange-400/20 dark:bg-orange-400/10 dark:text-orange-200">
         <p className="font-semibold">Tips for Good Feedback</p>
         {["Be honest and constructive", "Focus on work behavior", "Highlight strengths and improvement areas", "Keep feedback respectful and professional"].map((tip) => (
           <span key={tip} className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-orange-500" />{tip}</span>
@@ -651,12 +651,12 @@ export function TeamFeedbackPanel({
 
 function FeedbackMetric({ icon: Icon, tone, value, label, note }) {
   return (
-    <section className="flex items-center gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
-      <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-full ${TONES[tone].icon}`}><Icon className="h-7 w-7" /></span>
+    <section className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 shadow-sm">
+      <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${TONES[tone].icon}`}><Icon className="h-5 w-5" /></span>
       <div>
-        <p className="text-2xl font-semibold text-foreground">{value}</p>
+        <p className="text-xl font-semibold text-foreground">{value}</p>
         <p className="text-xs font-semibold text-foreground">{label}</p>
-        <p className="mt-1 text-[10px] text-muted-foreground">{note}</p>
+        <p className="mt-0.5 text-[10px] text-muted-foreground">{note}</p>
       </div>
     </section>
   );
@@ -713,20 +713,20 @@ export function TeamFeedbackDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[86vh] max-w-2xl overflow-y-auto border-t-4 border-t-orange-400 p-0">
-        <div className="border-b border-border px-5 py-3">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border-t-4 border-t-orange-400 p-0">
+        <div className="border-b border-border px-4 py-2.5">
           <DialogHeader>
-            <div className="flex flex-col gap-4 pr-8 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-col gap-3 pr-8 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <DialogTitle className="text-lg">Team Feedback — {formatScorecardMonth(month) || "Monthly Review"}</DialogTitle>
-                <DialogDescription className="mt-1 text-xs">Help us build a stronger team at DIVYAM.</DialogDescription>
+                <DialogTitle className="text-base">Team Feedback — {formatScorecardMonth(month) || "Monthly Review"}</DialogTitle>
+                <DialogDescription className="mt-0.5 text-xs">Help us build a stronger team at DIVYAM.</DialogDescription>
               </div>
               <div className="w-full max-w-[220px]">
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                   <span>{summary?.completed || 0} of {summary?.total || 0} completed</span>
                   <span>{progress}%</span>
                 </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
                   <div className="h-full rounded-full bg-emerald-500" style={{ width: `${progress}%` }} />
                 </div>
               </div>
@@ -735,35 +735,35 @@ export function TeamFeedbackDialog({
         </div>
         {isLoading ? <Skeleton className="h-48" /> : (
           <form onSubmit={onSubmit}>
-            <div className="space-y-3 px-5 py-3">
-              <div className="flex flex-col gap-3 rounded-lg bg-blue-50 p-3 dark:bg-blue-400/10 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-4">
+            <div className="space-y-2.5 px-4 py-2.5">
+              <div className="flex flex-col gap-2 rounded-lg bg-blue-50 p-2.5 dark:bg-blue-400/10 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
                   <EmployeeAvatarLarge employee={employee} />
                   <div>
-                    <p className="text-base font-semibold text-foreground">{employee?.name}</p>
+                    <p className="text-sm font-semibold text-foreground">{employee?.name}</p>
                     <p className="text-xs text-muted-foreground">{employee?.designation}</p>
                     <p className="mt-1 text-[11px] italic text-muted-foreground">“Every team member makes a difference.”</p>
                   </div>
                 </div>
-                <div className="flex max-w-[250px] items-center gap-3 text-xs text-blue-900 dark:text-blue-200">
-                  <UsersRound className="h-6 w-6 shrink-0" />
+                <div className="flex max-w-[250px] items-center gap-2 text-[11px] text-blue-900 dark:text-blue-200">
+                  <UsersRound className="h-5 w-5 shrink-0" />
                   <p>Your feedback helps us grow together as a stronger team.</p>
                 </div>
               </div>
 
               <div>
-                <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
                   <h3 className="text-sm font-semibold text-foreground">Rate the following areas</h3>
                   <span className="flex items-center gap-1 text-[11px] font-medium text-primary"><Info className="h-4 w-4" /> Rate only what you observed</span>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {ratingAreas.map(([key, title, description, Icon]) => {
                     const rating = displayRating(key);
                     const notObserved = isNotObserved(key);
                     return (
-                      <div key={key} className="grid gap-2 rounded-lg border border-border p-2 md:grid-cols-[1fr_auto_auto] md:items-center">
-                        <div className="flex items-center gap-3">
-                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-orange-50 text-orange-700 dark:bg-orange-400/10 dark:text-orange-300"><Icon className="h-4 w-4" /></span>
+                      <div key={key} className="grid gap-2 rounded-lg border border-border p-1.5 md:grid-cols-[1fr_auto_auto] md:items-center">
+                        <div className="flex items-center gap-2.5">
+                          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-orange-50 text-orange-700 dark:bg-orange-400/10 dark:text-orange-300"><Icon className="h-3.5 w-3.5" /></span>
                           <div>
                             <p className="text-xs font-semibold text-foreground">{title}</p>
                             <p className="mt-0.5 text-[11px] text-muted-foreground">{description}</p>
@@ -783,7 +783,7 @@ export function TeamFeedbackDialog({
                               className="rounded p-0.5 disabled:cursor-default"
                               aria-label={`${value} stars for ${title}`}
                             >
-                              <Star className={`h-5 w-5 ${value <= rating && !notObserved ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`} />
+                              <Star className={`h-[18px] w-[18px] ${value <= rating && !notObserved ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`} />
                             </button>
                           ))}
                         </div>
@@ -807,45 +807,45 @@ export function TeamFeedbackDialog({
                 </div>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-lg bg-emerald-50 p-3 dark:bg-emerald-400/10">
+              <div className="grid gap-2.5 md:grid-cols-2">
+                <div className="rounded-lg bg-emerald-50 p-2.5 dark:bg-emerald-400/10">
                   <label htmlFor="feedback-appreciation" className="mb-2 flex items-center gap-2 text-xs font-semibold text-emerald-800 dark:text-emerald-300"><Sprout className="h-4 w-4" /> Appreciation <span className="font-normal text-muted-foreground">(Optional)</span></label>
                   <Textarea
                     id="feedback-appreciation"
                     value={appreciation}
                     onChange={(event) => setForm((current) => ({ ...current, appreciation: event.target.value }))}
                     readOnly={readOnly}
-                    rows={3}
+                    rows={2}
                     maxLength={250}
                     placeholder="What does this team member do well?"
-                    className="bg-card"
+                    className="min-h-[64px] bg-card text-xs"
                   />
                   <p className="mt-1 text-right text-[10px] text-muted-foreground">{appreciation.length}/250</p>
                 </div>
-                <div className="rounded-lg bg-orange-50 p-3 dark:bg-orange-400/10">
+                <div className="rounded-lg bg-orange-50 p-2.5 dark:bg-orange-400/10">
                   <label htmlFor="feedback-improvement" className="mb-2 flex items-center gap-2 text-xs font-semibold text-orange-800 dark:text-orange-300"><BarChart3 className="h-4 w-4" /> Improvement Suggestion <span className="font-normal text-muted-foreground">(Optional)</span></label>
                   <Textarea
                     id="feedback-improvement"
                     value={improvementSuggestion}
                     onChange={(event) => setForm((current) => ({ ...current, improvementSuggestion: event.target.value }))}
                     readOnly={readOnly}
-                    rows={3}
+                    rows={2}
                     maxLength={250}
                     placeholder="What could help them work better with the team?"
-                    className="bg-card"
+                    className="min-h-[64px] bg-card text-xs"
                   />
                   <p className="mt-1 text-right text-[10px] text-muted-foreground">{improvementSuggestion.length}/250</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 rounded-lg bg-blue-50 p-3 text-[11px] text-blue-800 dark:bg-blue-400/10 dark:text-blue-200">
-                <LockKeyhole className="h-5 w-5 shrink-0" />
+              <div className="flex items-center gap-2 rounded-lg bg-blue-50 p-2 text-[10px] text-blue-800 dark:bg-blue-400/10 dark:text-blue-200">
+                <LockKeyhole className="h-4 w-4 shrink-0" />
                 Your feedback is confidential. Team members see only aggregated feedback, never individual ratings or reviewer names.
               </div>
               {readOnly ? <p className="text-[11px] text-muted-foreground">Submitted {formatDate(submission?.submittedAt)}</p> : null}
             </div>
 
-            <div className="flex flex-col-reverse gap-3 border-t border-border px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col-reverse gap-2 border-t border-border px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
               <Button type="button" variant="outline" className="sm:min-w-[170px]" onClick={() => onOpenChange(false)}>{readOnly ? "Close" : "Skip for Now"}</Button>
               {!readOnly ? (
                 <Button type="submit" className="sm:min-w-[210px]" disabled={!canSubmit || isSubmitting}>
@@ -864,9 +864,9 @@ function EmployeeAvatarLarge({ employee }) {
   const url = employee?.profileImage?.mediumUrl || employee?.profileImage?.smallUrl || employee?.profileImage?.originalUrl;
   const initials = employee?.name?.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
   return url ? (
-    <img src={url} alt="" className="h-16 w-16 rounded-full object-cover" />
+    <img src={url} alt="" className="h-12 w-12 rounded-full object-cover" />
   ) : (
-    <span className="grid h-16 w-16 place-items-center rounded-full bg-card text-lg font-semibold text-primary shadow-sm">{initials}</span>
+    <span className="grid h-12 w-12 place-items-center rounded-full bg-card text-sm font-semibold text-primary shadow-sm">{initials}</span>
   );
 }
 

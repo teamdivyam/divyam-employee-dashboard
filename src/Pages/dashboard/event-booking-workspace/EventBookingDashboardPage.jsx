@@ -335,7 +335,7 @@ export default function EventBookingDashboardPage() {
   const paymentSummary = analytics.paymentSummary || {};
   const activeBookings = cards.activeBookings ?? cards.totalBookings;
   const { totalBookingValue, totalReceived, totalPending, advanceReceived } = paymentSummary;
-  const money = (value) => value == null ? '—' : formatCurrency(value);
+  const money = (value) => value == null ? '—' : formatCurrency(Math.trunc(Number(value)));
   const percentage = (value) => value == null || totalBookingValue == null
     ? '—' : totalBookingValue > 0 ? Math.round((value / totalBookingValue) * 100) : 0;
   const otherReceived = totalReceived != null && advanceReceived != null
