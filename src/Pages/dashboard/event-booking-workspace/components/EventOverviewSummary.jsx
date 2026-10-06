@@ -5,6 +5,7 @@ import {
   CircleUserRound,
   Flag,
   ListChecks,
+  MessageSquareText,
   SlidersHorizontal,
   IndianRupee,
 } from "lucide-react";
@@ -23,6 +24,8 @@ const metricTones = {
     "bg-orange-100 text-orange-600 dark:bg-orange-400/10 dark:text-orange-300",
   green:
     "bg-emerald-100 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300",
+  amber:
+    "bg-amber-100 text-amber-600 dark:bg-amber-400/10 dark:text-amber-300",
 };
 
 const metricCardTones = {
@@ -30,13 +33,22 @@ const metricCardTones = {
   blue: "bg-blue-50/40 dark:bg-blue-400/5",
   orange: "bg-orange-50/40 dark:bg-orange-400/5",
   green: "bg-emerald-50/40 dark:bg-emerald-400/5",
+  amber: "bg-amber-50/40 dark:bg-amber-400/5",
 };
 
 export default function EventOverviewSummary({
   booking,
   summary,
   onViewTasks,
+  onViewFeedback,
 }) {
+  const feedbacks = booking.feedbacks || [];
+  const ratings = feedbacks
+    .map((item) => Number(item.rating))
+    .filter((rating) => rating > 0);
+  const averageRating = ratings.length
+    ? ratings.reduce((total, rating) => total + rating, 0) / ratings.length
+    : null;
   const cards = [
     {
       label: "Event Manager",
@@ -73,7 +85,7 @@ export default function EventOverviewSummary({
   ];
   return (
     <EventSummarySlot>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         {cards.map(({ label, value, caption, icon: Icon, tone }) => (
           <Card key={label} className={`crm-card ${metricCardTones[tone]}`}>
             <CardContent className="flex h-24 items-center gap-3 p-4">
@@ -125,6 +137,27 @@ export default function EventOverviewSummary({
                 className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-blue-600"
               >
                 View Tasks
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className={`crm-card ${metricCardTones.amber}`}>
+          <CardContent className="flex h-24 items-center gap-3 p-4">
+            <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${metricTones.amber}`}>
+              <MessageSquareText className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] text-muted-foreground">Feedback</p>
+              <p className="mt-1 truncate text-sm font-semibold text-foreground">
+                {feedbacks.length} Received
+              </p>
+              <button
+                type="button"
+                onClick={onViewFeedback}
+                className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-primary"
+              >
+                {averageRating ? `${averageRating.toFixed(1)}/5 Average` : "View Feedback"}
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>

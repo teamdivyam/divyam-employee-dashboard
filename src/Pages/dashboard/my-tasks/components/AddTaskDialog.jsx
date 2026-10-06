@@ -384,7 +384,7 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[112vh] w-[calc(100%-1rem)] max-w-none origin-center !scale-[0.8] flex-col gap-0 overflow-hidden rounded-xl border-border p-0 shadow-2xl [&_input]:!text-sm [&_textarea]:!text-sm [&_[role=combobox]]:!text-sm sm:max-w-[1100px]">
         <DialogHeader className="shrink-0 px-4 pb-2.5 pt-3 text-left">
-          <DialogTitle className="text-xl font-semibold tracking-tight">Create Task</DialogTitle>
+          <DialogTitle className="text-xl font-semibold tracking-tight">Task Details</DialogTitle>
           <p className="text-xs text-muted-foreground">Create your own task or assign work to another employee.</p>
           <div className="mt-2 grid gap-2 rounded-lg border border-border bg-background px-3 py-2 sm:grid-cols-2">
             <div className="flex items-center gap-2">
@@ -501,7 +501,12 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
 
           <DialogFooter className="shrink-0 border-t border-border bg-background px-4 py-1.5">
             <Button type="button" variant="outline" className="h-8 px-4 text-sm" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" className="h-8 gap-2 bg-blue-600 px-4 text-sm text-white hover:bg-blue-700" disabled={createTaskMutation.isPending}>{createTaskMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Create {task.tasks.length > 1 ? `${task.tasks.length} Tasks` : "Task"}</Button>
+            <Button type="submit" variant="custom" className="h-8 gap-2 px-3 text-[13px] font-semibold" disabled={createTaskMutation.isPending}>
+              {createTaskMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {task.tasks.length > 1
+                ? `${isWorkRequest ? "Assign" : "Create"} ${task.tasks.length} ${isWorkRequest ? "Tasks" : "Self Tasks"}`
+                : isWorkRequest ? "Assign Task" : "Create Self Task"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 import {
   CalendarDays,
+  CheckSquare,
   CheckCircle2,
   ClipboardCheck,
   Loader2,
@@ -33,6 +34,7 @@ const tabs = [
   { value: "plan", label: "Event Plan", icon: CalendarDays },
   { value: "operations", label: "Operations", icon: Settings2 },
   { value: "finance", label: "Finance & Files", icon: WalletCards },
+  { value: "post-event-review", label: "Post-Event Review", icon: CheckSquare },
   { value: "activity", label: "Activity", icon: ClipboardCheck },
 ];
 const destinations = {
@@ -40,6 +42,7 @@ const destinations = {
   plan: "/plan/functions",
   operations: "/operations",
   finance: "/finance",
+  "post-event-review": "/post-event-review",
   activity: "/activity",
 };
 

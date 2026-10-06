@@ -52,6 +52,15 @@ export const getDisplayTaskStatus = (task) => {
   return task?.status;
 };
 
+export const TASK_MESSAGE_EDIT_WINDOW_MS = 3 * 60 * 1000;
+
+export const canEditTaskMessage = (message, senderId, now = Date.now()) => {
+  if (!message?._id || String(message.sender) !== String(senderId || "")) return false;
+  const sentAt = new Date(message.sentAt || message.createdAt);
+  if (Number.isNaN(sentAt.getTime())) return false;
+  return now <= sentAt.getTime() + TASK_MESSAGE_EDIT_WINDOW_MS;
+};
+
 const MESSAGE_URL_PATTERN = /(https?:\/\/[^\s<]+|www\.[^\s<]+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<]*)?)/gi;
 const COMPLETE_MESSAGE_URL_PATTERN = /^(?:https?:\/\/[^\s<]+|www\.[^\s<]+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<]*)?)$/i;
 

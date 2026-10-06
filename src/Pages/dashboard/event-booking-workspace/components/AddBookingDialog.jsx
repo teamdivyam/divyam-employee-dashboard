@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   CalendarDays,
   Check,
@@ -13,6 +14,7 @@ import {
   MapPin,
   NotebookPen,
   Phone,
+  Plus,
   Send,
   Upload,
   UserRound,
@@ -35,6 +37,18 @@ import {
 import { Input } from '@components/components/ui/input';
 import { Label } from '@components/components/ui/label';
 import {
+  Command,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@components/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@components/components/ui/popover';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -42,6 +56,7 @@ import {
   SelectValue,
 } from '@components/components/ui/select';
 import { Textarea } from '@components/components/ui/textarea';
+import EventBookingWorkspaceService from '../../../../services/event-booking-workspace.service';
 
 const eventTypes = ['Wedding', 'Reception', 'Engagement', 'Birthday', 'Corporate Event', 'Anniversary', 'Other'];
 const bookingStatuses = ['Planning', 'Proposal Pending', 'Proposal Sent', 'Confirmed'];
@@ -213,6 +228,116 @@ function Field({ label, required, icon: Icon, children, className = '' }) {
   );
 }
 
+function CityPicker({ value, onChange, onCreateCity, options, placeholder, open }) {
+  const triggerRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    if (!open) {
+      setPickerOpen(false);
+      setSearch('');
+    }
+  }, [open]);
+
+  const typedCity = search.trim().replace(/\s+/g, ' ');
+  const exactMatch = options.find(
+    (city) => city.toLowerCase() === typedCity.toLowerCase(),
+  );
+  const filteredOptions = typedCity
+    ? options.filter((city) => city.toLowerCase().includes(typedCity.toLowerCase()))
+    : options;
+  const chooseCity = (city) => {
+    onChange(city);
+    setSearch('');
+    setPickerOpen(false);
+  };
+  const createCity = () => {
+    if (!typedCity) return;
+    const city = exactMatch || typedCity;
+    onCreateCity?.(city);
+    chooseCity(city);
+  };
+
+  return (
+    <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          ref={triggerRef}
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={pickerOpen}
+          className="h-7 w-full justify-between px-2.5 text-[11px] font-normal shadow-none"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" />
+            <span className={value ? 'truncate text-foreground' : 'truncate text-muted-foreground'}>
+              {value || placeholder}
+            </span>
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        container={triggerRef.current?.closest('[role="dialog"]')}
+        align="start"
+        className="w-[var(--radix-popover-trigger-width)] p-0"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          searchInputRef.current?.focus();
+        }}
+      >
+        <Command shouldFilter={false}>
+          <CommandInput
+            ref={searchInputRef}
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Search or add city..."
+            className="h-8 text-[11px]"
+          />
+          <CommandList className="max-h-52">
+            {filteredOptions.length ? (
+              <CommandGroup>
+                {filteredOptions.map((city) => (
+                  <CommandItem
+                    key={city}
+                    value={city}
+                    onSelect={() => chooseCity(city)}
+                    className="text-[11px]"
+                  >
+                    <Check className={`h-3.5 w-3.5 ${String(value || '').toLowerCase() === city.toLowerCase() ? 'opacity-100' : 'opacity-0'}`} />
+                    <span>{city}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ) : null}
+            {typedCity && !exactMatch ? (
+              <CommandGroup>
+                <CommandItem
+                  value={`Add new city ${typedCity}`}
+                  keywords={[typedCity]}
+                  onSelect={createCity}
+                  className="text-[11px] text-primary"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>{`Add "${typedCity}" as a new city`}</span>
+                </CommandItem>
+              </CommandGroup>
+            ) : null}
+            {!filteredOptions.length && !typedCity ? (
+              <p className="px-3 py-3 text-center text-[11px] text-muted-foreground">
+                No cities available. Type a city name to add one.
+              </p>
+            ) : null}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function ChoiceChips({ options, value = [], onChange }) {
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -303,7 +428,7 @@ const buildRequest = ({ form, proposalFile, approvalFile, customerId, action, co
   return request;
 };
 
-export default function AddBookingDialog({ open, onOpenChange, employees = [], customers = [], booking = null, mode = 'create', saving = false, onSubmit }) {
+export default function AddBookingDialog({ open, onOpenChange, employees = [], customers = [], cities = [], booking = null, mode = 'create', saving = false, onSubmit }) {
   const { data: currentEmployee } = useCurrentEmployee();
   const isEditing = mode === 'edit';
   const commercialEditable = ['Super Admin', 'Admin'].includes(currentEmployee?.accessRole);
@@ -311,6 +436,38 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
   const [proposalFile, setProposalFile] = useState(null);
   const [approvalFile, setApprovalFile] = useState(null);
   const [createdOn, setCreatedOn] = useState(new Date());
+  const [createdCities, setCreatedCities] = useState([]);
+  const autoFilledCustomerRef = useRef('');
+  const cityCatalogQuery = useQuery({
+    queryKey: ['event-booking-cities'],
+    queryFn: async () => (await EventBookingWorkspaceService.getEventBookingCities({ limit: 200 })).data,
+    enabled: open,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+  const cityOptions = useMemo(() => {
+    const values = [
+      ...(cityCatalogQuery.data?.cities || []),
+      ...cities,
+      ...createdCities,
+      booking?.city,
+      booking?.customer?.clientCity,
+      booking?.customer?.city,
+    ];
+    const unique = new Map();
+    values.forEach((value) => {
+      const city = typeof value === 'string' ? value.trim() : '';
+      if (city && !unique.has(city.toLowerCase())) unique.set(city.toLowerCase(), city);
+    });
+    return [...unique.values()].sort((first, second) => first.localeCompare(second));
+  }, [booking, cities, cityCatalogQuery.data, createdCities]);
+  const addCreatedCity = (value) => {
+    const city = String(value || '').trim().replace(/\s+/g, ' ');
+    if (!city) return;
+    setCreatedCities((current) => current.some((item) => item.toLowerCase() === city.toLowerCase())
+      ? current
+      : [...current, city]);
+  };
   const [expanded, setExpanded] = useState({ client: true, event: true, commercial: true, assignment: true });
 
   useEffect(() => {
@@ -319,10 +476,29 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
     setProposalFile(null);
     setApprovalFile(null);
     setCreatedOn(new Date(booking?.createdAt || Date.now()));
+    setCreatedCities([]);
+    autoFilledCustomerRef.current = '';
     setExpanded({ client: true, event: true, commercial: true, assignment: true });
   }, [booking, open]);
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const updatePrimaryMobile = (value) => {
+    const primaryMobile = onlyDigits(value);
+    setForm((current) => {
+      const clearAutoFilled = Boolean(autoFilledCustomerRef.current);
+      autoFilledCustomerRef.current = '';
+      return {
+        ...current,
+        primaryMobile,
+        ...(clearAutoFilled ? {
+          clientName: '',
+          alternateMobile: '',
+          emailAddress: '',
+          clientCity: '',
+        } : {}),
+      };
+    });
+  };
   const updateServices = (selectedServices) => setForm((current) => ({
     ...current,
     selectedServices,
@@ -354,11 +530,45 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
   const total = Number(form.totalAgreedValue || 0);
   const advance = Number(form.advanceReceived || 0);
   const pending = Math.max(0, total - advance);
-  const matchedCustomer = useMemo(() => (
+  const cachedMatchedCustomer = useMemo(() => (
     form.primaryMobile.length === 10
       ? customers.find((customer) => String(customer.phone || '').replace(/\D/g, '').slice(-10) === form.primaryMobile)
       : null
   ), [customers, form.primaryMobile]);
+  const customerLookupQuery = useQuery({
+    queryKey: ['event-booking-customer-by-phone', form.primaryMobile],
+    queryFn: async () => (await EventBookingWorkspaceService.adminGetEmployee({
+      page: 1,
+      limit: 5,
+      search: form.primaryMobile,
+    })).data,
+    enabled: open && !booking && !isEditing && form.primaryMobile.length === 10 && !cachedMatchedCustomer,
+    staleTime: 5 * 60 * 1000,
+  });
+  const remotelyMatchedCustomer = useMemo(() => (
+    (customerLookupQuery.data?.customers || []).find((customer) => (
+      String(customer.phone || '').replace(/\D/g, '').slice(-10) === form.primaryMobile
+    ))
+  ), [customerLookupQuery.data, form.primaryMobile]);
+  const matchedCustomer = cachedMatchedCustomer || remotelyMatchedCustomer || null;
+
+  useEffect(() => {
+    if (!open || booking || isEditing || form.primaryMobile.length !== 10) {
+      if (form.primaryMobile.length !== 10) autoFilledCustomerRef.current = '';
+      return;
+    }
+    if (!matchedCustomer) return;
+    const matchKey = `${form.primaryMobile}:${matchedCustomer._id || ''}`;
+    if (autoFilledCustomerRef.current === matchKey) return;
+    autoFilledCustomerRef.current = matchKey;
+    setForm((current) => current.primaryMobile !== form.primaryMobile ? current : ({
+      ...current,
+      clientName: matchedCustomer.name || '',
+      alternateMobile: onlyDigits(String(matchedCustomer.alternatePhone || '')),
+      emailAddress: matchedCustomer.email || '',
+      clientCity: matchedCustomer.clientCity || matchedCustomer.city || '',
+    }));
+  }, [booking, form.primaryMobile, isEditing, matchedCustomer, open]);
   const selectedManager = employees.find((employee) => String(employee._id) === String(form.assignedEventManager));
   const statusOptions = Array.from(new Set([...bookingStatuses, ...(isEditing && form.bookingStatus ? [form.bookingStatus] : [])]));
   const inputClass = 'h-7 text-[11px] shadow-none';
@@ -437,10 +647,10 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
             <SectionCard number="1" title="Client Information" tone="blue" summary={matchedCustomer ? `Existing Client • ${matchedCustomer.name}` : 'Enter client mobile'} expanded={expanded.client} onToggle={() => setExpanded((current) => ({ ...current, client: !current.client }))}>
               <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">
                 <Field label="Client Name" required icon={UserRound}><Input className={iconInputClass} value={form.clientName} onChange={(event) => update('clientName', event.target.value)} placeholder="Enter client name" /></Field>
-                <Field label="Primary Mobile" required><div className="flex"><span className="flex h-7 items-center rounded-l-md border border-r-0 border-input bg-muted/40 px-2.5 text-[11px]">+91</span><Input className="h-7 rounded-l-none pl-2.5 text-[11px] shadow-none" inputMode="numeric" value={form.primaryMobile} onChange={(event) => update('primaryMobile', onlyDigits(event.target.value))} placeholder="98765 43210" /></div></Field>
+                <Field label="Primary Mobile" required><div className="space-y-1"><div className="flex"><span className="flex h-7 items-center rounded-l-md border border-r-0 border-input bg-muted/40 px-2.5 text-[11px]">+91</span><Input className="h-7 rounded-l-none pl-2.5 text-[11px] shadow-none" inputMode="numeric" value={form.primaryMobile} onChange={(event) => updatePrimaryMobile(event.target.value)} placeholder="98765 43210" /></div>{customerLookupQuery.isFetching ? <p className="text-[9px] text-muted-foreground">Checking existing client...</p> : matchedCustomer ? <p className="text-[9px] font-medium text-emerald-600">Existing client found. Saved details have been filled.</p> : null}</div></Field>
                 <Field label="Alternate Mobile" icon={Phone}><Input className={iconInputClass} inputMode="numeric" value={form.alternateMobile} onChange={(event) => update('alternateMobile', onlyDigits(event.target.value))} placeholder="Enter alternate mobile" /></Field>
                 <Field label="Email Address" icon={Mail}><Input className={iconInputClass} type="email" value={form.emailAddress} onChange={(event) => update('emailAddress', event.target.value)} placeholder="client@example.com" /></Field>
-                <Field label="Client City" icon={MapPin}><Input className={iconInputClass} value={form.clientCity} onChange={(event) => update('clientCity', event.target.value)} placeholder="Enter client city" /></Field>
+                <Field label="Client City"><CityPicker open={open} options={cityOptions} value={form.clientCity} onChange={(value) => update('clientCity', value)} onCreateCity={addCreatedCity} placeholder="Search or select client city" /></Field>
                 <Field label="Preferred Contact Method" icon={Phone}><Select value={form.preferredContactMethod} onValueChange={(value) => update('preferredContactMethod', value)}><SelectTrigger className={`${selectClass} pl-8`}><SelectValue /></SelectTrigger><SelectContent>{['WhatsApp', 'Phone', 'Email'].map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></Field>
               </div>
             </SectionCard>
@@ -450,7 +660,7 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
                 <Field label="Event Type" required icon={Flag} className="sm:col-span-2"><Select value={form.eventType} onValueChange={(value) => update('eventType', value)}><SelectTrigger className={`${selectClass} pl-8`}><SelectValue placeholder="Select event type" /></SelectTrigger><SelectContent>{eventTypes.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></Field>
                 <Field label="Event Start Date" required icon={CalendarDays}><Input min={isEditing ? undefined : today} className={iconInputClass} type="date" value={form.eventStartDate} onChange={(event) => update('eventStartDate', event.target.value)} /></Field>
                 <Field label="Event End Date" required icon={CalendarDays}><Input className={iconInputClass} type="date" min={form.eventStartDate || (isEditing ? undefined : today)} value={form.eventEndDate} onChange={(event) => update('eventEndDate', event.target.value)} /></Field>
-                <Field label="Event City" icon={MapPin} className="sm:col-span-2"><Input className={iconInputClass} value={form.eventCity} onChange={(event) => update('eventCity', event.target.value)} placeholder="Enter event city" /></Field>
+                <Field label="Event City" className="sm:col-span-2"><CityPicker open={open} options={cityOptions} value={form.eventCity} onChange={(value) => update('eventCity', value)} onCreateCity={addCreatedCity} placeholder="Search or select event city" /></Field>
                 <Field label="Venue / Location" icon={MapPin} className="sm:col-span-2"><Input className={iconInputClass} value={form.venue} onChange={(event) => update('venue', event.target.value)} placeholder="Enter venue or location" /></Field>
                 <Field label="Estimated Guests" icon={Users} className="sm:col-span-2"><Input className={iconInputClass} min="0" step="1" type="number" value={form.estimatedGuests} onChange={(event) => update('estimatedGuests', event.target.value)} placeholder="Enter guest count" /></Field>
                 <Field label="Selected Services" required className="sm:col-span-2 lg:col-span-4"><ChoiceChips options={serviceOptions} value={form.selectedServices} onChange={updateServices} /></Field>
