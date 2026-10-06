@@ -451,6 +451,16 @@ export default function MyTasksPage() {
       toast.error(error.response?.data?.message || "Unable to send message"),
   });
 
+  const editDiscussionMutation = useMutation({
+    mutationFn: (payload) =>
+      EmployeeV2Service.editTaskDiscussionMessage(payload),
+    onSuccess: () => {
+      invalidateTaskQueries();
+    },
+    onError: (error) =>
+      toast.error(error.response?.data?.message || "Unable to edit message"),
+  });
+
   const checklistMutation = useMutation({
     mutationFn: (payload) => EmployeeV2Service.updateTaskChecklistItem(payload),
     onSuccess: () => invalidateTaskQueries(),
@@ -1034,6 +1044,7 @@ export default function MyTasksPage() {
             withdrawMutation={withdrawMutation}
             reminderMutation={reminderMutation}
             discussionMutation={discussionMutation}
+            editDiscussionMutation={editDiscussionMutation}
             checklistMutation={checklistMutation}
             dueDateChangeMutation={dueDateChangeMutation}
             dueDateChangeRespondMutation={dueDateChangeRespondMutation}

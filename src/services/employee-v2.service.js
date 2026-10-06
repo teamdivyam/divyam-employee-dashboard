@@ -555,6 +555,8 @@ const EmployeeV2Service = {
     },
     markTaskDiscussionRead: (taskId) =>
         employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/discussion/read`),
+    editTaskDiscussionMessage: ({ taskId, messageId, message } = {}) =>
+        employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/discussion/${encodeURIComponent(messageId)}`, { message }),
     escalateTask: ({ taskId, escalationType, requestedAction, priority, reason } = {}) =>
         employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/escalate`, { escalationType, requestedAction, priority, reason }),
 

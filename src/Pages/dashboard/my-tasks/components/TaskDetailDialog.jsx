@@ -52,6 +52,7 @@ import {
   TaskStatusPill,
   formatFileSize,
   getAvatarUrl,
+  canEditTaskMessage,
   getDisplayTaskTitle,
   getDisplayTaskStatus,
   getDueDateNote,
@@ -167,6 +168,7 @@ export default function TaskDetailDialog({
   withdrawMutation,
   reminderMutation,
   discussionMutation,
+  editDiscussionMutation,
   checklistMutation,
   dueDateChangeMutation,
   dueDateChangeRespondMutation,
@@ -181,8 +183,11 @@ export default function TaskDetailDialog({
   const [priority, setPriority] = useState(task?.priority || "Medium");
   const [note, setNote] = useState("");
   const [proofFiles, setProofFiles] = useState([]);
+  const [showRequirementWarning, setShowRequirementWarning] = useState(false);
   const [discussionMessage, setDiscussionMessage] = useState("");
   const [discussionFiles, setDiscussionFiles] = useState([]);
+  const [editingDiscussionMessageId, setEditingDiscussionMessageId] = useState(null);
+  const [discussionClock, setDiscussionClock] = useState(() => Date.now());
   const [isDueDateFormOpen, setIsDueDateFormOpen] = useState(false);
   const [newDueDate, setNewDueDate] = useState("");
   const [dueDateReason, setDueDateReason] = useState("");
@@ -276,17 +281,23 @@ export default function TaskDetailDialog({
     })
     .map((item) => ({ itemId: item._id, isCompleted: Boolean(item.isCompleted) }));
   const hasChecklistChanges = checklistChanges.length > 0;
-  const storedCompletionRequirement = task?.completionRequirement || "None";
-  const completionRequirement = storedCompletionRequirement.includes("Attachment") ? "Attachment" : "None";
-  const requiresAttachment = completionRequirement.includes("Attachment");
+  const rawCompletionRequirement = String(task?.completionRequirement || "").trim();
+  const requiresUpdateNote = rawCompletionRequirement.includes("Update Note");
+  const requiresAttachment = rawCompletionRequirement.includes("Attachment");
+  const hasCompletionRequirement = requiresUpdateNote || requiresAttachment;
+  const completionRequirement = hasCompletionRequirement ? rawCompletionRequirement : "None";
+  const savedWorkUpdateNotes = [...(task?.activity || [])]
+    .reverse()
+    .filter((entry) => entry.action === "Work Update Note" && entry.note);
+  const hasSavedUpdateNote = savedWorkUpdateNotes.length > 0;
   const workProofAttachments = (task?.attachments || []).filter((file) => file.category !== "Discussion");
   const visibleReferenceAttachments = (task?.referenceAttachments || []).filter(
     (file) => !removedReferenceAttachmentIds.includes(String(file._id))
   );
   const hasProof = Boolean(proofFiles.length || workProofAttachments.length);
   const proofCount = workProofAttachments.length + proofFiles.length;
+  const updateRequirementMet = !requiresUpdateNote || hasSavedUpdateNote || Boolean(note.trim());
   const attachmentRequirementMet = !requiresAttachment || hasProof;
-  const showNoteInput = isPendingAcceptance && isRecipient;
   const workLockedMessage = isRejected
     ? "This request was rejected and is view-only."
     : isCompleted
@@ -300,8 +311,10 @@ export default function TaskDetailDialog({
     setPriority(task?.priority || "Medium");
     setNote("");
     setProofFiles([]);
+    setShowRequirementWarning(false);
     setDiscussionMessage("");
     setDiscussionFiles([]);
+    setEditingDiscussionMessageId(null);
     setIsDueDateFormOpen(false);
     setNewDueDate("");
     setDueDateReason("");
@@ -323,6 +336,23 @@ export default function TaskDetailDialog({
   }, [task?._id]);
 
   useEffect(() => {
+    setDiscussionClock(Date.now());
+    const timer = window.setInterval(() => setDiscussionClock(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [task?._id]);
+
+  useEffect(() => {
+    if (!editingDiscussionMessageId) return;
+    const editingMessage = (task?.discussion || []).find(
+      (message) => String(message._id) === String(editingDiscussionMessageId)
+    );
+    if (editingMessage && canEditTaskMessage(editingMessage, currentEmployee?._id, discussionClock)) return;
+
+    setEditingDiscussionMessageId(null);
+    setDiscussionMessage("");
+  }, [editingDiscussionMessageId, task?.discussion, currentEmployee?._id, discussionClock]);
+
+  useEffect(() => {
     if (!isRequester) {
       setPriority(task?.priority || "Medium");
     }
@@ -342,11 +372,13 @@ export default function TaskDetailDialog({
     };
     socket.on("task:message", handleMessage);
     socket.on("task:messages-read", handleMessage);
+    socket.on("task:message-edited", handleMessage);
 
     return () => {
       socket.emit("task:leave", { taskId });
       socket.off("task:message", handleMessage);
       socket.off("task:messages-read", handleMessage);
+      socket.off("task:message-edited", handleMessage);
     };
   }, [task?._id, queryClient]);
 
@@ -377,7 +409,7 @@ export default function TaskDetailDialog({
   }, [task?.discussion?.length]);
 
   useEffect(() => {
-    if (discussionMutation.isPending || isDiscussionLocked || !shouldRestoreDiscussionFocusRef.current) {
+    if (discussionMutation.isPending || editDiscussionMutation.isPending || isDiscussionLocked || !shouldRestoreDiscussionFocusRef.current) {
       return undefined;
     }
 
@@ -390,7 +422,7 @@ export default function TaskDetailDialog({
     }, 0);
 
     return () => window.clearTimeout(focusTimer);
-  }, [discussionMutation.isPending, isDiscussionLocked, task?._id]);
+  }, [discussionMutation.isPending, editDiscussionMutation.isPending, isDiscussionLocked, task?._id]);
 
   if (!task) {
     return (
@@ -434,13 +466,32 @@ export default function TaskDetailDialog({
   };
 
   const handleSendDiscussion = () => {
-    if (!discussionMessage.trim() && !discussionFiles.length) {
+    const message = discussionMessage.trim();
+
+    if (editingDiscussionMessageId) {
+      if (!message) {
+        toast.error("Message cannot be empty");
+        return;
+      }
+
+      editDiscussionMutation.mutate(
+        {
+          taskId: task.taskId || task._id,
+          messageId: editingDiscussionMessageId,
+          message,
+        },
+        { onSuccess: cancelDiscussionEdit }
+      );
+      return;
+    }
+
+    if (!message && !discussionFiles.length) {
       toast.error("Write a message or attach a file");
       return;
     }
 
     discussionMutation.mutate(
-      { taskId: task.taskId || task._id, message: discussionMessage.trim(), attachments: discussionFiles },
+      { taskId: task.taskId || task._id, message, attachments: discussionFiles },
       {
         onSuccess: () => {
           setDiscussionMessage("");
@@ -449,6 +500,19 @@ export default function TaskDetailDialog({
         },
       }
     );
+  };
+
+  const handleEditDiscussion = (message) => {
+    setEditingDiscussionMessageId(String(message._id));
+    setDiscussionMessage(message.message || "");
+    setDiscussionFiles([]);
+    window.requestAnimationFrame(() => discussionInputRef.current?.focus());
+  };
+
+  const cancelDiscussionEdit = () => {
+    setEditingDiscussionMessageId(null);
+    setDiscussionMessage("");
+    window.requestAnimationFrame(() => discussionInputRef.current?.focus());
   };
 
   const handleChecklistToggle = (itemId, checked) => {
@@ -571,8 +635,17 @@ export default function TaskDetailDialog({
   const handleSaveUpdate = () => {
     const statusChanged = status !== task.status;
     const progressChanged = progressPercent !== (task.progressPercent ?? 0);
+    const noteEntered = note.trim().length > 0;
     const infoChanged = isEditingInfo && hasTaskInfoChanges();
     const dueDateRequested = isDueDateFormOpen && Boolean(newDueDate);
+    const isSubmissionAttempt = statusChanged && ["Submitted", "Completed"].includes(status);
+
+    if (isSubmissionAttempt && (!updateRequirementMet || !attachmentRequirementMet)) {
+      setShowRequirementWarning(true);
+      toast.error("Complete the required work update before submitting");
+      return;
+    }
+    setShowRequirementWarning(false);
 
     const saveChecklistChanges = async () => {
       for (const change of checklistChanges) {
@@ -592,7 +665,7 @@ export default function TaskDetailDialog({
 
     const saveProgress = () => {
       const submitProgress = () => {
-        if (!statusChanged && !progressChanged && !proofFiles.length) {
+        if (!statusChanged && !progressChanged && !noteEntered && !proofFiles.length) {
           closeAfterSave();
           return;
         }
@@ -602,6 +675,7 @@ export default function TaskDetailDialog({
             taskId: task.taskId || task._id,
             status: statusChanged ? status : undefined,
             progressPercent: progressChanged ? progressPercent : undefined,
+            note: note.trim() || undefined,
             attachments: proofFiles,
           },
           {
@@ -635,7 +709,7 @@ export default function TaskDetailDialog({
       );
     };
 
-    if (!statusChanged && !progressChanged && !proofFiles.length && !infoChanged && !dueDateRequested && !hasChecklistChanges) {
+    if (!statusChanged && !progressChanged && !noteEntered && !proofFiles.length && !infoChanged && !dueDateRequested && !hasChecklistChanges) {
       toast.info("No changes to save");
       onClose();
       return;
@@ -781,7 +855,7 @@ export default function TaskDetailDialog({
           </div>
           <Separator orientation="vertical" className="hidden h-8 sm:block" />
           <div className="flex min-w-0 flex-1 items-start gap-1.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300">
+            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${displayStatus === "Completed" ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300" : "bg-amber-100 text-amber-600 dark:bg-amber-400/10 dark:text-amber-300"}`}>
               <Clock3 className="h-4 w-4" />
             </span>
             <div className="min-w-0">
@@ -1462,9 +1536,9 @@ export default function TaskDetailDialog({
             tone="orange"
             title="Work Update & Proof"
             className="bg-orange-50/50 dark:bg-orange-400/10"
-            trailing={<span className="flex items-center gap-2"><span>{completionRequirement} Required</span><span>•</span><span>{proofCount} proof{proofCount === 1 ? "" : "s"} added</span><ChevronUp className="h-4 w-4" /></span>}
+            trailing={<span className="flex items-center gap-2">{hasCompletionRequirement ? <><span>{completionRequirement} Required</span><span>•</span></> : null}<span>{proofCount} proof{proofCount === 1 ? "" : "s"} added</span><ChevronUp className="h-4 w-4" /></span>}
           />
-          <div className="grid items-center gap-3 border border-t-0 border-orange-100 bg-orange-50/40 px-3 py-2 text-[11px] dark:border-orange-400/20 dark:bg-orange-400/5 sm:grid-cols-[1.2fr_1fr_1.2fr]">
+          {hasCompletionRequirement ? <div className="grid items-center gap-3 border border-t-0 border-orange-100 bg-orange-50/40 px-3 py-2 text-[11px] dark:border-orange-400/20 dark:bg-orange-400/5 sm:grid-cols-[1.2fr_1fr_1.2fr]">
             <div className="flex items-center gap-2">
               <ClipboardCheck className="h-5 w-5 shrink-0 text-orange-500" />
               <div>
@@ -1473,24 +1547,31 @@ export default function TaskDetailDialog({
               </div>
             </div>
             <div className="space-y-0.5">
+              <p className="text-orange-700 dark:text-orange-300"><span className={updateRequirementMet ? "font-bold text-emerald-600" : "text-orange-700"}>{updateRequirementMet ? "✓" : "○"}</span> {requiresUpdateNote ? "Update note added" : "Update note not required"}</p>
               <p className="text-orange-700 dark:text-orange-300"><span className={attachmentRequirementMet ? "font-bold text-emerald-600" : "text-orange-700"}>{attachmentRequirementMet ? "✓" : "○"}</span> {requiresAttachment ? "At least 1 work proof required" : "Work proof not required"}</p>
             </div>
-            <p className="text-right font-medium text-orange-500 dark:text-orange-300">
+            {showRequirementWarning ? <p className="text-right font-medium text-orange-500 dark:text-orange-300">
               Please complete all requirements before submitting.
-            </p>
-          </div>
+            </p> : <span />}
+          </div> : null}
           {isWorkLocked && (
             <div className="flex items-start gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>{workLockedMessage}</span>
             </div>
           )}
-          <div className={`relative grid gap-1.5 border border-t-0 border-orange-200 p-2 dark:border-orange-400/30 ${showNoteInput ? "sm:grid-cols-2" : "sm:grid-cols-1"}`}>
-            {showNoteInput ? <div className="space-y-1">
+          <div className="relative grid gap-1.5 border border-t-0 border-orange-200 p-2 dark:border-orange-400/30 sm:grid-cols-2">
+            <div className="space-y-1">
               <Label className="text-xs font-semibold text-foreground">
-                Reason for rejection <span className="text-red-500">*</span>
+                Work Update Note {requiresUpdateNote ? <span className="text-red-500">*</span> : null}
               </Label>
-              <div className="relative h-28 overflow-hidden rounded-md border border-input bg-background">
+              <div className="flex h-28 flex-col overflow-hidden rounded-md border border-input bg-background">
+                {savedWorkUpdateNotes.length ? (
+                  <div className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 py-2 text-xs leading-4 text-foreground">
+                    {savedWorkUpdateNotes.map((entry) => <p key={entry._id}>{entry.note}</p>)}
+                  </div>
+                ) : null}
+                <div className="relative mt-auto h-8 shrink-0 border-t border-input">
                   <Textarea
                     value={note}
                     onChange={(event) => setNote(event.target.value)}
@@ -1498,16 +1579,19 @@ export default function TaskDetailDialog({
                       isLocked
                         ? workLockedMessage
                         : isPendingAcceptance
-                          ? "Explain why you are rejecting this request..."
+                          ? isRecipient
+                            ? "Add a note (e.g. reason for rejection)..."
+                            : "Only the assignee can add a note before the request is accepted."
                           : "Share update..."
                     }
                     maxLength={500}
                     disabled={isLocked || (isPendingAcceptance && !isRecipient)}
-                    className="h-full min-h-0 resize-none overflow-y-auto rounded-none border-0 px-2.5 py-2 pb-6 text-xs shadow-none focus-visible:ring-0"
+                    className="h-full min-h-0 resize-none overflow-y-auto rounded-none border-0 px-2.5 py-1 pr-14 text-xs shadow-none focus-visible:ring-0"
                   />
                   {!isLocked ? <span className="pointer-events-none absolute bottom-1 right-2 text-[10px] text-muted-foreground">{note.length}/500</span> : null}
+                </div>
               </div>
-            </div> : null}
+            </div>
 
             <div className="flex h-full flex-col space-y-1">
               <Label className="text-xs font-semibold text-foreground">
@@ -1623,6 +1707,10 @@ export default function TaskDetailDialog({
                   const isRead = isOwn && (message.readBy || []).some(
                     (receipt) => String(receipt.reader || receipt) !== String(message.sender)
                   );
+                  const canEditMessage = isOwn
+                    && !isDiscussionLocked
+                    && canEditTaskMessage(message, currentEmployee?._id, discussionClock);
+                  const isEditingMessage = String(editingDiscussionMessageId) === String(message._id);
                   const senderProfileImage = isOwn
                     ? currentEmployee?.profileImage
                     : message.sender === task.createdBy
@@ -1645,7 +1733,19 @@ export default function TaskDetailDialog({
                           <p className="mb-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                             <span className="font-semibold">{message.senderName}</span>
                             <span className="text-muted-foreground/70">{formatDateTime(message.sentAt)}</span>
+                            {message.editedAt ? <span className="text-muted-foreground/70">Edited</span> : null}
                             {isOwn ? <CheckCheck className={`h-3.5 w-3.5 shrink-0 ${isRead ? "text-blue-600" : "text-muted-foreground/70"}`} aria-label={isRead ? "Read" : "Sent"} /> : null}
+                            {canEditMessage && !isEditingMessage ? (
+                              <button
+                                type="button"
+                                title="Edit message"
+                                aria-label="Edit message"
+                                className="rounded p-0.5 text-muted-foreground/70 hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-400/20 dark:hover:text-blue-300"
+                                onClick={() => handleEditDiscussion(message)}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                            ) : null}
                           </p>
                           {message.message && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{renderTaskMessageLinks(message.message)}</p>}
                           {(message.attachments || []).map((file, index) => (
@@ -1674,6 +1774,19 @@ export default function TaskDetailDialog({
                     {isRejected ? "This request was rejected and is view-only." : `This task is completed and locked. ${isRequester ? "Click Rework above to reopen it and send messages." : "Ask the requester to reopen it via Rework to send messages."}`}
                   </p>
                 )}
+                {editingDiscussionMessageId ? (
+                  <div className="flex items-center justify-between px-2 text-[11px] text-muted-foreground">
+                    <span>Editing message</span>
+                    <button
+                      type="button"
+                      className="font-medium text-blue-600 hover:text-blue-700 disabled:opacity-60"
+                      onClick={cancelDiscussionEdit}
+                      disabled={editDiscussionMutation.isPending}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : null}
                 {discussionFiles.length ? (
                   <div className="flex flex-wrap gap-1">
                     {discussionFiles.map((file, index) => (
@@ -1688,12 +1801,12 @@ export default function TaskDetailDialog({
                 ) : null}
 
                 <div className="flex items-center gap-1 rounded-full border border-border bg-background pl-1 pr-1.5">
-                  <label className={`cursor-pointer rounded-full p-1.5 text-muted-foreground hover:bg-muted ${isDiscussionLocked ? "pointer-events-none opacity-40" : ""}`}>
+                  <label className={`cursor-pointer rounded-full p-1.5 text-muted-foreground hover:bg-muted ${isDiscussionLocked || editingDiscussionMessageId ? "pointer-events-none opacity-40" : ""}`}>
                     <Paperclip className="h-3.5 w-3.5" />
                     <input
                       type="file"
                       multiple
-                      disabled={isDiscussionLocked}
+                      disabled={isDiscussionLocked || Boolean(editingDiscussionMessageId)}
                       className="hidden"
                       onChange={(event) => setDiscussionFiles((files) => [...files, ...Array.from(event.target.files || [])])}
                     />
@@ -1708,8 +1821,8 @@ export default function TaskDetailDialog({
                         handleSendDiscussion();
                       }
                     }}
-                    placeholder={isDiscussionLocked ? (isRejected ? "This request was rejected and is view-only." : "This task is completed and locked.") : "Write an update or ask a question..."}
-                    disabled={discussionMutation.isPending || isDiscussionLocked}
+                    placeholder={isDiscussionLocked ? (isRejected ? "This request was rejected and is view-only." : "This task is completed and locked.") : editingDiscussionMessageId ? "Edit message..." : "Write an update or ask a question..."}
+                    disabled={discussionMutation.isPending || editDiscussionMutation.isPending || isDiscussionLocked}
                     className="h-7 border-0 bg-transparent px-1 text-xs shadow-none focus-visible:ring-0"
                   />
                   <Popover>
@@ -1738,9 +1851,9 @@ export default function TaskDetailDialog({
                     size="sm"
                     className="h-7 shrink-0 gap-1.5 rounded-full bg-blue-600 px-3 text-xs hover:bg-blue-700"
                     onClick={handleSendDiscussion}
-                    disabled={discussionMutation.isPending || isDiscussionLocked}
+                    disabled={discussionMutation.isPending || editDiscussionMutation.isPending || isDiscussionLocked}
                   >
-                    {discussionMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                    {discussionMutation.isPending || editDiscussionMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                     Send
                   </Button>
                 </div>
