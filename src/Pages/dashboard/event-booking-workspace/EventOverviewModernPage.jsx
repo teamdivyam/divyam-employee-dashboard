@@ -55,7 +55,12 @@ export default function EventOverviewModernPage() {
 
   return (
     <div className="min-w-0 space-y-4">
-      <EventOverviewSummary booking={booking} summary={summary} onViewTasks={() => navigate(`${basePath}/operations`)} />
+      <EventOverviewSummary
+        booking={booking}
+        summary={summary}
+        onViewTasks={() => navigate(`${basePath}/operations`)}
+        onViewFeedback={() => navigate(`${basePath}/post-event-review`)}
+      />
       <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-3">
           <BookingSnapshot booking={booking} details={summary} onEdit={openBookingSnapshotEdit} />

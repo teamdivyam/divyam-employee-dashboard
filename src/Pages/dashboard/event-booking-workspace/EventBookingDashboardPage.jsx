@@ -10,7 +10,6 @@ import {
   ChevronDown,
   Hourglass,
   Clock3,
-  List,
   Loader2,
   Plus,
   RefreshCw,
@@ -23,13 +22,19 @@ import TabComp from '@components/components/tab-comp';
 import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@components/components/ui/select';
+import {
   getBookings,
   getCustomers,
   getEmployees,
   getTotalPages,
   getTotalRows,
 } from './components/EventBookingComponents';
-import BookingCalendar from './components/EventBookingCalendar';
 import AddBookingDialog from './components/AddBookingDialog';
 import { EventBookingDashboardFilters } from './components/EventBookingDashboardFilters';
 import EventBookingMetricCard from './components/EventBookingMetricCard';
@@ -46,7 +51,6 @@ import {
 } from './eventBookingDashboard.constants';
 import {
   closureDetails,
-  dateParam,
   getLiveDetails,
   monthRange,
 } from './eventBookingDashboard.utils';
@@ -85,21 +89,14 @@ export default function EventBookingDashboardPage() {
   const now = new Date();
   const requestedTab = searchParams.get('tab');
   const activeTab = VALID_TABS.includes(requestedTab) ? requestedTab : 'all';
-  const [layout, setLayout] = useState(searchParams.get('layout') === 'calendar' ? 'calendar' : 'list');
+  const [summaryPeriod, setSummaryPeriod] = useState('all');
   const [month] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
   const [pagination, dispatch] = useReducer(paginationReducer, { page: 1, totalRows: 0, totalPages: 1 });
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [formOpen, setFormOpen] = useState(false);
   const [setupBooking, setSetupBooking] = useState(null);
   const [statusBooking, setStatusBooking] = useState(null);
-  const range = useMemo(() => {
-    const selectedRange = monthRange(month);
-    if (filters.dateRange === 'all') return selectedRange;
-    if (filters.dateRange === 'first_half') {
-      return { ...selectedRange, endDate: dateParam(month.year, month.month, 15) };
-    }
-    return { ...selectedRange, startDate: dateParam(month.year, month.month, 16) };
-  }, [filters.dateRange, month]);
+  const range = useMemo(() => monthRange(month), [month]);
 
   useEffect(() => {
     if (requestedTab && !VALID_TABS.includes(requestedTab)) {
@@ -110,15 +107,15 @@ export default function EventBookingDashboardPage() {
   }, [requestedTab, searchParams, setSearchParams]);
 
   const analyticsQuery = useQuery({
-    queryKey: ['event-booking-analytics', range],
-    queryFn: async () => (await AdminService.getEventBookingAnalytics(range)).data,
+    queryKey: ['event-booking-analytics', range, summaryPeriod],
+    queryFn: async () => (await AdminService.getEventBookingAnalytics({ ...range, summaryPeriod })).data,
     refetchOnMount: 'always',
   });
   const bookingsQuery = useQuery({
-    queryKey: ['event-bookings', activeTab, layout, pagination.page, filters, range],
+    queryKey: ['event-bookings', activeTab, pagination.page, filters, summaryPeriod],
     queryFn: async () => (await AdminService.getEventBookings({
-      page: layout === 'calendar' ? 1 : pagination.page,
-      limit: layout === 'calendar' ? 250 : PAGE_SIZE,
+      page: pagination.page,
+      limit: PAGE_SIZE,
       view: activeTab,
       eventType: filters.eventType === 'all' ? undefined : filters.eventType,
       city: filters.city === 'all' ? undefined : filters.city,
@@ -128,9 +125,8 @@ export default function EventBookingDashboardPage() {
       closureStatus: filters.closureStatus === 'all' ? undefined : filters.closureStatus,
       settlementStatus: filters.settlementStatus === 'all' ? undefined : filters.settlementStatus,
       status: filters.status === 'all' ? undefined : filters.status,
-      eventDateRange: filters.dateRange === 'all' ? undefined : filters.dateRange,
+      summaryPeriod,
       search: filters.search.trim() || undefined,
-      ...range,
     })).data,
     refetchOnMount: 'always',
   });
@@ -231,13 +227,12 @@ export default function EventBookingDashboardPage() {
   const cards = analytics.cards || {};
   const counts = analytics.tabs || {};
   const bookings = getBookings(bookingsQuery.data);
+  const cities = bookingsQuery.data?.cities || [];
+  const createdEventTypes = bookingsQuery.data?.eventTypes || [];
   const employees = getEmployees(employeesQuery.data);
   const customers = getCustomers(customersQuery.data);
   const totalRows = getTotalRows(bookingsQuery.data);
   const totalPages = getTotalPages(bookingsQuery.data);
-  const cities = useMemo(() => Array.from(new Set([
-    'Lucknow', 'Prayagraj', 'Varanasi', 'Kanpur', ...bookings.map((item) => item.city).filter(Boolean),
-  ])).sort(), [bookings]);
   const visibleBookings = bookings.filter((booking) => {
     if (activeTab === 'today' && filters.liveStatus !== 'all') {
       return getLiveDetails(booking).key === filters.liveStatus;
@@ -260,12 +255,6 @@ export default function EventBookingDashboardPage() {
     setSearchParams(next);
     setFilters(EMPTY_FILTERS);
     dispatch({ type: 'reset' });
-  };
-  const setPageLayout = (value) => {
-    setLayout(value);
-    const next = new URLSearchParams(searchParams);
-    if (value === 'list') next.delete('layout'); else next.set('layout', value);
-    setSearchParams(next);
   };
   const setFilter = (key, value) => {
     setFilters((current) => ({ ...current, [key]: value }));
@@ -365,22 +354,27 @@ export default function EventBookingDashboardPage() {
     day: '2-digit', month: 'short', year: 'numeric',
   }).format(now)}`;
   return (
-    <div className={`crm-page w-full min-w-0 max-w-full p-3 sm:p-4 lg:p-5 ${layout === 'list' ? styles.listPage : 'min-h-screen overflow-x-hidden'}`}>
+    <div className={`crm-page w-full min-w-0 max-w-full p-3 sm:p-4 lg:p-5 ${styles.listPage}`}>
       <header className="mb-2 flex shrink-0 justify-end bg-background">
         <div className="flex flex-wrap items-center gap-2">
+          <Select value={summaryPeriod} onValueChange={(value) => {
+            setSummaryPeriod(value);
+            dispatch({ type: 'reset' });
+          }}>
+            <SelectTrigger className="h-9 w-48 bg-card text-xs text-foreground"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="current_fy">Current Financial Year</SelectItem>
+              <SelectItem value="previous_fy">Previous Financial Year</SelectItem>
+              <SelectItem value="last_12_months">Last 12 Months</SelectItem>
+              <SelectItem value="active_bookings">Active Bookings</SelectItem>
+            </SelectContent>
+          </Select>
           {activeTab === 'today' && (
             <Button variant="outline" className="h-9 gap-2 px-3 text-xs">
               <CalendarDays className="h-4 w-4" /> {todayLabel} <ChevronDown className="h-3.5 w-3.5" />
             </Button>
           )}
-          <div className="flex h-9 overflow-hidden rounded-md border border-border bg-card">
-            <Button variant="ghost" className={`h-9 rounded-none px-3 text-xs ${layout === 'list' ? 'bg-blue-50 text-blue-700' : ''}`} onClick={() => setPageLayout('list')}>
-              <List className="mr-1.5 h-4 w-4" /> List View
-            </Button>
-            <Button variant="ghost" className={`h-9 rounded-none border-l border-border px-3 text-xs ${layout === 'calendar' ? 'bg-blue-50 text-blue-700' : ''}`} onClick={() => setPageLayout('calendar')}>
-              <CalendarDays className="mr-1.5 h-4 w-4" /> Calendar View
-            </Button>
-          </div>
           <Button variant="outline" size="icon" className="h-9 w-9" onClick={refresh} aria-label="Refresh bookings">
             <RefreshCw className={`h-4 w-4 ${(analyticsQuery.isFetching || bookingsQuery.isFetching) ? 'animate-spin' : ''}`} />
           </Button>
@@ -408,9 +402,9 @@ export default function EventBookingDashboardPage() {
         ariaLabel="Booking workflow sections"
       />
 
-      <Card className={`crm-card mt-3 w-full min-w-0 max-w-full overflow-hidden ${layout === 'list' ? 'flex min-h-96 flex-1 flex-col' : ''}`}>
-        <CardContent className={`w-full min-w-0 max-w-full overflow-hidden ${layout === 'list' ? `p-0 ${styles.listContent}` : 'p-3'}`}>
-          <div className={layout === 'list' ? 'relative border-b border-border px-4 pt-3' : 'relative'}>
+      <Card className="crm-card mt-3 flex min-h-96 w-full min-w-0 max-w-full flex-1 flex-col overflow-hidden">
+        <CardContent className={`w-full min-w-0 max-w-full overflow-hidden p-0 ${styles.listContent}`}>
+          <div className="relative border-b border-border px-4 pt-3">
             {bookingsQuery.isFetching && !bookingsQuery.isLoading ? (
               <span role="status" className="pointer-events-none absolute right-0 top-full z-10 mt-1 flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[10px] text-muted-foreground">
                 <Loader2 aria-hidden="true" className="h-3 w-3 animate-spin" />
@@ -421,22 +415,20 @@ export default function EventBookingDashboardPage() {
             activeTab={activeTab}
             cities={cities}
             employees={employees}
+            eventTypes={createdEventTypes}
             filters={filters}
             setFilter={setFilter}
           />
           </div>
 
-          <div className={layout === 'list' ? styles.listScrollArea : undefined} aria-busy={bookingsQuery.isFetching}>
+          <div className={styles.listScrollArea} aria-busy={bookingsQuery.isFetching}>
           {bookingsQuery.isLoading ? (
             <div className="grid h-80 place-items-center"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
           ) : bookingsQuery.isError ? (
             <div className="grid h-52 place-items-center text-center">
               <div><AlertTriangle className="mx-auto mb-2 h-6 w-6 text-destructive" /><p className="text-sm font-medium">Unable to load bookings</p><Button variant="link" className="h-auto p-0 text-xs" onClick={refresh}>Try again</Button></div>
             </div>
-          ) : layout === 'calendar' ? (
-            <BookingCalendar bookings={bookings} month={month} onOpen={openBooking} />
-          ) : (
-            activeTab === 'today' ? (
+          ) : activeTab === 'today' ? (
               <TodayBookingTable bookings={visibleBookings} openEventOverview={openEventOverview} {...bookingActionProps} />
             ) : activeTab === 'completed' ? (
               <CompletedBookingTable bookings={visibleBookings} openEventOverview={openEventOverview} {...bookingActionProps} />
@@ -461,11 +453,9 @@ export default function EventBookingDashboardPage() {
                 percentage,
               })}
               {...bookingActionProps}
-            />
-          )}
+            />}
 
-          {layout === 'list' ? (
-            <div className="flex flex-col gap-2 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-muted-foreground">Showing {startEntry} to {endEntry} of {totalRows} {activeTab === 'completed' ? 'completed ' : ''}bookings</p>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" disabled={pagination.page <= 1} onClick={() => dispatch({ type: 'previous' })}>Previous</Button>
@@ -483,9 +473,8 @@ export default function EventBookingDashboardPage() {
                 ))}
                 <Button variant="outline" size="sm" disabled={pagination.page >= pagination.totalPages} onClick={() => dispatch({ type: 'next' })}>Next</Button>
               </div>
-            </div>
-          ) : null}
-          <div className={`flex items-center gap-2 bg-blue-50/50 px-4 py-3 text-xs text-blue-700 dark:bg-blue-400/5 dark:text-blue-300 ${layout === 'list' ? 'border-t border-border' : 'mt-3 rounded-lg border border-blue-100 dark:border-blue-400/20'}`}>
+          </div>
+          <div className="flex items-center gap-2 border-t border-border bg-blue-50/50 px-4 py-3 text-xs text-blue-700 dark:bg-blue-400/5 dark:text-blue-300">
             <Clock3 className="h-4 w-4 shrink-0" />
             {activeTab === 'planning'
               ? 'Bookings in planning are tracked here until all critical approvals, vendors and execution details are complete.'
@@ -514,6 +503,7 @@ export default function EventBookingDashboardPage() {
         }}
         employees={employees}
         customers={customers}
+        cities={cities}
         booking={setupBooking}
         saving={bookingFormMutation.isPending}
         onSubmit={(payload) => bookingFormMutation.mutate({ payload, booking: setupBooking })}

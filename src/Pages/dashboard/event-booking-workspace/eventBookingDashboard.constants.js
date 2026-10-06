@@ -1,10 +1,9 @@
-export const PAGE_SIZE = 5;
+export const PAGE_SIZE = 10;
 export const VALID_TABS = ['all', 'planning', 'execution_ready', 'today', 'completed', 'closed'];
 export const EMPTY_FILTERS = {
   eventType: 'all',
   city: 'all',
   closureStatus: 'all',
-  dateRange: 'all',
   liveStatus: 'all',
   managerId: 'all',
   paymentStatus: 'all',

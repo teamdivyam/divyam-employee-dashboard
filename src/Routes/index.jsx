@@ -31,6 +31,7 @@ import EventLogisticsPage from "../Pages/dashboard/event-booking-workspace/Event
 import EventRunSheetPage from "../Pages/dashboard/event-booking-workspace/EventRunSheetPage";
 import EventRolesResponsibilitiesPage from "../Pages/dashboard/event-booking-workspace/EventRolesResponsibilitiesPage";
 import EventFinancePage from "../Pages/dashboard/event-booking-workspace/EventFinancePage";
+import EventPostEventReviewPage from "../Pages/dashboard/event-booking-workspace/EventPostEventReviewPage";
 import EventActivityPage from "../Pages/dashboard/event-booking-workspace/EventActivityPage";
 import EventBookingLayout from "../Pages/dashboard/event-booking-workspace/EventBookingLayout";
 import VendorCoordinationPage from "../Pages/dashboard/vendor-coordination/VendorCoordinationPage";
@@ -107,6 +108,7 @@ const DashBoardRoutes = () => {
               <Route path="operations/roles-responsibilities" element={<EventRolesResponsibilitiesPage />} />
               <Route path="finance" element={<EventFinancePage />} />
               <Route path="finance/:section" element={<EventFinancePage />} />
+              <Route path="post-event-review" element={<EventPostEventReviewPage />} />
               <Route path="activity" element={<EventActivityPage />} />
             </Route>
             <Route path="assigned-clients" element={<AssignedClientsPage />} />

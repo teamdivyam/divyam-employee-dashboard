@@ -11,6 +11,8 @@ const appendValues = (formData, values) => {
 const EventBookingWorkspaceService = {
   getEventBookingManagers: (params = {}) =>
     axiosRequest.get("/employee-event-booking/managers", { params }),
+  getEventBookingCities: (params = {}) =>
+    axiosRequest.get("/employee-event-booking/cities", { params }),
   getEventBookingAnalytics: (params = {}) =>
     axiosRequest.get("/employee-event-booking/analytics", { params }),
   getEventBookings: (params = {}) =>
@@ -79,6 +81,18 @@ const EventBookingWorkspaceService = {
     axiosRequest.post(eventPath(eventId, "/payments"), formData),
   addEventTask: ({ eventId, ...formData }) =>
     axiosRequest.post(eventPath(eventId, "/tasks"), formData),
+  addEventFeedback: ({ eventId, ...formData }) =>
+    axiosRequest.post(eventPath(eventId, "/feedback"), formData),
+  updateEventFeedback: ({ eventId, feedbackId, ...formData }) =>
+    axiosRequest.patch(eventPath(eventId, `/feedback/${feedbackId}`), formData),
+  addEventLearning: ({ eventId, ...formData }) =>
+    axiosRequest.post(eventPath(eventId, "/learnings"), formData),
+  updateEventLearning: ({ eventId, learningId, ...formData }) =>
+    axiosRequest.patch(eventPath(eventId, `/learnings/${learningId}`), formData),
+  addEventPostReviewIssue: ({ eventId, ...formData }) =>
+    axiosRequest.post(eventPath(eventId, "/issues"), formData),
+  updateEventPostReviewIssue: ({ eventId, issueId, ...formData }) =>
+    axiosRequest.patch(eventPath(eventId, `/issues/${issueId}`), formData),
   addEventDocument: ({ eventId, ...formData }) =>
     axiosRequest.post(eventPath(eventId, "/documents"), formData),
   addEventVendor: ({ eventId, ...formData }) =>
