@@ -216,10 +216,26 @@ export const getAvatarUrl = (avatar) => {
   return `https://assets.divyam.com/Uploads/employee/${avatar}`;
 };
 
+const TASK_TIME_ZONE = "Asia/Kolkata";
+
 const formatStatusDate = (value) => new Date(value).toLocaleDateString("en-IN", {
   day: "2-digit",
   month: "short",
+  timeZone: TASK_TIME_ZONE,
 });
+
+const getTaskCalendarDay = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return Number.NaN;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TASK_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = (type) => Number(parts.find((item) => item.type === type)?.value);
+  return Date.UTC(part("year"), part("month") - 1, part("day"));
+};
 
 export const getDueDateNote = (dueDate, status, completedOn, submittedOn) => {
   if (status === "Completed") {
@@ -233,11 +249,8 @@ export const getDueDateNote = (dueDate, status, completedOn, submittedOn) => {
     };
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(dueDate);
-  due.setHours(0, 0, 0, 0);
-  const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.round((getTaskCalendarDay(dueDate) - getTaskCalendarDay(new Date())) / (1000 * 60 * 60 * 24));
+  if (!Number.isFinite(diffDays)) return null;
 
   if (diffDays < 0) {
     const days = Math.abs(diffDays);

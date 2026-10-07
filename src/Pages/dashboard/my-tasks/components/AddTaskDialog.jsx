@@ -39,7 +39,7 @@ import { Textarea } from "@components/components/ui/textarea";
 import EmployeeV2Service from "@/services/employee-v2.service";
 import useCurrentEmployee from "@/hooks/useCurrentEmployee";
 
-import { formatDate } from "./WorkPanelUI";
+import { formatDate, toTaskDateInputValue } from "./WorkPanelUI";
 import { getAvatarUrl, getInitials, getTaskTitleValidationError } from "./taskHelpers";
 
 const ROLE_RANK = Object.freeze({
@@ -123,7 +123,7 @@ function ReminderPicker({ date, time, onChange }) {
       <PopoverContent align="start" sideOffset={6} className="w-[340px] max-w-[calc(100vw-2rem)] space-y-3 p-3">
         <div><h4 className="text-base font-semibold text-foreground">Set Reminder</h4></div>
         <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-1"><Label className="text-xs text-muted-foreground">Reminder Date</Label><Input type="date" min={new Date().toISOString().slice(0, 10)} value={draftDate} onChange={(event) => setDraftDate(event.target.value)} className="h-9 text-xs" /></div>
+          <div className="space-y-1"><Label className="text-xs text-muted-foreground">Reminder Date</Label><Input type="date" min={toTaskDateInputValue()} value={draftDate} onChange={(event) => setDraftDate(event.target.value)} className="h-9 text-xs" /></div>
           <div className="space-y-1"><Label className="text-xs text-muted-foreground">Reminder Time</Label><Input type="time" value={draftTime} onChange={(event) => setDraftTime(event.target.value)} className="h-9 text-xs" /></div>
         </div>
         <p className="text-[11px] text-muted-foreground">Reminder notifications will be sent at the selected date and time.</p>
@@ -467,7 +467,7 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
                       <div className="grid gap-x-2.5 gap-y-1.5 sm:grid-cols-2">
                         <Field label="Task Title" required><Input data-task-client-id={item.clientId} data-task-field="title" value={item.taskTitle} maxLength={30} onChange={(event) => updateTask(item.clientId, { taskTitle: event.target.value })} placeholder="Enter task title" className="h-9 text-xs" /><p className="text-right text-[11px] text-muted-foreground">{item.taskTitle.length} / 30</p></Field>
                         <Field label="Linked To (Optional)"><Input value={item.relatedTo} onChange={(event) => updateTask(item.clientId, { relatedTo: event.target.value })} placeholder="Enter linked item" className="h-9 text-xs" /></Field>
-                        <Field label="Due Date" required><Input data-task-client-id={item.clientId} data-task-field="dueDate" type="date" min={new Date().toISOString().slice(0, 10)} value={item.dueDate} onChange={(event) => updateTask(item.clientId, { dueDate: event.target.value })} className="h-9 text-xs" /></Field>
+                        <Field label="Due Date" required><Input data-task-client-id={item.clientId} data-task-field="dueDate" type="date" min={toTaskDateInputValue()} value={item.dueDate} onChange={(event) => updateTask(item.clientId, { dueDate: event.target.value })} className="h-9 text-xs" /></Field>
                         <Field label="Due Time (Optional)"><Input type="time" value={item.dueTime} onChange={(event) => updateTask(item.clientId, { dueTime: event.target.value })} className="h-9 text-xs" /></Field>
                         <Field label="Priority"><Select value={item.priority} onValueChange={(value) => updateTask(item.clientId, { priority: value })}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{["High", "Medium", "Low"].map((priority) => <SelectItem key={priority} value={priority}>{priority}</SelectItem>)}</SelectContent></Select></Field>
                         <Field label="Reminder (Optional)"><ReminderPicker date={item.reminderDate} time={item.reminderTime} onChange={(value) => updateTask(item.clientId, value)} /></Field>

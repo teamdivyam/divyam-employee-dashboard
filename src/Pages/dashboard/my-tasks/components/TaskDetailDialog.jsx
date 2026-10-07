@@ -44,7 +44,7 @@ import EmployeeV2Service from "@/services/employee-v2.service";
 import { getSocket } from "@/services/socket";
 import DeleteSelfTaskButton from "./DeleteSelfTaskButton";
 
-import { formatDate, formatDateTime } from "./WorkPanelUI";
+import { formatDate, formatDateTime, toTaskDateInputValue } from "./WorkPanelUI";
 import {
   PRIORITY_TEXT_CLASS,
   TASK_STATUS_DOT_CLASS,
@@ -1418,7 +1418,7 @@ export default function TaskDetailDialog({
                       type="date"
                       value={newDueDate}
                       onChange={(event) => setNewDueDate(event.target.value)}
-                      min={new Date().toISOString().slice(0, 10)}
+                      min={toTaskDateInputValue()}
                       className="h-8 text-xs"
                     />
                   </div>

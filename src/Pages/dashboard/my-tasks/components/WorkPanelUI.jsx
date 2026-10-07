@@ -2,6 +2,22 @@ import React from "react";
 import { Badge } from "@components/components/ui/badge";
 import { MoreVertical } from "lucide-react";
 
+export const TASK_TIME_ZONE = "Asia/Kolkata";
+
+export const toTaskDateInputValue = (value = new Date()) => {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TASK_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = (type) => parts.find((item) => item.type === type)?.value || "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+};
+
 export const formatDate = (value, options = {}) => {
   if (!value) return "Not available";
   return new Intl.DateTimeFormat("en-IN", {
@@ -9,6 +25,7 @@ export const formatDate = (value, options = {}) => {
     month: "short",
     year: "numeric",
     ...options,
+    timeZone: TASK_TIME_ZONE,
   }).format(new Date(value));
 };
 
@@ -17,6 +34,7 @@ export const formatDateTime = (value) => {
   return `${formatDate(value)} ${new Intl.DateTimeFormat("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: TASK_TIME_ZONE,
   }).format(new Date(value))}`;
 };
 
