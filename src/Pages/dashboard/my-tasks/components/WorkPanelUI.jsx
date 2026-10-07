@@ -63,10 +63,10 @@ export function CategoryBadge({ children }) {
   );
 }
 
-export function MetricCard({ label, value, subLabel, icon: Icon, tone = "blue" }) {
+export function MetricCard({ label, value, icon: Icon, tone = "blue" }) {
   const tones = {
     blue: { backgroundColor: "#E3EEFE", color: "#2463EB" },
-    green: { backgroundColor: "#DCF8EB", color: "#059669" },
+    green: { backgroundColor: "#DCF8EB", color: "#047857", iconColor: "#059669" },
     orange: { backgroundColor: "#FCF5D8", color: "#B45309" },
     violet: { backgroundColor: "#F0EDFD", color: "#7C3AED" },
     red: { backgroundColor: "#FCEAEA", color: "#DC2626" },
@@ -75,26 +75,18 @@ export function MetricCard({ label, value, subLabel, icon: Icon, tone = "blue" }
   const toneStyle = tones[tone] || tones.blue;
 
   return (
-    <div
-      className="rounded-lg border p-2.5 shadow-sm"
-      style={{ backgroundColor: toneStyle.backgroundColor, borderColor: toneStyle.backgroundColor }}
+    <article
+      className="admin-task-metric-card"
+      style={{ backgroundColor: toneStyle.backgroundColor }}
     >
-      <div className="flex items-center gap-2">
-        <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-          style={{ color: toneStyle.color }}
-        >
-          <Icon className="h-4 w-4" />
-        </span>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-          <div className="flex items-baseline gap-1">
-            <p className="text-xl font-bold text-foreground">{value}</p>
-            <p className="text-xs font-medium text-muted-foreground">{subLabel}</p>
-          </div>
-        </div>
+      <span className="admin-task-metric-icon" style={{ color: toneStyle.iconColor || toneStyle.color }}>
+        <Icon aria-hidden="true" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="admin-task-metric-label">{label}</p>
+        <p className="admin-task-metric-value">{value}</p>
       </div>
-    </div>
+    </article>
   );
 }
 
