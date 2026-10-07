@@ -229,6 +229,22 @@ body {
     @apply px-3 py-2 align-middle;
   }
 
+  .task-list-data-table thead {
+    color: #0f172a !important;
+  }
+
+  .task-list-data-table thead th {
+    font-size: 12px !important;
+    font-weight: 600;
+    line-height: 16px;
+  }
+
+  .task-list-data-table tbody td {
+    color: #0f172a;
+    font-size: 13px !important;
+    line-height: 18px;
+  }
+
   .dark .admin-task-data-table thead {
     background-color: hsl(var(--muted) / 0.55) !important;
     color: hsl(var(--foreground)) !important;
@@ -237,6 +253,11 @@ body {
 
   .dark .admin-task-data-table tbody tr {
     border-color: hsl(var(--border));
+  }
+
+  .dark .task-list-data-table thead,
+  .dark .task-list-data-table tbody td {
+    color: hsl(var(--foreground)) !important;
   }
 
   .dark .admin-task-data-table tbody tr:hover {

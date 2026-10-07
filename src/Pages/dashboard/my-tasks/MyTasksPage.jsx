@@ -761,20 +761,24 @@ export default function MyTasksPage() {
                 Loading tasks
               </div>
             ) : (
-              <DataTable
+              <div className="task-list-data-table">
+                <DataTable
                 compact
                 zebra
                 headerAlign="center"
                 bodyAlign="center"
+                columnWidths={filters.tab === "completed"
+                  ? ["16%", "8%", "10%", "10%", "10%", "10%", "9%", "9%", "10%", "8%"]
+                  : ["20%", "9%", "9%", "12%", "12%", "9%", "9%", "10%", "10%"]}
                 emptyText="No tasks found."
                 headers={[
-                  "Task Title",
+                  <span key="task-title" className="block pl-12 text-left">Task Title</span>,
                   "Task Type",
-                  "Linked To",
+                  <span key="linked-to" className="block text-left">Linked To</span>,
                   ...(filters.tab === "completed"
-                    ? ["Assigned By", "Assigned To"]
+                    ? [<span key="assigned-by" className="block text-left">Assigned By</span>, <span key="assigned-to" className="block text-left">Assigned To</span>]
                     : [
-                        filters.tab === "pending_acceptance"
+                        <span key="task-person" className="block text-left">{filters.tab === "pending_acceptance"
                           ? "Request With"
                           : filters.tab === "requests_sent"
                             ? "Assigned To"
@@ -782,13 +786,13 @@ export default function MyTasksPage() {
                                   filters.tab,
                                 )
                               ? "Primary Owner"
-                              : "Assigned By",
+                              : "Assigned By"}</span>,
                       ]),
-                  "Due Date",
+                  <span key="due-date" className="block text-left">Due Date</span>,
                   "Priority",
-                  "Progress",
                   "Status",
-                  "Action",
+                  <span key="progress" className="mx-auto grid w-fit grid-cols-[64px_32px] items-center gap-2"><span className="text-center">Progress</span><span aria-hidden="true" /></span>,
+                  <span key="action" className="mx-auto grid w-fit grid-cols-[64px_24px] items-center gap-1"><span className="text-center">Action</span><span aria-hidden="true" /></span>,
                 ]}
                 rows={tasks.map((task) => {
                   const dueDateNote = getDueDateNote(
@@ -805,7 +809,7 @@ export default function MyTasksPage() {
                     (filters.tab === "pending_acceptance" && isTaskCreator);
 
                   const assignedByCell = (
-                    <div className="ml-3 flex w-fit items-center gap-2 text-left">
+                    <div className="flex w-fit items-center gap-2 text-left">
                       <Avatar className="h-7 w-7">
                         <AvatarImage
                           src={getAvatarUrl(
@@ -817,14 +821,14 @@ export default function MyTasksPage() {
                           {getInitials(task.createdByName) || "A"}
                         </AvatarFallback>
                       </Avatar>
-                      <p className="font-medium">
+                      <p className="text-xs font-normal text-black dark:text-white">
                         {isSelfTask ? "Self" : task.createdByName}
                       </p>
                     </div>
                   );
 
                   const assignedToCell = (
-                    <div className="ml-3 flex w-fit items-center gap-2 text-left">
+                    <div className="flex w-fit items-center gap-2 text-left">
                       <Avatar className="h-7 w-7">
                         <AvatarImage
                           src={getAvatarUrl(
@@ -836,7 +840,7 @@ export default function MyTasksPage() {
                           {getInitials(task.assignedToName) || "A"}
                         </AvatarFallback>
                       </Avatar>
-                      <p className="font-medium">
+                      <p className="text-xs font-normal text-black dark:text-white">
                         {isSelfTask ? "Self" : task.assignedToName}
                       </p>
                     </div>
@@ -870,6 +874,7 @@ export default function MyTasksPage() {
                     </span>,
                     <button
                       type="button"
+                      className="block w-full text-left"
                       onClick={() => openRelatedItem(task)}
                       title={
                         task.relatedTo?.type === "Event"
@@ -893,8 +898,8 @@ export default function MyTasksPage() {
                             ? assignedToCell
                             : assignedByCell,
                         ]),
-                    <div>
-                      <p className="font-medium">{formatDate(task.dueDate)}</p>
+                    <div className="text-left">
+                      <p className="text-xs font-normal text-black dark:text-white">{formatDate(task.dueDate)}</p>
                       {dueDateNote ? (
                         <p className={`text-xs ${dueDateNote.tone}`}>
                           {dueDateNote.text}
@@ -913,7 +918,7 @@ export default function MyTasksPage() {
                         }
                       >
                         <SelectTrigger
-                          className={`mx-auto h-6 w-fit gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium shadow-none ${PRIORITY_BADGE_CLASS[task.priority] || ""}`}
+                          className={`relative mx-auto h-6 w-20 justify-center gap-0 rounded border-0 px-2 py-0.5 text-xs font-medium shadow-none [&>svg]:absolute [&>svg]:right-1 [&>svg]:h-3 [&>svg]:w-3 ${PRIORITY_BADGE_CLASS[task.priority] || ""}`}
                         >
                           <SelectValue />
                         </SelectTrigger>
@@ -925,41 +930,45 @@ export default function MyTasksPage() {
                       </Select>
                     ) : (
                       <span
-                        className={`inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${PRIORITY_BADGE_CLASS[task.priority] || ""}`}
+                        className={`inline-flex w-20 items-center justify-center rounded px-2 py-0.5 text-xs font-medium ${PRIORITY_BADGE_CLASS[task.priority] || ""}`}
                       >
                         {task.priority}
                       </span>
                     ),
-                    <div className="mx-auto flex w-fit items-center gap-2">
+                    <TaskStatusPill status={getDisplayTaskStatus(task)} uniformWidth />,
+                    <div className="mx-auto grid w-fit grid-cols-[64px_32px] items-center gap-2">
                       <div className="h-1.5 w-16 rounded-full bg-muted">
                         <div
                           className="h-1.5 rounded-full bg-primary"
                           style={{ width: `${task.progressPercent ?? 0}%` }}
                         />
                       </div>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="block w-8 text-left text-xs text-muted-foreground">
                         {task.progressPercent ?? 0}%
                       </span>
                     </div>,
-                    <TaskStatusPill status={getDisplayTaskStatus(task)} />,
-                    <div className="relative mx-auto w-fit">
-                      <TableButton compact onClick={() => openTaskDetail(task)}>
-                        {["Completed", "Cancelled", "Rejected"].includes(
-                          task.status,
-                        )
-                          ? "View"
-                          : "Update"}
-                      </TableButton>
-                      {Math.max(
-                        unreadCountByTask.get(String(task._id)) || 0,
-                        unreadCountByTask.get(String(task.taskId)) || 0,
-                      ) > 0 ? (
-                        <span className="pointer-events-none absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-background bg-red-500" />
-                      ) : null}
+                    <div className="mx-auto grid w-fit grid-cols-[64px_24px] items-center gap-1">
+                      <div className="relative">
+                        <TableButton compact onClick={() => openTaskDetail(task)}>
+                          {["Completed", "Cancelled", "Rejected"].includes(
+                            task.status,
+                          )
+                            ? "View"
+                            : "Update"}
+                        </TableButton>
+                        {Math.max(
+                          unreadCountByTask.get(String(task._id)) || 0,
+                          unreadCountByTask.get(String(task.taskId)) || 0,
+                        ) > 0 ? (
+                          <span className="pointer-events-none absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-background bg-red-500" />
+                        ) : null}
+                      </div>
+                      <span aria-hidden="true" />
                     </div>,
                   ];
                 })}
-              />
+                />
+              </div>
             )}
 
             <div className="flex flex-col gap-2 border-t border-border p-2 sm:flex-row sm:items-center sm:justify-between">

@@ -8,7 +8,6 @@ import {
   ChevronUp,
   CheckCheck,
   CheckCircle2,
-  ClipboardCheck,
   Clock3,
   Download,
   FileText,
@@ -49,12 +48,14 @@ import { formatDate, formatDateTime } from "./WorkPanelUI";
 import {
   PRIORITY_TEXT_CLASS,
   TASK_STATUS_DOT_CLASS,
+  TaskMessageEditHistory,
   TaskStatusPill,
   formatFileSize,
   getAvatarUrl,
   canEditTaskMessage,
   getDisplayTaskTitle,
   getDisplayTaskStatus,
+  getCompletionRequirementState,
   getDueDateNote,
   getFileIconStyle,
   getInitials,
@@ -281,11 +282,7 @@ export default function TaskDetailDialog({
     })
     .map((item) => ({ itemId: item._id, isCompleted: Boolean(item.isCompleted) }));
   const hasChecklistChanges = checklistChanges.length > 0;
-  const rawCompletionRequirement = String(task?.completionRequirement || "").trim();
-  const requiresUpdateNote = rawCompletionRequirement.includes("Update Note");
-  const requiresAttachment = rawCompletionRequirement.includes("Attachment");
-  const hasCompletionRequirement = requiresUpdateNote || requiresAttachment;
-  const completionRequirement = hasCompletionRequirement ? rawCompletionRequirement : "None";
+  const { requiresUpdateNote, requiresAttachment } = getCompletionRequirementState(task?.completionRequirement);
   const savedWorkUpdateNotes = [...(task?.activity || [])]
     .reverse()
     .filter((entry) => entry.action === "Work Update Note" && entry.note);
@@ -1211,7 +1208,7 @@ export default function TaskDetailDialog({
                   <p className="text-xs font-semibold text-foreground">Checklist</p>
                   <span className="text-[11px] text-muted-foreground">{completedChecklistCount} of {checklistDraft.length} completed</span>
                 </div>
-                <div className="max-h-24 min-h-0 flex-1 space-y-2 overflow-y-auto pb-1 pl-3 pr-1 pt-1">
+                <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pb-1 pl-3 pr-1 pt-1">
                   {checklistDraft.map((item) => (
                     <label key={item._id} className="flex items-start gap-2.5 text-xs text-foreground">
                       <Checkbox checked={item.isCompleted} disabled={isWorkLocked || checklistMutation.isPending} onCheckedChange={(checked) => handleChecklistToggle(item._id, checked)} />
@@ -1536,24 +1533,8 @@ export default function TaskDetailDialog({
             tone="orange"
             title="Work Update & Proof"
             className="bg-orange-50/50 dark:bg-orange-400/10"
-            trailing={<span className="flex items-center gap-2">{hasCompletionRequirement ? <><span>{completionRequirement} Required</span><span>•</span></> : null}<span>{proofCount} proof{proofCount === 1 ? "" : "s"} added</span><ChevronUp className="h-4 w-4" /></span>}
+            trailing={<span className="flex items-center gap-2"><span>{proofCount} proof{proofCount === 1 ? "" : "s"} added</span><ChevronUp className="h-4 w-4" /></span>}
           />
-          {hasCompletionRequirement ? <div className="grid items-center gap-3 border border-t-0 border-orange-100 bg-orange-50/40 px-3 py-2 text-[11px] dark:border-orange-400/20 dark:bg-orange-400/5 sm:grid-cols-[1.2fr_1fr_1.2fr]">
-            <div className="flex items-center gap-2">
-              <ClipboardCheck className="h-5 w-5 shrink-0 text-orange-500" />
-              <div>
-                <p className="text-[10px] font-medium text-orange-700/80 dark:text-orange-300/80">Completion Requirement</p>
-                <p className="font-semibold text-foreground">{completionRequirement} Required</p>
-              </div>
-            </div>
-            <div className="space-y-0.5">
-              <p className="text-orange-700 dark:text-orange-300"><span className={updateRequirementMet ? "font-bold text-emerald-600" : "text-orange-700"}>{updateRequirementMet ? "✓" : "○"}</span> {requiresUpdateNote ? "Update note added" : "Update note not required"}</p>
-              <p className="text-orange-700 dark:text-orange-300"><span className={attachmentRequirementMet ? "font-bold text-emerald-600" : "text-orange-700"}>{attachmentRequirementMet ? "✓" : "○"}</span> {requiresAttachment ? "At least 1 work proof required" : "Work proof not required"}</p>
-            </div>
-            {showRequirementWarning ? <p className="text-right font-medium text-orange-500 dark:text-orange-300">
-              Please complete all requirements before submitting.
-            </p> : <span />}
-          </div> : null}
           {isWorkLocked && (
             <div className="flex items-start gap-1.5 rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -1563,7 +1544,7 @@ export default function TaskDetailDialog({
           <div className="relative grid gap-1.5 border border-t-0 border-orange-200 p-2 dark:border-orange-400/30 sm:grid-cols-2">
             <div className="space-y-1">
               <Label className="text-xs font-semibold text-foreground">
-                Work Update Note {requiresUpdateNote ? <span className="text-red-500">*</span> : null}
+                Work Update Note {requiresUpdateNote ? <span className="ml-1 font-medium text-red-600">Required</span> : null}
               </Label>
               <div className="flex h-28 flex-col overflow-hidden rounded-md border border-input bg-background">
                 {savedWorkUpdateNotes.length ? (
@@ -1591,11 +1572,14 @@ export default function TaskDetailDialog({
                   {!isLocked ? <span className="pointer-events-none absolute bottom-1 right-2 text-[10px] text-muted-foreground">{note.length}/500</span> : null}
                 </div>
               </div>
+              {showRequirementWarning && requiresUpdateNote && !updateRequirementMet ? (
+                <p className="text-[11px] font-medium text-red-600">Add a work update note before submitting.</p>
+              ) : null}
             </div>
 
             <div className="flex h-full flex-col space-y-1">
               <Label className="text-xs font-semibold text-foreground">
-                Work Proof Attachments {requiresAttachment ? <span className="text-red-500">*</span> : null}
+                Work Proof Attachments {requiresAttachment ? <span className="ml-1 font-medium text-red-600">Required</span> : null}
               </Label>
               <div className="flex max-h-24 flex-wrap content-start gap-1.5 overflow-y-auto pr-1">
                 {workProofAttachments.length ? workProofAttachments.map((file, index) => {
@@ -1650,6 +1634,9 @@ export default function TaskDetailDialog({
                   </Button>
                 )}
               </div>
+              {showRequirementWarning && requiresAttachment && !attachmentRequirementMet ? (
+                <p className="text-[11px] font-medium text-red-600">Add at least one work proof before submitting.</p>
+              ) : null}
             </div>
           </div>
           <p className="flex items-center gap-1.5 rounded-b-lg border border-t-0 border-orange-200 px-2.5 py-1.5 text-[10px] text-muted-foreground dark:border-orange-400/30">
@@ -1748,6 +1735,7 @@ export default function TaskDetailDialog({
                             ) : null}
                           </p>
                           {message.message && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{renderTaskMessageLinks(message.message)}</p>}
+                          <TaskMessageEditHistory message={message} />
                           {(message.attachments || []).map((file, index) => (
                             <a
                               key={file._id || index}
