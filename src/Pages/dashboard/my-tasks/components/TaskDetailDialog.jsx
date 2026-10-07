@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -332,6 +332,12 @@ export default function TaskDetailDialog({
     setEscalationReason("");
   }, [task?._id]);
 
+  useLayoutEffect(() => {
+    if (!task?._id) return;
+    setStatus(task.status || "Pending");
+    setProgressPercent(task.progressPercent ?? 0);
+  }, [task?._id, task?.status, task?.progressPercent]);
+
   useEffect(() => {
     setDiscussionClock(Date.now());
     const timer = window.setInterval(() => setDiscussionClock(Date.now()), 1000);
@@ -367,17 +373,25 @@ export default function TaskDetailDialog({
         queryClient.invalidateQueries({ queryKey: ["my-task-detail"] });
       }
     };
+    const handleTaskUpdated = (payload = {}) => {
+      const matchesOpenTask = String(payload.taskId || "") === String(taskId)
+        || String(payload.humanTaskId || "") === String(task.taskId || "");
+      if (!matchesOpenTask) return;
+      queryClient.invalidateQueries({ queryKey: ["my-task-detail"] });
+    };
+    socket.on("task:updated", handleTaskUpdated);
     socket.on("task:message", handleMessage);
     socket.on("task:messages-read", handleMessage);
     socket.on("task:message-edited", handleMessage);
 
     return () => {
       socket.emit("task:leave", { taskId });
+      socket.off("task:updated", handleTaskUpdated);
       socket.off("task:message", handleMessage);
       socket.off("task:messages-read", handleMessage);
       socket.off("task:message-edited", handleMessage);
     };
-  }, [task?._id, queryClient]);
+  }, [task?._id, task?.taskId, queryClient]);
 
   useEffect(() => {
     if (!task?._id || !currentEmployee?._id) return undefined;
