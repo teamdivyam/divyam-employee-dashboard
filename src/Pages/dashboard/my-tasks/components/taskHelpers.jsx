@@ -26,7 +26,7 @@ export const TASK_STATUS_DOT_CLASS = {
 };
 
 export const TASK_STATUS_BADGE_CLASS = {
-  orange: "bg-orange-100 text-orange-700 dark:bg-orange-400/10 dark:text-orange-300",
+  orange: "bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300",
   navy: "bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300",
   green: "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300",
   red: "bg-red-100 text-red-700 dark:bg-red-400/10 dark:text-red-300",
@@ -52,14 +52,79 @@ export const getDisplayTaskStatus = (task) => {
   return task?.status;
 };
 
+export const getCompletionRequirementState = (value) => {
+  const label = String(value || "").trim().replace(/\s+/g, " ");
+  const normalized = label.toLowerCase();
+  const hasNoRequirement = !normalized
+    || ["none", "none required", "no requirement", "not required"].includes(normalized)
+    || normalized.includes("not required");
+  const requiresUpdateNote = !hasNoRequirement && normalized.includes("update note");
+  const requiresAttachment = !hasNoRequirement && normalized.includes("attachment");
+
+  return {
+    label: requiresUpdateNote || requiresAttachment ? label : "None",
+    requiresUpdateNote,
+    requiresAttachment,
+    hasCompletionRequirement: requiresUpdateNote || requiresAttachment,
+  };
+};
+
 export const TASK_MESSAGE_EDIT_WINDOW_MS = 3 * 60 * 1000;
+
+export const getTaskMessageFirstReadAt = (message) => {
+  if (message?.firstReadAt) return new Date(message.firstReadAt);
+
+  const readTimes = (message?.readBy || [])
+    .map((receipt) => new Date(receipt.readAt))
+    .filter((readAt) => !Number.isNaN(readAt.getTime()));
+
+  if (!readTimes.length) return null;
+  return new Date(Math.min(...readTimes.map((readAt) => readAt.getTime())));
+};
 
 export const canEditTaskMessage = (message, senderId, now = Date.now()) => {
   if (!message?._id || String(message.sender) !== String(senderId || "")) return false;
-  const sentAt = new Date(message.sentAt || message.createdAt);
-  if (Number.isNaN(sentAt.getTime())) return false;
-  return now <= sentAt.getTime() + TASK_MESSAGE_EDIT_WINDOW_MS;
+  const firstReadAt = getTaskMessageFirstReadAt(message);
+  if (!firstReadAt) return true;
+  if (Number.isNaN(firstReadAt.getTime())) return false;
+  return now <= firstReadAt.getTime() + TASK_MESSAGE_EDIT_WINDOW_MS;
 };
+
+const formatMessageHistoryTime = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+export function TaskMessageEditHistory({ message }) {
+  const history = message?.editHistory || [];
+  if (!message?.editedAt) return null;
+
+  return (
+    <details className="mt-1 border-t border-blue-100 pt-1 text-[10px] dark:border-blue-400/20">
+      <summary className="w-fit cursor-pointer select-none font-medium text-blue-600 hover:text-blue-700 dark:text-blue-300">
+        View edit history
+      </summary>
+      <div className="mt-1 space-y-1.5 rounded-md bg-background/80 p-2 text-left shadow-sm">
+        {history.length ? history.map((entry, index) => (
+          <div key={`${entry.editedAt || "edit"}-${index}`} className="border-b border-border/60 pb-1.5 last:border-0 last:pb-0">
+            <p className="font-medium text-muted-foreground">
+              {index === 0 ? "Original message" : `Previous version ${index + 1}`}
+            </p>
+            <p className="whitespace-pre-wrap break-words text-foreground [overflow-wrap:anywhere]">{entry.message}</p>
+            {entry.editedAt ? <p className="mt-0.5 text-muted-foreground">Changed {formatMessageHistoryTime(entry.editedAt)}</p> : null}
+          </div>
+        )) : <p className="text-muted-foreground">Previous versions are unavailable for this message.</p>}
+      </div>
+    </details>
+  );
+}
 
 const MESSAGE_URL_PATTERN = /(https?:\/\/[^\s<]+|www\.[^\s<]+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<]*)?)/gi;
 const COMPLETE_MESSAGE_URL_PATTERN = /^(?:https?:\/\/[^\s<]+|www\.[^\s<]+|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s<]*)?)$/i;
@@ -95,9 +160,16 @@ export const renderTaskMessageLinks = (message) => {
   });
 };
 
-export function TaskStatusPill({ status }) {
+export function TaskStatusPill({ status, uniformWidth = false }) {
+  const isUnderAdminReview = String(status || "").trim().toLowerCase() === "under admin review";
+  const widthClass = uniformWidth
+    ? isUnderAdminReview
+      ? "w-auto"
+      : "w-24 justify-center"
+    : "w-fit";
+
   return (
-    <span className={`inline-flex w-fit items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${TASK_STATUS_BADGE_CLASS[getTaskStatusTone(status)]}`}>
+    <span className={`inline-flex items-center whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium ${widthClass} ${TASK_STATUS_BADGE_CLASS[getTaskStatusTone(status)]}`}>
       {status}
     </span>
   );
@@ -110,9 +182,9 @@ export const PRIORITY_TEXT_CLASS = {
 };
 
 export const PRIORITY_BADGE_CLASS = {
-  High: "border border-red-300 bg-red-100 text-red-700 dark:border-red-400/40 dark:bg-red-400/15 dark:text-red-300",
-  Medium: "border border-orange-300 bg-orange-100 text-orange-800 dark:border-orange-400/40 dark:bg-orange-400/15 dark:text-orange-300",
-  Low: "border border-emerald-300 bg-emerald-100 text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-400/15 dark:text-emerald-300",
+  High: "border-0 bg-red-100 text-red-600 dark:bg-red-400/15 dark:text-red-300",
+  Medium: "border-0 bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300",
+  Low: "border-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
 };
 
 export const formatFileSize = (bytes) => {
@@ -144,10 +216,26 @@ export const getAvatarUrl = (avatar) => {
   return `https://assets.divyam.com/Uploads/employee/${avatar}`;
 };
 
+const TASK_TIME_ZONE = "Asia/Kolkata";
+
 const formatStatusDate = (value) => new Date(value).toLocaleDateString("en-IN", {
   day: "2-digit",
   month: "short",
+  timeZone: TASK_TIME_ZONE,
 });
+
+const getTaskCalendarDay = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return Number.NaN;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TASK_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = (type) => Number(parts.find((item) => item.type === type)?.value);
+  return Date.UTC(part("year"), part("month") - 1, part("day"));
+};
 
 export const getDueDateNote = (dueDate, status, completedOn, submittedOn) => {
   if (status === "Completed") {
@@ -161,11 +249,8 @@ export const getDueDateNote = (dueDate, status, completedOn, submittedOn) => {
     };
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(dueDate);
-  due.setHours(0, 0, 0, 0);
-  const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.round((getTaskCalendarDay(dueDate) - getTaskCalendarDay(new Date())) / (1000 * 60 * 60 * 24));
+  if (!Number.isFinite(diffDays)) return null;
 
   if (diffDays < 0) {
     const days = Math.abs(diffDays);

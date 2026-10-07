@@ -2,6 +2,22 @@ import React from "react";
 import { Badge } from "@components/components/ui/badge";
 import { MoreVertical } from "lucide-react";
 
+export const TASK_TIME_ZONE = "Asia/Kolkata";
+
+export const toTaskDateInputValue = (value = new Date()) => {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TASK_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = (type) => parts.find((item) => item.type === type)?.value || "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+};
+
 export const formatDate = (value, options = {}) => {
   if (!value) return "Not available";
   return new Intl.DateTimeFormat("en-IN", {
@@ -9,6 +25,7 @@ export const formatDate = (value, options = {}) => {
     month: "short",
     year: "numeric",
     ...options,
+    timeZone: TASK_TIME_ZONE,
   }).format(new Date(value));
 };
 
@@ -17,6 +34,7 @@ export const formatDateTime = (value) => {
   return `${formatDate(value)} ${new Intl.DateTimeFormat("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: TASK_TIME_ZONE,
   }).format(new Date(value))}`;
 };
 
@@ -63,31 +81,30 @@ export function CategoryBadge({ children }) {
   );
 }
 
-export function MetricCard({ label, value, subLabel, icon: Icon, tone = "blue" }) {
+export function MetricCard({ label, value, icon: Icon, tone = "blue" }) {
   const tones = {
-    blue: "bg-blue-50 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300",
-    green: "bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300",
-    orange: "bg-orange-50 text-orange-600 dark:bg-orange-400/10 dark:text-orange-300",
-    violet: "bg-violet-50 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300",
-    red: "bg-red-50 text-red-600 dark:bg-red-400/10 dark:text-red-300",
-    slate: "bg-slate-100 text-slate-600 dark:bg-slate-400/10 dark:text-slate-300",
+    blue: { backgroundColor: "#E3EEFE", color: "#2463EB" },
+    green: { backgroundColor: "#DCF8EB", color: "#047857", iconColor: "#059669" },
+    orange: { backgroundColor: "#FCF5D8", color: "#B45309" },
+    violet: { backgroundColor: "#F0EDFD", color: "#7C3AED" },
+    red: { backgroundColor: "#FCEAEA", color: "#DC2626" },
+    slate: { backgroundColor: "#EEF3F8", color: "#65758B" },
   };
+  const toneStyle = tones[tone] || tones.blue;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-2.5 shadow-sm">
-      <div className="flex items-center gap-2">
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tones[tone] || tones.blue}`}>
-          <Icon className="h-4 w-4" />
-        </span>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-          <div className="flex items-baseline gap-1">
-            <p className="text-xl font-bold text-foreground">{value}</p>
-            <p className="text-xs font-medium text-muted-foreground">{subLabel}</p>
-          </div>
-        </div>
+    <article
+      className="admin-task-metric-card"
+      style={{ backgroundColor: toneStyle.backgroundColor }}
+    >
+      <span className="admin-task-metric-icon" style={{ color: toneStyle.iconColor || toneStyle.color }}>
+        <Icon aria-hidden="true" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="admin-task-metric-label">{label}</p>
+        <p className="admin-task-metric-value">{value}</p>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -141,8 +158,8 @@ export function TableButton({ children, onClick, compact = false }) {
       onClick={onClick}
       className={`rounded-md font-semibold transition ${
         compact
-          ? "inline-flex h-7 min-w-[4.5rem] items-center justify-center border border-sky-200 bg-white px-3 py-1 text-xs text-sky-600 hover:bg-sky-50 dark:border-sky-900/20 dark:bg-background dark:text-sky-300"
-          : "border border-border bg-background px-4 py-2 text-xs text-foreground hover:bg-muted"
+          ? "inline-flex h-7 min-w-[4.5rem] items-center justify-center border border-sky-200 bg-transparent px-3 py-1 text-xs text-sky-600 hover:bg-sky-50 dark:border-sky-900/20 dark:text-sky-300"
+          : "border border-border bg-transparent px-4 py-2 text-xs text-foreground hover:bg-muted"
       }`}
     >
       {children}
@@ -158,11 +175,19 @@ export function DataTable({
   zebra = false,
   headerAlign = "left",
   bodyAlign = "left",
+  columnWidths,
 }) {
   return (
     <div className="overflow-x-auto">
       <table className={`w-full min-w-[980px] text-left ${compact ? "text-xs" : "text-sm"}`}>
-        <thead className="bg-muted/40 text-xs font-semibold text-muted-foreground">
+        {columnWidths ? (
+          <colgroup>
+            {columnWidths.map((width, index) => (
+              <col key={index} style={width ? { width } : undefined} />
+            ))}
+          </colgroup>
+        ) : null}
+        <thead className="bg-muted/40 text-xs font-semibold text-foreground">
           <tr>
             {headers.map((header, columnIndex) => (
               <th
