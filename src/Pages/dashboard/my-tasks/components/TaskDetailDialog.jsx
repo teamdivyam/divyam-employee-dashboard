@@ -265,6 +265,23 @@ export default function TaskDetailDialog({
     && !isPendingAcceptance && isReadyForReview;
   const hideEscalateButton = isTaskFromAdmin || isViewerSuperAdmin;
   const displayStatus = getDisplayTaskStatus({ ...task, status });
+  const taskStatusOptions = useMemo(() => {
+    const baseOptions = task?.taskType === "Self Task"
+      ? SELF_TASK_EDITABLE_STATUSES
+      : WORK_REQUEST_EDITABLE_STATUSES;
+    return status && !baseOptions.includes(status) ? [status, ...baseOptions] : baseOptions;
+  }, [status, task?.taskType]);
+  const latestActivity = useMemo(() => (task?.activity || []).reduce((latest, entry) => {
+    if (!latest) return entry;
+    return new Date(entry.createdAt).getTime() > new Date(latest.createdAt).getTime()
+      ? entry
+      : latest;
+  }, null), [task?.activity]);
+  const updatedByName = task?.lastUpdatedByName
+    || latestActivity?.performedByName
+    || task?.assignedToName
+    || "Not available";
+  const updatedByProfileImage = task?.lastUpdatedByProfileImage?.smallUrl;
   const viewerRoleLabel = isCollaborator
     ? "Collaborator"
     : isReviewer
@@ -1251,7 +1268,7 @@ export default function TaskDetailDialog({
                   <Label className="text-xs font-semibold text-foreground">Task Status</Label>
                   <Select value={status} disabled={!canEditOverallProgress} onValueChange={(value) => { setStatus(value); if (value === "In Progress") setProgressPercent(10); if (value === "Completed") setProgressPercent(100); if (value === "Rework") setProgressPercent(0); }}>
                     <SelectTrigger className={`h-8 text-xs font-semibold ${PERMISSION_DISABLED_CONTROL_CLASS}`}><SelectValue /></SelectTrigger>
-                    <SelectContent>{(task.taskType === "Self Task" ? SELF_TASK_EDITABLE_STATUSES : WORK_REQUEST_EDITABLE_STATUSES).map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
+                    <SelectContent>{taskStatusOptions.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
@@ -1412,12 +1429,12 @@ export default function TaskDetailDialog({
                   <p className="text-[11px] text-muted-foreground">Updated By</p>
                   <div className="flex items-center gap-1.5">
                     <Avatar className="h-5 w-5 shrink-0">
-                      <AvatarImage src={getAvatarUrl(task.assignedToProfileImage?.smallUrl)} alt={task.assignedToName} />
+                        <AvatarImage src={getAvatarUrl(updatedByProfileImage)} alt={updatedByName} />
                       <AvatarFallback className="bg-blue-900 text-[9px] font-semibold text-white">
-                        {getInitials(task.assignedToName) || "?"}
+                          {getInitials(updatedByName) || "?"}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="truncate text-xs font-medium text-foreground">{task.assignedToName}</span>
+                    <span className="truncate text-xs font-medium text-foreground">{updatedByName}</span>
                   </div>
                 </div>
               </div>
