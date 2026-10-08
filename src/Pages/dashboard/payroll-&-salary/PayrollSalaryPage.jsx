@@ -352,9 +352,6 @@ function SalaryBreakdown({ payrollSalary }) {
           <span>Net Payable Salary</span>
           <strong>{currency(breakdown?.netPayableSalary)}</strong>
         </div>
-        <button type="button" className="ml-auto mt-3 flex items-center gap-1 text-[10px] font-medium text-primary hover:underline">
-          View Full Breakdown <ArrowRight size={12} />
-        </button>
       </CardContent>
     </Card>
   );
