@@ -36,18 +36,21 @@ const parseResources = (value) => parseLines(value).map((line) => {
 
 function ResponsibilitySheetDialog({ open, onOpenChange, sheet, functions, employees, saving, onSave }) {
   const [form, setForm] = useState(emptyForm);
+  const [allFunctions, setAllFunctions] = useState(true);
 
   useEffect(() => {
     if (!open) return;
+    const initialSheetFunctions = (sheet?.appliesToFunctions || []).map(idOf);
     setForm(sheet ? {
       teamMember: idOf(sheet.teamMember) || 'none',
       eventRole: sheet.eventRole || '',
-      appliesToFunctions: (sheet.appliesToFunctions || []).map(idOf),
+      appliesToFunctions: initialSheetFunctions,
       responsibilities: (sheet.responsibilities || []).join('\n'),
       resourceRequirements: (sheet.resourceRequirements || []).map((item) => `${item.name}${item.value ? `: ${item.value}` : ''}`).join('\n'),
       status: sheet.status || 'Active',
       notes: sheet.notes || '',
     } : emptyForm);
+    setAllFunctions(!sheet || initialSheetFunctions.length === 0);
   }, [open, sheet]);
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
@@ -55,7 +58,7 @@ function ResponsibilitySheetDialog({ open, onOpenChange, sheet, functions, emplo
   const submit = (event) => {
     event.preventDefault();
     const member = employees.find((item) => idOf(item) === form.teamMember);
-    const selectedFunctions = functions.filter((item) => form.appliesToFunctions.includes(idOf(item)));
+    const selectedFunctions = allFunctions ? [] : functions.filter((item) => form.appliesToFunctions.includes(idOf(item)));
     onSave({
       teamMember: member?._id || null,
       teamMemberName: member?.name || '',
@@ -75,7 +78,41 @@ function ResponsibilitySheetDialog({ open, onOpenChange, sheet, functions, emplo
       <form id="responsibility-sheet-form" onSubmit={submit} className="grid gap-4 py-2 sm:grid-cols-2">
         <div className="space-y-1.5"><Label>Team member</Label><Select value={form.teamMember} onValueChange={(value) => update('teamMember', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">Select team member</SelectItem>{employees.map((item) => <SelectItem key={idOf(item)} value={idOf(item)}>{item.name}</SelectItem>)}</SelectContent></Select></div>
         <div className="space-y-1.5"><Label>Event role</Label><Input value={form.eventRole} onChange={(event) => update('eventRole', event.target.value)} placeholder="Event Manager (Overall)" required /></div>
-        <div className="space-y-1.5 sm:col-span-2"><Label>Applies to</Label><div className="grid gap-2 rounded-lg border p-3 sm:grid-cols-2">{functions.length ? functions.map((item) => { const functionId = idOf(item); return <label key={functionId} className="flex cursor-pointer items-center gap-2 text-xs"><Checkbox checked={form.appliesToFunctions.includes(functionId)} onCheckedChange={(checked) => toggleFunction(functionId, checked === true)} />{item.name}</label>; }) : <span className="text-xs text-muted-foreground">No functions added. The sheet will apply to all functions.</span>}</div><p className="text-[11px] text-muted-foreground">Leave all unchecked to apply this role to every function.</p></div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label>Applies to</Label>
+          <div className="space-y-2 rounded-lg border p-3">
+            <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold">
+              <Checkbox
+                checked={allFunctions}
+                onCheckedChange={(checked) => {
+                  setAllFunctions(checked === true);
+                  if (checked) update('appliesToFunctions', []);
+                }}
+              />
+              All Functions
+            </label>
+            {functions.length ? (
+              <div className="grid gap-2 border-t border-border/60 pt-2 sm:grid-cols-2">
+                {functions.map((item) => {
+                  const functionId = idOf(item);
+                  return (
+                    <label key={functionId} className={`flex cursor-pointer items-center gap-2 text-xs ${allFunctions ? 'opacity-50' : ''}`}>
+                      <Checkbox
+                        disabled={allFunctions}
+                        checked={!allFunctions && form.appliesToFunctions.includes(functionId)}
+                        onCheckedChange={(checked) => toggleFunction(functionId, checked === true)}
+                      />
+                      {item.name}
+                    </label>
+                  );
+                })}
+              </div>
+            ) : (
+              <span className="text-xs text-muted-foreground">No functions added. The sheet will apply to all functions.</span>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground">Check &ldquo;All Functions&rdquo; or select specific functions for this role.</p>
+        </div>
         <div className="space-y-1.5 sm:col-span-2"><Label>Responsibilities</Label><Textarea value={form.responsibilities} onChange={(event) => update('responsibilities', event.target.value)} placeholder={'Enter one responsibility per line\nOverall event execution and coordination\nClient coordination and on-ground decisions'} className="min-h-32" required /></div>
         <div className="space-y-1.5 sm:col-span-2"><Label>Resource requirements</Label><Textarea value={form.resourceRequirements} onChange={(event) => update('resourceRequirements', event.target.value)} placeholder={'Enter one resource per line using Name: Value\nManpower: 4\nVehicle: 1\nWalkie-Talkies: 6'} className="min-h-28" /></div>
         <div className="space-y-1.5"><Label>Status</Label><Select value={form.status} onValueChange={(value) => update('status', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent></Select></div>
@@ -151,7 +188,7 @@ function ResponsibilitiesPanel({ data, functions, onAdd, onView }) {
         <TableCell><ul className="list-disc space-y-0.5 pl-4 text-xs">{responsibilities.slice(0, 4).map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul>{responsibilities.length > 4 && <button type="button" onClick={() => onView(sheet)} className="mt-1 text-xs font-semibold text-blue-700">+ {responsibilities.length - 4} more responsibilities</button>}</TableCell>
         <TableCell><ResourceList resources={sheet.resourceRequirements} /></TableCell>
         <TableCell className="text-right"><Button variant="outline" size="sm" onClick={() => onView(sheet)} className="gap-1.5 text-blue-700"><Eye className="h-4 w-4" />View Sheet</Button></TableCell>
-      </TableRow>; }) : <TableRow><TableCell colSpan={6} className="h-40 text-center text-sm text-muted-foreground">No responsibility sheets found.</TableCell></TableRow>}</TableBody>
+      </TableRow>; }) : <TableRow><TableCell colSpan={6} className="h-40 text-center text-sm text-muted-foreground"><p className="font-medium text-foreground">No responsibility sheets yet</p><p className="mt-1 text-xs text-muted-foreground">Use Create Responsibility Sheet to add the first sheet.</p></TableCell></TableRow>}</TableBody>
     </Table></div><div className="flex items-center justify-between border-t px-4 py-3 text-xs text-muted-foreground"><span>Showing {filtered.length ? (page - 1) * PAGE_SIZE + 1 : 0} to {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} sheets</span><div className="flex items-center gap-2"><Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>‹</Button><span className="grid h-8 min-w-8 place-items-center rounded-md bg-emerald-50 px-2 font-semibold text-emerald-700">{page}</span><Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= pages} onClick={() => setPage((value) => value + 1)}>›</Button></div></div></CardContent></Card>
   </div>;
 }

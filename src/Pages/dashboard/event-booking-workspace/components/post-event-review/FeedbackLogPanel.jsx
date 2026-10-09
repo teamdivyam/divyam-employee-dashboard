@@ -202,17 +202,8 @@ export default function FeedbackLogPanel({
                       No feedback recorded yet
                     </p>
                     <p className="text-xs text-muted-foreground max-w-sm">
-                      Capture feedback from the client, family members, guests,
-                      or vendors after event completion.
+                      Record feedback when it is received.
                     </p>
-                    <Button
-                      size="sm"
-                      className="mt-2 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
-                      onClick={onAddNew}
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Add Feedback
-                    </Button>
                   </div>
                 </td>
               </tr>

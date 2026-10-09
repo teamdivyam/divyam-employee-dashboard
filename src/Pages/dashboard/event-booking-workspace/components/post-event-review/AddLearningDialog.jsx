@@ -280,14 +280,14 @@ export default function AddLearningDialog({
 
             <Field label="Learning / Observation" required className="sm:col-span-2">
               <div className="relative">
-                <Textarea className="min-h-16 resize-none pb-5 text-[11px]" value={form.observation} maxLength={500} placeholder="What did we learn from this event? Be specific and factual." onChange={(event) => update("observation", event.target.value)} />
+                <Textarea className="min-h-16 resize-none pb-5 text-[11px]" value={form.observation} maxLength={500} placeholder="What happened, and what did you learn?" onChange={(event) => update("observation", event.target.value)} />
                 <span className="absolute bottom-1.5 right-2 text-[9px] text-muted-foreground">{form.observation.length}/500</span>
               </div>
             </Field>
 
             <Field label="Recommended Practice" required className="sm:col-span-2">
               <div className="relative">
-                <Textarea className="min-h-14 resize-none pb-5 text-[11px]" value={form.recommendedPractice} maxLength={500} placeholder="What should be repeated or improved in future events?" onChange={(event) => update("recommendedPractice", event.target.value)} />
+                <Textarea className="min-h-14 resize-none pb-5 text-[11px]" value={form.recommendedPractice} maxLength={500} placeholder="What should be repeated or changed next time?" onChange={(event) => update("recommendedPractice", event.target.value)} />
                 <span className="absolute bottom-1.5 right-2 text-[9px] text-muted-foreground">{form.recommendedPractice.length}/500</span>
               </div>
             </Field>
@@ -296,7 +296,7 @@ export default function AddLearningDialog({
 
         <DialogFooter className="shrink-0 flex-row justify-between gap-2 border-t border-border bg-muted/20 px-4 py-2.5 sm:justify-between sm:space-x-0">
           <Button type="button" variant="outline" size="sm" className="h-8 min-w-28 text-xs font-normal" disabled={saving} onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="button" size="sm" className="h-8 min-w-36 gap-1.5 text-xs font-medium" disabled={saving} onClick={submit}>
+          <Button type="button" size="sm" variant="custom" className="h-8 min-w-36 gap-1.5 text-xs font-medium" disabled={saving} onClick={submit}>
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
             {saving ? "Saving..." : isEditing ? "Save Changes" : "Add Learning"}
           </Button>

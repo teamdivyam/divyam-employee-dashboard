@@ -393,8 +393,11 @@ export const bookingStatusLabel = (status) => status === 'Confirmed'
 
 export function StatusBadge({ status }) {
   return (
-    <Badge variant="outline" className={`rounded-md px-2 py-0.5 text-[11px] ${statusClass(status)}`}>
-      {bookingStatusLabel(status)}
+    <Badge
+      variant="outline"
+      className={`inline-flex h-7 w-[136px] items-center justify-center text-center rounded-md px-2 text-[11px] font-semibold ${statusClass(status)}`}
+    >
+      <span className="truncate">{bookingStatusLabel(status)}</span>
     </Badge>
   );
 }

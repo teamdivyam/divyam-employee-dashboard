@@ -132,13 +132,13 @@ export default function EventHospitalityDialog({ open, onOpenChange, item, funct
           </div>
           <aside className="space-y-3">
             <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
-              <Label className="text-sm font-semibold">Reference Image <span className="text-destructive">*</span></Label>
+              <Label className="text-sm font-semibold">Reference image / document <span className="text-destructive">*</span></Label>
               <div className="relative flex min-h-48 items-center justify-center overflow-hidden rounded-md border border-border bg-background">
                 {isPdf ? <div className="p-6 text-center"><FileText className="mx-auto mb-2 h-10 w-10 text-muted-foreground" /><p className="break-all text-xs">{file?.name || 'PDF reference'}</p></div> : imageUrl ? <img src={imageUrl} alt="Hospitality reference" className="h-56 w-full object-contain" /> : <Upload className="h-10 w-10 text-muted-foreground" />}
                 {(file || form.image) && <Button type="button" variant="outline" size="icon" aria-label="Remove reference" className="absolute right-2 top-2 h-8 w-8 text-destructive" onClick={() => { setFile(null); update('image', ''); }}><Trash2 className="h-4 w-4" /></Button>}
               </div>
               <input ref={inputRef} type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" className="hidden" aria-label="Upload reference image" onChange={event => { chooseFile(event.target.files?.[0]); event.target.value = ''; }} />
-              <Button type="button" variant="secondary" className="w-full gap-2" onClick={() => inputRef.current?.click()}><Upload className="h-4 w-4" />{file || form.image ? 'Change Image' : 'Upload Image'}</Button>
+              <Button type="button" variant="secondary" className="w-full gap-2" onClick={() => inputRef.current?.click()}><Upload className="h-4 w-4" />{file || form.image ? 'Change File' : 'Upload file'}</Button>
               {file && <p className="break-all text-xs text-muted-foreground">{file.name}</p>}
               <p className="text-xs leading-5 text-muted-foreground">Accepted formats: JPG, PNG, PDF<br />Max file size: 5 MB</p>
             </div>
@@ -152,7 +152,7 @@ export default function EventHospitalityDialog({ open, onOpenChange, item, funct
       </form>
       <DialogFooter className="shrink-0 flex-row flex-wrap justify-between gap-2 border-t border-border px-5 py-3 sm:justify-between">
         <Button type="button" variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>Cancel</Button>
-        <div className="flex gap-2">{!item?._id && <Button type="submit" form="event-hospitality-form" variant="secondary" disabled={saving} onClick={() => { submitAction.current = 'draft'; }}>Save as Draft</Button>}<Button type="submit" form="event-hospitality-form" variant="custom" disabled={saving} onClick={() => { submitAction.current = 'save'; }}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{item?._id ? 'Save Changes' : 'Add Requirement'}</Button></div>
+        <div className="flex gap-2"><Button type="submit" form="event-hospitality-form" variant="custom" disabled={saving} onClick={() => { submitAction.current = 'save'; }}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{item?._id ? 'Save Changes' : 'Add Requirement'}</Button></div>
       </DialogFooter>
     </DialogContent>
   </Dialog>;

@@ -299,7 +299,11 @@ export default function TaskDetailDialog({
     })
     .map((item) => ({ itemId: item._id, isCompleted: Boolean(item.isCompleted) }));
   const hasChecklistChanges = checklistChanges.length > 0;
-  const { requiresUpdateNote, requiresAttachment } = getCompletionRequirementState(task?.completionRequirement);
+  const {
+    label: completionRequirementLabel,
+    requiresUpdateNote,
+    requiresAttachment,
+  } = getCompletionRequirementState(task?.completionRequirement);
   const savedWorkUpdateNotes = [...(task?.activity || [])]
     .reverse()
     .filter((entry) => entry.action === "Work Update Note" && entry.note);
@@ -1535,7 +1539,7 @@ export default function TaskDetailDialog({
               <div className="grid gap-3 sm:grid-cols-2">
                 <div><p className="text-[11px] text-muted-foreground">Instructions</p><p className="whitespace-pre-wrap text-xs font-medium text-foreground">{task.instructions || "No additional instructions"}</p></div>
                 <div><p className="text-[11px] text-muted-foreground">Expected Outcome</p><p className="whitespace-pre-wrap text-xs font-medium text-foreground">{task.expectedOutcome || task.description || "—"}</p></div>
-                <div><p className="text-[11px] text-muted-foreground">Completion Requirement</p><p className="text-xs font-semibold text-foreground">{task.completionRequirement || "None"}</p></div>
+                <div><p className="text-[11px] text-muted-foreground">Completion Requirement</p><p className="text-xs font-semibold text-foreground">{completionRequirementLabel}</p></div>
                 <div><p className="text-[11px] text-muted-foreground">Reminder</p><p className="text-xs font-semibold text-foreground">{task.reminder?.remindAt ? formatDateTime(task.reminder.remindAt) : "None"}{task.reminder?.status === "Sent" ? " • Sent" : ""}</p></div>
                 <div><p className="text-[11px] text-muted-foreground">Collaborators</p><p className="text-xs font-medium text-foreground">{(task.collaborators || []).map((participant) => participant.name).join(", ") || "None"}</p></div>
                 <div><p className="text-[11px] text-muted-foreground">Reviewer</p><p className="text-xs font-medium text-foreground">{task.reviewerName || "Not assigned"}</p></div>

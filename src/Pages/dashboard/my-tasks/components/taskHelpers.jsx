@@ -53,16 +53,15 @@ export const getDisplayTaskStatus = (task) => {
 };
 
 export const getCompletionRequirementState = (value) => {
-  const label = String(value || "").trim().replace(/\s+/g, " ");
-  const normalized = label.toLowerCase();
+  const normalized = String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
   const hasNoRequirement = !normalized
     || ["none", "none required", "no requirement", "not required"].includes(normalized)
     || normalized.includes("not required");
-  const requiresUpdateNote = !hasNoRequirement && normalized.includes("update note");
+  const requiresUpdateNote = false;
   const requiresAttachment = !hasNoRequirement && normalized.includes("attachment");
 
   return {
-    label: requiresUpdateNote || requiresAttachment ? label : "None",
+    label: requiresAttachment ? "Attachment" : "None",
     requiresUpdateNote,
     requiresAttachment,
     hasCompletionRequirement: requiresUpdateNote || requiresAttachment,

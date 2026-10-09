@@ -159,18 +159,16 @@ export default function LearningsPanel({
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
           <Lightbulb className="h-8 w-8 text-amber-500/60" />
-          <p className="text-sm font-semibold">No learnings found</p>
-          <p className="max-w-sm text-xs text-muted-foreground">
-            Capture reusable observations and best practices from this event.
+          <p className="text-sm font-semibold">
+            {search || relatedFilter !== "all" || functionFilter !== "all" || typeFilter !== "all"
+              ? "No learnings found"
+              : "No learnings recorded yet"}
           </p>
-          {!search &&
-          relatedFilter === "all" &&
-          functionFilter === "all" &&
-          typeFilter === "all" ? (
-            <Button size="sm" className="mt-1" onClick={onAddLearning}>
-              Add Learning
-            </Button>
-          ) : null}
+          <p className="max-w-sm text-xs text-muted-foreground">
+            {search || relatedFilter !== "all" || functionFilter !== "all" || typeFilter !== "all"
+              ? "No learnings match your current filters."
+              : "Capture an observation and a reusable practice."}
+          </p>
         </div>
       ) : (
         <div className="overflow-x-auto">

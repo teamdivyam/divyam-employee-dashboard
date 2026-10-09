@@ -64,7 +64,7 @@ export default function InactiveBookingTable({
         </colgroup>
         <TableHeader className="bg-muted/60">
           <TableRow className="h-11 border-b border-border bg-muted/60 hover:bg-muted/60">
-            {['Booking / Client', 'Event Details', 'Event Manager', 'Event Date', 'Status', 'Last Planning State', 'Hold / Cancellation Details', 'Payment / Settlement', 'Action'].map((heading) => (
+            {['Booking / Client', 'Event Details', 'Event Manager', 'Event Date', 'Planning Stage', 'Last Planning State', 'Hold / Cancellation Details', 'Payment / Settlement', 'Action'].map((heading) => (
               <TableHead key={heading} scope="col" className={`${heading === 'Action' ? 'text-center' : 'text-left'} h-11 whitespace-nowrap px-3 text-[11px] font-bold leading-none tracking-[0.01em] text-foreground first:pl-4 last:pr-4`}>{heading}</TableHead>
             ))}
           </TableRow>
