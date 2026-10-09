@@ -381,7 +381,7 @@ export default function EventBookingDashboardPage() {
       </header>
 
       <section className="w-full min-w-0 max-w-full shrink-0 bg-background" aria-label="Booking overview metrics">
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {metricItems.map((item) => (
             <EventBookingMetricCard key={item.label} {...item} loading={analyticsQuery.isLoading} onOpen={item.tab ? () => setTab(item.tab) : undefined} />
           ))}
