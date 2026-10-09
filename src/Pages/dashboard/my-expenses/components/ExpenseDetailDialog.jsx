@@ -163,14 +163,10 @@ export default function ExpenseDetailDialog({ expense, employee, loading = false
             <div className="space-y-2 border-t border-border p-3">
               <ClaimDetailNote
                 icon={FileText}
-                label="Proposed Payroll Note"
+                label="Finance Decision Note"
                 value={displayText(firstPresent(financeReview.payrollNote, financeReview.note, expense.financeReviewNote))}
                 tone="green"
               />
-              <div className="grid gap-2 sm:grid-cols-2">
-                <ClaimDetailField icon={UserRound} label="Reviewed By" value={displayPerson(firstPresent(financeReview.reviewedBy, expense.reviewedBy))} />
-                <ClaimDetailField icon={CalendarDays} label="Reviewed On" value={formatDateTime(firstPresent(financeReview.reviewedAt, expense.reviewedAt))} />
-              </div>
             </div>
           </ClaimDetailSection>
 
