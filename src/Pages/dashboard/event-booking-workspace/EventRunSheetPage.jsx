@@ -136,7 +136,7 @@ function RunSheetItemDialog({ open, onOpenChange, item, defaultItemType, functio
         <div className="space-y-1.5"><Label>Location</Label><Input value={form.location} onChange={(event) => update('location', event.target.value)} placeholder="Main stage" /></div>
         <div className="space-y-1.5"><Label>Owner</Label><Select value={form.owner} onValueChange={(value) => update('owner', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">Not assigned</SelectItem>{employees.map((entry) => <SelectItem key={idOf(entry)} value={idOf(entry)}>{entry.name}</SelectItem>)}</SelectContent></Select></div>
         <div className="space-y-1.5"><Label>Status</Label><Select value={form.status} onValueChange={(value) => update('status', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{(form.itemType === 'Checklist' ? checklistStatuses : statuses).map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent></Select></div>
-        <div className="space-y-1.5 sm:col-span-2"><Label>Notes / Dependency</Label><Textarea value={form.notesDependency} onChange={(event) => update('notesDependency', event.target.value)} placeholder="Coordination or prerequisite details" className="min-h-20" /></div>
+        <div className="space-y-1.5 sm:col-span-2"><Label>Notes / Dependency</Label><Textarea value={form.notesDependency} onChange={(event) => update('notesDependency', event.target.value)} placeholder={form.itemType === 'Checklist' ? 'What must happen before this item can be completed?' : 'What must happen before this activity?'} className="min-h-20" /></div>
         <div className="space-y-1.5 sm:col-span-2"><Label>Additional notes</Label><Textarea value={form.notes} onChange={(event) => update('notes', event.target.value)} className="min-h-16" /></div>
         {form.itemType === 'Checklist' ? <>
           <div className="space-y-1.5 sm:col-span-2"><Label>Proof image URLs</Label><Textarea value={form.proofUrls} onChange={(event) => update('proofUrls', event.target.value)} placeholder="One image URL per line" className="min-h-20" /></div>
@@ -144,7 +144,7 @@ function RunSheetItemDialog({ open, onOpenChange, item, defaultItemType, functio
           <label className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={form.proofRequired} onCheckedChange={(checked) => update('proofRequired', checked === true)} />Photo proof required</label>
         </> : <label className="flex cursor-pointer items-center gap-2 text-sm sm:col-span-2"><Checkbox checked={form.isUpNext} onCheckedChange={(checked) => update('isUpNext', checked === true)} />Mark as up next</label>}
       </form>
-      <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" form="event-run-sheet-form" disabled={saving || !form.activity.trim() || !form.scheduledAt}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{item ? 'Save Changes' : 'Add Item'}</Button></DialogFooter>
+      <DialogFooter><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" variant="custom" form="event-run-sheet-form" disabled={saving || !form.activity.trim() || !form.scheduledAt}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{item ? 'Save Changes' : 'Add Item'}</Button></DialogFooter>
     </DialogContent>
   </Dialog>;
 }
@@ -201,7 +201,11 @@ function ChecklistTable({ items, scopeItems, functionName, onView, onVerify, onU
       <div className="flex items-center gap-2"><CheckSquare2 className="h-5 w-5 text-blue-700" /><h3 className="font-semibold">{functionName} Checklist</h3></div>
       <span className="text-sm font-semibold text-blue-900">{verified} / {applicable} Verified</span>
       <div className="h-2 min-w-32 flex-1 overflow-hidden rounded-full bg-slate-200 sm:max-w-72"><div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${percentage}%` }} /></div>
-      <span className="font-semibold text-emerald-600">{percentage}% Ready</span>
+      {applicable > 0 ? (
+        <span className="font-semibold text-emerald-600">{percentage}% Ready</span>
+      ) : (
+        <span className="font-semibold text-muted-foreground">Not assessed</span>
+      )}
       {criticalPending > 0 && <Badge variant="outline" className="gap-1.5 border-red-200 bg-red-50 text-red-600"><AlertCircle className="h-3.5 w-3.5" />{criticalPending} Critical Pending</Badge>}
       {lastUpdated && <span className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" />Last Updated: {lastUpdated.date}, {lastUpdated.time}</span>}
     </div>
@@ -220,7 +224,7 @@ function ChecklistTable({ items, scopeItems, functionName, onView, onVerify, onU
           <TableCell><Badge variant="outline" className={`min-w-20 justify-center px-2 text-[11px] ${statusTone(item.status)}`}>{item.status}</Badge></TableCell>
           <TableCell className="text-right"><Button variant="outline" size="sm" onClick={() => onView(item)} className="gap-1.5 text-blue-700"><Eye className="h-4 w-4" />View</Button></TableCell>
         </TableRow>;
-      }) : <TableRow><TableCell colSpan={8} className="h-36 text-center text-sm text-muted-foreground">No checklist items match the selected filters.</TableCell></TableRow>}</TableBody>
+      }) : <TableRow><TableCell colSpan={8} className="h-36 text-center text-sm text-muted-foreground"><p className="font-medium text-foreground">No checklist items yet</p><p className="mt-1 text-xs text-muted-foreground">Use Add Checklist Item to create the first item.</p></TableCell></TableRow>}</TableBody>
     </Table></div>
     <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-xs text-muted-foreground"><span>Showing {items.length ? (page - 1) * pageSize + 1 : 0} to {Math.min(page * pageSize, items.length)} of {items.length} items</span><div className="flex items-center gap-2"><span>{pageSize} per page</span><Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>‹</Button><span className="grid h-8 min-w-8 place-items-center rounded-md bg-emerald-50 px-2 font-semibold text-emerald-700">{page}</span><Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= pages} onClick={() => setPage((value) => value + 1)}>›</Button></div></div>
   </div>;
@@ -303,7 +307,7 @@ function RunSheetPanel({ data, functions, onAdd, onView, onVerify, onUpload }) {
           );
         })}
       </div>
-      {itemType === 'Checklist' ? <ChecklistTable items={filtered} scopeItems={scopeItems} functionName={selectedFunction?.name || 'All Functions'} onView={onView} onVerify={onVerify} onUpload={onUpload} /> : groups.length ? <div className="space-y-3">{groups.map((group) => <FunctionGroup key={group.key} group={group} onView={onView} />)}</div> : <div className="grid min-h-48 place-items-center rounded-lg border border-dashed text-center text-sm text-muted-foreground"><div><ClipboardList className="mx-auto mb-2 h-8 w-8 opacity-40" /><p>No run sheet items found.</p><Button variant="link" size="sm" onClick={() => onAdd('Run Sheet')}>Add the first item</Button></div></div>}
+      {itemType === 'Checklist' ? <ChecklistTable items={filtered} scopeItems={scopeItems} functionName={selectedFunction?.name || 'All Functions'} onView={onView} onVerify={onVerify} onUpload={onUpload} /> : groups.length ? <div className="space-y-3">{groups.map((group) => <FunctionGroup key={group.key} group={group} onView={onView} />)}</div> : <div className="grid min-h-48 place-items-center rounded-lg border border-dashed text-center text-sm text-muted-foreground"><div><ClipboardList className="mx-auto mb-2 h-8 w-8 opacity-40" /><p className="font-medium text-foreground">No run sheet items yet</p><Button variant="link" size="sm" onClick={() => onAdd('Run Sheet')}>Add the first item</Button></div></div>}
     </CardContent></Card>
     <Dialog open={timelineOpen} onOpenChange={setTimelineOpen}>
       <DialogContent className="max-h-[85vh] max-w-xl overflow-y-auto">

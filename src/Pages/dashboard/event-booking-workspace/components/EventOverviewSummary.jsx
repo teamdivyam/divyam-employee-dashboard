@@ -70,8 +70,8 @@ export default function EventOverviewSummary({
     },
     {
       label: "Next Milestone",
-      value: summary.nextMilestone.label,
-      caption: summary.nextMilestone.date,
+      value: summary.nextMilestone?.label || "No milestone pending",
+      caption: summary.nextMilestone?.date || "Planning is up to date",
       icon: Flag,
       tone: "orange",
     },
@@ -128,7 +128,7 @@ export default function EventOverviewSummary({
             </span>
             <div>
               <p className="text-[10px] text-muted-foreground">Open Tasks</p>
-              <p className="mt-1 text-lg font-semibold text-foreground">
+              <p className="mt-1 text-sm font-semibold text-foreground">
                 {summary.openTasks}
               </p>
               <button

@@ -211,24 +211,15 @@ export default function IssuesActionsPanel({
           <div className="flex flex-col items-center justify-center gap-2">
             <CheckCircle2 className="h-8 w-8 text-emerald-500/70" />
             <p className="font-semibold text-foreground text-sm">
-              No issues found
+              {searchTerm || statusFilter !== "all" || priorityFilter !== "all"
+                ? "No issues found"
+                : "No issues recorded yet"}
             </p>
             <p className="text-xs text-muted-foreground max-w-sm">
               {searchTerm || statusFilter !== "all" || priorityFilter !== "all"
                 ? "No issues match your current filters."
-                : "No operational bottlenecks or issues have been logged for this event."}
+                : "Log an issue when it is reported or observed."}
             </p>
-            {!searchTerm &&
-              statusFilter === "all" &&
-              priorityFilter === "all" && (
-                <Button
-                  size="sm"
-                  className="mt-2 h-8 gap-1.5 bg-primary text-xs text-primary-foreground hover:bg-primary/90"
-                  onClick={onAddIssue}
-                >
-                  + Add Issue
-                </Button>
-              )}
           </div>
         </div>
       ) : (

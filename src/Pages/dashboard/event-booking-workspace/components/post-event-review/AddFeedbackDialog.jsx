@@ -242,7 +242,7 @@ export default function AddFeedbackDialog({
                   <div className="rounded-md border border-border p-2">
                     <Label className="text-[10px] font-medium">Overall Rating (Optional)</Label>
                     <div className="mt-1"><StarRating value={form.rating} onChange={(value) => set("rating", value)} /></div>
-                    <p className="mt-1 text-[9px] text-muted-foreground">Use only if an actual rating was provided.</p>
+                    <p className="mt-1 text-[9px] text-muted-foreground">Leave unrated if no actual rating was provided.</p>
                   </div>
                   <div className="space-y-1 rounded-md border border-border p-2">
                     <Label className="text-[10px] font-medium">Internal Note (Optional)</Label>
@@ -259,7 +259,7 @@ export default function AddFeedbackDialog({
 
         <DialogFooter className="shrink-0 flex-row items-center justify-between gap-2 border-t border-border bg-muted/20 px-3.5 py-1.5 sm:justify-between sm:space-x-0">
           <Button type="button" variant="outline" size="sm" className="h-8 text-xs" disabled={saving} onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="button" size="sm" className="h-8 min-w-32 gap-1.5 text-xs" disabled={saving} onClick={handleSubmit}>
+          <Button type="button" size="sm" variant="custom" className="h-8 min-w-32 gap-1.5 text-xs" disabled={saving} onClick={handleSubmit}>
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
             {saving ? "Saving..." : isEditing ? "Save Changes" : "Add Feedback"}
           </Button>

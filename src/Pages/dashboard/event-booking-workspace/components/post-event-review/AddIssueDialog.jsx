@@ -309,7 +309,7 @@ export default function AddIssueDialog({
                   </Select>
                 </Field>
 
-                <Field label="Linked Feedback" required={feedbacks.length > 0} className="sm:col-span-2" help="Link the feedback from which this issue has been raised.">
+                <Field label="Linked Feedback" required={feedbacks.length > 0} className="sm:col-span-2" help="Link the original entry when this issue comes from client feedback.">
                   <Select value={form.linkedFeedbackId || undefined} onValueChange={(value) => update("linkedFeedbackId", value)} disabled={!feedbacks.length}>
                     <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder={feedbacks.length ? "Select the related feedback" : "No feedback available"} /></SelectTrigger>
                     <SelectContent>{feedbacks.map((item, index) => {
@@ -398,7 +398,7 @@ export default function AddIssueDialog({
 
         <DialogFooter className="shrink-0 flex-row justify-between gap-2 border-t border-border bg-muted/20 px-3.5 py-1.5 sm:justify-between sm:space-x-0">
           <Button type="button" variant="outline" size="sm" className="h-8 min-w-28 text-xs" disabled={saving} onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="button" size="sm" className="h-8 min-w-36 gap-1.5 text-xs" disabled={saving} onClick={submit}>
+          <Button type="button" size="sm" variant="custom" className="h-8 min-w-36 gap-1.5 text-xs" disabled={saving} onClick={submit}>
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
             {saving ? "Saving..." : isEditing ? "Save Changes" : "Add Issue"}
           </Button>

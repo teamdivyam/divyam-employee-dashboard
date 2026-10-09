@@ -22,6 +22,7 @@ import { Input } from '@components/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './EventTable';
 import EventGuestsNav from './EventGuestsNav';
+import EventDeleteMenu from './EventDeleteMenu';
 import { normalizeEventHospitalityRequirement } from '../eventRecordAdapters';
 
 const PAGE_SIZE = 10;
@@ -37,17 +38,34 @@ const statusTone = (status) => {
   return 'border-rose-200 bg-rose-50 text-rose-700';
 };
 
-const serviceDateLabel = (value) => {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat('en-GB', {
+const formatServiceDateTime = (dateVal, timeVal) => {
+  if (!dateVal) return null;
+  let d;
+  let timeStr = timeVal;
+  if (typeof dateVal === 'string' && dateVal.includes('T')) {
+    d = new Date(dateVal);
+    if (!timeStr && !Number.isNaN(d.getTime())) {
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      if (hh !== '00' || mm !== '00') {
+        timeStr = `${hh}:${mm}`;
+      }
+    }
+  } else {
+    const parts = String(dateVal).slice(0, 10).split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    } else {
+      d = new Date(dateVal);
+    }
+  }
+  if (!d || Number.isNaN(d.getTime())) return null;
+  const day = d.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
+  });
+  return timeStr ? `${day} at ${timeStr}` : day;
 };
 
 const coverageLabel = (item, functionMap) => {
@@ -71,6 +89,7 @@ export default function EventHospitalityPanel({
   onGuestTab,
   onAdd,
   onEdit,
+  onDelete,
 }) {
   const requirements = useMemo(
     () => sourceRequirements.map(normalizeEventHospitalityRequirement),
@@ -134,7 +153,7 @@ export default function EventHospitalityPanel({
           {statuses.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}
         </SelectContent>
       </Select>
-      <Select value={ownerFilter} onValueChange={setOwnerFilter}><SelectTrigger className="h-9 w-full text-xs lg:w-32" aria-label="Filter by owner"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Owners</SelectItem><SelectItem value="unassigned">Unassigned</SelectItem>{[...new Map(requirements.filter((item) => item.owner).map((item) => [idOf(item.owner), item.owner])).entries()].map(([id, owner]) => <SelectItem key={id} value={id}>{owner.name || 'Assigned owner'}</SelectItem>)}</SelectContent></Select>
+      <Select value={ownerFilter} onValueChange={setOwnerFilter}><SelectTrigger className="h-9 w-full text-xs lg:w-32" aria-label="Filter by owner"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Owners</SelectItem><SelectItem value="unassigned">Unassigned</SelectItem>{[...new Map(requirements.filter(item => item.owner).map(item => [idOf(item.owner), item.owner])).entries()].map(([id, owner]) => <SelectItem key={id} value={id}>{owner.name || 'Assigned owner'}</SelectItem>)}</SelectContent></Select>
     </>
   );
 
@@ -160,7 +179,7 @@ export default function EventHospitalityPanel({
                 <TableHead>Quantity</TableHead>
                 <TableHead>Location / Use</TableHead>
                 <TableHead>Service Window</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="text-center">Status</TableHead>
                 <TableHead>Owner</TableHead>
                 <TableHead className="pr-6 text-center">Action</TableHead>
               </TableRow>
@@ -169,22 +188,40 @@ export default function EventHospitalityPanel({
               {pageRows.length ? pageRows.map((item, index) => {
                 const Icon = requirementIcons[index % requirementIcons.length];
                 const imageUrl = typeof item.image === 'string' && !/[.]pdf(?:[?#]|$)/i.test(item.image) ? item.image : undefined;
-                const serviceDate = serviceDateLabel(item.serviceStartAt);
+                const fromDate = item.serviceWindowFromDate || (item.serviceStartAt ? String(item.serviceStartAt).slice(0, 10) : '');
+                const fromTime = item.serviceWindowFromTime || '';
+                const toDate = item.serviceWindowToDate || '';
+                const toTime = item.serviceWindowToTime || '';
+
+                const startLabel = formatServiceDateTime(fromDate, fromTime);
+                const endLabel = formatServiceDateTime(toDate, toTime);
                 const ownerName = item.owner?.name || 'Unassigned';
+
                 return (
                   <TableRow key={idOf(item)}>
                     <TableCell className="pl-6">
                       <div className="flex items-center gap-3">
                         {imageUrl ? (
-                          <a href={imageUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${item.requirement} image in a new tab`} className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                          <a
+                            href={imageUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={'Open ' + item.requirement + ' image in a new tab'}
+                            className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
                             <Avatar className="h-16 w-16 shrink-0 rounded-md border border-border">
                               <AvatarImage src={imageUrl} alt={item.requirement} className="object-cover" />
-                              <AvatarFallback className="rounded-md bg-muted"><Icon className="h-6 w-6 text-muted-foreground" /></AvatarFallback>
+                              <AvatarFallback className="rounded-md bg-muted">
+                                <Icon className="h-6 w-6 text-muted-foreground" />
+                              </AvatarFallback>
                             </Avatar>
                           </a>
                         ) : (
                           <Avatar className="h-16 w-16 shrink-0 rounded-md border border-border">
-                            <AvatarFallback className="rounded-md bg-muted"><Icon className="h-6 w-6 text-muted-foreground" /></AvatarFallback>
+                            <AvatarImage src={imageUrl} alt={item.requirement} className="object-cover" />
+                            <AvatarFallback className="rounded-md bg-muted">
+                              <Icon className="h-6 w-6 text-muted-foreground" />
+                            </AvatarFallback>
                           </Avatar>
                         )}
                         <div>
@@ -198,16 +235,33 @@ export default function EventHospitalityPanel({
                     <TableCell>{item.quantity ?? '-'} {item.units}</TableCell>
                     <TableCell>{item.location || '-'}</TableCell>
                     <TableCell>
-                      <div className="flex items-start gap-2">
-                        <CalendarDays className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium text-foreground">{serviceDate || item.serviceWindow || 'As per function hours'}</p>
-                          {serviceDate && item.serviceWindow ? <p className="mt-0.5 text-[10px] text-muted-foreground">{item.serviceWindow}</p> : null}
+                      {startLabel || endLabel ? (
+                        <div className="flex items-start gap-2">
+                          <CalendarDays className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <div className="space-y-0.5">
+                            {startLabel ? (
+                              <p className="font-medium text-foreground">
+                                Start: {startLabel}
+                              </p>
+                            ) : null}
+                            {endLabel ? (
+                              <p className="text-[11px] text-muted-foreground">
+                                End: {endLabel}
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
-                      </div>
+                      ) : item.serviceWindow ? (
+                        <div className="flex items-start gap-2">
+                          <CalendarDays className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <p className="font-medium text-foreground">{item.serviceWindow}</p>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">As per function hours</span>
+                      )}
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`rounded px-2 py-0.5 text-[9px] ${statusTone(item.status)}`}>
+                    <TableCell className="text-center">
+                      <Badge variant="outline" className={`inline-flex h-6 min-w-24 items-center justify-center text-center whitespace-nowrap rounded px-2 py-0.5 text-[10px] ${statusTone(item.status)}`}>
                         {item.status || 'Pending'}
                       </Badge>
                     </TableCell>
@@ -218,9 +272,12 @@ export default function EventHospitalityPanel({
                       </div>
                     </TableCell>
                     <TableCell className="pr-6 text-center">
-                      <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-3 text-blue-700" onClick={() => onEdit(item)}>
-                        <Eye className="h-4 w-4" /> View
-                      </Button>
+                      <div className="flex items-center justify-center gap-1">
+                        <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-3 text-blue-700" onClick={() => onEdit(item)}>
+                          <Eye className="h-4 w-4" /> View
+                        </Button>
+                        {onDelete ? <EventDeleteMenu label={item.requirement} onDelete={() => onDelete(item)} /> : null}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

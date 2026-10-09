@@ -1,10 +1,11 @@
 /* eslint-disable react/prop-types */
-import { CalendarDays, ChevronRight, Clock3, Eye, Hand, Heart, PartyPopper, Plus, UsersRound } from 'lucide-react';
-import { dateRangeLabel, sortFunctionsByFromDate } from '../eventFunction.utils';
+import { CalendarDays, ChevronRight, Clock3, Eye, Trash2, Hand, Heart, MoreVertical, PartyPopper, Plus, UsersRound } from 'lucide-react';
 
+import { dateRangeLabel, sortFunctionsByFromDate } from '../eventFunction.utils';
 import { Badge } from '@components/components/ui/badge';
 import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './EventTable';
 
 const icons = [PartyPopper, Hand, Heart, CalendarDays];
@@ -31,7 +32,7 @@ const statusTone = (status) => status === 'Completed'
       ? 'border-blue-200 bg-blue-50 text-blue-700'
       : 'border-green-200 bg-green-50 text-green-700';
 
-export default function EventFunctionsTable({ functions, defaultServices, onAdd, onEdit, onTimeline }) {
+export default function EventFunctionsTable({ functions, defaultServices, onAdd, onEdit, onDelete, onTimeline }) {
   return (
     <Card id="functions-overview" className="crm-card overflow-hidden">
       <div className="flex items-center justify-between border-b border-border px-6 py-3">
@@ -43,12 +44,12 @@ export default function EventFunctionsTable({ functions, defaultServices, onAdd,
           <Table headerVariant="section" className="min-w-[1050px] table-fixed text-xs">
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="w-[13%] text-center">Function</TableHead>
+                <TableHead className="w-[13%]">Function</TableHead>
                 <TableHead className="w-[16%]">Date &amp; Time</TableHead>
                 <TableHead className="w-[17%]">Venue</TableHead>
                 <TableHead className="w-[7%]">Guests</TableHead>
                 <TableHead className="w-[26%]">Linked Services</TableHead>
-                <TableHead className="w-[10%]">Status</TableHead>
+                <TableHead className="w-[10%] text-center">Status</TableHead>
                 <TableHead className="w-[11%] text-center">Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -63,12 +64,12 @@ export default function EventFunctionsTable({ functions, defaultServices, onAdd,
                     <TableCell><p className="font-medium text-foreground">{item.venue || 'Venue pending'}</p></TableCell>
                     <TableCell><span className="flex items-center gap-2 font-semibold"><UsersRound className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />{item.guestCount || 0}</span></TableCell>
                     <TableCell><div className="flex flex-wrap gap-1.5">{linkedServices.length ? linkedServices.map((service, serviceIndex) => <Badge key={service} variant="outline" className={`rounded px-2 py-0.5 text-[9px] ${serviceTones[serviceIndex % serviceTones.length]}`}>{service}</Badge>) : <span className="text-muted-foreground">No services linked</span>}</div></TableCell>
-                    <TableCell><Badge variant="outline" className={`whitespace-nowrap rounded px-2 py-0.5 text-[10px] ${statusTone(item.status)}`}>{item.status || 'Planned'}</Badge></TableCell>
-                    <TableCell className="pr-6 text-right"><div className="flex items-center justify-end"><Button variant="outline" size="sm" className="h-8 gap-1.5 px-3 text-blue-700" onClick={() => onEdit(item)}><Eye className="h-4 w-4" />View</Button></div></TableCell>
+                    <TableCell className="text-center"><Badge variant="outline" className={`inline-flex h-6 min-w-20 items-center justify-center text-center whitespace-nowrap rounded px-2 py-0.5 text-[10px] ${statusTone(item.status)}`}>{item.status || 'Planned'}</Badge></TableCell>
+                    <TableCell className="pr-6 text-right"><div className="flex items-center justify-end gap-1"><Button variant="outline" size="sm" className="h-8 gap-1.5 px-3 text-blue-700" onClick={() => onEdit(item)}><Eye className="h-4 w-4" />View</Button>{onDelete ? <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Actions for ${item.name}`}><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(item)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu> : null}</div></TableCell>
                   </TableRow>
                 );
               }) : (
-                <TableRow><TableCell colSpan={7} className="h-48 text-center"><CalendarDays className="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><p className="font-semibold text-foreground">No functions added yet</p><p className="mt-1 text-xs text-muted-foreground">Add the first function to start building the event plan.</p><Button size="sm" className="mt-4 gap-2" onClick={onAdd}><Plus className="h-4 w-4" />Add Function</Button></TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="h-48 text-center"><CalendarDays className="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><p className="font-semibold text-foreground">No functions added yet</p><p className="mt-1 text-xs text-muted-foreground">Add the first function to start building the event plan.</p><Button size="sm" className="mt-4 gap-2" variant="custom" onClick={onAdd}><Plus className="h-4 w-4" />Add Function</Button></TableCell></TableRow>
               )}
             </TableBody>
           </Table>

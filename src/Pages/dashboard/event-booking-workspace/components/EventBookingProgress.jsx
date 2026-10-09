@@ -91,18 +91,29 @@ export function KeyPending({ booking }) {
   const items = getKeyPendingItems(booking);
 
   if (!items.length) {
-    return <p className="truncate text-[10px] font-medium text-emerald-600 dark:text-emerald-400">No critical items</p>;
+    return (
+      <div className="space-y-1 text-left text-[10px]">
+        <p className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+          <CheckCircle2 className="h-3 w-3 shrink-0" />
+          <span className="truncate">All requirements confirmed</span>
+        </p>
+        <p className="text-muted-foreground">Ready for final planning</p>
+      </div>
+    );
   }
 
   return (
-    <ul className="min-w-0 space-y-1 text-[10px] text-foreground">
-      {items.map((item) => (
-        <li key={item} className="flex min-w-0 items-start gap-1.5">
-          <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />
-          <span className="line-clamp-1">{item}</span>
-        </li>
-      ))}
-    </ul>
+    <div className="min-w-0 space-y-1 text-left">
+      <ul className="min-w-0 space-y-1 text-[10px] text-foreground">
+        {items.map((item) => (
+          <li key={item} className="flex min-w-0 items-start gap-1.5">
+            <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />
+            <span className="line-clamp-1">{item}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-[9px] font-semibold text-amber-600 dark:text-amber-400">{items.length} item{items.length === 1 ? '' : 's'} pending</p>
+    </div>
   );
 }
 

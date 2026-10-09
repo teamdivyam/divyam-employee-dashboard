@@ -334,8 +334,8 @@ export default function EventBookingDashboardPage() {
     { label: 'Upcoming 30 Days', value: cards.upcoming30Days ?? cards.upcomingEvents, icon: CalendarCheck2, tone: 'green', tab: 'all', description: 'Events starting in next 30 days' },
     { label: 'Active Booking Value', value: money(totalBookingValue), icon: BadgeIndianRupee, tone: 'violet', description: `Total contract value (${activeBookings ?? '—'} bookings)` },
     { label: 'Total Received', value: money(totalReceived), icon: CreditCard, tone: 'green', tab: 'all', description: `${percentage(totalReceived)}% of booking value received`, footer: `Advance: ${money(advanceReceived)} | Other: ${money(otherReceived)}` },
-    { label: 'Outstanding Receivable', value: money(totalPending), icon: Hourglass, tone: 'amber', tab: 'all', description: `${percentage(totalPending)}% still pending` },
-    { label: 'Payment Due / Overdue', value: '—', icon: AlertTriangle, tone: 'red', description: cards.paymentAttention == null ? 'Due / overdue amount unavailable' : `${cards.paymentAttention} ${cards.paymentAttention === 1 ? 'booking needs' : 'bookings need'} attention` },
+    { label: 'Outstanding Receivable', value: money(totalPending), icon: Hourglass, tone: 'softAmber', tab: 'all', description: `${percentage(totalPending)}% still pending` },
+    { label: 'Payment Due / Overdue', value: '—', icon: AlertTriangle, tone: 'red', description: cards.paymentAttention == null ? 'Due / overdue amount unavailable' : `${cards.paymentAttention} ${cards.paymentAttention === 1 ? 'booking needs' : 'bookings need'} attention`, footer: cards.paymentAttention == null ? undefined : `${cards.paymentAttention} ${cards.paymentAttention === 1 ? 'booking' : 'bookings'}` },
   ];
   const tabs = [
     { value: 'all', label: 'All Bookings', notificationCount: counts.all },
@@ -370,11 +370,6 @@ export default function EventBookingDashboardPage() {
               <SelectItem value="active_bookings">Active Bookings</SelectItem>
             </SelectContent>
           </Select>
-          {activeTab === 'today' && (
-            <Button variant="outline" className="h-9 gap-2 px-3 text-xs">
-              <CalendarDays className="h-4 w-4" /> {todayLabel} <ChevronDown className="h-3.5 w-3.5" />
-            </Button>
-          )}
           <Button variant="outline" size="icon" className="h-9 w-9" onClick={refresh} aria-label="Refresh bookings">
             <RefreshCw className={`h-4 w-4 ${(analyticsQuery.isFetching || bookingsQuery.isFetching) ? 'animate-spin' : ''}`} />
           </Button>
