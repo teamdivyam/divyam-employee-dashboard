@@ -119,7 +119,7 @@ function ExpenseRow({ activeTab, expense, onView, onEdit }) {
           variant="outline"
           size="sm"
           className="h-6 whitespace-nowrap px-2 text-[10px] text-primary"
-          onClick={() => actionLabel === "Edit" ? onEdit(expense) : onView(expense)}
+          onClick={() => (actionLabel === "Edit" || actionLabel === "Edit & Resubmit") ? onEdit(expense) : onView(expense)}
         >
           {actionLabel}
         </Button>

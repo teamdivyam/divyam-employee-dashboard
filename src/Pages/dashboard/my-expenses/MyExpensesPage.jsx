@@ -218,6 +218,40 @@ export default function MyExpensesPage() {
     },
   });
 
+  const updateCorrectionExpenseMutation = useMutation({
+    mutationFn: (payload) => {
+      const formData = new FormData();
+      if (payload.businessPurpose) formData.append("businessPurpose", payload.businessPurpose);
+      if (payload.supportingNote) formData.append("supportingNote", payload.supportingNote);
+      if (payload.status) formData.append("status", payload.status);
+      (payload.attachments || []).forEach((file) => formData.append("attachments", file));
+      
+      return EmployeeV2Service.updateCorrectionExpense(
+        editingExpense?.expenseId || editingExpense?._id,
+        formData,
+      );
+    },
+    onSuccess: (response) => {
+      toast.success(response.data?.message || "Correction expense updated successfully");
+      setIsAddExpenseOpen(false);
+      setEditingExpense(null);
+      setExpenseForm(createEmptyExpenseForm());
+      setExpenseErrors({});
+      setExpenseFormError("");
+      queryClient.invalidateQueries({ queryKey: ["employee-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-expense-detail"] });
+    },
+    onError: (error) => {
+      const validationError = error?.response?.data?.validationError;
+      if (validationError && typeof validationError === "object") {
+        setExpenseErrors((current) => ({ ...current, ...validationError }));
+      }
+      const message = getErrorMessage(error, "Unable to update correction expense");
+      setExpenseFormError(message);
+      toast.error(message);
+    },
+  });
+
   const downloadMutation = useMutation({
     mutationFn: async () => {
       const request = (pagination) => EmployeeV2Service.getEmployeeExpenses({
@@ -298,7 +332,11 @@ export default function MyExpensesPage() {
       monthPeriod: expenseForm.expenseDate.slice(0, 7),
       ...(status ? { status } : {}),
     };
+    
+    // For Correction Required, only validate specific fields if you want, or just use editExpenseFormSchema
     const schema = editingExpense ? editExpenseFormSchema : expenseFormSchema;
+    
+    // If it's a correction expense, we might only send a partial payload, but validation can still run.
     const { error, value } = schema.validate(payload, { abortEarly: false, stripUnknown: true, convert: true });
     if (error) {
       setExpenseErrors(joiErrorMap(error));
@@ -307,8 +345,21 @@ export default function MyExpensesPage() {
     }
     setExpenseErrors({});
     setExpenseFormError("");
-    if (editingExpense) updateExpenseMutation.mutate(value);
-    else createExpenseMutation.mutate(value);
+    
+    if (editingExpense) {
+      if (editingExpense.status === "Correction Required") {
+        updateCorrectionExpenseMutation.mutate({
+          businessPurpose: value.businessPurpose,
+          supportingNote: value.supportingNote,
+          attachments: value.attachments,
+          status: status || "Pending Finance Review"
+        });
+      } else {
+        updateExpenseMutation.mutate(value);
+      }
+    } else {
+      createExpenseMutation.mutate(value);
+    }
   };
 
   const openAddExpense = () => {
@@ -320,7 +371,8 @@ export default function MyExpensesPage() {
   };
 
   const openEditExpense = (expense) => {
-    if (!String(expense?.status || "").toLowerCase().includes("draft")) return;
+    const status = String(expense?.status || "").toLowerCase();
+    if (!status.includes("draft") && !status.includes("correction required")) return;
     setEditingExpense(expense);
     setExpenseForm(createExpenseFormFromExpense(expense));
     setExpenseErrors({});
@@ -409,8 +461,11 @@ export default function MyExpensesPage() {
         onRemoveFile={(index) => updateExpenseField("attachments", expenseForm.attachments.filter((_, fileIndex) => fileIndex !== index))}
         onSubmit={submitExpense}
         mode={editingExpense ? "edit" : "add"}
+        isCorrection={editingExpense?.status === "Correction Required"}
+        adminNote={editingExpense?.adminNote}
+        financeNote={editingExpense?.financeNote}
         existingAttachments={editingExpense?.attachments || []}
-        submitting={createExpenseMutation.isPending || updateExpenseMutation.isPending}
+        submitting={createExpenseMutation.isPending || updateExpenseMutation.isPending || updateCorrectionExpenseMutation.isPending}
       />
     </div>
   );

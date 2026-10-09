@@ -119,6 +119,12 @@ const EmployeeV2Service = {
             formData,
             { headers: { "Content-Type": undefined } },
         ),
+    updateCorrectionExpense: (expenseId, formData) =>
+        employeeV2Request.patch(
+            `/expense/employee/${encodeURIComponent(expenseId)}/correction`,
+            formData,
+            { headers: { "Content-Type": undefined } },
+        ),
     getEmployeeExpenseDetail: ({ expenseId, signal } = {}) =>
         employeeV2Request.get(
             `/expense/employee/${encodeURIComponent(expenseId)}/detail`,

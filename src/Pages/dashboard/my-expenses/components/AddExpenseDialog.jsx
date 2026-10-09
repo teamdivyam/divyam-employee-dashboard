@@ -42,6 +42,9 @@ export default function AddExpenseDialog({
   onSubmit,
   submitting,
   mode = "add",
+  isCorrection = false,
+  adminNote,
+  financeNote,
   existingAttachments = [],
 }) {
   const fileInputRef = useRef(null);
@@ -139,6 +142,7 @@ export default function AddExpenseDialog({
                   value={form.expenseName}
                   onChange={(event) => onFieldChange("expenseName", event.target.value)}
                   onBlur={() => onFieldBlur("expenseName")}
+                  disabled={isCorrection}
                   placeholder="e.g. Fuel for venue transport"
                   className={formControlClass(errors.expenseName)}
                 />
@@ -147,6 +151,7 @@ export default function AddExpenseDialog({
                 <ExpenseDatePicker
                   value={form.expenseDate}
                   error={errors.expenseDate}
+                  disabled={isCorrection}
                   onChange={(value) => onFieldChange("expenseDate", value)}
                 />
               </CompactField>
@@ -157,6 +162,7 @@ export default function AddExpenseDialog({
                 placeholder="Select expense for"
                 options={EXPENSE_FOR_OPTIONS.slice(1)}
                 error={errors.expenseFor}
+                disabled={isCorrection}
                 onValueChange={(value) => {
                   onFieldChange("expenseFor", value);
                   if (value !== form.expenseFor) {
@@ -172,6 +178,7 @@ export default function AddExpenseDialog({
                     value={form.linkedTo}
                     displayName={form.linkedToName}
                     error={errors.linkedTo}
+                    disabled={isCorrection}
                     onChange={(value, item) => {
                       onFieldChange("linkedTo", value);
                       onFieldChange("linkedToName", item.name);
@@ -191,6 +198,7 @@ export default function AddExpenseDialog({
                 placeholder="Select category"
                 options={CATEGORY_OPTIONS.slice(1)}
                 error={errors.category}
+                disabled={isCorrection}
                 onValueChange={(value) => onFieldChange("category", value)}
               />
               <FormSelectField
@@ -200,6 +208,7 @@ export default function AddExpenseDialog({
                 placeholder="Select payment source"
                 options={PAYMENT_SOURCE_OPTIONS.slice(1)}
                 error={errors.paymentSource}
+                disabled={isCorrection}
                 onValueChange={(value) => onFieldChange("paymentSource", value)}
               />
               <CompactField label="Expense Amount" required error={errors.expenseAmount}>
@@ -212,6 +221,7 @@ export default function AddExpenseDialog({
                     value={form.expenseAmount}
                     onChange={(event) => onFieldChange("expenseAmount", event.target.value)}
                     onBlur={() => onFieldBlur("expenseAmount")}
+                    disabled={isCorrection}
                     placeholder="0.00"
                     className={`${formControlClass(errors.expenseAmount)} pl-6`}
                   />
@@ -222,6 +232,7 @@ export default function AddExpenseDialog({
                   value={form.paidTo}
                   onChange={(event) => onFieldChange("paidTo", event.target.value)}
                   onBlur={() => onFieldBlur("paidTo")}
+                  disabled={isCorrection}
                   placeholder="Vendor or recipient name"
                   className={formControlClass(errors.paidTo)}
                 />
@@ -380,6 +391,29 @@ export default function AddExpenseDialog({
                 </div>
               ))}
             </div>
+            {isCorrection && (adminNote || financeNote) ? (
+              <>
+                <FormSectionHeader number="4" title="Admin and Finance Note" tone="orange" icon={AlertCircle} />
+                <div className="space-y-2 rounded-b-md border border-t-0 border-border p-3">
+                  {adminNote ? (
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-medium text-foreground">Admin Note</p>
+                      <div className="rounded-md bg-muted/50 p-2 text-[11px] text-muted-foreground whitespace-pre-wrap">
+                        {adminNote}
+                      </div>
+                    </div>
+                  ) : null}
+                  {financeNote ? (
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-medium text-foreground">Finance Note</p>
+                      <div className="rounded-md bg-muted/50 p-2 text-[11px] text-muted-foreground whitespace-pre-wrap">
+                        {financeNote}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </>
+            ) : null}
           </div>
 
           <DialogFooter className="flex-row items-center justify-between gap-2 border-t border-border px-3 py-2.5 sm:justify-between sm:space-x-0">
@@ -387,15 +421,17 @@ export default function AddExpenseDialog({
               Cancel
             </Button>
             <div className="ml-auto flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-8 min-w-28 text-[11px]"
-                disabled={submitting}
-                onClick={() => onSubmit("Draft")}
-              >
-                Save as Draft
-              </Button>
+              {!isCorrection && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-8 min-w-28 text-[11px]"
+                  disabled={submitting}
+                  onClick={() => onSubmit("Draft")}
+                >
+                  Save as Draft
+                </Button>
+              )}
               <Button type="submit" className="h-8 min-w-32 gap-1.5 text-[11px]" disabled={submitDisabled}>
                 {submitting
                   ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
