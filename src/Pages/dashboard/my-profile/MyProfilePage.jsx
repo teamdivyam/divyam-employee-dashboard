@@ -101,7 +101,7 @@ const employeeDocumentTypes = [
   "Other",
 ];
 const employeeDocumentFileTypes = ["application/pdf", "image/png", "image/jpeg"];
-const maxEmployeeDocumentSize = 10 * 1024 * 1024;
+const maxEmployeeDocumentSize = 30 * 1024 * 1024;
 const profileImageTypes = ["image/png", "image/jpg", "image/jpeg", "image/heif", "image/heic"];
 const phoneNumberPattern = /^[6-9]\d{9}$/;
 const pincodePattern = /^[1-9]\d{5}$/;
@@ -404,7 +404,7 @@ const validateDocumentForm = (form) => {
   if (!form.file) {
     errors.file = "Select a document to upload.";
   } else if (form.file.size > maxEmployeeDocumentSize) {
-    errors.file = "Document must be 10 MB or smaller.";
+    errors.file = "Document must be 30 MB or smaller.";
   } else if (!employeeDocumentFileTypes.includes(form.file.type)) {
     errors.file = "Use a PDF, JPG, JPEG, or PNG file.";
   }
@@ -1804,7 +1804,7 @@ function DocumentUploadForm({
               <span className="mt-2 text-xs font-medium text-foreground">
                 Drag &amp; drop your file here, or <span className="text-primary">click to browse</span>
               </span>
-              <span className="mt-1 text-[10px] text-muted-foreground">PDF, JPG, PNG up to 10 MB</span>
+              <span className="mt-1 text-[10px] text-muted-foreground">PDF, JPG, PNG up to 30 MB</span>
             </>
           )}
         </button>
