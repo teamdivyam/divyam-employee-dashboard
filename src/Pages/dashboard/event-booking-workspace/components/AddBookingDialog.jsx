@@ -64,7 +64,7 @@ const serviceOptions = ['Catering', 'Décor', 'Hospitality', 'Wedding Planning',
 const ceremonyOptions = ['Haldi', 'Mehndi', 'Sangeet', 'Wedding', 'Reception', 'Other'];
 const allowedProposal = /\.(pdf|doc|docx)$/i;
 const allowedReference = /\.(pdf|doc|docx|png|jpe?g)$/i;
-const maxFileSize = 10 * 1024 * 1024;
+const maxFileSize = 50 * 1024 * 1024;
 
 const initialForm = {
   clientName: '',
@@ -390,7 +390,7 @@ function UploadField({ label, required, file, accept, helper, onChange, onClear 
 const validateFile = (file, pattern, label) => {
   if (!file) return null;
   if (!pattern.test(file.name)) return `${label} has an unsupported file type.`;
-  if (file.size > maxFileSize) return `${label} must be 10 MB or smaller.`;
+  if (file.size > maxFileSize) return `${label} must be 50 MB or smaller.`;
   return null;
 };
 
@@ -677,10 +677,10 @@ export default function AddBookingDialog({ open, onOpenChange, employees = [], c
                     <Field label="Total Agreed Value" required icon={IndianRupee}><Input className={iconInputClass} min="0" step="0.01" type="number" value={form.totalAgreedValue} onChange={(event) => update('totalAgreedValue', event.target.value)} placeholder="Enter total value" /></Field>
                     <Field label="Advance Received" icon={IndianRupee}><Input className={iconInputClass} min="0" step="0.01" type="number" value={form.advanceReceived} onChange={(event) => update('advanceReceived', event.target.value)} placeholder="Enter advance amount" /></Field>
                     <Field label="Pending Amount" icon={IndianRupee}><Input className={`${iconInputClass} bg-muted/50`} readOnly value={pending.toFixed(2)} /><span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[8px] text-muted-foreground">Auto-calculated</span></Field>
-                    <UploadField label="Final Approved Proposal" required={!isEditing} file={proposalFile} accept=".pdf,.doc,.docx" helper={isEditing ? 'Optional replacement: PDF, DOC, DOCX (Max 10 MB)' : 'PDF, DOC, DOCX (Max 10 MB)'} onChange={setProposalFile} onClear={() => setProposalFile(null)} />
+                    <UploadField label="Final Approved Proposal" required={!isEditing} file={proposalFile} accept=".pdf,.doc,.docx" helper={isEditing ? 'Optional replacement: PDF, DOC, DOCX (Max 50 MB)' : 'PDF, DOC, DOCX (Max 50 MB)'} onChange={setProposalFile} onClear={() => setProposalFile(null)} />
                   </>
                 ) : null}
-                <UploadField label="Client Approval / Reference Attachment" file={approvalFile} accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" helper="PDF, DOC, DOCX, JPG, PNG (Max 10 MB)" onChange={setApprovalFile} onClear={() => setApprovalFile(null)} />
+                <UploadField label="Client Approval / Reference Attachment" file={approvalFile} accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" helper="PDF, DOC, DOCX, JPG, PNG (Max 50 MB)" onChange={setApprovalFile} onClear={() => setApprovalFile(null)} />
               </div>
             </SectionCard>
 

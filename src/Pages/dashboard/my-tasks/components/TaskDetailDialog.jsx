@@ -466,8 +466,17 @@ export default function TaskDetailDialog({
 
   const notAvailable = () => toast.info("This action isn't available yet.");
 
+  const filterValidTaskFiles = (fileList) => {
+    const incomingFiles = Array.from(fileList || []);
+    const oversizedFiles = incomingFiles.filter((file) => file.size > 30 * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+      toast.error(`Each file must not exceed 30 MB: ${oversizedFiles.map((f) => f.name).join(", ")}`);
+    }
+    return incomingFiles.filter((file) => file.size <= 30 * 1024 * 1024);
+  };
+
   const addReferenceFiles = (fileList = []) => {
-    const nextFiles = Array.from(fileList);
+    const nextFiles = filterValidTaskFiles(fileList);
     const availableSlots = Math.max(0, 5 - visibleReferenceAttachments.length - editReferenceFiles.length);
     if (nextFiles.length > availableSlots) {
       toast.error("A maximum of 5 reference attachments is allowed");
@@ -478,7 +487,7 @@ export default function TaskDetailDialog({
   };
 
   const uploadReferenceFilesDirectly = (fileList = []) => {
-    const nextFiles = Array.from(fileList);
+    const nextFiles = filterValidTaskFiles(fileList);
     const availableSlots = Math.max(0, 5 - (task.referenceAttachments || []).length);
     if (nextFiles.length > availableSlots) {
       toast.error("A maximum of 5 reference attachments is allowed");
@@ -1012,7 +1021,7 @@ export default function TaskDetailDialog({
                       Save
                     </Button>
                   </div>
-                  <p className="text-[10px] text-muted-foreground">{visibleReferenceAttachments.length + editReferenceFiles.length} / 5 files</p>
+                  <p className="text-[10px] text-muted-foreground">{visibleReferenceAttachments.length + editReferenceFiles.length} / 5 files (Max 30 MB each)</p>
                 </div>
                 <p className="text-[10px] leading-none text-muted-foreground">Task Type and Assigned On are system fields and cannot be edited.</p>
               </>
@@ -1663,7 +1672,7 @@ export default function TaskDetailDialog({
                         type="file"
                         multiple
                         className="hidden"
-                        onChange={(event) => setProofFiles((files) => [...files, ...Array.from(event.target.files || [])])}
+                        onChange={(event) => setProofFiles((files) => [...files, ...filterValidTaskFiles(event.target.files)])}
                       />
                     </label>
                   </Button>
@@ -1831,7 +1840,7 @@ export default function TaskDetailDialog({
                       multiple
                       disabled={isDiscussionLocked || Boolean(editingDiscussionMessageId)}
                       className="hidden"
-                      onChange={(event) => setDiscussionFiles((files) => [...files, ...Array.from(event.target.files || [])])}
+                      onChange={(event) => setDiscussionFiles((files) => [...files, ...filterValidTaskFiles(event.target.files)])}
                     />
                   </label>
                   <Input

@@ -318,7 +318,14 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
 
   const addFiles = (clientId, fileList) => {
     const currentTask = task.tasks.find((item) => item.clientId === clientId);
-    updateTask(clientId, { attachments: [...(currentTask.attachments || []), ...Array.from(fileList)].slice(0, 5) });
+    if (!currentTask) return;
+    const incomingFiles = Array.from(fileList || []);
+    const oversizedFiles = incomingFiles.filter((file) => file.size > 30 * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+      toast.error(`Each file must not exceed 30 MB. (${oversizedFiles.map((f) => f.name).join(', ')})`);
+    }
+    const validFiles = incomingFiles.filter((file) => file.size <= 30 * 1024 * 1024);
+    updateTask(clientId, { attachments: [...(currentTask.attachments || []), ...validFiles].slice(0, 5) });
   };
 
   const handleSubmit = (event) => {
@@ -485,7 +492,7 @@ export default function AddTaskDialog({ open, onOpenChange, task, setTask, creat
                         <SectionBar index={taskIndex * 2 + 4} tone="amber" title={`Work Requirement & Attachments (Task ${taskIndex + 1})`} summary={`${item.completionRequirement} • ${item.attachments.length} file${item.attachments.length === 1 ? "" : "s"}`} />
                         <div className="grid gap-2 rounded-b-lg border border-t-0 border-amber-200 p-2.5 dark:border-amber-400/30 md:grid-cols-2">
                           <Field label="Completion Requirement" required helper="This must be satisfied before the task can be submitted."><Select value={item.completionRequirement} onValueChange={(value) => updateTask(item.clientId, { completionRequirement: value })}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{COMPLETION_REQUIREMENTS.map((requirement) => <SelectItem key={requirement} value={requirement}>{requirement}</SelectItem>)}</SelectContent></Select></Field>
-                          <Field label="Reference Attachments" helper={`${item.attachments.length} of 5 files added`}><label className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-blue-300 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 dark:hover:bg-blue-400/10"><Paperclip className="h-4 w-4" />Add Files<input type="file" multiple className="hidden" onChange={(event) => { addFiles(item.clientId, event.target.files); event.target.value = ''; }} /></label>{item.attachments.length ? <div className="mt-1.5 flex flex-wrap gap-1">{item.attachments.map((file, fileIndex) => <span key={`${file.name}-${fileIndex}`} className="inline-flex max-w-full items-center gap-1 rounded-md bg-muted px-2 py-1 text-[10px]"><FileText className="h-3 w-3 shrink-0" /><span className="max-w-40 truncate">{file.name}</span><button type="button" aria-label={`Remove ${file.name}`} onClick={() => updateTask(item.clientId, { attachments: item.attachments.filter((_, index) => index !== fileIndex) })}><X className="h-3 w-3" /></button></span>)}</div> : null}</Field>
+                          <Field label="Reference Attachments" helper={`${item.attachments.length} of 5 files added (Max 30 MB each)`}><label className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-blue-300 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 dark:hover:bg-blue-400/10"><Paperclip className="h-4 w-4" />Add Files<input type="file" multiple className="hidden" onChange={(event) => { addFiles(item.clientId, event.target.files); event.target.value = ''; }} /></label>{item.attachments.length ? <div className="mt-1.5 flex flex-wrap gap-1">{item.attachments.map((file, fileIndex) => <span key={`${file.name}-${fileIndex}`} className="inline-flex max-w-full items-center gap-1 rounded-md bg-muted px-2 py-1 text-[10px]"><FileText className="h-3 w-3 shrink-0" /><span className="max-w-40 truncate">{file.name}</span><button type="button" aria-label={`Remove ${file.name}`} onClick={() => updateTask(item.clientId, { attachments: item.attachments.filter((_, index) => index !== fileIndex) })}><X className="h-3 w-3" /></button></span>)}</div> : null}</Field>
                         </div>
                       </div>
                       {task.tasks.length > 1 ? <div className="flex justify-end"><Button type="button" variant="ghost" size="sm" className="h-8 gap-1 text-xs text-red-600" onClick={() => removeTask(item.clientId)}><Trash2 className="h-4 w-4" />Remove task</Button></div> : null}

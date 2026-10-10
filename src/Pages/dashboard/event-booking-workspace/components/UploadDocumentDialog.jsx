@@ -125,9 +125,9 @@ export default function UploadDocumentDialog({
       );
       return;
     }
-    if (selected.size > 10 * 1024 * 1024) {
+    if (selected.size > 50 * 1024 * 1024) {
       setFile(null);
-      setError("Document must not exceed 10 MB.");
+      setError("Document must not exceed 50 MB.");
       return;
     }
     setFile(selected);
@@ -414,7 +414,7 @@ export default function UploadDocumentDialog({
                   <span className="text-xs text-muted-foreground">
                     {file
                       ? fileSize(file.size)
-                      : "PDF, JPG, PNG, DOCX, XLSX (Max 10 MB, 1 file only)"}
+                      : "PDF, JPG, PNG, DOCX, XLSX (Max 50 MB, 1 file only)"}
                   </span>
                 </button>
                 {file ? (
