@@ -91,12 +91,15 @@ export default function MyExpensesPage() {
     monthPeriod,
   ]);
 
+  const employeeId = currentEmployee?._id || currentEmployee?.employeeId;
+
   const analyticsQuery = useQuery({
-    queryKey: ["employee-expense-analytics", monthPeriod],
+    queryKey: ["employee-expense-analytics", employeeId, monthPeriod],
     queryFn: async ({ signal }) => {
-      const response = await EmployeeV2Service.getEmployeeExpenseAnalytics({ monthPeriod, signal });
+      const response = await EmployeeV2Service.getEmployeeExpenseAnalytics({ employeeId, monthPeriod, signal });
       return normalizeAnalytics(response.data?.data);
     },
+    enabled: Boolean(employeeId),
   });
 
   const expensesQuery = useQuery({

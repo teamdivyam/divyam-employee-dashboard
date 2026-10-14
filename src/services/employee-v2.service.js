@@ -44,6 +44,7 @@ employeeV2Request.interceptors.response.use(
 );
 
 const EmployeeV2Service = {
+    /** ---------------------------- INVENTORY Routes ---------------------------- */
     getInventoryV2Items: (params = {}) =>
         employeeV2Request.get("/inventoryv2/items", { params }),
     listInventoryV2Allocations: (params = {}) =>
@@ -56,6 +57,8 @@ const EmployeeV2Service = {
         employeeV2Request.patch(`/inventoryv2/allocations/${encodeURIComponent(id)}`, payload),
     prepareInventoryV2AllocationIssue: (id, payload) =>
         employeeV2Request.post(`/inventoryv2/allocations/${encodeURIComponent(id)}/prepare-issue`, payload),
+
+    /** ---------------------------- AUTH Routes --------------------------------- */
     login: (formData) => employeeV2Request.post("/auth/loginAndRedirect", formData),
     refresh: () => employeeV2Request.post("/auth/refresh"),
     logout: () => employeeV2Request.post("/auth/logout"),
@@ -63,6 +66,7 @@ const EmployeeV2Service = {
     changePassword: (formData) => employeeV2Request.patch("/auth/change-password", formData),
     sessions: () => employeeV2Request.get("/auth/session"),
 
+    /** ---------------------------- EMPLOYEE / ME Routes ------------------------ */
     me: () => employeeV2Request.get("/employees/me"),
     getMyAssets: ({ status, page = 1, limit = 25 } = {}) =>
         employeeV2Request.get("/employees/me/assets", {
@@ -89,6 +93,16 @@ const EmployeeV2Service = {
     getEmployeeDetail: (employeeId) =>
         employeeV2Request.get(`/employees/${encodeURIComponent(employeeId)}`),
     editEmployee: (employeeId, formData) => employeeV2Request.patch(`/employees/${encodeURIComponent(employeeId)}`, formData),
+    getEmployeePaymentProfile: () =>
+        employeeV2Request.get(`/employees/me/payment-profile`),
+    saveEmployeePaymentProfile: (formData) =>
+        employeeV2Request.put(`/employees/me/payment-profile`, formData),
+    getMyPayrollSalary: ({ month } = {}) =>
+        employeeV2Request.get("/employees/me/payroll-salary", {
+            params: { month },
+        }),
+
+    /** ---------------------------- EXPENSE Routes ------------------------------ */
 
     getExpenseAdvances: ({ employeeId, expenseFor, eventId, clientId, signal } = {}) =>
         employeeV2Request.get("/expense/advances", {
@@ -104,11 +118,16 @@ const EmployeeV2Service = {
             params: { expenseFor, page, limit, search },
             signal,
         }),
-    getEmployeeExpenseAnalytics: ({ monthPeriod, signal } = {}) =>
-        employeeV2Request.get("/expense/employee/analytics", {
-            params: { monthPeriod },
-            signal,
-        }),
+    getEmployeeExpenseAnalytics: ({ employeeId, monthPeriod, signal } = {}) =>
+        employeeV2Request.get(
+            employeeId
+                ? `/expense/employee/analytics/${encodeURIComponent(employeeId)}`
+                : "/expense/employee/analytics",
+            {
+                params: { monthPeriod },
+                signal,
+            },
+        ),
     createEmployeeExpense: (formData) =>
         employeeV2Request.post("/expense/employee", formData, {
             headers: { "Content-Type": undefined },
@@ -157,6 +176,7 @@ const EmployeeV2Service = {
         },
     ),
 
+    /** ---------------------------- ATTENDANCE Routes --------------------------- */
     getTodayAttendance: () => employeeV2Request.get("/attendance/me/today"),
     getAttendanceSummary: ({ fromDate, toDate } = {}) =>
         employeeV2Request.get("/attendance/me/summary", {
@@ -235,6 +255,7 @@ const EmployeeV2Service = {
             notes,
         }),
 
+    /** ---------------------------- LEAVE Routes -------------------------------- */
     getApplicableLeavePolicies: ({ fiscalYear, leaveType, page = 1, limit = 100 } = {}) =>
         employeeV2Request.get("/leave/me/policies", {
             params: {
@@ -276,14 +297,7 @@ const EmployeeV2Service = {
             { headers: { "Content-Type": "application/json" } },
         ),
 
-    getEmployeePaymentProfile: () =>
-        employeeV2Request.get(`/employees/me/payment-profile`),
-    saveEmployeePaymentProfile: (formData) =>
-        employeeV2Request.put(`/employees/me/payment-profile`, formData),
-    getMyPayrollSalary: ({ month } = {}) =>
-        employeeV2Request.get("/employees/me/payroll-salary", {
-            params: { month },
-        }),
+    /** ---------------------------- PAYROLL Routes ------------------------------ */
     getEmployeePayouts: ({ period, employeeId, signal } = {}) =>
         employeeV2Request.get(
             `/payroll/employee-payouts/${encodeURIComponent(period)}/employees/${encodeURIComponent(employeeId)}`,
@@ -396,6 +410,7 @@ const EmployeeV2Service = {
     deleteAllowanceRequest: (requestId) =>
         employeeV2Request.delete(`/payroll/me/allowance-requests/${encodeURIComponent(requestId)}`),
 
+    /** ---------------------------- TASKS Routes -------------------------------- */
     getTaskAssignmentEmployees: ({ search, limit = 25 } = {}) =>
         employeeV2Request.get("/tasks/employees", {
             params: { search, limit },
@@ -444,52 +459,6 @@ const EmployeeV2Service = {
         employeeV2Request.delete(`/tasks/${encodeURIComponent(taskId)}`),
     getTaskAnalyticsV2: ({ month } = {}) =>
         employeeV2Request.get("/tasks/analytics", { params: { month } }),
-    getMyScorecard: ({ month, signal } = {}) =>
-        employeeV2Request.get("/scorecard/me", {
-            params: { month },
-            signal,
-        }),
-    addMyScorecardGoal: ({ month, text } = {}) =>
-        employeeV2Request.post("/scorecard/me/goals", { month, text }),
-    updateMyScorecardGoal: ({ goalId, text, isCompleted } = {}) =>
-        employeeV2Request.patch(
-            `/scorecard/me/goals/${encodeURIComponent(goalId)}`,
-            {
-                ...(text !== undefined ? { text } : {}),
-                ...(isCompleted !== undefined ? { isCompleted } : {}),
-            },
-        ),
-    submitScorecardFeedback: ({
-        employeeId,
-        month,
-        rating,
-        ratings,
-        comment,
-        appreciation,
-        improvementSuggestion,
-    } = {}) =>
-        employeeV2Request.post(
-            `/scorecard/employees/${encodeURIComponent(employeeId)}/reviews`,
-            {
-                month,
-                type: "Team Feedback",
-                ...(rating !== undefined ? { rating } : {}),
-                ...(ratings ? { ratings } : {}),
-                ...(comment !== undefined ? { comment } : {}),
-                appreciation,
-                improvementSuggestion,
-            },
-        ),
-    getMyTeamFeedbackDashboard: ({ month, search, status, signal } = {}) =>
-        employeeV2Request.get("/scorecard/team-feedback", {
-            params: { month, search, status },
-            signal,
-        }),
-    getMyTeamFeedbackSubmission: ({ employeeId, month, signal } = {}) =>
-        employeeV2Request.get(
-            `/scorecard/team-feedback/${encodeURIComponent(employeeId)}`,
-            { params: { month }, signal },
-        ),
     updateTaskProgress: ({ taskId, status, progressPercent, priority, note, attachments = [] } = {}) => {
         if (!attachments.length) {
             return employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/progress`, {
@@ -566,6 +535,55 @@ const EmployeeV2Service = {
     escalateTask: ({ taskId, escalationType, requestedAction, priority, reason } = {}) =>
         employeeV2Request.patch(`/tasks/${encodeURIComponent(taskId)}/escalate`, { escalationType, requestedAction, priority, reason }),
 
+    /** ---------------------------- SCORECARD Routes ---------------------------- */
+    getMyScorecard: ({ month, signal } = {}) =>
+        employeeV2Request.get("/scorecard/me", {
+            params: { month },
+            signal,
+        }),
+    addMyScorecardGoal: ({ month, text } = {}) =>
+        employeeV2Request.post("/scorecard/me/goals", { month, text }),
+    updateMyScorecardGoal: ({ goalId, text, isCompleted } = {}) =>
+        employeeV2Request.patch(
+            `/scorecard/me/goals/${encodeURIComponent(goalId)}`,
+            {
+                ...(text !== undefined ? { text } : {}),
+                ...(isCompleted !== undefined ? { isCompleted } : {}),
+            },
+        ),
+    submitScorecardFeedback: ({
+        employeeId,
+        month,
+        rating,
+        ratings,
+        comment,
+        appreciation,
+        improvementSuggestion,
+    } = {}) =>
+        employeeV2Request.post(
+            `/scorecard/employees/${encodeURIComponent(employeeId)}/reviews`,
+            {
+                month,
+                type: "Team Feedback",
+                ...(rating !== undefined ? { rating } : {}),
+                ...(ratings ? { ratings } : {}),
+                ...(comment !== undefined ? { comment } : {}),
+                appreciation,
+                improvementSuggestion,
+            },
+        ),
+    getMyTeamFeedbackDashboard: ({ month, search, status, signal } = {}) =>
+        employeeV2Request.get("/scorecard/team-feedback", {
+            params: { month, search, status },
+            signal,
+        }),
+    getMyTeamFeedbackSubmission: ({ employeeId, month, signal } = {}) =>
+        employeeV2Request.get(
+            `/scorecard/team-feedback/${encodeURIComponent(employeeId)}`,
+            { params: { month }, signal },
+        ),
+
+    /** ---------------------------- NOTIFICATIONS Routes ----------------------- */
     getMyNotifications: ({ isRead, page = 1, limit = 20, category = "all" } = {}) =>
         employeeV2Request.get("/notifications", {
             params: { isRead, page, limit, category },

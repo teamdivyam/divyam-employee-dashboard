@@ -52,17 +52,35 @@ export default function ExpenseDetailDialog({ expense, employee, loading = false
     formatMonthPeriod(expense.monthPeriod),
   );
   const attachments = Array.isArray(expense.attachments) ? expense.attachments : [];
-  const financeStatus = firstPresent(
-    financeReview.status,
-    expense.financeRecommendation,
-    expense.financeReviewStatus,
-    hasApprovedAmount(expense) ? "Reviewed" : "Awaiting Review",
-  );
-  const decisionStatus = firstPresent(
-    adminDecision.status,
-    expense.adminDecisionStatus,
-    hasApprovedAmount(expense) ? "Approved" : "Awaiting Decision",
-  );
+  const normalizedStatus = String(expense.status || "").toLowerCase();
+  const isOverallRejected = normalizedStatus.includes("reject");
+  const isOverallCorrection = normalizedStatus.includes("correction");
+
+  const financeStatus = isOverallRejected
+    ? (firstPresent(financeReview.status, expense.financeRecommendation, expense.financeReviewStatus) || "Rejected")
+    : isOverallCorrection
+    ? (firstPresent(financeReview.status, expense.financeRecommendation, expense.financeReviewStatus) || "Correction Required")
+    : firstPresent(
+        financeReview.status,
+        expense.financeRecommendation,
+        expense.financeReviewStatus,
+        hasApprovedAmount(expense) ? "Reviewed" : "Awaiting Review",
+      );
+
+  const decisionStatus = isOverallRejected
+    ? (firstPresent(adminDecision.status, expense.adminDecisionStatus) || "Rejected")
+    : isOverallCorrection
+    ? (firstPresent(adminDecision.status, expense.adminDecisionStatus) || "Correction Required")
+    : firstPresent(
+        adminDecision.status,
+        expense.adminDecisionStatus,
+        hasApprovedAmount(expense) ? "Approved" : "Awaiting Decision",
+      );
+
+  const businessPurposeText = expense.businessPurpose?.trim();
+  const supportingNoteText = expense.supportingNote?.trim();
+  const financeDecisionNoteText = firstPresent(financeReview.payrollNote, financeReview.note, expense.financeReviewNote)?.trim();
+  const adminDecisionNoteText = firstPresent(adminDecision.decisionNote, adminDecision.note, expense.adminNote, expense.adminDecisionNote)?.trim();
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
@@ -130,8 +148,12 @@ export default function ExpenseDetailDialog({ expense, employee, loading = false
               <ClaimDetailField icon={Clock3} label="Submitted On" value={formatDateTime(expense.createdAt)} />
             </div>
             <div className="space-y-2 border-t border-border p-3">
-              <ClaimDetailNote icon={FileText} label="Business Purpose" value={displayText(expense.businessPurpose)} tone="blue" />
-              <ClaimDetailNote icon={FileText} label="Supporting Note" value={displayText(expense.supportingNote)} tone="violet" />
+              {businessPurposeText ? (
+                <ClaimDetailNote icon={FileText} label="Business Purpose" value={businessPurposeText} tone="blue" />
+              ) : null}
+              {supportingNoteText ? (
+                <ClaimDetailNote icon={FileText} label="Supporting Note" value={supportingNoteText} tone="violet" />
+              ) : null}
               <div>
                 <p className="mb-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <Paperclip className="h-3 w-3 text-primary" />
@@ -152,7 +174,13 @@ export default function ExpenseDetailDialog({ expense, employee, loading = false
             </div>
           </ClaimDetailSection>
 
-          <ClaimDetailSection title="Finance Review" icon={CheckCircle2} tone="green" badge={financeStatus} badgeIcon={CheckCircle2}>
+          <ClaimDetailSection
+            title="Finance Review"
+            icon={isOverallRejected ? AlertCircle : CheckCircle2}
+            tone={isOverallRejected ? "red" : isOverallCorrection ? "orange" : "green"}
+            badge={financeStatus}
+            badgeIcon={isOverallRejected ? AlertCircle : CheckCircle2}
+          >
             <div className="grid gap-y-2 p-3 sm:grid-cols-2 lg:grid-cols-4">
               <ClaimDetailField icon={BadgeIndianRupee} label="Employee Claimed" value={formatCurrency(expense.expenseAmount)} />
               <ClaimDetailField icon={BadgeIndianRupee} label="Recommended Amount" value={formatOptionalCurrency(recommendedAmount)} />
@@ -160,35 +188,45 @@ export default function ExpenseDetailDialog({ expense, employee, loading = false
               <ClaimDetailField icon={ReceiptIndianRupee} label="Proposed Adjustment" value={adjustment} />
               <ClaimDetailField icon={CalendarDays} label="Proposed Payroll Month" value={payrollMonth} className="lg:col-span-2" />
             </div>
-            <div className="space-y-2 border-t border-border p-3">
-              <ClaimDetailNote
-                icon={FileText}
-                label="Finance Decision Note"
-                value={displayText(firstPresent(financeReview.payrollNote, financeReview.note, expense.financeReviewNote))}
-                tone="green"
-              />
-            </div>
+            {financeDecisionNoteText ? (
+              <div className="space-y-2 border-t border-border p-3">
+                <ClaimDetailNote
+                  icon={FileText}
+                  label="Finance Decision Note"
+                  value={financeDecisionNoteText}
+                  tone="green"
+                />
+              </div>
+            ) : null}
           </ClaimDetailSection>
 
-          <ClaimDetailSection title="Admin Decision" icon={ShieldCheck} tone="violet" badge={decisionStatus} badgeIcon={ShieldCheck}>
+          <ClaimDetailSection
+            title="Admin Decision"
+            icon={isOverallRejected ? AlertCircle : ShieldCheck}
+            tone={isOverallRejected ? "red" : "violet"}
+            badge={decisionStatus}
+            badgeIcon={isOverallRejected ? AlertCircle : ShieldCheck}
+          >
             <div className="grid gap-y-2 p-3 sm:grid-cols-2 lg:grid-cols-4">
               <ClaimDetailField icon={BadgeIndianRupee} label="Final Approved Amount" value={formatOptionalCurrency(finalApprovedAmount)} />
               <ClaimDetailField icon={ReceiptIndianRupee} label="Final Adjustment" value={adjustment} />
               <ClaimDetailField icon={CalendarDays} label="Payroll Month" value={payrollMonth} />
               <ClaimDetailField icon={UserRound} label="Settlement Status" value={displayText(firstPresent(adminDecision.settlementStatus, expense.settlementStatus, expense.status))} />
             </div>
-            <div className="space-y-2 border-t border-border p-3">
-              <ClaimDetailNote
-                icon={FileText}
-                label="Admin Decision Note"
-                value={displayText(firstPresent(adminDecision.decisionNote, adminDecision.note, expense.adminNote, expense.adminDecisionNote))}
-                tone="violet"
-              />
-              <div className="flex items-start gap-1.5 rounded-md border border-primary/15 bg-primary/5 px-2.5 py-2 text-[11px] leading-4 text-primary">
-                <Info className="mt-0.5 h-3 w-3 shrink-0" />
-                Only the approved amount is included in salary. Any unsupported amount is excluded.
+            {adminDecisionNoteText ? (
+              <div className="space-y-2 border-t border-border p-3">
+                <ClaimDetailNote
+                  icon={FileText}
+                  label="Admin Decision Note"
+                  value={adminDecisionNoteText}
+                  tone="violet"
+                />
+                <div className="flex items-start gap-1.5 rounded-md border border-primary/15 bg-primary/5 px-2.5 py-2 text-[11px] leading-4 text-primary">
+                  <Info className="mt-0.5 h-3 w-3 shrink-0" />
+                  Only the approved amount is included in salary. Any unsupported amount is excluded.
+                </div>
               </div>
-            </div>
+            ) : null}
           </ClaimDetailSection>
         </div>
 
@@ -227,7 +265,9 @@ function ClaimDetailSection({ title, icon: Icon, tone, badge, badgeIcon: BadgeIc
     blue: "border-primary/15 bg-primary/5 text-primary",
     green: "border-[hsl(var(--chart-2)/0.18)] bg-[hsl(var(--chart-2)/0.06)] text-[hsl(var(--chart-2))]",
     violet: "border-[hsl(var(--chart-4)/0.18)] bg-[hsl(var(--chart-4)/0.06)] text-[hsl(var(--chart-4))]",
-  }[tone];
+    orange: "border-[hsl(var(--chart-3)/0.18)] bg-[hsl(var(--chart-3)/0.06)] text-[hsl(var(--chart-3))]",
+    red: "border-destructive/20 bg-destructive/5 text-destructive",
+  }[tone] || "border-border bg-muted/20 text-foreground";
 
   return (
     <section className="overflow-hidden rounded-md border border-border bg-background">
