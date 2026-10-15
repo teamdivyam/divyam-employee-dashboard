@@ -24,9 +24,9 @@ const EventTable = forwardRef(({ className, headerVariant = 'default', ...props 
       '[&_thead_th]:tracking-[0.01em]',
       '[&_thead_th:first-child]:pl-4 [&_thead_th:last-child]:pr-4',
       '[&_tbody_td:first-child]:pl-6 [&_tbody_td:last-child]:pr-6',
-      className,
       '[&_thead_th]:text-[11px] [&_thead_th]:font-semibold [&_thead_th]:text-foreground',
       headerVariant === 'section' && '[&_thead_th:first-child]:text-center [&_thead_th:last-child]:text-center [&_thead_th:first-child]:px-4 [&_thead_th:last-child]:px-4',
+      className,
     )}
     {...props}
   />

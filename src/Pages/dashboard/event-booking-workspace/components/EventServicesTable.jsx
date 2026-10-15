@@ -3,7 +3,7 @@ import {
   CalendarDays,
   ChefHat,
   ConciergeBell,
-  Palette,
+  Image,
   Sparkles,
   ClipboardList,
   Eye,
@@ -47,12 +47,15 @@ const functionTones = [
 ];
 const functionKey = (name = '') => name.trim().toLowerCase();
 
+const serviceTone = 'bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300';
+
 const getServiceIcon = (item) => {
-  const text = `${item.category || ''} ${item.name || ''} ${item.service || ''}`.toLowerCase();
+  const rawText = `${item.category || ''} ${item.name || ''} ${item.service || ''}`.toLowerCase();
+  const text = rawText.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (text.includes('cater') || text.includes('food') || text.includes('dining')) {
     return {
       Icon: ChefHat,
-      tone: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300',
+      tone: serviceTone,
     };
   }
   if (
@@ -64,7 +67,7 @@ const getServiceIcon = (item) => {
   ) {
     return {
       Icon: ConciergeBell,
-      tone: 'bg-blue-50 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300',
+      tone: serviceTone,
     };
   }
   if (
@@ -74,13 +77,13 @@ const getServiceIcon = (item) => {
     text.includes('design')
   ) {
     return {
-      Icon: Palette,
-      tone: 'bg-rose-50 text-rose-600 dark:bg-rose-400/10 dark:text-rose-300',
+      Icon: Image,
+      tone: serviceTone,
     };
   }
   return {
     Icon: Sparkles,
-    tone: 'bg-violet-50 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300',
+    tone: serviceTone,
   };
 };
 
@@ -100,14 +103,19 @@ const serviceDateRange = (service, functions) => {
 };
 const idOf = (value) => String(value?._id || value || '');
 
-const statusTone = (status) =>
-  ['Client Confirmed', 'Confirmed'].includes(status)
-    ? 'border-0 bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300'
-    : status === 'Cancelled'
-      ? 'border-0 bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-300'
-      : ['Under Discussion', 'Draft', 'Pending'].includes(status)
-        ? 'border-0 bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300'
-        : 'border-0 bg-blue-50 text-blue-700 dark:bg-blue-400/10 dark:text-blue-300';
+const statusTone = (status) => {
+  const normalized = (status || 'Under Discussion').toLowerCase();
+  if (normalized.includes('client confirmed') || normalized === 'confirmed') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300';
+  }
+  if (normalized.includes('under discussion') || normalized === 'draft' || normalized === 'pending') {
+    return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300';
+  }
+  if (normalized.includes('cancelled')) {
+    return 'border-red-200 bg-red-50 text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300';
+  }
+  return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-300';
+};
 
 const linkedFunctionsFor = (service, functions) => {
   const ids = new Set((service.linkedFunctions || []).map(idOf));
@@ -150,16 +158,16 @@ export default function EventServicesTable({
       </div>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
-          <Table headerVariant="section" className="min-w-[1050px] text-xs">
+          <Table className="min-w-[1050px] table-fixed text-xs">
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="w-[14%] text-left">Service</TableHead>
-                <TableHead className="w-[22%]">Applies To (Functions)</TableHead>
-                <TableHead aria-sort="ascending">Date</TableHead>
-                <TableHead className="w-[27%] text-left">Final Scope / Key Deliverables</TableHead>
-                <TableHead className="w-[17%]">Service Lead</TableHead>
-                <TableHead className="w-[12%] text-center">Planning Status</TableHead>
-                <TableHead className="w-[8%] text-center">Action</TableHead>
+                <TableHead className="w-[12%] pl-6 text-left">Service</TableHead>
+                <TableHead className="w-[16%] text-left">Applies To (Functions)</TableHead>
+                <TableHead className="w-[14%] text-left">Date</TableHead>
+                <TableHead className="w-[21%] text-left">Final Scope / Key Deliverables</TableHead>
+                <TableHead className="w-[13%] text-left">Service Lead</TableHead>
+                <TableHead className="w-[11%] text-center">Planning Status</TableHead>
+                <TableHead className="w-[13%] pr-6 text-center">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -175,7 +183,7 @@ export default function EventServicesTable({
 
                   return (
                     <TableRow key={item._id || `${serviceName}-${index}`}>
-                      <TableCell>
+                      <TableCell className="pl-6">
                         <div className="flex items-center gap-3">
                           <span
                             className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${iconTone}`}
@@ -258,47 +266,53 @@ export default function EventServicesTable({
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge
-                          variant="outline"
-                          className={`inline-flex h-6 min-w-28 items-center justify-center text-center whitespace-nowrap rounded px-2 py-0.5 text-[10px] ${statusTone(item.status)}`}
-                        >
-                          {item.status || 'Under Discussion'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
+                        <div className="flex justify-center">
+                          <Badge
                             variant="outline"
-                            size="sm"
-                            className="h-8 gap-1.5 px-3 text-blue-700"
-                            onClick={() => onEdit(item)}
+                            className={`inline-flex h-6.5 w-[126px] items-center justify-center text-center whitespace-nowrap rounded-md border text-[11px] font-medium ${statusTone(item.status)}`}
                           >
-                            <Eye className="h-4 w-4" />
-                            View
-                          </Button>
-                          {onDelete ? (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  aria-label={`Actions for ${serviceName}`}
-                                >
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onSelect={() => onDelete(item)}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          ) : null}
+                            {item.status || 'Under Discussion'}
+                          </Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell className="pr-6 text-center">
+                        <div className="inline-flex items-center justify-center">
+                          <div className="relative flex items-center">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 gap-1.5 px-3 text-xs font-semibold text-blue-700 hover:text-blue-800"
+                              onClick={() => onEdit(item)}
+                            >
+                              <Eye className="h-4 w-4" />
+                              View
+                            </Button>
+                            {onDelete ? (
+                              <div className="absolute left-full ml-0.5">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-5 p-0 text-muted-foreground hover:text-foreground"
+                                      aria-label={`Actions for ${serviceName}`}
+                                    >
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive"
+                                      onSelect={() => onDelete(item)}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
                       </TableCell>
                     </TableRow>

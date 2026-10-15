@@ -70,7 +70,7 @@ const itemName = (item) => {
 
 function Field({ label, required, children, className = "" }) {
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={`space-y-1.5 ${className}`}>
       <Label className="flex min-h-4 items-center gap-1 text-[11px] font-medium text-foreground">
         {label} {required ? <span className="text-destructive">*</span> : null}
       </Label>
@@ -191,13 +191,13 @@ export default function AddLearningDialog({
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
       <DialogContent
-        className="flex max-h-[94dvh] w-[calc(100vw-20px)] max-w-[780px] flex-col gap-0 overflow-hidden rounded-md border-border bg-background p-0"
+        className="flex max-h-[96dvh] w-[calc(100vw-24px)] max-w-[900px] flex-col gap-0 overflow-hidden rounded-md border-border bg-background p-0"
       >
-        <DialogHeader className="shrink-0 border-b border-border px-4 py-2.5 pr-11 text-left">
-          <DialogTitle className="text-base font-semibold">
+        <DialogHeader className="shrink-0 border-b border-violet-200/70 bg-violet-50/80 px-4 py-3 pr-12 text-left dark:border-violet-900/70 dark:bg-violet-950/30">
+          <DialogTitle className="text-base font-semibold text-foreground">
             {isEditing ? "Edit Learning" : "Add Learning"}
           </DialogTitle>
-          <DialogDescription className="text-[11px]">
+          <DialogDescription className="text-[11px] text-muted-foreground">
             {isEditing
               ? "Update the learning or recommended practice for this event."
               : "Capture a key learning or best practice from this event."}
@@ -205,7 +205,7 @@ export default function AddLearningDialog({
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-          <div className="flex items-center gap-3 rounded-md border border-primary/15 bg-primary/[0.04] px-3 py-2.5">
+          <div className="flex items-center gap-3 rounded-md border border-blue-200/70 bg-blue-50/70 px-3 py-2.5 dark:border-blue-900/60 dark:bg-blue-950/25">
             <Avatar className="h-8 w-8 shrink-0 rounded-md">
               <AvatarFallback className="rounded-md bg-primary/10 text-xs font-semibold text-primary">
                 {initials(clientName)}
@@ -224,7 +224,7 @@ export default function AddLearningDialog({
 
           <fieldset disabled={saving} className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
             <Field label="Learning Title" required>
-              <Input className="h-8 text-[11px]" value={form.title} maxLength={200} placeholder="Enter a short title for the learning" onChange={(event) => update("title", event.target.value)} />
+              <Input className="h-9 text-xs" value={form.title} maxLength={200} placeholder="Enter a short title for the learning" onChange={(event) => update("title", event.target.value)} />
             </Field>
 
             <Field label="Type" required>
@@ -232,7 +232,7 @@ export default function AddLearningDialog({
                 {["Worked Well", "Improvement"].map((type) => {
                   const workedWell = type === "Worked Well";
                   return (
-                    <button key={type} type="button" onClick={() => update("learningType", type)} className={`flex h-8 items-center justify-center gap-1.5 rounded-md border text-[11px] font-medium transition ${workedWell ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300" : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"} ${form.learningType === type ? "ring-2 ring-primary/25" : "opacity-65 hover:opacity-100"}`}>
+                    <button key={type} type="button" aria-pressed={form.learningType === type} onClick={() => update("learningType", type)} className={`flex h-9 items-center justify-center gap-2 rounded-md border text-xs font-medium transition ${workedWell ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300" : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"} ${form.learningType === type ? "ring-2 ring-primary/25" : "opacity-65 hover:opacity-100"}`}>
                       <span className="grid h-3.5 w-3.5 place-items-center rounded-full border-2 border-current">{form.learningType === type ? <span className="h-1.5 w-1.5 rounded-full bg-current" /> : null}</span>
                       {type}
                     </button>
@@ -244,14 +244,14 @@ export default function AddLearningDialog({
             <div className="grid gap-4 sm:col-span-2 sm:grid-cols-3">
               <Field label="Related To" required>
                 <Select value={form.relatedTo} onValueChange={(value) => setForm((current) => ({ ...current, relatedTo: value, relatedItem: "" }))}>
-                  <SelectTrigger className="h-8 text-[11px]"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>{RELATED_OPTIONS.map((item) => <SelectItem key={item} value={item} className="text-[10px]">{item}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
 
               <Field label={<span className="inline-flex items-center gap-1">Related Item <Info className="h-3 w-3 text-muted-foreground" /></span>} required>
                 <Select value={form.relatedItem || undefined} onValueChange={(value) => update("relatedItem", value)}>
-                  <SelectTrigger className="h-8 text-[11px]"><SelectValue placeholder="Select item" /></SelectTrigger>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select item" /></SelectTrigger>
                   <SelectContent>{relatedItems.map((item) => <SelectItem key={item} value={item} className="text-[10px]">{item}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
@@ -259,7 +259,7 @@ export default function AddLearningDialog({
               <Field label="Function(s)" required={functionOptions.length > 0}>
                 <Popover open={functionsOpen} onOpenChange={setFunctionsOpen}>
                   <PopoverTrigger asChild>
-                    <Button ref={functionsTriggerRef} type="button" variant="outline" className="h-8 w-full justify-between px-2 text-[11px] font-normal">
+                    <Button ref={functionsTriggerRef} type="button" variant="outline" className="h-9 w-full justify-between px-3 text-xs font-normal">
                       <span className="flex min-w-0 items-center gap-1 overflow-hidden">
                         {form.functions.length ? form.functions.slice(0, 2).map((name) => <span key={name} className="inline-flex shrink-0 items-center gap-1 rounded bg-primary/10 px-1 py-0.5 text-[9px] text-primary">{name}<X className="h-2.5 w-2.5" /></span>) : <span className="text-muted-foreground">Select functions</span>}
                         {form.functions.length > 2 ? <span className="text-[10px] text-muted-foreground">+{form.functions.length - 2}</span> : null}
@@ -280,23 +280,23 @@ export default function AddLearningDialog({
 
             <Field label="Learning / Observation" required className="sm:col-span-2">
               <div className="relative">
-                <Textarea className="min-h-16 resize-none pb-5 text-[11px]" value={form.observation} maxLength={500} placeholder="What happened, and what did you learn?" onChange={(event) => update("observation", event.target.value)} />
-                <span className="absolute bottom-1.5 right-2 text-[9px] text-muted-foreground">{form.observation.length}/500</span>
+                <Textarea className="min-h-20 resize-none pb-6 text-xs" value={form.observation} maxLength={500} placeholder="What happened, and what did you learn?" onChange={(event) => update("observation", event.target.value)} />
+                <span className="absolute bottom-2 right-2.5 text-[10px] text-muted-foreground">{form.observation.length}/500</span>
               </div>
             </Field>
 
             <Field label="Recommended Practice" required className="sm:col-span-2">
               <div className="relative">
-                <Textarea className="min-h-14 resize-none pb-5 text-[11px]" value={form.recommendedPractice} maxLength={500} placeholder="What should be repeated or changed next time?" onChange={(event) => update("recommendedPractice", event.target.value)} />
-                <span className="absolute bottom-1.5 right-2 text-[9px] text-muted-foreground">{form.recommendedPractice.length}/500</span>
+                <Textarea className="min-h-20 resize-none pb-6 text-xs" value={form.recommendedPractice} maxLength={500} placeholder="What should be repeated or changed next time?" onChange={(event) => update("recommendedPractice", event.target.value)} />
+                <span className="absolute bottom-2 right-2.5 text-[10px] text-muted-foreground">{form.recommendedPractice.length}/500</span>
               </div>
             </Field>
           </fieldset>
         </div>
 
         <DialogFooter className="shrink-0 flex-row justify-between gap-2 border-t border-border bg-muted/20 px-4 py-2.5 sm:justify-between sm:space-x-0">
-          <Button type="button" variant="outline" size="sm" className="h-8 min-w-28 text-xs font-normal" disabled={saving} onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="button" size="sm" variant="custom" className="h-8 min-w-36 gap-1.5 text-xs font-medium" disabled={saving} onClick={submit}>
+          <Button type="button" variant="outline" size="sm" className="h-8 min-w-28 text-xs" disabled={saving} onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button type="button" size="sm" variant="custom" className="h-8 min-w-36 gap-1.5 text-xs" disabled={saving} onClick={submit}>
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
             {saving ? "Saving..." : isEditing ? "Save Changes" : "Add Learning"}
           </Button>

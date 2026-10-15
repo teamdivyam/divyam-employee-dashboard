@@ -10,18 +10,17 @@ import {
   ChevronRight,
   CircleAlert,
   ClipboardCheck,
+  Clock,
   FileText,
   Loader2,
   MessageSquareText,
   Plus,
   Search,
-  UserRound,
 } from "lucide-react";
 import { useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import AdminService from "../../../services/event-booking-workspace.service";
-import { Avatar, AvatarFallback } from "@components/components/ui/avatar";
 import { Badge } from "@components/components/ui/badge";
 import { Button } from "@components/components/ui/button";
 import { Card, CardContent } from "@components/components/ui/card";
@@ -50,6 +49,7 @@ import {
 import { Textarea } from "@components/components/ui/textarea";
 import EventSummaryCards from "./components/EventSummaryCards";
 import { getFinalPreferenceCount } from "./eventBookingDashboard.utils";
+
 import useDebouncedValue from "../../../hooks/useDebouncedValue";
 
 const defaultFilters = {
@@ -67,47 +67,53 @@ const activityPresentation = {
   "Internal Note": {
     icon: MessageSquareText,
     dot: "bg-pink-500",
-    surface: "bg-pink-500/10 text-pink-600 dark:text-pink-300",
+    surface: "border-pink-200 bg-pink-50 text-pink-600 dark:border-pink-900 dark:bg-pink-950/40 dark:text-pink-300",
   },
   Payment: {
     icon: Banknote,
     dot: "bg-emerald-500",
-    surface: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+    surface: "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
   },
   Invoice: {
     icon: FileText,
     dot: "bg-green-600",
-    surface: "bg-green-500/10 text-green-700 dark:text-green-300",
+    surface: "border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300",
   },
   Document: {
     icon: FileText,
     dot: "bg-blue-600",
-    surface: "bg-blue-500/10 text-blue-600 dark:text-blue-300",
+    surface: "border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300",
   },
   "Client Approval": {
     icon: ClipboardCheck,
     dot: "bg-violet-600",
-    surface: "bg-violet-500/10 text-violet-600 dark:text-violet-300",
+    surface: "border-violet-200 bg-violet-50 text-violet-600 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300",
   },
   Task: {
     icon: ClipboardCheck,
     dot: "bg-cyan-600",
-    surface: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+    surface: "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-300",
   },
   Status: {
     icon: CheckCircle2,
-    dot: "bg-blue-600",
-    surface: "bg-blue-500/10 text-blue-600 dark:text-blue-300",
+    dot: "bg-orange-500",
+    surface: "border-orange-200 bg-orange-50 text-orange-600 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-300",
+  },
+  Preference: {
+    icon: Clock,
+    dot: "bg-purple-600",
+    surface: "border-purple-200 bg-purple-50 text-purple-600 dark:border-purple-900 dark:bg-purple-950/40 dark:text-purple-300",
   },
   Other: {
     icon: CircleAlert,
-    dot: "bg-amber-500",
-    surface: "bg-amber-500/10 text-amber-600 dark:text-amber-300",
+    dot: "bg-pink-500",
+    surface: "border-pink-200 bg-pink-50 text-pink-600 dark:border-pink-900 dark:bg-pink-950/40 dark:text-pink-300",
   },
 };
 
 const moduleTones = {
   Commercial: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300",
+  Event: "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
   "Client Payments": "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
   "Cost & Settlements": "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
   "Invoices & Receipts": "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300",
@@ -116,17 +122,26 @@ const moduleTones = {
   "Tasks & Workflow": "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-300",
 };
 
-// Stable pseudo-random colors keep each activity visually distinct without
-// changing color whenever the list re-renders or the user changes pages.
+const moduleTagStyles = {
+  Commercial: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
+  Event: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  "Client Payments": "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+  "Cost & Settlements": "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+  "Invoices & Receipts": "bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300",
+  Documents: "bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300",
+  "Client Updates": "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300",
+  "Tasks & Workflow": "bg-cyan-50 text-cyan-700 dark:bg-cyan-950/40 dark:text-cyan-300",
+};
+
 const activityColorPalette = [
-  { dot: "bg-emerald-500", surface: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" },
-  { dot: "bg-violet-600", surface: "bg-violet-500/10 text-violet-600 dark:text-violet-300" },
-  { dot: "bg-blue-600", surface: "bg-blue-500/10 text-blue-600 dark:text-blue-300" },
-  { dot: "bg-orange-500", surface: "bg-orange-500/10 text-orange-600 dark:text-orange-300" },
-  { dot: "bg-pink-500", surface: "bg-pink-500/10 text-pink-600 dark:text-pink-300" },
-  { dot: "bg-cyan-600", surface: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300" },
-  { dot: "bg-purple-600", surface: "bg-purple-500/10 text-purple-600 dark:text-purple-300" },
-  { dot: "bg-teal-600", surface: "bg-teal-500/10 text-teal-700 dark:text-teal-300" },
+  { dot: "bg-emerald-500", surface: "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
+  { dot: "bg-violet-600", surface: "border-violet-200 bg-violet-50 text-violet-600 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300", badge: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300" },
+  { dot: "bg-blue-600", surface: "border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300", badge: "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300" },
+  { dot: "bg-orange-500", surface: "border-orange-200 bg-orange-50 text-orange-600 dark:border-orange-900 dark:bg-orange-950/40 dark:text-orange-300", badge: "bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300" },
+  { dot: "bg-pink-500", surface: "border-pink-200 bg-pink-50 text-pink-600 dark:border-pink-900 dark:bg-pink-950/40 dark:text-pink-300", badge: "bg-pink-100 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300" },
+  { dot: "bg-cyan-600", surface: "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-300", badge: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300" },
+  { dot: "bg-purple-600", surface: "border-purple-200 bg-purple-50 text-purple-600 dark:border-purple-900 dark:bg-purple-950/40 dark:text-purple-300", badge: "bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300" },
+  { dot: "bg-teal-600", surface: "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-300", badge: "bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300" },
 ];
 
 const activityColor = (activity) => {
@@ -153,6 +168,7 @@ const dateKey = (value) => {
       }).format(date)
     : "Unknown date";
 };
+
 const dateLabel = (value) => {
   const date = validDate(value);
   if (!date) return { date: "Unknown date", weekday: "" };
@@ -181,18 +197,49 @@ const timeLabel = (value) => {
     : "—";
 };
 
-const dateTimeLabel = (value) => {
+const splitTime = (value) => {
   const date = validDate(value);
-  return date
-    ? new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: ACTIVITY_TIME_ZONE,
-      }).format(date)
-    : "—";
+  if (!date) return { time: "—", period: "" };
+  const formatted = new Intl.DateTimeFormat("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: ACTIVITY_TIME_ZONE,
+  }).format(date);
+  const [time, period] = formatted.split(/\s+/);
+  return { time, period: (period || "").toUpperCase() };
+};
+
+const formatAuditTimestamp = (value) => {
+  const date = validDate(value);
+  if (!date) return "—";
+  const datePart = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: ACTIVITY_TIME_ZONE,
+  }).format(date);
+  const timePart = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: ACTIVITY_TIME_ZONE,
+  }).format(date);
+  return `${datePart} at ${timePart}`;
+};
+
+const parseBeforeAfter = (description) => {
+  if (!description) return null;
+  const arrowMatch = description.match(/^(?:.*?:)?\s*(.*?)\s*(?:→|->)\s*(.*?)$/);
+  if (arrowMatch && arrowMatch[1] && arrowMatch[2]) {
+    const before = arrowMatch[1].replace(/^(?:Stage|Status|State):\s*/i, "").trim();
+    return { before, after: arrowMatch[2].trim() };
+  }
+  const changedMatch = description.match(/changed from (.*?) to (.*?)(?:\.|$)/i);
+  if (changedMatch) {
+    return { before: changedMatch[1].trim(), after: changedMatch[2].trim() };
+  }
+  return null;
 };
 
 const initials = (name) =>
@@ -223,14 +270,14 @@ function InternalNoteDialog({ open, onOpenChange, saving, onSave }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Add Internal Note</DialogTitle>
-          <DialogDescription>
-            Keep an internal event update visible to the admin team.
+      <DialogContent className="flex max-h-[90vh] max-w-xl flex-col gap-0 overflow-hidden rounded-lg p-0">
+        <DialogHeader className="border-b border-purple-100/70 bg-[#f0edfd]/80 px-6 py-4 pr-12 text-left dark:border-purple-900/30 dark:bg-purple-950/20">
+          <DialogTitle className="text-lg font-bold text-foreground">Add Internal Note</DialogTitle>
+          <DialogDescription className="text-xs">
+            Keep an internal event update visible to the team.
           </DialogDescription>
         </DialogHeader>
-        <form id="event-internal-note-form" onSubmit={submit} className="space-y-4">
+        <form id="event-internal-note-form" onSubmit={submit} className="space-y-4 px-6 py-4">
           <div className="space-y-1.5">
             <Label htmlFor="internal-note-title">Title</Label>
             <Input
@@ -249,17 +296,26 @@ function InternalNoteDialog({ open, onOpenChange, saving, onSave }) {
               maxLength={2000}
               onChange={(event) => setNote(event.target.value)}
               placeholder="Write the update for your team..."
-              className="min-h-28 resize-none"
+              className="min-h-28 resize-none text-xs"
               required
             />
             <p className="text-right text-xs text-muted-foreground">{note.length}/2000</p>
           </div>
         </form>
-        <DialogFooter>
+        <DialogFooter className="flex-row justify-end gap-2 border-t border-border px-6 py-3">
           <Button type="button" variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="submit" form="event-internal-note-form" disabled={saving || !note.trim()}>
+          <Button
+            type="submit"
+            form="event-internal-note-form"
+            disabled={saving || !note.trim()}
+            className={
+              note.trim()
+                ? "bg-gradient-to-r from-purple-600 to-blue-600 font-medium text-white shadow-sm hover:from-purple-700 hover:to-blue-700"
+                : ""
+            }
+          >
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
             Add Note
           </Button>
@@ -274,7 +330,7 @@ function DateRangeFilter({ filters, onChange }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="h-9 w-full min-w-0 justify-start gap-2 px-3 font-normal">
+        <Button variant="outline" className="h-9 w-full sm:w-auto min-w-0 justify-start gap-2 px-3 text-xs font-normal">
           <CalendarDays className="h-4 w-4 text-blue-600" />
           {hasRange ? `${filters.dateFrom || "Any"} – ${filters.dateTo || "Any"}` : "Select Date Range"}
         </Button>
@@ -301,7 +357,7 @@ function DateRangeFilter({ filters, onChange }) {
           />
         </div>
         {hasRange ? (
-          <Button variant="ghost" size="sm" className="w-full" onClick={() => onChange({ dateFrom: "", dateTo: "", page: 1 })}>
+          <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => onChange({ dateFrom: "", dateTo: "", page: 1 })}>
             Clear date range
           </Button>
         ) : null}
@@ -310,76 +366,225 @@ function DateRangeFilter({ filters, onChange }) {
   );
 }
 
-function ActivityAction({ eventId, action }) {
-  const navigate = useNavigate();
-  if (!action) return null;
-  if (action.url) {
-    return (
-      <Button variant="ghost" size="sm" className="gap-1 px-2 text-blue-600" asChild>
-        <a href={action.url} target="_blank" rel="noreferrer">
-          {action.label}<ArrowRight className="h-3.5 w-3.5" />
-        </a>
-      </Button>
-    );
+const normalizeActivity = (activity) => {
+  let title = activity.title || "";
+  let description = activity.description || "";
+  let type = activity.type;
+
+  if (description.includes("->")) {
+    description = description.replace(/->/g, "→");
   }
-  const target = action.target ? `/${action.target}` : "";
+
+  if (/lifecycleAutomation/i.test(description) || /lifecycleAutomation/i.test(title)) {
+    title = "Lifecycle automation updated";
+    description = "Automation pause settings changed";
+    type = "Other";
+  } else if (/executionReadiness/i.test(description) || /executionReadiness/i.test(title)) {
+    title = "Execution readiness updated";
+    description = "Readiness settings changed";
+    type = "Other";
+  } else if (/bookingStatus/i.test(title) || /booking status/i.test(title)) {
+    title = "Booking status updated";
+    type = "Status";
+  } else if (/visualPreference/i.test(title) || /visual preference/i.test(title)) {
+    title = "Visual preference updated";
+    type = "Preference";
+  } else if (/^Updated:\s*/i.test(description)) {
+    const rawFields = description.replace(/^Updated:\s*/i, "").split(",").map((s) => s.trim());
+    const fieldLabels = {
+      guestCount: "Guest count",
+      eventType: "Event type",
+      eventName: "Event name",
+      venue: "Venue",
+      city: "City",
+      eventDate: "Event date",
+      eventEndDate: "Event end date",
+      functions: "Functions",
+      servicesSelected: "Selected services",
+      servicesRequired: "Required services",
+      assignedManager: "Event manager",
+      clientNotes: "Client notes",
+      internalNotes: "Internal notes",
+      bookingStatus: "Booking status",
+    };
+    const prettyFields = rawFields.map((f) => fieldLabels[f] || f.replace(/([A-Z])/g, " $1").toLowerCase());
+    description = `Updated: ${prettyFields.join(", ")}`;
+  }
+
+  if (/^Stage:\s*(.*)\.?$/i.test(description)) {
+    description = description.replace(/^Stage:\s*/i, "").replace(/\.$/, "").trim();
+  }
+
+  return { ...activity, title, description, type };
+};
+
+function ActivityDetailDialog({ activity, open, onOpenChange, eventId }) {
+  const navigate = useNavigate();
+  if (!activity) return null;
+  const item = normalizeActivity(activity);
+  const presentation = activityPresentation[item.type] || activityPresentation.Other;
+  const color = activityColor(item);
+  const Icon = presentation.icon;
+  const beforeAfter = parseBeforeAfter(activity.description) || parseBeforeAfter(item.description);
+
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="gap-1 px-2 text-blue-600"
-      onClick={() => navigate(`/dashboard/assigned-events/${eventId}${target}`)}
-    >
-      {action.label}<ArrowRight className="h-3.5 w-3.5" />
-    </Button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <div className="flex items-center gap-2.5">
+            <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border ${color.surface || presentation.surface}`}>
+              <Icon className="h-4 w-4" />
+            </span>
+            <div>
+              <DialogTitle className="text-base font-semibold">{item.title}</DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">{formatAuditTimestamp(item.activityDate)}</DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+        <div className="space-y-3 py-2 text-xs">
+          <div className="flex items-center justify-between rounded-md bg-muted/40 p-2.5">
+            <span className="text-muted-foreground">Recorded By:</span>
+            <span className="font-semibold text-foreground">{activity.actor?.name || "Admin"}</span>
+          </div>
+          <div className="flex items-center justify-between rounded-md bg-muted/40 p-2.5">
+            <span className="text-muted-foreground">Module:</span>
+            <Badge variant="outline" className={moduleTones[item.module] || ""}>{item.module}</Badge>
+          </div>
+          {beforeAfter ? (
+            <div className="grid grid-cols-2 gap-2 rounded-md border border-border p-3">
+              <div>
+                <span className="text-[11px] font-semibold text-muted-foreground">Before:</span>
+                <p className="mt-0.5 font-medium text-foreground">{beforeAfter.before}</p>
+              </div>
+              <div>
+                <span className="text-[11px] font-semibold text-muted-foreground">After:</span>
+                <p className="mt-0.5 font-medium text-foreground">{beforeAfter.after}</p>
+              </div>
+            </div>
+          ) : null}
+          <div className="rounded-md border border-border p-3 space-y-1.5">
+            <p className="text-[11px] font-semibold text-muted-foreground">Details / Summary:</p>
+            <p className="whitespace-pre-wrap text-foreground">{item.description || "No additional details available."}</p>
+            {activity.description && activity.description !== item.description && !beforeAfter ? (
+              <p className="text-[11px] text-muted-foreground">Original log: {activity.description}</p>
+            ) : null}
+          </div>
+        </div>
+        <DialogFooter className="flex items-center justify-between sm:justify-between">
+          {item.action?.target ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1 text-blue-600"
+              onClick={() => {
+                onOpenChange(false);
+                navigate(`/dashboard/assigned-events/${eventId}/${item.action.target.replace(/^\//, '')}`);
+              }}
+            >
+              Go to Section <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          ) : <div />}
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
-function ActivityRow({ activity, eventId }) {
-  const presentation = activityPresentation[activity.type] || activityPresentation.Other;
-  const color = activityColor(activity);
+function ActivityRow({ activity, onOpenDetail }) {
+  const item = normalizeActivity(activity);
+  const presentation = activityPresentation[item.type] || activityPresentation.Other;
+  const color = activityColor(item);
   const Icon = presentation.icon;
+  const timeInfo = splitTime(item.activityDate);
+
   return (
-    <div className="border-t border-border first:border-t-0">
-      <div className="hidden min-w-[960px] grid-cols-[70px_28px_minmax(200px,1fr)_190px_150px_165px_125px] items-center md:grid">
-        <div className="px-2.5 py-1.5 text-xs text-muted-foreground">{timeLabel(activity.activityDate)}</div>
-        <div className="relative flex h-full items-center justify-center before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border">
-          <span className={`z-10 h-2.5 w-2.5 rounded-full ring-4 ring-card ${color.dot}`} />
+    <div className="border-t border-border/50 first:border-t-0 hover:bg-slate-50/50 transition-colors">
+      <div className="hidden min-w-[960px] grid-cols-[60px_24px_minmax(220px,1fr)_120px_150px_165px_110px] items-center gap-3 px-4 py-3 md:grid">
+        {/* Time column (stacked) */}
+        <div className="w-14 shrink-0 text-center leading-tight">
+          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">{timeInfo.time}</p>
+          <p className="text-[10px] font-medium text-muted-foreground">{timeInfo.period}</p>
         </div>
-        <div className="flex min-w-0 items-center gap-2 px-2.5 py-1.5">
-          <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${color.surface}`}>
+
+        {/* Timeline dot & vertical connector */}
+        <div className="relative flex h-full items-center justify-center before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-border/60">
+          <span className={`z-10 h-2 w-2 rounded-full ring-4 ring-card ${color.dot || presentation.dot}`} />
+        </div>
+
+        {/* Icon & Title / Subtitle */}
+        <div className="flex min-w-0 items-center gap-3">
+          <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border ${color.surface || presentation.surface}`}>
             <Icon className="h-4 w-4" />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-blue-950 dark:text-blue-200">{activity.title}</p>
-            <p className="truncate text-xs text-muted-foreground" title={activity.description}>{activity.description || "—"}</p>
+            <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">{item.title}</p>
+            <p className="truncate text-xs text-muted-foreground" title={item.description}>{item.description || "—"}</p>
           </div>
         </div>
-        <div className="px-2.5 py-1.5">
-          <Badge variant="outline" className={`w-full justify-center ${moduleTones[activity.module] || "border-border bg-muted text-muted-foreground"}`}>
-            {activity.module}
-          </Badge>
+
+        {/* Module tag */}
+        <div className="flex justify-center">
+          <span className={`inline-flex h-6 w-28 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold ${moduleTagStyles[item.module] || moduleTagStyles.Event}`}>
+            {item.module}
+          </span>
         </div>
-        <div className="flex min-w-0 items-center gap-2 px-2.5 py-1.5">
-          <Avatar className="h-7 w-7"><AvatarFallback className={`text-[11px] font-semibold ${color.surface}`}>{initials(activity.actor?.name)}</AvatarFallback></Avatar>
-          <span className="truncate text-xs">{activity.actor?.name || "Admin"}</span>
+
+        {/* Actor */}
+        <div className="flex min-w-0 items-center gap-2">
+          <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold ${color.badge || "bg-pink-100 text-pink-700"}`}>
+            {initials(item.actor?.name)}
+          </span>
+          <span className="truncate text-xs font-medium text-slate-700 dark:text-slate-300" title={item.actor?.name}>
+            {item.actor?.name || "Admin"}
+          </span>
         </div>
-        <div className="px-2.5 py-1.5 text-xs text-muted-foreground">{dateTimeLabel(activity.activityDate)}</div>
-        <div className="px-2 py-1.5 text-right"><ActivityAction eventId={eventId} action={activity.action} /></div>
+
+        {/* Timestamp */}
+        <div className="text-xs text-muted-foreground whitespace-nowrap">
+          {formatAuditTimestamp(item.activityDate)}
+        </div>
+
+        {/* Action Link: View Details → */}
+        <div className="text-right">
+          <button
+            type="button"
+            onClick={() => onOpenDetail(item)}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline shrink-0"
+          >
+            View Details <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
-      <div className="flex gap-2.5 p-2.5 md:hidden">
-        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${color.surface}`}><Icon className="h-4 w-4" /></span>
+      {/* Mobile view */}
+      <div className="flex gap-2.5 p-3 md:hidden">
+        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border ${color.surface || presentation.surface}`}>
+          <Icon className="h-4 w-4" />
+        </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-semibold text-blue-950 dark:text-blue-200">{activity.title}</p>
-            <span className="shrink-0 text-[11px] text-muted-foreground">{timeLabel(activity.activityDate)}</span>
+            <p className="font-bold text-slate-900 dark:text-slate-100">{item.title}</p>
+            <span className="shrink-0 text-[11px] text-muted-foreground">{timeLabel(item.activityDate)}</span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">{activity.description || "—"}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{item.description || "—"}</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className={moduleTones[activity.module] || ""}>{activity.module}</Badge>
-            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><UserRound className="h-3 w-3" />{activity.actor?.name || "Admin"}</span>
-            <ActivityAction eventId={eventId} action={activity.action} />
+            <span className={`inline-flex h-5 items-center justify-center rounded px-2 text-[10px] font-semibold ${moduleTagStyles[item.module] || moduleTagStyles.Event}`}>
+              {item.module}
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[9px] font-bold ${color.badge || "bg-pink-100 text-pink-700"}`}>
+                {initials(item.actor?.name)}
+              </span>
+              {item.actor?.name || "Admin"}
+            </span>
+            <button
+              type="button"
+              onClick={() => onOpenDetail(item)}
+              className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+            >
+              View Details <ArrowRight className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
       </div>
@@ -387,7 +592,7 @@ function ActivityRow({ activity, eventId }) {
   );
 }
 
-function ActivityTimeline({ activities, eventId }) {
+function ActivityTimeline({ activities, onOpenDetail }) {
   const groups = useMemo(() => {
     const grouped = new Map();
     activities.forEach((activity) => {
@@ -405,18 +610,18 @@ function ActivityTimeline({ activities, eventId }) {
   }
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden border-border shadow-sm">
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           {groups.map(([key, items]) => {
             const label = dateLabel(items[0]?.activityDate);
             return (
               <section key={key}>
-                <div className="flex items-center gap-2.5 bg-muted/60 px-3 py-1.5">
-                  <span className="rounded-full bg-background px-3 py-1 text-xs font-semibold text-blue-950 shadow-sm dark:text-blue-200">{label.date}</span>
-                  <span className="text-xs text-muted-foreground">{label.weekday}</span>
+                <div className="flex items-center gap-3 bg-slate-50/90 dark:bg-muted/40 px-5 py-2.5 border-y border-border/50">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{label.date}</span>
+                  <span className="text-xs font-normal text-muted-foreground">{label.weekday}</span>
                 </div>
-                {items.map((activity) => <ActivityRow key={activity._id} activity={activity} eventId={eventId} />)}
+                {items.map((activity) => <ActivityRow key={activity._id} activity={activity} onOpenDetail={onOpenDetail} />)}
               </section>
             );
           })}
@@ -452,8 +657,10 @@ function ActivityPagination({ pagination, onChange }) {
 
 export default function EventActivityPage() {
   const { eventId } = useParams();
+
   const [filters, setFilters] = useState(defaultFilters);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [detailActivity, setDetailActivity] = useState(null);
   const debouncedSearch = useDebouncedValue(filters.search, 350);
 
   const { booking, bookingQuery } = useOutletContext();
@@ -533,25 +740,60 @@ export default function EventActivityPage() {
     <div className="min-w-0 space-y-3">
       <EventSummaryCards metrics={metrics} compactMetrics />
 
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_160px_160px_176px_176px_auto] xl:items-center">
-        <div className="relative min-w-0">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={filters.search} onChange={(event) => setFilter("search", event.target.value)} className="h-9 pl-9" placeholder="Search activity..." />
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="relative min-w-[240px] flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={filters.search}
+            onChange={(event) => setFilter("search", event.target.value)}
+            className="h-9 w-full pl-9 text-xs placeholder:text-[11px]"
+            placeholder="Search activity..."
+          />
         </div>
         <Select value={filters.type} onValueChange={(value) => setFilter("type", value)}>
-          <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="all">All Activity Types</SelectItem>{(activityQuery.data?.options?.types || []).map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+          <SelectTrigger className="h-9 w-full sm:w-[155px] shrink-0 text-xs">
+            <SelectValue placeholder="All Activity Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Activity Types</SelectItem>
+            {(activityQuery.data?.options?.types || []).map((type) => (
+              <SelectItem key={type} value={type}>{type}</SelectItem>
+            ))}
+          </SelectContent>
         </Select>
         <Select value={filters.module} onValueChange={(value) => setFilter("module", value)}>
-          <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="all">All Modules</SelectItem>{(activityQuery.data?.options?.modules || []).map((module) => <SelectItem key={module} value={module}>{module}</SelectItem>)}</SelectContent>
+          <SelectTrigger className="h-9 w-full sm:w-[130px] shrink-0 text-xs">
+            <SelectValue placeholder="All Modules" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Modules</SelectItem>
+            {(activityQuery.data?.options?.modules || []).map((module) => (
+              <SelectItem key={module} value={module}>{module}</SelectItem>
+            ))}
+          </SelectContent>
         </Select>
         <Select value={filters.teamMember} onValueChange={(value) => setFilter("teamMember", value)}>
-          <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="all">All Team Members</SelectItem>{(activityQuery.data?.options?.teamMembers || []).map((member) => <SelectItem key={member.value} value={member.value}>{member.label}</SelectItem>)}</SelectContent>
+          <SelectTrigger className="h-9 w-full sm:w-[155px] shrink-0 text-xs">
+            <SelectValue placeholder="All Team Members" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Team Members</SelectItem>
+            {(activityQuery.data?.options?.teamMembers || []).map((member) => (
+              <SelectItem key={member.value} value={member.value}>{member.label}</SelectItem>
+            ))}
+          </SelectContent>
         </Select>
-        <DateRangeFilter filters={filters} onChange={mergeFilters} />
-        <Button variant="custom" className="h-9 w-full gap-2 px-3 xl:w-auto" onClick={() => setNoteOpen(true)}><Plus className="h-4 w-4" />Add Internal Note</Button>
+        <div className="w-full sm:w-auto shrink-0">
+          <DateRangeFilter filters={filters} onChange={mergeFilters} />
+        </div>
+        <Button
+          className="h-9 w-full sm:w-auto shrink-0 gap-1.5 px-3 text-xs"
+          onClick={() => setNoteOpen(true)}
+          variant="custom"
+        >
+          <Plus className="h-4 w-4" />
+          Add Internal Note
+        </Button>
       </div>
 
       {activityQuery.isLoading && !activityQuery.data ? (
@@ -560,12 +802,13 @@ export default function EventActivityPage() {
         <Card><CardContent className="grid min-h-52 place-items-center text-center"><div><CircleAlert className="mx-auto h-8 w-8 text-destructive" /><p className="mt-3 font-semibold">Unable to load event activity</p><Button variant="outline" size="sm" className="mt-3" onClick={() => activityQuery.refetch()}>Try Again</Button></div></CardContent></Card>
       ) : (
         <>
-          <ActivityTimeline activities={activityQuery.data?.activities || []} eventId={eventId} />
+          <ActivityTimeline activities={activityQuery.data?.activities || []} onOpenDetail={setDetailActivity} />
           <ActivityPagination pagination={activityQuery.data?.pagination} onChange={mergeFilters} />
         </>
       )}
 
       <InternalNoteDialog open={noteOpen} onOpenChange={setNoteOpen} saving={noteMutation.isPending} onSave={(payload) => noteMutation.mutateAsync(payload)} />
+      <ActivityDetailDialog activity={detailActivity} open={Boolean(detailActivity)} onOpenChange={(open) => !open && setDetailActivity(null)} eventId={eventId} />
     </div>
   );
 }

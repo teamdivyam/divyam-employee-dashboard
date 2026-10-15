@@ -1115,7 +1115,7 @@ function AllocationDetailRoute({ allocationId, onBack, onPrepare, onCancelled })
           <Card className="min-w-0 overflow-hidden border-border/80 bg-card shadow-sm">
             {/* Filter / Search Bar */}
             <div className="flex flex-wrap items-center gap-2.5 border-b border-border/70 p-3">
-              <div className="min-w-[200px] flex-1">
+              <div className="w-full min-w-[280px] sm:w-80 sm:flex-none lg:w-96">
                 <Label htmlFor="allocation-item-search" className="sr-only">Search item name or item ID</Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -1135,7 +1135,7 @@ function AllocationDetailRoute({ allocationId, onBack, onPrepare, onCancelled })
                 { field: "location", label: "All Source Locations", values: [...new Set(items.map(l => l.sourceLocation).filter(Boolean))] },
               ].map(({ field, label, values }) => (
                 <Select key={field} value={filters[field]} onValueChange={(value) => setFilter(field, value)}>
-                  <SelectTrigger aria-label={label} className="h-9 w-auto min-w-[150px] flex-1 text-xs sm:flex-none">
+                  <SelectTrigger aria-label={label} className="h-9 w-full text-xs sm:w-44">
                     <SelectValue placeholder={label} />
                   </SelectTrigger>
                   <SelectContent>
@@ -2094,7 +2094,7 @@ function NoAllocationEventDetailRoute({ eventId, onBack, onCreateAllocation, onP
       <Card className="min-w-0 overflow-hidden border-border/80 bg-card shadow-sm">
         {/* Filter / Search Bar */}
         <div className="flex flex-wrap items-center gap-2.5 border-b border-border/70 p-3">
-          <div className="min-w-[200px] flex-1">
+          <div className="w-full min-w-[280px] sm:w-80 sm:flex-none lg:w-96">
             <Label htmlFor="no-alloc-search" className="sr-only">Search item name or item ID</Label>
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -2114,7 +2114,7 @@ function NoAllocationEventDetailRoute({ eventId, onBack, onCreateAllocation, onP
             { field: "location", label: "All Source Locations", values: [] },
           ].map(({ field, label, values }) => (
             <Select key={field} value={filters[field]} onValueChange={(value) => setFilter(field, value)}>
-              <SelectTrigger aria-label={label} className="h-9 w-auto min-w-[150px] flex-1 text-xs sm:flex-none">
+              <SelectTrigger aria-label={label} className="h-9 w-full text-xs sm:w-44">
                 <SelectValue placeholder={label} />
               </SelectTrigger>
               <SelectContent>

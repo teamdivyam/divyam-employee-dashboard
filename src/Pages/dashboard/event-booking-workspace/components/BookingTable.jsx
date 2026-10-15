@@ -154,22 +154,22 @@ export default function BookingTable({
 
   return (
     <div className="event-booking-table-fit w-full min-w-0 max-w-full overflow-x-auto">
-      <Table className={`w-full table-fixed text-xs ${hasPendingColumn ? 'min-w-[1320px]' : 'min-w-[1140px]'}`}>
+      <Table className="w-full max-w-full table-fixed text-[11px] [&_thead_th]:!px-2 [&_tbody_td]:!px-2 [&_thead_th:first-child]:!pl-4 [&_tbody_td:first-child]:!pl-4 [&_thead_th:last-child]:!pr-4 [&_tbody_td:last-child]:!pr-4">
         <colgroup>
-          <col className={hasPendingColumn ? 'w-[14%]' : 'w-[17%]'} />
-          <col className={hasPendingColumn ? 'w-[13%]' : 'w-[16%]'} />
-          <col className={hasPendingColumn ? 'w-[10%]' : 'w-[11%]'} />
-          <col className="w-[9%]" />
-          <col className="w-[10%]" />
-          <col className={hasPendingColumn ? 'w-[10%]' : 'w-[12%]'} />
-          {hasPendingColumn ? <col className="w-[10%]" /> : null}
-          <col className={hasPendingColumn ? 'w-[12%]' : 'w-[13%]'} />
-          <col className="w-36" />
+          <col style={{ width: hasPendingColumn ? '14.5%' : '15.5%' }} />
+          <col style={{ width: hasPendingColumn ? '12%' : '13.5%' }} />
+          <col style={{ width: hasPendingColumn ? '12%' : '13%' }} />
+          <col style={{ width: hasPendingColumn ? '8%' : '8.5%' }} />
+          <col style={{ width: hasPendingColumn ? '11%' : '12%' }} />
+          <col style={{ width: hasPendingColumn ? '11%' : '12%' }} />
+          {hasPendingColumn ? <col style={{ width: '12%' }} /> : null}
+          <col style={{ width: hasPendingColumn ? '11.5%' : '15%' }} />
+          <col style={{ width: hasPendingColumn ? '8%' : '10.5%' }} />
         </colgroup>
         <TableHeader className="bg-muted/60">
           <TableRow className="h-11 border-b border-border bg-muted/60 hover:bg-muted/60">
             {headings.map((heading) => (
-              <TableHead key={heading} scope="col" className={`${heading === 'Action' || heading === 'Booking / Client' ? 'text-center' : 'text-left'} h-11 whitespace-nowrap px-3 text-[11px] font-bold leading-none tracking-[0.01em] text-foreground first:pl-4 last:pr-4`}>{heading}</TableHead>
+              <TableHead key={heading} scope="col" className={`${heading === 'Action' || heading === 'Planning Stage' || heading === 'Payment Progress' || heading === 'Payment' ? 'text-center' : 'text-left'} h-11 whitespace-nowrap px-2 text-[11px] font-bold leading-none tracking-[0.01em] text-foreground first:pl-4 last:pr-4`}>{heading === 'Booking / Client' ? <span className="pl-[46px]">Booking / Client</span> : heading === 'Event Manager' ? <span className="pl-10">Event Manager</span> : heading === 'Readiness' ? <span className="pl-10">Readiness</span> : heading === 'Final Pending' || heading === 'Key Pending' ? <span className="pl-3">{heading}</span> : heading === 'Payment Progress' || heading === 'Payment' ? <span className="inline-block -translate-x-3.5">{heading}</span> : heading}</TableHead>
             ))}
           </TableRow>
         </TableHeader>
@@ -205,7 +205,7 @@ export default function BookingTable({
                 <BookingClientCell booking={booking} onOpen={openEventOverview} />
                 <TableCell className="min-w-0 p-2">
                   <p className="truncate font-semibold">{booking.eventType || booking.eventName || '-'}</p>
-                  <p className="mt-1 truncate text-[10px] text-muted-foreground">{booking.venue || 'Venue pending'}{booking.city ? `, ${booking.city}` : ''}</p>
+                  <p className="mt-1 line-clamp-2 text-[10px] text-muted-foreground">{booking.venue || 'Venue pending'}{booking.city ? `, ${booking.city}` : ''}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
                     <span className="inline-flex items-center gap-1"><UsersRound className="h-3 w-3 shrink-0" />{booking.guestCount || 0} Guests</span>
                     <span className="inline-flex items-center gap-1"><CalendarDays className="h-3 w-3 shrink-0" />{booking.noOfFunctions || booking.functions?.length || 0} Functions</span>
@@ -214,7 +214,7 @@ export default function BookingTable({
                 <TableCell className="min-w-0 p-2">
                   <div className="flex min-w-0 items-center gap-2">
                     <Avatar className="h-8 w-8 shrink-0"><AvatarImage src={avatarUrl(manager)} /><AvatarFallback className="bg-slate-900 text-[10px] text-white">{initials(manager?.name || 'Unassigned')}</AvatarFallback></Avatar>
-                    <div className="min-w-0"><p className="truncate font-semibold">{manager?.name || 'Unassigned'}</p><p className="truncate text-[10px] text-muted-foreground">{manager?.designation || 'Event Manager'}</p></div>
+                    <div className="min-w-0 flex-1"><p className="font-semibold leading-tight line-clamp-2 break-words">{manager?.name || 'Unassigned'}</p><p className="truncate text-[10px] text-muted-foreground">{manager?.designation || 'Event Manager'}</p></div>
                     {teamCount ? <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-full border text-[9px]">+{teamCount}</span> : null}
                   </div>
                 </TableCell>
@@ -223,7 +223,9 @@ export default function BookingTable({
                   {remainingLabel ? <p className={`mt-1 truncate text-[10px] ${booking.bookingStatus === 'Completed' ? 'text-red-500' : 'text-blue-600 dark:text-blue-400'}`}>{remainingLabel}</p> : null}
                 </TableCell>
                 <TableCell className="min-w-0 p-2">
-                  <StatusBadge status={booking.bookingStatus} />
+                  <div className="flex justify-center">
+                    <StatusBadge status={booking.bookingStatus} />
+                  </div>
                 </TableCell>
                 <TableCell className="min-w-0 p-2">
                   <Readiness
@@ -232,20 +234,26 @@ export default function BookingTable({
                     disabled={updatingReadiness}
                   />
                 </TableCell>
-                {hasPendingColumn ? <TableCell className="min-w-0 align-top p-2">{isPlanningView ? <KeyPending booking={booking} /> : <FinalPending booking={booking} />}</TableCell> : null}
-                <TableCell className="min-w-0 align-top p-2"><PaymentProgress booking={booking} /></TableCell>
+                {hasPendingColumn ? <TableCell className="min-w-0 p-2 pl-1.5">{isPlanningView ? <KeyPending booking={booking} /> : <FinalPending booking={booking} />}</TableCell> : null}
+                <TableCell className="min-w-0 p-2">
+                  <div className="flex justify-center pr-4">
+                    <div className={hasPendingColumn ? 'w-full max-w-[128px]' : 'w-[136px] max-w-full'}>
+                      <PaymentProgress booking={booking} />
+                    </div>
+                  </div>
+                </TableCell>
                 <TableCell className="min-w-0 p-2">
                   {canMarkReady ? (
-                    <div className="flex justify-end">
-                      <Button variant="outline" className="h-8 min-w-[92px] whitespace-nowrap rounded-r-none border-border bg-transparent px-2 text-[10px] font-semibold text-blue-700 hover:bg-muted/50 hover:text-blue-800 disabled:bg-transparent dark:text-blue-300 dark:hover:text-blue-200" disabled={String(markingReadyId || '') === String(booking._id)} onClick={handlePrimaryAction}>
+                    <div className="flex items-center justify-center">
+                      <Button variant="outline" className="h-7 min-w-[92px] whitespace-nowrap rounded-r-none border-border bg-transparent px-2 text-[10px] font-semibold text-blue-700 hover:bg-muted/50 hover:text-blue-800 disabled:bg-transparent dark:text-blue-300 dark:hover:text-blue-200" disabled={String(markingReadyId || '') === String(booking._id)} onClick={handlePrimaryAction}>
                         {String(markingReadyId || '') === String(booking._id) ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
                         {primaryActionLabel}
                       </Button>
                       <BookingActionsMenu booking={booking} openBooking={openBooking} openBookingEdit={openBookingEdit} openManagerAssignment={openManagerAssignment} openDocuments={openDocuments} openPayments={openPayments} onUpdateStatus={onUpdateStatus} />
                     </div>
                   ) : (
-                    <div className="flex justify-end">
-                      <Button variant="outline" className={`h-8 ${primaryActionLabel === 'View' ? 'min-w-12' : 'min-w-[92px]'} whitespace-nowrap rounded-r-none border-border bg-transparent px-2 text-[10px] font-semibold text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200`} onClick={handlePrimaryAction}>{primaryActionLabel}</Button>
+                    <div className="flex items-center justify-center">
+                      <Button variant="outline" className={`h-7 ${primaryActionLabel === 'View' ? 'min-w-11 px-2.5' : 'min-w-[92px] px-2'} whitespace-nowrap rounded-r-none border-border bg-transparent text-[10px] font-semibold text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200`} onClick={handlePrimaryAction}>{primaryActionLabel}</Button>
                     <BookingActionsMenu booking={booking} openBooking={openBooking} openBookingEdit={openBookingEdit} openManagerAssignment={openManagerAssignment} openDocuments={openDocuments} openPayments={openPayments} onUpdateStatus={onUpdateStatus} />
                     </div>
                   )}
@@ -263,9 +271,6 @@ export default function BookingTable({
 
 export function BookingClientCell({ booking, onOpen }) {
   const clientName = booking.customer?.name || booking.eventName || 'Unknown client';
-  const displayClientName = Array.from(clientName).length > 25
-    ? `${Array.from(clientName).slice(0, 25).join('')}...`
-    : clientName;
 
   return (
     <TableCell className="min-w-0 p-2">
@@ -274,8 +279,8 @@ export function BookingClientCell({ booking, onOpen }) {
           <AvatarImage src={avatarUrl(booking.customer)} />
           <AvatarFallback className="bg-violet-50 text-xs text-violet-700">{initials(clientName)}</AvatarFallback>
         </Avatar>
-        <div className="min-w-0">
-          <p title={clientName} className="truncate font-semibold hover:text-blue-600">{displayClientName}</p>
+        <div className="min-w-0 flex-1">
+          <p title={clientName} className="font-semibold leading-tight hover:text-blue-600 line-clamp-2 break-words">{clientName}</p>
           <p className="truncate text-[10px] text-muted-foreground">{customerPhone(booking)}</p>
           <Badge variant="outline" className={`mt-1 h-4 rounded px-1.5 text-[9px] ${booking.bookingStatus === 'Cancelled' ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
             {booking.bookingStatus === 'Cancelled'

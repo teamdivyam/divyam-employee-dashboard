@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import { useEffect, useMemo, useState } from "react";
-import { CheckSquare2, ClipboardList, Eye, Plus, Search } from "lucide-react";
+import { ClipboardList, Eye, Plus, Search } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@components/components/ui/avatar";
 import { Badge } from "@components/components/ui/badge";
@@ -114,18 +114,18 @@ export default function EventTasksPanel({ booking, sideContent, onCreateTask, on
                 <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search task or team member" className="h-8 rounded-md pl-9 text-xs" />
               </div>
-              <Select value={taskType} onValueChange={setTaskType}><SelectTrigger className="h-8 w-28 shrink-0 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Task Types</SelectItem>{taskTypes.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>
-              <Select value={status} onValueChange={setStatus}><SelectTrigger className="h-8 w-24 shrink-0 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Status</SelectItem>{statuses.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>
-              <Select value={priority} onValueChange={setPriority}><SelectTrigger className="h-8 w-24 shrink-0 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Priority</SelectItem>{priorities.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>
+              <Select value={taskType} onValueChange={setTaskType}><SelectTrigger className="h-8 w-auto min-w-[130px] shrink-0 px-2.5 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Task Types</SelectItem>{taskTypes.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>
+              <Select value={status} onValueChange={setStatus}><SelectTrigger className="h-8 w-auto min-w-[105px] shrink-0 px-2.5 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Status</SelectItem>{statuses.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>
+              <Select value={priority} onValueChange={setPriority}><SelectTrigger className="h-8 w-auto min-w-[115px] shrink-0 px-2.5 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Priorities</SelectItem>{priorities.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select>
               <Button variant="custom" size="sm" onClick={onCreateTask} className="h-8 shrink-0 gap-1.5 whitespace-nowrap px-3 text-xs"><Plus className="h-4 w-4" />Create Task</Button>
             </div>
           </div>
 
           <div className="grid min-w-0 gap-3 2xl:grid-cols-[minmax(0,1fr)_280px]">
             <div className="min-w-0">
-          <div className="admin-task-data-table overflow-x-auto [&_table]:min-w-[880px] [&_td]:!px-1.5 [&_td]:text-center [&_th]:!px-1 [&_th]:text-center">
+          <div className="admin-task-data-table overflow-x-auto [&_table]:min-w-[880px] [&_td]:!px-2.5 [&_td]:text-center [&_th]:!px-2.5 [&_th]:text-center">
             <Table className="table-fixed text-xs">
-              <TableHeader><TableRow className="bg-muted/30 hover:bg-muted/30"><TableHead className="w-[17%]">Task Title</TableHead><TableHead className="w-[10%]">Task Type</TableHead><TableHead className="w-[12%]">Linked To</TableHead><TableHead className="w-[14%]">Assigned To</TableHead><TableHead className="w-[12%]">Due Date</TableHead><TableHead className="w-[9%]">Priority</TableHead><TableHead className="w-[11%]">Status</TableHead><TableHead className="w-[9%]">Progress</TableHead><TableHead className="w-[11%] text-right">Action</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow className="bg-muted/30 hover:bg-muted/30"><TableHead className="w-[12%]">Task Title</TableHead><TableHead className="w-[11%]">Task Type</TableHead><TableHead className="w-[11%]">Linked To</TableHead><TableHead className="w-[11%]">Assigned To</TableHead><TableHead className="w-[11%]">Due Date</TableHead><TableHead className="w-[11%]">Priority</TableHead><TableHead className="w-[11%]">Status</TableHead><TableHead className="w-[11%]">Progress</TableHead><TableHead className="w-[11%] text-right">Action</TableHead></TableRow></TableHeader>
               <TableBody>
                 {pageRows.length ? pageRows.map((task) => {
                   const assignee = task.assignedTo?.name || task.assignedToName || "Self";
@@ -143,7 +143,7 @@ export default function EventTasksPanel({ booking, sideContent, onCreateTask, on
                       <TableCell className="text-right"><div className="flex items-center justify-end"><Button variant="outline" size="sm" onClick={() => onViewTask(task)} className="h-8 gap-1.5 border-blue-300 bg-transparent px-3 text-blue-700 hover:bg-blue-50 hover:text-blue-800"><Eye className="h-4 w-4" />View</Button></div></TableCell>
                     </TableRow>
                   );
-                }) : <TableRow><TableCell colSpan={9} className="h-36 text-center"><CheckSquare2 className="mx-auto mb-2 h-8 w-8 text-muted-foreground" /><p className="font-semibold">No tasks found</p><p className="mt-1 text-[11px] text-muted-foreground">Create a task or adjust the current filters.</p></TableCell></TableRow>}
+                }) : <TableRow><TableCell colSpan={9} className="h-36 text-center"><p className="font-semibold">{tab === "open" ? "No open tasks for this event" : "No tasks found"}</p><p className="mt-1 text-[11px] text-muted-foreground">Create a task or adjust the current filters.</p></TableCell></TableRow>}
               </TableBody>
             </Table>
           </div>

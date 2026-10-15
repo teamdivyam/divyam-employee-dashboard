@@ -295,7 +295,7 @@ function CityPicker({ value, onChange, onCreateCity, options, placeholder, open 
             value={search}
             onValueChange={setSearch}
             placeholder="Search or add city..."
-            className="h-8 text-[11px]"
+            className="h-8 text-[11px] placeholder:text-xs"
           />
           <CommandList className="max-h-52">
             {filteredOptions.length ? (

@@ -44,7 +44,7 @@ export function EventBookingDashboardFilters({ activeTab, cities, employees, eve
 
   return (
     <FilterDropdownContext.Provider value={{ openFilter, setOpenFilter }}>
-          <div className={`mb-3 grid min-w-0 gap-2 sm:grid-cols-2 ${activeTab === 'today' ? 'xl:grid-cols-[minmax(260px,1.6fr)_180px_200px_150px_180px]' : activeTab === 'closed' ? 'xl:grid-cols-[minmax(260px,1.5fr)_130px_180px_160px_210px]' : 'xl:grid-cols-[minmax(220px,1.5fr)_140px_160px_140px_160px]'}`}>
+          <div className={`mb-3 grid min-w-0 gap-2 sm:grid-cols-2 ${activeTab === 'today' ? 'xl:grid-cols-[minmax(260px,1.6fr)_180px_200px_150px_180px]' : activeTab === 'closed' ? 'xl:grid-cols-[minmax(260px,1.5fr)_180px_180px_130px_210px]' : 'xl:grid-cols-[minmax(220px,1.5fr)_140px_160px_140px_160px]'}`}>
             <div className="relative min-w-0 sm:col-span-2 xl:col-span-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input className="h-9 pl-9 text-xs" placeholder="Search client name or booking ID..." value={filters.search} onChange={(event) => setFilter('search', event.target.value)} />
@@ -58,9 +58,9 @@ export function EventBookingDashboardFilters({ activeTab, cities, employees, eve
               </>
             ) : activeTab === 'closed' ? (
               <>
-                <FilterSelect value={filters.status} onChange={(value) => setFilter('status', value)} placeholder="Status" options={HOLD_STATUS_OPTIONS} />
                 <FilterSelect value={filters.managerId} onChange={(value) => setFilter('managerId', value)} placeholder="All Event Managers" options={managerOptions} />
                 <FilterSelect value={filters.eventType} onChange={(value) => setFilter('eventType', value)} placeholder="All Event Types" options={eventTypes} />
+                <FilterSelect value={filters.status} onChange={(value) => setFilter('status', value)} placeholder="Status" options={HOLD_STATUS_OPTIONS} />
                 <FilterSelect value={filters.settlementStatus} onChange={(value) => setFilter('settlementStatus', value)} placeholder="Payment / Settlement Status" options={SETTLEMENT_STATUS_OPTIONS} />
               </>
             ) : activeTab === 'today' ? (
@@ -86,8 +86,8 @@ export function EventBookingDashboardFilters({ activeTab, cities, employees, eve
               </>
             ) : (
               <>
-                <FilterSelect value={filters.eventType} onChange={(value) => setFilter('eventType', value)} placeholder="All Event Types" options={eventTypes} />
                 <FilterSelect value={filters.managerId} onChange={(value) => setFilter('managerId', value)} placeholder="All Event Managers" options={managerOptions} />
+                <FilterSelect value={filters.eventType} onChange={(value) => setFilter('eventType', value)} placeholder="All Event Types" options={eventTypes} />
                 <FilterSelect value={filters.city} onChange={(value) => setFilter('city', value)} placeholder="All Cities" options={cities} />
                 <FilterSelect value={filters.status} onChange={(value) => setFilter('status', value)} placeholder="Planning Stage" options={bookingStatuses} />
               </>

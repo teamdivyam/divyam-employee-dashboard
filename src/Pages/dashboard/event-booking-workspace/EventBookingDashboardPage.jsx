@@ -354,7 +354,7 @@ export default function EventBookingDashboardPage() {
     day: '2-digit', month: 'short', year: 'numeric',
   }).format(now)}`;
   return (
-    <div className={`crm-page w-full min-w-0 max-w-full p-3 sm:p-4 lg:p-5 ${styles.listPage}`}>
+    <div className={`crm-page w-full min-w-0 max-w-full p-3 sm:p-4 lg:p-5 [&_input[placeholder^='Search']::placeholder]:text-xs [&_input[placeholder^='Search']:focus-visible]:border-primary [&_input[type='search']::placeholder]:text-xs [&_input[type='search']:focus-visible]:border-primary ${styles.listPage}`}>
       <header className="mb-2 flex shrink-0 justify-end bg-background">
         <div className="flex flex-wrap items-center gap-2">
           <Select value={summaryPeriod} onValueChange={(value) => {

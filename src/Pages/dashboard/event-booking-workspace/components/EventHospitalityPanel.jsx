@@ -65,7 +65,7 @@ const formatServiceDateTime = (dateVal, timeVal) => {
     month: 'short',
     year: 'numeric',
   });
-  return timeStr ? `${day} at ${timeStr}` : day;
+  return timeStr && timeStr !== '00:00' ? `${day} at ${timeStr}` : day;
 };
 
 const coverageLabel = (item, functionMap) => {
@@ -171,17 +171,19 @@ export default function EventHospitalityPanel({
 
         <div className="overflow-x-auto">
           <Table className="min-w-[1050px] text-xs">
-            <TableHeader>
+            <TableHeader className="[&_th]:!text-xs [&_th]:!font-semibold [&_th]:!text-foreground">
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="pl-6 text-center">Requirement</TableHead>
-                <TableHead>Applies To</TableHead>
-                <TableHead>Guest Segment</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Location / Use</TableHead>
-                <TableHead>Service Window</TableHead>
+                <TableHead className="!pl-[100px] text-left">Requirement</TableHead>
+                <TableHead className="text-left">Applies To</TableHead>
+                <TableHead className="text-left">Guest Segment</TableHead>
+                <TableHead className="text-left">Quantity</TableHead>
+                <TableHead className="text-left">Location / Use</TableHead>
+                <TableHead className="!pl-[34px] text-left">Service Window</TableHead>
                 <TableHead className="text-center">Status</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead className="pr-6 text-center">Action</TableHead>
+                <TableHead className="!pl-12 text-left">Owner</TableHead>
+                <TableHead className="w-[136px] !pr-4 text-center">
+                  <span className="relative -left-2.5 inline-block">Action</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -236,25 +238,25 @@ export default function EventHospitalityPanel({
                     <TableCell>{item.location || '-'}</TableCell>
                     <TableCell>
                       {startLabel || endLabel ? (
-                        <div className="flex items-start gap-2">
-                          <CalendarDays className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <CalendarDays className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <div className="space-y-0.5 text-xs font-normal text-foreground">
                             {startLabel ? (
-                              <p className="font-medium text-foreground">
+                              <p>
                                 Start: {startLabel}
                               </p>
                             ) : null}
                             {endLabel ? (
-                              <p className="text-[11px] text-muted-foreground">
+                              <p>
                                 End: {endLabel}
                               </p>
                             ) : null}
                           </div>
                         </div>
                       ) : item.serviceWindow ? (
-                        <div className="flex items-start gap-2">
-                          <CalendarDays className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          <p className="font-medium text-foreground">{item.serviceWindow}</p>
+                        <div className="flex items-center gap-2">
+                          <CalendarDays className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <p className="text-foreground">{item.serviceWindow}</p>
                         </div>
                       ) : (
                         <span className="text-muted-foreground">As per function hours</span>
@@ -267,16 +269,22 @@ export default function EventHospitalityPanel({
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span className="grid h-7 w-7 place-items-center rounded-full bg-violet-50 text-[10px] font-bold text-violet-700">{ownerInitials(ownerName)}</span>
+                        <Avatar className="h-7 w-7 shrink-0"><AvatarImage src={item.owner?.profileImage?.smallUrl} alt={ownerName} className="object-cover" /><AvatarFallback className="bg-violet-50 text-[10px] font-semibold text-violet-700 dark:bg-violet-400/15 dark:text-violet-300">{ownerInitials(ownerName)}</AvatarFallback></Avatar>
                         <span className="font-medium text-foreground">{ownerName}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="pr-6 text-center">
-                      <div className="flex items-center justify-center gap-1">
+                    <TableCell className="w-[136px] !pr-4 text-center">
+                      <div className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
                         <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-3 text-blue-700" onClick={() => onEdit(item)}>
                           <Eye className="h-4 w-4" /> View
                         </Button>
-                        {onDelete ? <EventDeleteMenu label={item.requirement} onDelete={() => onDelete(item)} /> : null}
+                        {onDelete ? (
+                          <EventDeleteMenu
+                            label={item.requirement}
+                            onDelete={() => onDelete(item)}
+                            className="h-8 w-7 px-0 text-muted-foreground hover:text-foreground"
+                          />
+                        ) : null}
                       </div>
                     </TableCell>
                   </TableRow>

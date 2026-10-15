@@ -24,13 +24,25 @@ const timeLabel = (start, end) => {
   return end ? `${format(start)} – ${format(end)}` : `${format(start)} onwards`;
 };
 
-const statusTone = (status) => status === 'Completed'
-  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  : status === 'Cancelled'
-    ? 'border-red-200 bg-red-50 text-red-700'
-    : status === 'In Progress'
-      ? 'border-blue-200 bg-blue-50 text-blue-700'
-      : 'border-green-200 bg-green-50 text-green-700';
+const statusTone = (status) => {
+  const normalized = (status || 'Planned').toLowerCase();
+  if (normalized === 'planned') {
+    return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300';
+  }
+  if (normalized === 'confirmed') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300';
+  }
+  if (normalized === 'completed') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300';
+  }
+  if (normalized === 'cancelled') {
+    return 'border-red-200 bg-red-50 text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300';
+  }
+  if (normalized === 'in progress') {
+    return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-300';
+  }
+  return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300';
+};
 
 export default function EventFunctionsTable({ functions, defaultServices, onAdd, onEdit, onDelete, onTimeline }) {
   return (
@@ -41,16 +53,16 @@ export default function EventFunctionsTable({ functions, defaultServices, onAdd,
       </div>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
-          <Table headerVariant="section" className="min-w-[1050px] table-fixed text-xs">
+          <Table className="min-w-[1050px] table-fixed text-xs">
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="w-[13%]">Function</TableHead>
-                <TableHead className="w-[16%]">Date &amp; Time</TableHead>
-                <TableHead className="w-[17%]">Venue</TableHead>
-                <TableHead className="w-[7%]">Guests</TableHead>
-                <TableHead className="w-[26%]">Linked Services</TableHead>
+                <TableHead className="w-[15%] pl-6">Function</TableHead>
+                <TableHead className="w-[17%]">Date &amp; Time</TableHead>
+                <TableHead className="w-[15%]">Venue</TableHead>
+                <TableHead className="w-[8%]">Guests</TableHead>
+                <TableHead className="w-[25%]">Linked Services</TableHead>
                 <TableHead className="w-[10%] text-center">Status</TableHead>
-                <TableHead className="w-[11%] text-center">Action</TableHead>
+                <TableHead className="w-[10%] text-center">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -64,8 +76,38 @@ export default function EventFunctionsTable({ functions, defaultServices, onAdd,
                     <TableCell><p className="font-medium text-foreground">{item.venue || 'Venue pending'}</p></TableCell>
                     <TableCell><span className="flex items-center gap-2 font-semibold"><UsersRound className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />{item.guestCount || 0}</span></TableCell>
                     <TableCell><div className="flex flex-wrap gap-1.5">{linkedServices.length ? linkedServices.map((service, serviceIndex) => <Badge key={service} variant="outline" className={`rounded px-2 py-0.5 text-[9px] ${serviceTones[serviceIndex % serviceTones.length]}`}>{service}</Badge>) : <span className="text-muted-foreground">No services linked</span>}</div></TableCell>
-                    <TableCell className="text-center"><Badge variant="outline" className={`inline-flex h-6 min-w-20 items-center justify-center text-center whitespace-nowrap rounded px-2 py-0.5 text-[10px] ${statusTone(item.status)}`}>{item.status || 'Planned'}</Badge></TableCell>
-                    <TableCell className="pr-6 text-right"><div className="flex items-center justify-end gap-1"><Button variant="outline" size="sm" className="h-8 gap-1.5 px-3 text-blue-700" onClick={() => onEdit(item)}><Eye className="h-4 w-4" />View</Button>{onDelete ? <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Actions for ${item.name}`}><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(item)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu> : null}</div></TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex justify-center">
+                        <Badge variant="outline" className={`inline-flex h-6.5 w-[88px] items-center justify-center text-center whitespace-nowrap rounded-md border text-[11px] font-medium ${statusTone(item.status)}`}>
+                          {item.status || 'Planned'}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="inline-flex items-center justify-center">
+                        <div className="relative flex items-center">
+                          <Button variant="outline" size="sm" className="h-8 gap-1.5 px-3 text-xs font-semibold text-blue-700 hover:text-blue-800" onClick={() => onEdit(item)}>
+                            <Eye className="h-4 w-4" />View
+                          </Button>
+                          {onDelete ? (
+                            <div className="absolute left-full ml-0.5">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-5 p-0 text-muted-foreground hover:text-foreground" aria-label={`Actions for ${item.name}`}>
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(item)}>
+                                    <Trash2 className="mr-2 h-4 w-4" />Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 );
               }) : (

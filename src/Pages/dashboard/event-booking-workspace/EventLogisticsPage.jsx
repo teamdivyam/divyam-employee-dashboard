@@ -54,8 +54,26 @@ function LogisticsMovementDialog({ open, onOpenChange, movement, functions, empl
     } : emptyForm);
   }, [open, movement]);
   const setValue = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const isReturnBeforeDispatch = Boolean(
+    form.dispatchAt &&
+    form.returnAt &&
+    new Date(form.returnAt).getTime() < new Date(form.dispatchAt).getTime()
+  );
+
+  const isValid = Boolean(
+    form.title.trim() &&
+    form.origin.trim() &&
+    form.destination.trim() &&
+    form.dispatchAt &&
+    !isReturnBeforeDispatch
+  );
+
   const submit = (event) => {
     event.preventDefault();
+    if (isReturnBeforeDispatch) {
+      toast.error('Return date & time cannot be earlier than dispatch date & time');
+      return;
+    }
     const eventFunction = functions.find((item) => idOf(item) === form.functionId);
     const coordinator = employees.find((item) => idOf(item) === form.coordinator);
     const materials = form.materials.split(',').map((item) => item.trim()).filter(Boolean);
@@ -67,62 +85,163 @@ function LogisticsMovementDialog({ open, onOpenChange, movement, functions, empl
     });
   };
 
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{movement ? 'Update' : 'Add'} Logistics Movement</DialogTitle></DialogHeader>
-    <form id="event-logistics-form" onSubmit={submit} className="grid gap-4 py-2 sm:grid-cols-2">
-      <div className="space-y-1.5"><Label>Movement / Trip</Label><Input value={form.title} onChange={(event) => setValue('title', event.target.value)} placeholder="Stage Setup Dispatch" required /></div>
-      <div className="space-y-1.5"><Label>Applies to</Label><Select value={form.functionId} onValueChange={(value) => setValue('functionId', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Functions</SelectItem>{functions.map((item) => <SelectItem key={idOf(item)} value={idOf(item)}>{item.name}</SelectItem>)}</SelectContent></Select></div>
-      <div className="space-y-1.5"><Label>Origin</Label><Input value={form.origin} onChange={(event) => setValue('origin', event.target.value)} placeholder="Warehouse" required /></div>
-      <div className="space-y-1.5"><Label>Destination</Label><Input value={form.destination} onChange={(event) => setValue('destination', event.target.value)} placeholder="Main Venue" required /></div>
-      <div className="space-y-1.5 sm:col-span-2"><Label>Material summary</Label><Input value={form.materials} onChange={(event) => setValue('materials', event.target.value)} placeholder="Stage panels, truss, ladders" /></div>
-      <div className="space-y-1.5"><Label>Vehicle</Label><Input value={form.vehicleName} onChange={(event) => setValue('vehicleName', event.target.value)} placeholder="Eicher Pickup" /></div>
-      <div className="space-y-1.5"><Label>Registration number</Label><Input value={form.vehicleRegistrationNumber} onChange={(event) => setValue('vehicleRegistrationNumber', event.target.value)} placeholder="UP70 CD5678" /></div>
-      <div className="space-y-1.5"><Label>Driver</Label><Input value={form.driverName} onChange={(event) => setValue('driverName', event.target.value)} /></div>
-      <div className="space-y-1.5"><Label>Driver contact</Label><Input value={form.driverContact} onChange={(event) => setValue('driverContact', event.target.value)} /></div>
-      <div className="space-y-1.5"><Label>Dispatch date & time</Label><Input type="datetime-local" value={form.dispatchAt} onChange={(event) => setValue('dispatchAt', event.target.value)} required /></div>
-      <div className="space-y-1.5"><Label>Return date & time</Label><Input type="datetime-local" value={form.returnAt} onChange={(event) => setValue('returnAt', event.target.value)} /></div>
-      <div className="space-y-1.5"><Label>Coordinator</Label><Select value={form.coordinator} onValueChange={(value) => setValue('coordinator', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">Not assigned</SelectItem>{employees.map((item) => <SelectItem key={idOf(item)} value={idOf(item)}>{item.name}</SelectItem>)}</SelectContent></Select></div>
-      <div className="space-y-1.5"><Label>Status</Label><Select value={form.status} onValueChange={(value) => setValue('status', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{statuses.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
-      <div className="space-y-1.5 sm:col-span-2"><Label>Notes</Label><Input value={form.notes} onChange={(event) => setValue('notes', event.target.value)} /></div>
-    </form><DialogFooter><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" variant="custom" form="event-logistics-form" disabled={saving || !form.title.trim() || !form.origin.trim() || !form.destination.trim() || !form.dispatchAt}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{movement ? 'Save Changes' : 'Add Movement'}</Button></DialogFooter>
-  </DialogContent></Dialog>;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col gap-0 overflow-hidden rounded-lg p-0">
+        <DialogHeader className="border-b border-purple-100/70 bg-[#f0edfd]/80 px-6 py-4 pr-12 text-left dark:border-purple-900/30 dark:bg-purple-950/20">
+          <DialogTitle className="text-lg font-bold text-foreground">
+            {movement ? 'Update' : 'Add'} Logistics Movement
+          </DialogTitle>
+        </DialogHeader>
+
+        <form id="event-logistics-form" onSubmit={submit} className="min-h-0 overflow-y-auto px-6 py-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Movement / Trip</Label>
+              <Input value={form.title} onChange={(event) => setValue('title', event.target.value)} placeholder="Stage Setup Dispatch" required className="h-9 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Applies to</Label>
+              <Select value={form.functionId} onValueChange={(value) => setValue('functionId', value)}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="All Functions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Functions</SelectItem>
+                  {functions.map((item) => <SelectItem key={idOf(item)} value={idOf(item)}>{item.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Origin</Label>
+              <Input value={form.origin} onChange={(event) => setValue('origin', event.target.value)} placeholder="Warehouse" required className="h-9 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Destination</Label>
+              <Input value={form.destination} onChange={(event) => setValue('destination', event.target.value)} placeholder="Main Venue" required className="h-9 text-xs" />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs font-semibold">Material summary</Label>
+              <Input value={form.materials} onChange={(event) => setValue('materials', event.target.value)} placeholder="Stage panels, truss, ladders" className="h-9 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Vehicle</Label>
+              <Input value={form.vehicleName} onChange={(event) => setValue('vehicleName', event.target.value)} placeholder="Eicher Pickup" className="h-9 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Registration number</Label>
+              <Input value={form.vehicleRegistrationNumber} onChange={(event) => setValue('vehicleRegistrationNumber', event.target.value)} placeholder="UP70 CD5678" className="h-9 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Driver</Label>
+              <Input value={form.driverName} onChange={(event) => setValue('driverName', event.target.value)} className="h-9 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Driver contact</Label>
+              <Input value={form.driverContact} onChange={(event) => setValue('driverContact', event.target.value)} className="h-9 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Dispatch date & time</Label>
+              <Input type="datetime-local" value={form.dispatchAt} onChange={(event) => setValue('dispatchAt', event.target.value)} required className="h-9 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Return date & time</Label>
+              <Input type="datetime-local" value={form.returnAt} onChange={(event) => setValue('returnAt', event.target.value)} className="h-9 text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Coordinator</Label>
+              <Select value={form.coordinator} onValueChange={(value) => setValue('coordinator', value)}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Not assigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Not assigned</SelectItem>
+                  {employees.map((item) => <SelectItem key={idOf(item)} value={idOf(item)}>{item.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Status</Label>
+              <Select value={form.status} onValueChange={(value) => setValue('status', value)}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {statuses.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs font-semibold">Notes</Label>
+              <Input value={form.notes} onChange={(event) => setValue('notes', event.target.value)} className="h-9 text-xs" />
+            </div>
+            {isReturnBeforeDispatch && (
+              <p role="alert" className="text-xs text-destructive sm:col-span-2">
+                Return date & time cannot be earlier than dispatch date & time.
+              </p>
+            )}
+          </div>
+        </form>
+
+        <DialogFooter className="flex-row justify-end gap-2 border-t border-border px-6 py-3">
+          <Button type="button" variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="event-logistics-form"
+            disabled={saving || !isValid}
+            className={
+              isValid
+                ? "bg-gradient-to-r from-purple-600 to-blue-600 font-medium text-white shadow-sm hover:from-purple-700 hover:to-blue-700"
+                : ""
+            }
+          >
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {movement ? 'Save Changes' : 'Add Movement'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function LogisticsPanel({ data, functions, onAdd, onView }) {
   const movements = useMemo(() => data?.logistics || [], [data]);
   const [search, setSearch] = useState('');
   const [functionFilter, setFunctionFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('');
   const [status, setStatus] = useState('all');
   const [page, setPage] = useState(1);
   const filtered = useMemo(() => movements.filter((item) => {
     const query = search.trim().toLowerCase();
     const ids = (item.appliesToFunctions || []).map(idOf);
-    const sameDate = !dateFilter || (item.dispatchAt && new Date(item.dispatchAt).toISOString().slice(0, 10) === dateFilter);
     return (!query || [item.title, item.origin, item.destination, item.materialSummary, item.vehicleName, item.vehicleRegistrationNumber, item.driverName].some((value) => String(value || '').toLowerCase().includes(query)))
-      && (functionFilter === 'all' || ids.includes(functionFilter)) && (status === 'all' || item.status === status) && sameDate;
-  }), [movements, search, functionFilter, status, dateFilter]);
+      && (functionFilter === 'all' || ids.includes(functionFilter)) && (status === 'all' || item.status === status);
+  }), [movements, search, functionFilter, status]);
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const rows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useEffect(() => setPage(1), [search, functionFilter, status, dateFilter]);
+  useEffect(() => setPage(1), [search, functionFilter, status]);
 
   return <div className="space-y-3">
-    <div className="flex w-full min-w-0 flex-col gap-2 pb-0.5 2xl:flex-row 2xl:items-center">
-      <EventOperationsNav active="logistics" />
+    <div className="flex w-full min-w-0 items-center justify-between gap-2 overflow-x-auto py-1">
+      <div className="shrink-0">
+        <EventOperationsNav active="logistics" />
+      </div>
 
-      <div className="grid min-w-0 flex-1 grid-cols-2 gap-1.5 sm:grid-cols-[minmax(104px,1fr)_88px_108px_76px_auto] 2xl:w-[33rem] 2xl:flex-none">
-        <div className="relative min-w-0">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 mt-0.5 text-muted-foreground" />
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search movement..."
-            className="h-8 w-full pl-8 text-[11px]"
+            className="h-9 w-full pl-9 text-xs placeholder:text-[11px]"
           />
         </div>
 
         <Select value={functionFilter} onValueChange={setFunctionFilter}>
-          <SelectTrigger className="h-8 w-full text-[11px]">
-            <SelectValue />
+          <SelectTrigger className="h-9 w-24 shrink-0 px-2 text-xs">
+            <SelectValue>{functionFilter === 'all' ? 'Function' : functions.find((item) => idOf(item) === functionFilter)?.name || 'Function'}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Function</SelectItem>
@@ -130,16 +249,9 @@ function LogisticsPanel({ data, functions, onAdd, onView }) {
           </SelectContent>
         </Select>
 
-        <Input
-          type="date"
-          value={dateFilter}
-          onChange={(event) => setDateFilter(event.target.value)}
-          className="h-8 w-full px-2 text-[11px]"
-        />
-
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="h-8 w-full text-[11px]">
-            <SelectValue />
+          <SelectTrigger className="h-9 w-20 shrink-0 px-2 text-xs">
+            <SelectValue>{status === 'all' ? 'Status' : status}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Status</SelectItem>
@@ -151,9 +263,9 @@ function LogisticsPanel({ data, functions, onAdd, onView }) {
           size="sm"
           onClick={onAdd}
           variant="custom"
-          className="col-span-2 h-8 w-full gap-1 whitespace-nowrap px-2.5 text-[11px] sm:col-span-1"
+          className="h-9 shrink-0 gap-1 whitespace-nowrap px-2.5 text-xs"
         >
-          <Plus className="h-3.5 w-3.5" />
+          <Plus className="h-4 w-4" />
           Add Movement
         </Button>
       </div>

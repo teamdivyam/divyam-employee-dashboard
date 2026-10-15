@@ -89,9 +89,9 @@ export default function EventHospitalityDialog({ open, onOpenChange, item, funct
   const owners = currentOwner?._id && !employees.some(employee => idOf(employee) === idOf(currentOwner)) ? [currentOwner, ...employees] : employees;
   return <Dialog open={open} onOpenChange={value => !saving && onOpenChange(value)}>
     <DialogContent className="flex max-h-[94dvh] w-[calc(100vw-1.5rem)] max-w-6xl flex-col gap-0 overflow-hidden p-0">
-      <DialogHeader className="shrink-0 border-b border-border px-6 py-4 pr-12 text-left">
-        <DialogTitle className="text-xl font-semibold sm:text-2xl">{item?._id ? 'Edit' : 'Add'} Hospitality Requirement</DialogTitle>
-        <DialogDescription>Add a requirement for guest hospitality and related services.</DialogDescription>
+      <DialogHeader className="shrink-0 bg-[#f0edfd]/80 px-6 py-4 pr-12 text-left border-b border-purple-100/70 dark:bg-purple-950/20 dark:border-purple-900/30">
+        <DialogTitle className="text-xl font-bold text-foreground">{item?._id ? 'Edit' : 'Add'} Hospitality Requirement</DialogTitle>
+        <DialogDescription className="text-xs text-muted-foreground">Add a requirement for guest hospitality and related services.</DialogDescription>
       </DialogHeader>
       <form id="event-hospitality-form" onSubmit={submit} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
         <fieldset disabled={saving} className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)]">
@@ -138,7 +138,7 @@ export default function EventHospitalityDialog({ open, onOpenChange, item, funct
                 {(file || form.image) && <Button type="button" variant="outline" size="icon" aria-label="Remove reference" className="absolute right-2 top-2 h-8 w-8 text-destructive" onClick={() => { setFile(null); update('image', ''); }}><Trash2 className="h-4 w-4" /></Button>}
               </div>
               <input ref={inputRef} type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" className="hidden" aria-label="Upload reference image" onChange={event => { chooseFile(event.target.files?.[0]); event.target.value = ''; }} />
-              <Button type="button" variant="secondary" className="w-full gap-2" onClick={() => inputRef.current?.click()}><Upload className="h-4 w-4" />{file || form.image ? 'Change File' : 'Upload file'}</Button>
+              <Button type="button" variant="secondary" className="w-full gap-2" onClick={() => inputRef.current?.click()}><Upload className="h-4 w-4" />Upload file</Button>
               {file && <p className="break-all text-xs text-muted-foreground">{file.name}</p>}
               <p className="text-xs leading-5 text-muted-foreground">Accepted formats: JPG, PNG, PDF<br />Max file size: 5 MB</p>
             </div>
@@ -152,7 +152,15 @@ export default function EventHospitalityDialog({ open, onOpenChange, item, funct
       </form>
       <DialogFooter className="shrink-0 flex-row flex-wrap justify-between gap-2 border-t border-border px-5 py-3 sm:justify-between">
         <Button type="button" variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>Cancel</Button>
-        <div className="flex gap-2"><Button type="submit" form="event-hospitality-form" variant="custom" disabled={saving} onClick={() => { submitAction.current = 'save'; }}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{item?._id ? 'Save Changes' : 'Add Requirement'}</Button></div>
+        <Button
+          type="submit"
+          form="event-hospitality-form"
+          disabled={saving}
+          className="bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-sm hover:from-purple-700 hover:to-blue-700 font-medium"
+        >
+          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {item?._id ? 'Save Changes' : 'Add Requirement'}
+        </Button>
       </DialogFooter>
     </DialogContent>
   </Dialog>;

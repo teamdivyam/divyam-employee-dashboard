@@ -27,7 +27,7 @@ export default function EventOperationsNav({ active }) {
   };
 
   return (
-    <nav className="flex min-w-0 gap-0.5 overflow-x-auto pb-0.5" aria-label="Event operations sections">
+    <nav className="flex shrink-0 min-w-0 gap-0.5 overflow-x-auto pb-0.5" aria-label="Event operations sections">
       {operationTabs.map(({ key, label, icon: Icon, tone }) => (
         <button
           key={key}

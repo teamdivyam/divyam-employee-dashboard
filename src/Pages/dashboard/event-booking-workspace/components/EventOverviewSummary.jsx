@@ -87,8 +87,8 @@ export default function EventOverviewSummary({
     <EventSummarySlot>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         {cards.map(({ label, value, caption, icon: Icon, tone }) => (
-          <Card key={label} className={`crm-card ${metricCardTones[tone]}`}>
-            <CardContent className="flex h-24 items-center gap-3 p-4">
+          <Card key={label} className={`crm-card h-full ${metricCardTones[tone]}`}>
+            <CardContent className="flex h-[104px] items-center gap-3 p-3.5">
               {label === "Event Manager" ? (
                 <Avatar className="h-11 w-11 shrink-0">
                   <AvatarImage
@@ -107,59 +107,73 @@ export default function EventOverviewSummary({
                   <Icon aria-hidden="true" className="h-5 w-5" />
                 </span>
               )}
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">{label}</p>
-                <p className="mt-1 truncate text-sm font-semibold text-foreground">
-                  {value}
-                </p>
-                {caption && (
-                  <p className="mt-1 truncate text-[10px] text-muted-foreground">
-                    {caption}
+              <div className="flex min-w-0 flex-1 flex-col justify-center">
+                <p className="text-[10px] font-medium leading-none text-muted-foreground">{label}</p>
+                <div className="mt-1.5 flex h-9 items-start">
+                  <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground" title={String(value)}>
+                    {value}
                   </p>
-                )}
+                </div>
+                <div className="mt-1 flex h-4 items-center">
+                  {caption ? (
+                    <p className="truncate text-[10px] leading-none text-muted-foreground">
+                      {caption}
+                    </p>
+                  ) : (
+                    <span className="text-[10px] leading-none opacity-0 select-none">-</span>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
         ))}
-        <Card className={`crm-card ${metricCardTones.violet}`}>
-          <CardContent className="flex h-24 items-center gap-3 p-4">
+        <Card className={`crm-card h-full ${metricCardTones.violet}`}>
+          <CardContent className="flex h-[104px] items-center gap-3 p-3.5">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-violet-100 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300">
               <ListChecks className="h-5 w-5" />
             </span>
-            <div>
-              <p className="text-[10px] text-muted-foreground">Open Tasks</p>
-              <p className="mt-1 text-sm font-semibold text-foreground">
-                {summary.openTasks}
-              </p>
-              <button
-                type="button"
-                onClick={onViewTasks}
-                className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-blue-600"
-              >
-                View Tasks
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
+            <div className="flex min-w-0 flex-1 flex-col justify-center">
+              <p className="text-[10px] font-medium leading-none text-muted-foreground">Open Tasks</p>
+              <div className="mt-1.5 flex h-9 items-start">
+                <p className="text-sm font-semibold leading-snug text-foreground">
+                  {summary.openTasks}
+                </p>
+              </div>
+              <div className="mt-1 flex h-4 items-center">
+                <button
+                  type="button"
+                  onClick={onViewTasks}
+                  className="inline-flex items-center gap-1 text-[10px] font-semibold leading-none text-blue-600 hover:text-blue-700 hover:underline"
+                >
+                  View Tasks
+                  <ChevronRight className="h-3 w-3 shrink-0" />
+                </button>
+              </div>
             </div>
           </CardContent>
         </Card>
-        <Card className={`crm-card ${metricCardTones.amber}`}>
-          <CardContent className="flex h-24 items-center gap-3 p-4">
+        <Card className={`crm-card h-full ${metricCardTones.amber}`}>
+          <CardContent className="flex h-[104px] items-center gap-3 p-3.5">
             <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${metricTones.amber}`}>
               <MessageSquareText className="h-5 w-5" />
             </span>
-            <div className="min-w-0">
-              <p className="text-[10px] text-muted-foreground">Feedback</p>
-              <p className="mt-1 truncate text-sm font-semibold text-foreground">
-                {feedbacks.length} Received
-              </p>
-              <button
-                type="button"
-                onClick={onViewFeedback}
-                className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-primary"
-              >
-                {averageRating ? `${averageRating.toFixed(1)}/5 Average` : "View Feedback"}
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
+            <div className="flex min-w-0 flex-1 flex-col justify-center">
+              <p className="text-[10px] font-medium leading-none text-muted-foreground">Feedback</p>
+              <div className="mt-1.5 flex h-9 items-start">
+                <p className="truncate text-sm font-semibold leading-snug text-foreground">
+                  {feedbacks.length} Received
+                </p>
+              </div>
+              <div className="mt-1 flex h-4 items-center">
+                <button
+                  type="button"
+                  onClick={onViewFeedback}
+                  className="inline-flex items-center gap-1 text-[10px] font-semibold leading-none text-primary hover:text-primary/80 hover:underline"
+                >
+                  {averageRating ? `${averageRating.toFixed(1)}/5 Average` : "View Feedback"}
+                  <ChevronRight className="h-3 w-3 shrink-0" />
+                </button>
+              </div>
             </div>
           </CardContent>
         </Card>

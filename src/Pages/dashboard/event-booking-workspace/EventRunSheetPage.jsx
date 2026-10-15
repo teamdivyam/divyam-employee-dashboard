@@ -100,6 +100,7 @@ function RunSheetItemDialog({ open, onOpenChange, item, defaultItemType, functio
   }, [defaultItemType, item, open]);
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const isValid = Boolean(form.activity?.trim() && form.scheduledAt);
   const submit = (event) => {
     event.preventDefault();
     const eventFunction = functions.find((entry) => idOf(entry) === form.functionId);
@@ -124,29 +125,187 @@ function RunSheetItemDialog({ open, onOpenChange, item, defaultItemType, functio
     });
   };
 
-  return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-      <DialogHeader><DialogTitle>{item ? 'Update' : 'Add'} {form.itemType} Item</DialogTitle></DialogHeader>
-      <form id="event-run-sheet-form" onSubmit={submit} className="grid gap-4 py-2 sm:grid-cols-2">
-        <div className="space-y-1.5"><Label>Item type</Label><Select value={form.itemType} onValueChange={(value) => setForm((current) => ({ ...current, itemType: value, status: value === 'Checklist' ? 'Pending' : 'Not Started' }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Run Sheet">Run Sheet</SelectItem><SelectItem value="Checklist">Checklist</SelectItem></SelectContent></Select></div>
-        <div className="space-y-1.5"><Label>Function</Label><Select value={form.functionId} onValueChange={(value) => update('functionId', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">General / All Functions</SelectItem>{functions.map((entry) => <SelectItem key={idOf(entry)} value={idOf(entry)}>{entry.name}</SelectItem>)}</SelectContent></Select></div>
-        <div className="space-y-1.5 sm:col-span-2"><Label>{form.itemType === 'Checklist' ? 'Checklist item' : 'Activity / Milestone'}</Label><Input value={form.activity} onChange={(event) => update('activity', event.target.value)} placeholder={form.itemType === 'Checklist' ? 'e.g. Main stage decor installation completed' : 'e.g. Final decor check'} required /></div>
-        {form.itemType === 'Checklist' && <div className="space-y-1.5"><Label>Category</Label><Input list="checklist-categories" value={form.category} onChange={(event) => update('category', event.target.value)} placeholder="Venue & Setup" /><datalist id="checklist-categories">{defaultCategories.map((category) => <option key={category} value={category} />)}</datalist></div>}
-        <div className="space-y-1.5"><Label>{form.itemType === 'Checklist' ? 'Verify by' : 'Date & time'}</Label><Input type="datetime-local" value={form.scheduledAt} onChange={(event) => update('scheduledAt', event.target.value)} required /></div>
-        <div className="space-y-1.5"><Label>Location</Label><Input value={form.location} onChange={(event) => update('location', event.target.value)} placeholder="Main stage" /></div>
-        <div className="space-y-1.5"><Label>Owner</Label><Select value={form.owner} onValueChange={(value) => update('owner', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">Not assigned</SelectItem>{employees.map((entry) => <SelectItem key={idOf(entry)} value={idOf(entry)}>{entry.name}</SelectItem>)}</SelectContent></Select></div>
-        <div className="space-y-1.5"><Label>Status</Label><Select value={form.status} onValueChange={(value) => update('status', value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{(form.itemType === 'Checklist' ? checklistStatuses : statuses).map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent></Select></div>
-        <div className="space-y-1.5 sm:col-span-2"><Label>Notes / Dependency</Label><Textarea value={form.notesDependency} onChange={(event) => update('notesDependency', event.target.value)} placeholder={form.itemType === 'Checklist' ? 'What must happen before this item can be completed?' : 'What must happen before this activity?'} className="min-h-20" /></div>
-        <div className="space-y-1.5 sm:col-span-2"><Label>Additional notes</Label><Textarea value={form.notes} onChange={(event) => update('notes', event.target.value)} className="min-h-16" /></div>
-        {form.itemType === 'Checklist' ? <>
-          <div className="space-y-1.5 sm:col-span-2"><Label>Proof image URLs</Label><Textarea value={form.proofUrls} onChange={(event) => update('proofUrls', event.target.value)} placeholder="One image URL per line" className="min-h-20" /></div>
-          <label className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={form.isCritical} onCheckedChange={(checked) => update('isCritical', checked === true)} />Critical item</label>
-          <label className="flex cursor-pointer items-center gap-2 text-sm"><Checkbox checked={form.proofRequired} onCheckedChange={(checked) => update('proofRequired', checked === true)} />Photo proof required</label>
-        </> : <label className="flex cursor-pointer items-center gap-2 text-sm sm:col-span-2"><Checkbox checked={form.isUpNext} onCheckedChange={(checked) => update('isUpNext', checked === true)} />Mark as up next</label>}
-      </form>
-      <DialogFooter><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit" variant="custom" form="event-run-sheet-form" disabled={saving || !form.activity.trim() || !form.scheduledAt}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{item ? 'Save Changes' : 'Add Item'}</Button></DialogFooter>
-    </DialogContent>
-  </Dialog>;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col gap-0 overflow-hidden rounded-lg p-0">
+        <DialogHeader className="border-b border-purple-100/70 bg-[#f0edfd]/80 px-6 py-4 pr-12 text-left dark:border-purple-900/30 dark:bg-purple-950/20">
+          <DialogTitle className="text-lg font-bold text-foreground">
+            {item ? 'Update' : 'Add'} {form.itemType} Item
+          </DialogTitle>
+        </DialogHeader>
+
+        <form id="event-run-sheet-form" onSubmit={submit} className="min-h-0 overflow-y-auto px-6 py-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Item type</Label>
+              <Select value={form.itemType} onValueChange={(value) => setForm((current) => ({ ...current, itemType: value, status: value === 'Checklist' ? 'Pending' : 'Not Started' }))}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Run Sheet">Run Sheet</SelectItem>
+                  <SelectItem value="Checklist">Checklist</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Function</Label>
+              <Select value={form.functionId} onValueChange={(value) => update('functionId', value)}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">General / All Functions</SelectItem>
+                  {functions.map((entry) => <SelectItem key={idOf(entry)} value={idOf(entry)}>{entry.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs font-semibold">{form.itemType === 'Checklist' ? 'Checklist item' : 'Activity / Milestone'}</Label>
+              <Input
+                value={form.activity}
+                onChange={(event) => update('activity', event.target.value)}
+                placeholder={form.itemType === 'Checklist' ? 'e.g. Main stage decor installation completed' : 'e.g. Final decor check'}
+                required
+                className="h-9 text-xs"
+              />
+            </div>
+
+            {form.itemType === 'Checklist' && (
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-xs font-semibold">Category</Label>
+                <Input
+                  list="checklist-categories"
+                  value={form.category}
+                  onChange={(event) => update('category', event.target.value)}
+                  placeholder="Venue & Setup"
+                  className="h-9 text-xs"
+                />
+                <datalist id="checklist-categories">
+                  {defaultCategories.map((category) => <option key={category} value={category} />)}
+                </datalist>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">{form.itemType === 'Checklist' ? 'Verify by' : 'Date & time'}</Label>
+              <Input
+                type="datetime-local"
+                value={form.scheduledAt}
+                onChange={(event) => update('scheduledAt', event.target.value)}
+                required
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Location</Label>
+              <Input
+                value={form.location}
+                onChange={(event) => update('location', event.target.value)}
+                placeholder="Main stage"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Owner</Label>
+              <Select value={form.owner} onValueChange={(value) => update('owner', value)}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Not assigned</SelectItem>
+                  {employees.map((entry) => <SelectItem key={idOf(entry)} value={idOf(entry)}>{entry.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Status</Label>
+              <Select value={form.status} onValueChange={(value) => update('status', value)}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(form.itemType === 'Checklist' ? checklistStatuses : statuses).map((status) => (
+                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs font-semibold">Prerequisites / coordination</Label>
+              <Textarea
+                value={form.notesDependency}
+                onChange={(event) => update('notesDependency', event.target.value)}
+                placeholder={form.itemType === 'Checklist' ? 'What must happen before this item can be completed?' : 'What must happen before this activity?'}
+                className="min-h-20 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs font-semibold">Additional notes</Label>
+              <Textarea
+                value={form.notes}
+                onChange={(event) => update('notes', event.target.value)}
+                className="min-h-16 text-xs"
+              />
+            </div>
+
+            {form.itemType === 'Checklist' ? (
+              <>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-xs font-semibold">Proof image URLs</Label>
+                  <Textarea
+                    value={form.proofUrls}
+                    onChange={(event) => update('proofUrls', event.target.value)}
+                    placeholder="One image URL per line"
+                    className="min-h-20 text-xs"
+                  />
+                </div>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <Checkbox checked={form.isCritical} onCheckedChange={(checked) => update('isCritical', checked === true)} />
+                  Critical item
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <Checkbox checked={form.proofRequired} onCheckedChange={(checked) => update('proofRequired', checked === true)} />
+                  Photo proof required
+                </label>
+              </>
+            ) : (
+              <label className="flex cursor-pointer items-center gap-2 text-sm sm:col-span-2">
+                <Checkbox checked={form.isUpNext} onCheckedChange={(checked) => update('isUpNext', checked === true)} />
+                Mark as up next
+              </label>
+            )}
+          </div>
+        </form>
+
+        <DialogFooter className="flex-row justify-end gap-2 border-t border-border px-6 py-3">
+          <Button type="button" variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="event-run-sheet-form"
+            disabled={saving || !isValid}
+            className={
+              isValid
+                ? "bg-gradient-to-r from-purple-600 to-blue-600 font-medium text-white shadow-sm hover:from-purple-700 hover:to-blue-700"
+                : ""
+            }
+          >
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {item ? 'Save Changes' : 'Add Item'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function FunctionGroup({ group, onView }) {
@@ -165,7 +324,7 @@ function FunctionGroup({ group, onView }) {
       {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
     </button>
     {expanded && <div className="overflow-x-auto"><Table className="min-w-[1000px]">
-      <TableHeader><TableRow className="bg-muted/25"><TableHead className="w-56 min-w-56">Date & Time</TableHead><TableHead>Activity / Milestone</TableHead><TableHead>Location</TableHead><TableHead>Owner</TableHead><TableHead>Notes / Dependency</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+      <TableHeader className="[&_th]:!text-xs [&_th]:!font-semibold [&_th]:!text-foreground"><TableRow className="bg-muted/25"><TableHead className="w-56 min-w-56"><div className="flex items-center gap-2"><span className="w-4 shrink-0" aria-hidden="true" /><span>Date & Time</span></div></TableHead><TableHead>Activity / Milestone</TableHead><TableHead>Location</TableHead><TableHead>Owner</TableHead><TableHead>Notes / Dependency</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
       <TableBody>{group.items.map((item) => {
         const schedule = dateParts(item.scheduledAt);
         return <TableRow key={item._id} className={item.isUpNext ? 'border-l-4 border-l-blue-500 bg-muted/20' : ''}>
@@ -187,6 +346,7 @@ function ChecklistTable({ items, scopeItems, functionName, onView, onVerify, onU
   const pageSize = 10;
   const pages = Math.max(1, Math.ceil(items.length / pageSize));
   const rows = items.slice((page - 1) * pageSize, page * pageSize);
+  const hasActualItems = scopeItems.length > 0;
   const verified = scopeItems.filter((item) => item.status === 'Verified').length;
   const applicable = scopeItems.filter((item) => item.status !== 'Not Applicable').length;
   const percentage = applicable ? Math.round((verified / applicable) * 100) : 0;
@@ -200,8 +360,8 @@ function ChecklistTable({ items, scopeItems, functionName, onView, onVerify, onU
     <div className="flex flex-wrap items-center gap-4 bg-slate-50 px-4 py-3">
       <div className="flex items-center gap-2"><CheckSquare2 className="h-5 w-5 text-blue-700" /><h3 className="font-semibold">{functionName} Checklist</h3></div>
       <span className="text-sm font-semibold text-blue-900">{verified} / {applicable} Verified</span>
-      <div className="h-2 min-w-32 flex-1 overflow-hidden rounded-full bg-slate-200 sm:max-w-72"><div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${percentage}%` }} /></div>
-      {applicable > 0 ? (
+      <div className="h-2 min-w-32 flex-1 overflow-hidden rounded-full bg-slate-200 sm:max-w-72"><div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${hasActualItems ? percentage : 0}%` }} /></div>
+      {hasActualItems ? (
         <span className="font-semibold text-emerald-600">{percentage}% Ready</span>
       ) : (
         <span className="font-semibold text-muted-foreground">Not assessed</span>
@@ -224,7 +384,11 @@ function ChecklistTable({ items, scopeItems, functionName, onView, onVerify, onU
           <TableCell><Badge variant="outline" className={`min-w-20 justify-center px-2 text-[11px] ${statusTone(item.status)}`}>{item.status}</Badge></TableCell>
           <TableCell className="text-right"><Button variant="outline" size="sm" onClick={() => onView(item)} className="gap-1.5 text-blue-700"><Eye className="h-4 w-4" />View</Button></TableCell>
         </TableRow>;
-      }) : <TableRow><TableCell colSpan={8} className="h-36 text-center text-sm text-muted-foreground"><p className="font-medium text-foreground">No checklist items yet</p><p className="mt-1 text-xs text-muted-foreground">Use Add Checklist Item to create the first item.</p></TableCell></TableRow>}</TableBody>
+      }) : !hasActualItems ? (
+        <TableRow><TableCell colSpan={8} className="h-36 text-center text-sm text-muted-foreground"><p className="font-medium text-foreground">No checklist items yet</p><p className="mt-1 text-xs text-muted-foreground">Use Add Checklist Item to create the first item.</p></TableCell></TableRow>
+      ) : (
+        <TableRow><TableCell colSpan={8} className="h-36 text-center text-sm text-muted-foreground"><p className="font-medium text-foreground">No matching items</p><p className="mt-1 text-xs text-muted-foreground">Try adjusting your search or filters.</p></TableCell></TableRow>
+      )}</TableBody>
     </Table></div>
     <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-xs text-muted-foreground"><span>Showing {items.length ? (page - 1) * pageSize + 1 : 0} to {Math.min(page * pageSize, items.length)} of {items.length} items</span><div className="flex items-center gap-2"><span>{pageSize} per page</span><Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>‹</Button><span className="grid h-8 min-w-8 place-items-center rounded-md bg-emerald-50 px-2 font-semibold text-emerald-700">{page}</span><Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= pages} onClick={() => setPage((value) => value + 1)}>›</Button></div></div>
   </div>;
@@ -267,13 +431,43 @@ function RunSheetPanel({ data, functions, onAdd, onView, onVerify, onUpload }) {
   }, [filtered]);
 
   return <div className="space-y-3">
-    <div className="flex flex-wrap items-center justify-between gap-3 xl:flex-nowrap">
-      <EventOperationsNav active="run-sheet" />
-      <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 lg:flex-nowrap xl:w-auto xl:flex-1">
-        <div className={`relative ${itemType === 'Checklist' ? 'w-full min-w-0 sm:w-44 sm:flex-none' : 'min-w-48 flex-1 xl:max-w-64'}`}><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={itemType === 'Checklist' ? 'Search checklist item...' : 'Search activity, owner or location...'} className="h-9 pl-9 text-xs" /></div>
-        {itemType === 'Checklist' && <Select value={category} onValueChange={setCategory}><SelectTrigger className="h-9 w-36 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Categories</SelectItem>{availableCategories.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent></Select>}
-        <Select value={status} onValueChange={setStatus}><SelectTrigger className="h-9 w-32 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Status</SelectItem>{(itemType === 'Checklist' ? checklistStatuses : statuses).map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}</SelectContent></Select>
-        <Button variant="custom" size="sm" onClick={() => onAdd(itemType)} className="h-9 shrink-0 gap-1.5 text-xs"><Plus className="h-4 w-4" />Add {itemType} Item</Button>
+    <div className="flex w-full min-w-0 items-center justify-between gap-2 overflow-x-auto py-1">
+      <div className="shrink-0">
+        <EventOperationsNav active="run-sheet" />
+      </div>
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 mt-0.5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={itemType === 'Checklist' ? 'Search checklist items...' : 'Search activity, owner or location...'}
+            className="h-9 w-full pl-9 text-xs placeholder:text-[11px]"
+          />
+        </div>
+        {itemType === 'Checklist' && (
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="h-9 w-24 shrink-0 px-2 text-xs">
+              <SelectValue>{category === 'all' ? 'Category' : category}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {availableCategories.map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger className={`h-9 shrink-0 text-xs ${itemType === 'Checklist' ? 'w-20 px-2' : 'w-32'}`}>
+            <SelectValue>{itemType === 'Checklist' && status === 'all' ? 'Status' : status === 'all' ? 'All Status' : status}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            {(itemType === 'Checklist' ? checklistStatuses : statuses).map((entry) => <SelectItem key={entry} value={entry}>{entry}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Button variant="custom" size="sm" onClick={() => onAdd(itemType)} className={`h-9 shrink-0 text-xs ${itemType === 'Checklist' ? 'gap-1 px-2.5' : 'gap-1.5'}`}>
+          <Plus className="h-4 w-4" />{itemType === 'Checklist' ? 'Add Item' : 'Add Run Sheet Item'}
+        </Button>
       </div>
     </div>
     <Card className="border-border shadow-sm"><CardContent className="space-y-3 p-3">

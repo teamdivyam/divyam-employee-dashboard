@@ -1,3 +1,4 @@
+import React from 'react';
 import PropTypes from 'prop-types';
 import { Card } from '@components/components/ui/card';
 
@@ -10,7 +11,7 @@ const tones = {
   red: 'bg-red-100/70 text-red-600 dark:bg-red-400/10 dark:text-red-300',
 };
 
-export default function MetricCard({ label, value, icon: Icon, tone, footer, onOpen, loading }) {
+export default function MetricCard({ label, value, subValue, icon: Icon, tone, footer, onOpen, loading }) {
   const Content = onOpen ? 'button' : 'div';
   return (
     <Card className={`min-w-0 overflow-hidden border-0 shadow-none ${tones[tone]}`}>
@@ -31,9 +32,16 @@ export default function MetricCard({ label, value, icon: Icon, tone, footer, onO
                 ? '—'
                 : value == null || value === ''
                   ? '—'
-                  : Number.isNaN(Number(value))
+                  : React.isValidElement(value)
                     ? value
-                    : Math.trunc(Number(value))}
+                    : Number.isNaN(Number(value))
+                      ? value
+                      : Math.trunc(Number(value))}
+              {subValue && !loading && value != null && value !== '' && value !== '—' && (
+                <span className="ml-1 text-xs font-normal">
+                  {subValue}
+                </span>
+              )}
             </p>
           </div>
           {/* {onOpen && <ChevronRight className="mt-5 h-4 w-4 shrink-0" aria-hidden="true" />} */}
@@ -50,7 +58,8 @@ export default function MetricCard({ label, value, icon: Icon, tone, footer, onO
 
 MetricCard.propTypes = {
   label: PropTypes.string.isRequired,
-  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.node]),
+  subValue: PropTypes.node,
   icon: PropTypes.elementType.isRequired,
   tone: PropTypes.oneOf(Object.keys(tones)).isRequired,
   description: PropTypes.string,

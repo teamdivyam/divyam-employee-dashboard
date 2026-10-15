@@ -73,9 +73,29 @@ function OverviewStatus({ status }) {
   return (
     <Badge
       variant="outline"
-      className={`inline-flex h-6 min-w-28 items-center justify-center text-center whitespace-nowrap rounded px-2 py-0.5 text-[10px] ${complete ? successTone : status ? pendingTone : "text-muted-foreground"}`}
+      className={`inline-flex h-6 w-28 items-center justify-center text-center whitespace-nowrap rounded px-2 py-0.5 text-[10px] ${complete ? successTone : status ? pendingTone : "text-muted-foreground"}`}
     >
       <span className="truncate">{status || "Not set"}</span>
+    </Badge>
+  );
+}
+function PaymentHistoryStatus({ status }) {
+  const complete = [
+    "Confirmed",
+    "Approved",
+    "Finalised",
+    "Finalized",
+    "Completed",
+    "Paid",
+    "Received",
+    "Client Confirmed",
+  ].includes(status);
+  return (
+    <Badge
+      variant="outline"
+      className={`inline-flex h-5 items-center justify-center text-center whitespace-nowrap rounded px-2.5 py-0.5 text-[10px] ${complete ? successTone : status ? pendingTone : "text-muted-foreground"}`}
+    >
+      <span className="truncate">{status || "Paid"}</span>
     </Badge>
   );
 }
@@ -117,7 +137,7 @@ const SnapshotRow = ({ icon: Icon, label, children }) => (
 );
 function OverviewTable({ headings, rows, renderRow, empty }) {
   return (
-    <Table className="text-[11px] [&_th]:h-8 [&_th]:whitespace-nowrap [&_th]:px-2 [&_td]:px-2 [&_td]:py-2">
+    <Table className="w-full text-[11px] [&_th]:h-8 [&_th]:whitespace-nowrap [&_th]:!px-2 [&_td]:!px-2 [&_td]:py-2 [&_td]:align-middle [&_thead_th:first-child]:!pl-2 [&_thead_th:last-child]:!pr-2 [&_tbody_td:first-child]:!pl-2 [&_tbody_td:last-child]:!pr-2">
       <TableHeader>
         <TableRow className="bg-muted/60 hover:bg-muted/60">
           {headings.map((heading) => {
@@ -282,7 +302,7 @@ export function ReadinessPlanning({ booking, summary, details, onView }) {
           return (
             <div
               key={item.label}
-              className="grid grid-cols-[minmax(120px,1.1fr)_30px_minmax(25px,1fr)_auto] items-center gap-2 text-[10px]"
+              className="grid grid-cols-[minmax(125px,1.15fr)_36px_minmax(60px,1fr)_84px] items-center gap-2.5 text-[10px]"
             >
               <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
                 <span
@@ -290,15 +310,17 @@ export function ReadinessPlanning({ booking, summary, details, onView }) {
                 >
                   <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                 </span>
-                <span>{item.label}</span>
+                <span className="truncate">{item.label}</span>
               </span>
-              <span className="font-semibold">
+              <span className="text-center font-semibold tabular-nums">
                 {item.percentage == null ? "-" : `${item.percentage}%`}
               </span>
-              <ProgressBar value={item.percentage} />
+              <div className="w-full">
+                <ProgressBar value={item.percentage} />
+              </div>
               <Badge
                 variant="outline"
-                className={`rounded px-1.5 text-[9px] ${!item.total ? "text-muted-foreground" : item.pending ? pendingTone : successTone}`}
+                className={`w-full justify-center text-center whitespace-nowrap rounded px-1.5 py-0.5 text-[9px] ${!item.total ? "text-muted-foreground" : item.pending ? pendingTone : successTone}`}
               >
                 {!item.total
                   ? "Not started"
@@ -451,10 +473,10 @@ export function PaymentHistory({ details, onView }) {
     <OverviewCard title="Payment History" action="View All" onAction={onView}>
       <OverviewTable
         headings={[
-          { label: "#", className: "w-10 text-center" },
+          { label: "#", className: "w-8 text-center" },
           { label: "Payment Date", className: "text-center" },
           { label: "Amount", className: "text-center" },
-          { label: "Payment Mode", className: "text-left" },
+          { label: "Payment Mode", className: "text-center" },
           { label: "Status", className: "text-center" },
           { label: "Reference", className: "text-left" },
         ]}
@@ -462,7 +484,7 @@ export function PaymentHistory({ details, onView }) {
         empty="No payments recorded yet."
         renderRow={(item, index) => (
           <TableRow key={item._id || index}>
-            <TableCell className="text-center">{index + 1}</TableCell>
+            <TableCell className="w-8 text-center">{index + 1}</TableCell>
             <TableCell className="whitespace-nowrap text-center">
               {overviewDate(
                 item.transactionDate ||
@@ -471,14 +493,16 @@ export function PaymentHistory({ details, onView }) {
                   item.createdAt,
               )}
             </TableCell>
-            <TableCell className="font-semibold text-center">
+            <TableCell className="whitespace-nowrap font-semibold text-center">
               {currencyAmount(item.amount)}
             </TableCell>
-            <TableCell className="text-left">{item.paymentMode || "-"}</TableCell>
-            <TableCell className="text-center">
-              <OverviewStatus status={item.status} />
+            <TableCell className="whitespace-nowrap text-center">
+              {item.paymentMode || "-"}
             </TableCell>
-            <TableCell className="text-left">
+            <TableCell className="text-center">
+              <PaymentHistoryStatus status={item.status} />
+            </TableCell>
+            <TableCell className="whitespace-nowrap text-left">
               {item.transactionId ||
                 item.reference ||
                 item.receiptNumber ||

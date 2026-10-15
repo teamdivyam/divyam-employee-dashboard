@@ -35,22 +35,30 @@ export default function CompletedBookingTable({
 }) {
   return (
     <div className="event-booking-table-fit w-full min-w-0 max-w-full overflow-x-auto">
-      <Table className="w-full table-fixed text-xs">
+      <Table className="w-full max-w-full table-fixed text-xs [&_thead_th]:!px-2 [&_tbody_td]:!px-2 [&_thead_th:first-child]:!pl-4 [&_tbody_td:first-child]:!pl-4 [&_thead_th:last-child]:!pr-4 [&_tbody_td:last-child]:!pr-4">
         <colgroup>
-          <col className="w-[13%]" />
-          <col className="w-[16%]" />
-          <col className="w-[14%]" />
-          <col className="w-[11%]" />
-          <col className="w-[13%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
+          <col style={{ width: '14.5%' }} />
+          <col style={{ width: '12%' }} />
+          <col style={{ width: '12%' }} />
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '13%' }} />
+          <col style={{ width: '12.5%' }} />
+          <col style={{ width: '15%' }} />
+          <col style={{ width: '10%' }} />
         </colgroup>
         <TableHeader className="bg-muted/60">
           <TableRow className="h-11 border-b border-border bg-muted/60 hover:bg-muted/60">
             {['Booking / Client', 'Event Details', 'Event Manager', 'Event Date', 'Closure Progress', 'Key Pending', 'Payment Progress', 'Action'].map((heading) => (
-              <TableHead key={heading} scope="col" className={`${heading === 'Action' ? 'text-center' : 'text-left'} h-11 whitespace-nowrap px-3 text-[11px] font-bold leading-none tracking-[0.01em] text-foreground first:pl-4 last:pr-4`}>
-                {heading}
+              <TableHead key={heading} scope="col" className={`${heading === 'Action' ? 'text-center' : 'text-left'} ${heading === 'Payment Progress' ? 'text-center' : ''} h-11 whitespace-nowrap px-2 text-[11px] font-bold leading-none tracking-[0.01em] text-foreground first:pl-4 last:pr-4`}>
+                {heading === 'Booking / Client' ? (
+                  <span className="pl-[46px]">Booking / Client</span>
+                ) : heading === 'Event Manager' ? (
+                  <span className="pl-10">Event Manager</span>
+                ) : heading === 'Payment Progress' ? (
+                  <span className="inline-block -translate-x-3.5">{heading}</span>
+                ) : (
+                  heading
+                )}
               </TableHead>
             ))}
           </TableRow>
@@ -129,13 +137,19 @@ export default function CompletedBookingTable({
                     <p className="flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-3.5 w-3.5" /> All complete</p>
                   )}
                 </TableCell>
-                <TableCell className="min-w-0 align-top p-2"><PaymentProgress booking={booking} /></TableCell>
                 <TableCell className="min-w-0 p-2">
-                  <div className="flex justify-end">
-                    <Button variant="outline" className="h-8 min-w-[92px] whitespace-nowrap rounded-r-none border-border bg-transparent px-2 text-[10px] font-semibold text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200" onClick={() => openEventOverview(booking)}>
-                      {closure.pending.length ? 'Open Closure' : 'View Booking'}
+                  <div className="flex justify-center pr-4">
+                    <div className="w-full max-w-[124px]">
+                      <PaymentProgress booking={booking} />
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="min-w-0 p-2">
+                  <div className="flex items-center justify-center">
+                    <Button variant="outline" className="h-7 min-w-11 px-2.5 whitespace-nowrap rounded-r-none border-border bg-transparent text-[10px] font-semibold text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200" onClick={() => openBooking ? openBooking(booking) : openEventOverview(booking)}>
+                      View
                     </Button>
-                    <BookingActionsMenu booking={booking} openBooking={openBooking} openBookingEdit={openBookingEdit} openManagerAssignment={openManagerAssignment} openDocuments={openDocuments} openPayments={openPayments} openBookingSetup={openBookingSetup} onUpdateStatus={onUpdateStatus} />
+                    <BookingActionsMenu booking={booking} openBooking={openBooking || openEventOverview} openBookingEdit={openBookingEdit} openManagerAssignment={openManagerAssignment} openDocuments={openDocuments} openPayments={openPayments} openBookingSetup={openBookingSetup} onUpdateStatus={onUpdateStatus} />
                   </div>
                 </TableCell>
               </TableRow>

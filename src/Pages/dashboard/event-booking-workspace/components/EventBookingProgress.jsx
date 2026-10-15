@@ -25,12 +25,12 @@ export function Readiness({ booking, onChange, disabled }) {
   return (
     <div className="flex min-w-0 items-center gap-2">
       <span
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[10px] font-bold"
-        style={{ background: `radial-gradient(circle, hsl(var(--card)) 58%, transparent 60%), conic-gradient(${color} ${percentage}%, hsl(var(--muted)) 0)` }}
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[10px] font-bold"
+        style={{ background: `radial-gradient(circle, hsl(var(--card)) 60%, transparent 62%), conic-gradient(${color} ${percentage}%, hsl(var(--muted)) 0)` }}
       >
         {percentage === 100 ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : percentage}
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 text-left">
         {onChange ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -38,10 +38,10 @@ export function Readiness({ booking, onChange, disabled }) {
                 type="button"
                 disabled={disabled || booking.isCrmOnly || booking.bookingStatus === 'Completed'}
                 aria-label={`Change readiness: ${percentage}%`}
-                className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-0.5 text-xs font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-5 items-center gap-1 rounded border border-border/80 bg-muted/40 px-1.5 text-[10px] font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {percentage}%
-                <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+                <ChevronDown aria-hidden="true" className="h-3 w-3 opacity-70" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
@@ -57,9 +57,9 @@ export function Readiness({ booking, onChange, disabled }) {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <p className="text-xs font-semibold text-foreground">{percentage}%</p>
+          <p className="text-[10px] font-semibold text-foreground">{percentage}%</p>
         )}
-        <p className="truncate text-[10px] text-muted-foreground">
+        <p className="mt-0.5 whitespace-nowrap text-[10px] text-muted-foreground leading-tight">
           {percentage === 100 ? 'All set' : pending ? `${pending} critical pending` : 'Planning in progress'}
         </p>
       </div>
@@ -92,27 +92,25 @@ export function KeyPending({ booking }) {
 
   if (!items.length) {
     return (
-      <div className="space-y-1 text-left text-[10px]">
+      <div className="space-y-0.5 text-left text-[10px]">
         <p className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
           <CheckCircle2 className="h-3 w-3 shrink-0" />
           <span className="truncate">All requirements confirmed</span>
         </p>
-        <p className="text-muted-foreground">Ready for final planning</p>
       </div>
     );
   }
 
   return (
-    <div className="min-w-0 space-y-1 text-left">
+    <div className="min-w-0 text-left">
       <ul className="min-w-0 space-y-1 text-[10px] text-foreground">
         {items.map((item) => (
           <li key={item} className="flex min-w-0 items-start gap-1.5">
             <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />
-            <span className="line-clamp-1">{item}</span>
+            <span className="truncate">{item}</span>
           </li>
         ))}
       </ul>
-      <p className="text-[9px] font-semibold text-amber-600 dark:text-amber-400">{items.length} item{items.length === 1 ? '' : 's'} pending</p>
     </div>
   );
 }
@@ -145,58 +143,77 @@ export function FinalPending({ booking }) {
 
   if (!items.length) {
     return (
-      <div className="space-y-1 text-[10px]">
+      <div className="space-y-0.5 text-[10px]">
         <p className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
           <CheckCircle2 className="h-3 w-3 shrink-0" />
           <span className="truncate">All final checks complete</span>
         </p>
-        <p className="text-muted-foreground">Ready for execution</p>
       </div>
     );
   }
 
   return (
-    <div className="min-w-0 space-y-1">
+    <div className="min-w-0 text-left">
       <ul className="space-y-1 text-[10px] text-foreground">
         {items.map((item) => (
           <li key={item} className="flex min-w-0 items-start gap-1.5">
             <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-blue-600" aria-hidden="true" />
-            <span className="line-clamp-1">{item}</span>
+            <span className="truncate">{item}</span>
           </li>
         ))}
       </ul>
-      <p className="text-[9px] font-semibold text-blue-600 dark:text-blue-400">{items.length} item{items.length === 1 ? '' : 's'} pending</p>
+      <p className="mt-1 pl-2.5 text-[9px] font-semibold text-blue-600 dark:text-blue-400">
+        {items.length} item{items.length === 1 ? '' : 's'} pending
+      </p>
     </div>
   );
 }
 
 export function PaymentProgress({ booking }) {
   const { clampedPercentage, pending } = getPaymentMetrics(booking);
-  const tone = clampedPercentage >= 70
-    ? 'text-emerald-600 dark:text-emerald-400'
-    : clampedPercentage >= 30
-      ? 'text-amber-600 dark:text-amber-400'
-      : 'text-destructive';
-  const barTone = clampedPercentage >= 70
+  const summary = booking.paymentSummary || {};
+  const finance = booking.finance || {};
+  const nextDueDate = summary.nextPaymentDueDate || finance.nextPaymentDueDate;
+  const isPastDue = nextDueDate && !Number.isNaN(new Date(nextDueDate).getTime()) && new Date(nextDueDate) < new Date();
+  const isOverdue = pending > 0 && (
+    booking.bookingStatus === 'Completed' ||
+    booking.paymentStatus === 'Overdue' ||
+    summary.isOverdue ||
+    isPastDue
+  );
+
+  const isFullPaid = clampedPercentage === 100 || pending === 0;
+
+  const barTone = isFullPaid
     ? 'bg-emerald-500'
-    : clampedPercentage >= 30
-      ? 'bg-amber-500'
-      : 'bg-destructive';
+    : isOverdue || booking.bookingStatus === 'Completed'
+      ? 'bg-red-500'
+      : 'bg-amber-500';
+
+  const percentTone = isFullPaid
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : isOverdue || booking.bookingStatus === 'Completed'
+      ? 'text-red-600 dark:text-red-400'
+      : 'text-amber-500 dark:text-amber-400';
+
+  const pendingTone = 'text-slate-900 dark:text-slate-100';
 
   return (
-    <div className="w-32 max-w-full space-y-1">
-      <p className={`text-[11px] font-semibold ${tone}`}>{clampedPercentage}% Paid</p>
-      <div
-        className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
-        role="progressbar"
-        aria-label={`Payment ${clampedPercentage}% paid`}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={clampedPercentage}
-      >
-        <div className={`h-full rounded-full ${barTone}`} style={{ width: `${clampedPercentage}%` }} />
+    <div className="w-full max-w-[130px] space-y-1 text-left">
+      <div className="flex items-center gap-2">
+        <div
+          className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-muted"
+          role="progressbar"
+          aria-label={`Payment ${clampedPercentage}% paid`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={clampedPercentage}
+        >
+          <div className={`h-full rounded-full ${barTone}`} style={{ width: `${clampedPercentage}%` }} />
+        </div>
+        <span className={`text-[10px] font-bold shrink-0 ${percentTone}`}>{clampedPercentage}%</span>
       </div>
-      <p className="truncate text-[10px] font-semibold text-foreground">{currencyAmount(pending)} Pending</p>
+      <p className={`truncate text-[10px] font-bold ${pendingTone}`}>{currencyAmount(pending)} Pending</p>
     </div>
   );
 }

@@ -133,39 +133,60 @@ const withWeekday = (startDate, endDate, label) => {
 };
 
 export const eventDateLabel = (booking, { includeWeekday = false } = {}) => {
-  const dates = (booking.functions || [])
-    .map((item) => item.date && new Date(item.date))
+  const functionDates = (booking?.functions || [])
+    .flatMap((item) => [
+      item?.date && new Date(item.date),
+      item?.fromDate && new Date(item.fromDate),
+      item?.toDate && new Date(item.toDate),
+    ])
     .filter((date) => date && !Number.isNaN(date.getTime()))
     .sort((a, b) => a - b);
 
-  if (dates.length > 1 && dates[0].toDateString() !== dates.at(-1).toDateString()) {
-    const label = compactDateRange(dates[0], dates.at(-1));
-    return includeWeekday ? withWeekday(dates[0], dates.at(-1), label) : label;
+  let startDate = booking?.eventDate ? new Date(booking.eventDate) : null;
+  if (!startDate || Number.isNaN(startDate.getTime())) {
+    startDate = functionDates[0] || null;
   }
-  if (!booking.eventDate) return 'Date Pending';
-  const eventStartDate = new Date(booking.eventDate);
-  const eventEndDate = booking.eventEndDate && new Date(booking.eventEndDate);
-  if (eventEndDate
-    && !Number.isNaN(eventStartDate.getTime())
-    && !Number.isNaN(eventEndDate.getTime())
-    && eventStartDate.toDateString() !== eventEndDate.toDateString()) {
-    const label = compactDateRange(eventStartDate, eventEndDate);
-    return includeWeekday ? withWeekday(eventStartDate, eventEndDate, label) : label;
+
+  let endDate = booking?.eventEndDate ? new Date(booking.eventEndDate) : null;
+  if ((!endDate || Number.isNaN(endDate.getTime())) && functionDates.length > 0) {
+    const latestFunctionDate = functionDates.at(-1);
+    if (startDate && latestFunctionDate.toDateString() !== startDate.toDateString()) {
+      endDate = latestFunctionDate;
+    }
   }
-  const label = formatDate(booking.eventDate);
-  return includeWeekday ? withWeekday(eventStartDate, eventStartDate, label) : label;
+
+  if (startDate && !Number.isNaN(startDate.getTime())) {
+    if (endDate && !Number.isNaN(endDate.getTime()) && startDate.toDateString() !== endDate.toDateString()) {
+      const label = compactDateRange(startDate, endDate);
+      return includeWeekday ? withWeekday(startDate, endDate, label) : label;
+    }
+    const label = formatDate(startDate);
+    return includeWeekday ? withWeekday(startDate, startDate, label) : label;
+  }
+
+  if (functionDates.length > 1 && functionDates[0].toDateString() !== functionDates.at(-1).toDateString()) {
+    const label = compactDateRange(functionDates[0], functionDates.at(-1));
+    return includeWeekday ? withWeekday(functionDates[0], functionDates.at(-1), label) : label;
+  }
+  if (functionDates.length > 0) {
+    const label = formatDate(functionDates[0]);
+    return includeWeekday ? withWeekday(functionDates[0], functionDates[0], label) : label;
+  }
+
+  return 'Date Pending';
 };
 
 const compactDateRange = (startDate, endDate) => {
-  const sameYear = startDate.getFullYear() === endDate.getFullYear();
-  const sameMonth = sameYear && startDate.getMonth() === endDate.getMonth();
+  const [earlier, later] = startDate <= endDate ? [startDate, endDate] : [endDate, startDate];
+  const sameYear = earlier.getFullYear() === later.getFullYear();
+  const sameMonth = sameYear && earlier.getMonth() === later.getMonth();
   const startFormat = sameMonth
     ? { day: '2-digit' }
     : sameYear
       ? { day: '2-digit', month: 'short' }
       : { day: '2-digit', month: 'short', year: 'numeric' };
-  const start = new Intl.DateTimeFormat('en-GB', startFormat).format(startDate);
-  return `${start} – ${formatDate(endDate)}`;
+  const start = new Intl.DateTimeFormat('en-GB', startFormat).format(earlier);
+  return `${start} \u2013 ${formatDate(later)}`;
 };
 
 export const daysRemaining = (booking) => {

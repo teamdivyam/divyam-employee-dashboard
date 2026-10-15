@@ -182,14 +182,18 @@ export default function LearningsPanel({
               <col className="w-[17%]" />
               <col className="w-[13%]" />
             </colgroup>
-            <thead className="bg-muted/45 text-muted-foreground">
+            <thead className="bg-muted/60 text-foreground [&_th]:text-[11px] [&_th]:font-semibold [&_th]:leading-none [&_th]:tracking-[0.01em]">
               <tr className="border-b border-border">
                 <th className="px-3 py-2.5">#</th>
                 <th className="px-3 py-2.5">Learning</th>
-                <th className="px-3 py-2.5">Related To</th>
+                <th className="px-3 py-2.5">
+                  <span className="inline-block pl-9">Related To</span>
+                </th>
                 <th className="px-3 py-2.5">Function(s)</th>
                 <th className="px-3 py-2.5">Type</th>
-                <th className="px-3 py-2.5">Added By</th>
+                <th className="px-3 py-2.5">
+                  <span className="inline-block pl-9">Added By</span>
+                </th>
                 <th className="px-4 py-2.5 text-center">Action</th>
               </tr>
             </thead>

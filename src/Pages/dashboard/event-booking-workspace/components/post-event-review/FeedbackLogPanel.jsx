@@ -27,6 +27,7 @@ import {
 } from "@components/components/ui/select";
 import { Input } from "@components/components/ui/input";
 
+import { Table, TableHead, TableHeader, TableRow } from "../EventTable";
 import StarRating from "./StarRating";
 import {
   FEEDBACK_FROM_OPTIONS,
@@ -149,8 +150,8 @@ export default function FeedbackLogPanel({
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
       {/* Table */}
-      <div className="overflow-x-auto border-y border-border">
-        <table className="w-full min-w-[980px] table-fixed text-left text-xs">
+      <div className="border-y border-border">
+        <Table className="min-w-[980px] table-fixed text-left text-xs [&_tbody_td:first-child]:!pl-3 [&_tbody_td:last-child]:!pr-2">
           <colgroup>
             <col className="w-[4%]" />
             <col className="w-[9%]" />
@@ -161,34 +162,20 @@ export default function FeedbackLogPanel({
             <col className="w-[30%]" />
             <col className="w-[11%]" />
           </colgroup>
-          <thead>
-            <tr className="border-b border-border bg-muted/40">
-              <th className="px-3 py-2.5 font-semibold text-muted-foreground">
-                #
-              </th>
-              <th className="px-3 py-2.5 font-semibold text-muted-foreground">
-                Date
-              </th>
-              <th className="px-3 py-2.5 font-semibold text-muted-foreground">
-                Feedback From
-              </th>
-              <th className="px-3 py-2.5 font-semibold text-muted-foreground">
-                Source
-              </th>
-              <th className="px-3 py-2.5 font-semibold text-muted-foreground">
-                Related To
-              </th>
-              <th className="px-3 py-2.5 font-semibold text-muted-foreground">
-                Rating
-              </th>
-              <th className="px-3 py-2.5 font-semibold text-muted-foreground">
-                Feedback Summary
-              </th>
-              <th className="px-4 py-2.5 text-center font-semibold text-muted-foreground">
-                Action
-              </th>
-            </tr>
-          </thead>
+          <TableHeader>
+            <TableRow>
+              <TableHead>#</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>
+                <span className="inline-block pl-9">Feedback From</span>
+              </TableHead>
+              <TableHead>Source</TableHead>
+              <TableHead>Related To</TableHead>
+              <TableHead>Rating</TableHead>
+              <TableHead>Feedback Summary</TableHead>
+              <TableHead className="text-center">Action</TableHead>
+            </TableRow>
+          </TableHeader>
           <tbody>
             {filteredFeedbacks.length === 0 ? (
               <tr>
@@ -313,7 +300,7 @@ export default function FeedbackLogPanel({
               ))
             )}
           </tbody>
-        </table>
+        </Table>
       </div>
 
       {/* Pagination Footer */}

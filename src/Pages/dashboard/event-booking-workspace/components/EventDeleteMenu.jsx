@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@components/components/ui/dropdown-menu';
 
-export default function EventDeleteMenu({ label = 'item', onDelete, disabled = false }) {
+export default function EventDeleteMenu({ label = 'item', onDelete, disabled = false, className = 'h-8 w-8' }) {
   if (!onDelete) return null;
 
   return (
@@ -19,7 +19,7 @@ export default function EventDeleteMenu({ label = 'item', onDelete, disabled = f
           type="button"
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className={className}
           disabled={disabled}
           aria-label={`More options for ${label}`}
         >

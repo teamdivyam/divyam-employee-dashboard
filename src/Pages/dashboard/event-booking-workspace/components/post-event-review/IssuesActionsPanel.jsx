@@ -226,14 +226,18 @@ export default function IssuesActionsPanel({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1050px] border-collapse text-left [&_td]:border-0 [&_th]:border-0">
             <thead>
-              <tr className="border-b border-border/80 bg-muted/40 text-xs font-semibold text-muted-foreground">
+              <tr className="border-b border-border/80 bg-muted/60 text-foreground [&_th]:text-[11px] [&_th]:font-semibold [&_th]:leading-none [&_th]:tracking-[0.01em]">
                 <th className="w-10 py-3 pl-4 pr-2 text-center">#</th>
                 <th className="min-w-[220px] px-4 py-3">Issue</th>
-                <th className="min-w-[160px] px-4 py-3">Related To</th>
+                <th className="min-w-[160px] px-4 py-3">
+                  <span className="inline-block pl-10">Related To</span>
+                </th>
                 <th className="w-24 py-3 pl-0 pr-4">
                   <span className="-ml-4">Priority</span>
                 </th>
-                <th className="min-w-[170px] px-4 py-3">Owner</th>
+                <th className="min-w-[170px] px-4 py-3">
+                  <span className="inline-block pl-9">Owner</span>
+                </th>
                 <th className="w-36 py-3 pl-0 pr-4">
                   <span className="-ml-4">Target Date</span>
                 </th>

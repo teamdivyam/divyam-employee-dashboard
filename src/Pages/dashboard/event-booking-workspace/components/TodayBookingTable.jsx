@@ -22,6 +22,7 @@ import {
 } from '../eventBookingDashboard.utils';
 import { PaymentProgress } from './EventBookingProgress';
 import { BookingActionsMenu, BookingClientCell } from './BookingTable';
+import { StatusBadge } from './EventBookingComponents';
 
 export default function TodayBookingTable({
   bookings,
@@ -36,22 +37,39 @@ export default function TodayBookingTable({
 }) {
   return (
     <div className="event-booking-table-fit w-full min-w-0 max-w-full overflow-x-auto">
-      <Table className="w-full table-fixed text-xs">
+      <Table className="w-full max-w-full table-fixed text-[11px] [&_thead_th]:!px-2 [&_tbody_td]:!px-2 [&_thead_th:first-child]:!pl-4 [&_tbody_td:first-child]:!pl-4 [&_thead_th:last-child]:!pr-4 [&_tbody_td:last-child]:!pr-4">
         <colgroup>
-          <col className="w-[19%]" />
-          <col className="w-[15%]" />
-          <col className="w-[12%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[12%]" />
-          <col className="w-[9%]" />
+          <col style={{ width: '14.5%' }} />
+          <col style={{ width: '12%' }} />
+          <col style={{ width: '12%' }} />
+          <col style={{ width: '10%' }} />
+          <col style={{ width: '11.5%' }} />
+          <col style={{ width: '10%' }} />
+          <col style={{ width: '11.5%' }} />
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '7.5%' }} />
         </colgroup>
         <TableHeader className="bg-muted/60">
           <TableRow className="h-11 border-b border-border bg-muted/60 hover:bg-muted/60">
-            {['Booking / Client', 'Today’s Function(s)', 'Event Manager', 'Venue', 'Live Status', 'Next Milestone', 'Payment', 'Action'].map((heading) => (
-              <TableHead key={heading} scope="col" className={`${heading === 'Action' || heading === 'Booking / Client' ? 'text-center' : 'text-left'} h-11 whitespace-nowrap px-3 text-[11px] font-bold leading-none tracking-[0.01em] text-foreground first:pl-4 last:pr-4`}>
-                {heading}
+            {['Booking / Client', 'Today’s Function(s)', 'Event Manager', 'Venue', 'Planning Stage', 'Live Status', 'Next Milestone', 'Payment', 'Action'].map((heading) => (
+              <TableHead
+                key={heading}
+                scope="col"
+                className={`h-11 whitespace-nowrap px-2 text-[11px] font-bold leading-none tracking-[0.01em] text-foreground first:pl-4 last:pr-4 ${
+                  heading === 'Planning Stage' || heading === 'Live Status' || heading === 'Payment' || heading === 'Action'
+                    ? 'text-center'
+                    : 'text-left'
+                }`}
+              >
+                {heading === 'Booking / Client' ? (
+                  <span className="pl-[46px]">Booking / Client</span>
+                ) : heading === 'Event Manager' ? (
+                  <span className="pl-10">Event Manager</span>
+                ) : heading === 'Payment' ? (
+                  <span className="inline-block -translate-x-3.5">Payment</span>
+                ) : (
+                  heading
+                )}
               </TableHead>
             ))}
           </TableRow>
@@ -71,7 +89,7 @@ export default function TodayBookingTable({
                 : 'View';
 
             return (
-              <TableRow key={booking._id} className="text-xs">
+              <TableRow key={booking._id} className="text-[11px]">
                 <BookingClientCell booking={booking} onOpen={openEventOverview} />
                 <TableCell className="min-w-0 p-2">
                   <p className="truncate font-semibold">{currentFunction?.name || booking.eventType || 'Event'}</p>
@@ -90,28 +108,44 @@ export default function TodayBookingTable({
                       <AvatarImage src={avatarUrl(manager)} />
                       <AvatarFallback className="bg-slate-900 text-[10px] text-white">{initials(manager?.name || 'Unassigned')}</AvatarFallback>
                     </Avatar>
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold">{manager?.name || 'Unassigned'}</p>
-                      <p className="truncate text-[10px] text-muted-foreground">{teamCount ? `+${teamCount} Team` : manager?.designation || 'Event Manager'}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold leading-tight line-clamp-2 break-words">{manager?.name || 'Unassigned'}</p>
+                      <p className="truncate text-[10px] text-muted-foreground">{manager?.designation || 'Event Manager'}</p>
                     </div>
+                    {teamCount ? <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-full border text-[9px]">+{teamCount}</span> : null}
                   </div>
                 </TableCell>
                 <TableCell className="min-w-0 p-2">
-                  <p className="truncate font-semibold">{currentFunction?.venue || booking.venue || 'Venue pending'}</p>
+                  <p className="font-semibold leading-tight line-clamp-2 break-words">{currentFunction?.venue || booking.venue || 'Venue pending'}</p>
                   <p className="mt-1 truncate text-[10px] text-muted-foreground">{currentFunction?.area || booking.city || ''}</p>
                 </TableCell>
                 <TableCell className="min-w-0 p-2">
-                  <Badge className={`h-5 border-0 px-2 text-[9px] shadow-none ${liveToneClass(liveDetails.tone)}`}>{liveDetails.label}</Badge>
-                  <p className="mt-1 truncate text-[9px] text-muted-foreground">{liveDetails.detail}</p>
+                  <div className="flex justify-center">
+                    <StatusBadge status={booking.bookingStatus} />
+                  </div>
+                </TableCell>
+                <TableCell className="min-w-0 p-2">
+                  <div className="flex flex-col items-center justify-center">
+                    <Badge className={`h-5 border-0 px-2 text-[9px] shadow-none ${liveToneClass(liveDetails.tone)}`}>{liveDetails.label}</Badge>
+                    {liveDetails.detail ? (
+                      <p className="mt-1 truncate text-[9px] text-muted-foreground">{liveDetails.detail}</p>
+                    ) : null}
+                  </div>
                 </TableCell>
                 <TableCell className="min-w-0 p-2">
                   <p className="truncate font-semibold">{nextMilestone.label}</p>
                   {nextMilestone.time ? <p className="mt-1 truncate text-[10px] text-blue-600 dark:text-blue-400">{nextMilestone.time}</p> : null}
                 </TableCell>
-                <TableCell className="min-w-0 align-top p-2"><PaymentProgress booking={booking} /></TableCell>
                 <TableCell className="min-w-0 p-2">
-                  <div className="flex justify-end">
-                    <Button variant="outline" className={`h-8 ${primaryAction === 'View' ? 'min-w-12' : 'min-w-[92px]'} whitespace-nowrap rounded-r-none border-border bg-transparent px-2 text-[10px] font-semibold text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200`} onClick={() => requiresSetup ? openBookingSetup(booking) : openBooking(booking)}>
+                  <div className="flex justify-center pr-4">
+                    <div className="w-full max-w-[124px]">
+                      <PaymentProgress booking={booking} />
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="min-w-0 p-2">
+                  <div className="flex items-center justify-center">
+                    <Button variant="outline" className={`h-7 ${primaryAction === 'View' ? 'min-w-11 px-2.5' : 'min-w-[92px] px-2'} whitespace-nowrap rounded-r-none border-border bg-transparent text-[10px] font-semibold text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200`} onClick={() => requiresSetup ? openBookingSetup(booking) : openBooking(booking)}>
                       {primaryAction}
                     </Button>
                     <BookingActionsMenu booking={booking} openBooking={openBooking} openBookingEdit={openBookingEdit} openManagerAssignment={openManagerAssignment} openDocuments={openDocuments} openPayments={openPayments} openBookingSetup={openBookingSetup} onUpdateStatus={onUpdateStatus} />
@@ -121,7 +155,7 @@ export default function TodayBookingTable({
             );
           }) : (
             <TableRow>
-              <TableCell colSpan={8} className="h-40 text-center">
+              <TableCell colSpan={9} className="h-40 text-center">
                 <CalendarDays className="mx-auto mb-2 h-7 w-7 text-muted-foreground" />
                 <p className="text-sm font-medium">No live events found</p>
                 <p className="mt-1 text-xs text-muted-foreground">There are no events matching today’s live filters.</p>

@@ -10,8 +10,6 @@ import { Textarea } from '@components/components/ui/textarea';
 
 const initial = { preferenceTitle: '', functionAppliesTo: '', preferenceCategory: '', status: 'Client Preferred', source: 'Client Shared', clientLikes: '', avoid: '', notes: '', image: '' };
 const idOf = value => String(value?._id || value || '');
-const pink = 'border-pink-200 text-pink-600 dark:border-pink-400/30 dark:text-pink-300';
-const actionStyle = 'bg-pink-600 text-white hover:bg-pink-700 dark:bg-pink-500 dark:hover:bg-pink-600';
 const categories = ['Stage Decor', 'Entrance', 'Mandap', 'Floral Decor', 'Lighting', 'Seating', 'Table Decor', 'Catering Presentation', 'Photo Booth', 'Other'];
 function Field({ name, label, required, children, className = '' }) {
   return <div className={'min-w-0 space-y-1.5 ' + className}><Label htmlFor={'event-preference-' + name} className="text-xs font-semibold">{label}{required && <span className="ml-1 text-pink-600">*</span>}</Label>{children}</div>;
@@ -75,21 +73,103 @@ export default function EventVisualPreferenceDialog({ open, onOpenChange, custom
       ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(booking.fromDate))
       : '';
   const eventType = booking.eventType || customer.eventType || 'Event';
-  const eventLabel = [eventType, eventDate ? `Booking starts ${eventDate}` : ''].filter(Boolean).join(' | ');
   const clientName = customer.name || booking.clientName || booking.customer?.name;
   const ownerName = customer.assignedEmployee?.name || booking.eventManager?.name || booking.assignedEmployee?.name || 'Unassigned';
   const statusLabel = booking.bookingStatus || customer.leadStatus || 'Draft';
   const displayImage = preview || form.image;
+  const contextCards = [
+    {
+      icon: UserRound,
+      label: 'Client',
+      value: clientName || '-',
+      bg: 'bg-[#faf5ff] border-purple-100/80 dark:bg-purple-950/20 dark:border-purple-900/30',
+    },
+    {
+      icon: CalendarDays,
+      label: 'Event',
+      value: eventType || '-',
+      subtitle: eventDate ? `Booking starts ${eventDate}` : '',
+      bg: 'bg-[#eff6ff] border-blue-100/80 dark:bg-blue-950/20 dark:border-blue-900/30',
+    },
+    {
+      icon: UserRound,
+      label: 'Owner',
+      value: ownerName || '-',
+      bg: 'bg-[#fffbeb] border-amber-100/80 dark:bg-amber-950/20 dark:border-amber-900/30',
+    },
+    {
+      icon: FileText,
+      label: 'Status',
+      value: statusLabel || '-',
+      bg: 'bg-[#f0fdf4] border-emerald-100/80 dark:bg-emerald-950/20 dark:border-emerald-900/30',
+    },
+  ];
+  const primaryGradient = 'bg-gradient-to-r from-purple-600 to-blue-600 font-medium text-white shadow-sm hover:from-purple-700 hover:to-blue-700';
+
   return <Dialog open={open} onOpenChange={value => !isSaving && onOpenChange(value)}>
     <DialogContent className="flex max-h-[94dvh] w-[calc(100vw-1.5rem)] max-w-5xl flex-col gap-0 overflow-hidden p-0">
       <DialogHeader className="shrink-0 px-6 pb-3 pt-5 pr-12 text-left"><DialogTitle className="text-2xl font-semibold">{readOnly ? 'View' : mode === 'edit' ? 'Edit' : 'Add'} Preference</DialogTitle><DialogDescription className="text-xs">Add image-based preference details for this client.</DialogDescription></DialogHeader>
       <form id="event-visual-preference" onSubmit={submit} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-5">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[[UserRound, 'Client', clientName], [CalendarDays, 'Event', eventLabel], [UserRound, 'Owner', ownerName], [FileText, 'Status', statusLabel]].map(([Icon, label, value]) => <div key={label} className="flex min-w-0 items-center gap-3 rounded-md border border-border p-3"><span className="rounded-full bg-pink-50 p-2 text-pink-600 dark:bg-pink-400/10 dark:text-pink-300"><Icon className="h-5 w-5" /></span><div className="min-w-0"><p className="text-[10px] text-muted-foreground">{label}</p><p className="truncate text-xs font-semibold" title={value}>{value || '-'}</p></div></div>)}</div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {contextCards.map(card => (
+            <div key={card.label} className={`flex min-w-0 items-center gap-3 rounded-lg border p-3 ${card.bg}`}>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-pink-100/80 text-pink-600 dark:bg-pink-900/30 dark:text-pink-300">
+                <card.icon className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-medium text-muted-foreground">{card.label}</p>
+                <p className="truncate text-xs font-semibold text-foreground" title={card.value}>{card.value}</p>
+                {card.subtitle && (
+                  <p className="truncate text-[10px] text-muted-foreground" title={card.subtitle}>{card.subtitle}</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
         <fieldset disabled={readOnly || isSaving} className="grid min-w-0 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-          <div><Field name="image" label="Preference Image" required>
-            <input ref={inputRef} type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" className="sr-only" aria-label="Choose preference image" onChange={event => { choose(event.target.files); event.target.value = ''; }} />
-            <div className="relative"><button id="event-preference-image" type="button" disabled={readOnly || isSaving} aria-label={displayImage ? 'Replace preference image' : 'Upload preference image'} onClick={() => inputRef.current?.click()} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); choose(event.dataTransfer.files); }} className={'flex min-h-64 w-full flex-col items-center justify-center overflow-hidden rounded-md border border-dashed p-4 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-80 ' + pink}>{displayImage ? <img src={displayImage} alt={form.preferenceTitle || 'Preference preview'} className="max-h-80 w-full object-contain" /> : <><UploadCloud className="mb-4 h-10 w-10" /><span className="text-sm font-semibold">Upload One Image</span><span className="mt-2 text-xs leading-5 text-muted-foreground">Drag & drop image here<br />or click to browse</span><span className={'mt-4 rounded-md border px-4 py-2 text-xs font-semibold ' + pink}>Browse Image</span></>}</button>{displayImage && !readOnly && <Button type="button" variant="secondary" size="icon" disabled={isSaving} aria-label="Remove preference image" className="absolute right-2 top-2 h-7 w-7" onClick={() => { setFile(null); update('image', ''); }}><X className="h-4 w-4" /></Button>}</div>
-          </Field><p className="mt-3 text-center text-[10px] text-muted-foreground">JPG, PNG up to {maxImageMB} MB &middot; 16:9 or 4:3 recommended</p><p className="mt-3 flex gap-2 text-[10px] text-muted-foreground"><Info className="h-3.5 w-3.5 shrink-0" />Please upload one clear image for this preference.</p></div>
+          <div>
+            <Field name="image" label="Preference Image" required>
+              <input ref={inputRef} type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" className="sr-only" aria-label="Choose preference image" onChange={event => { choose(event.target.files); event.target.value = ''; }} />
+              <div className="relative">
+                <button
+                  id="event-preference-image"
+                  type="button"
+                  disabled={readOnly || isSaving}
+                  aria-label={displayImage ? 'Replace preference image' : 'Upload preference image'}
+                  onClick={() => inputRef.current?.click()}
+                  onDragOver={event => event.preventDefault()}
+                  onDrop={event => { event.preventDefault(); choose(event.dataTransfer.files); }}
+                  className={`flex min-h-64 w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed p-4 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-80 ${
+                    displayImage
+                      ? 'border-border bg-muted/10'
+                      : 'border-pink-300 bg-pink-50/20 hover:bg-pink-50/40 dark:border-pink-400/30 dark:bg-pink-950/10'
+                  }`}
+                >
+                  {displayImage ? (
+                    <img src={displayImage} alt={form.preferenceTitle || 'Preference preview'} className="max-h-80 w-full object-contain" />
+                  ) : (
+                    <>
+                      <UploadCloud className="mb-3 h-10 w-10 text-pink-500" />
+                      <span className="text-sm font-semibold text-pink-600">Upload One Image</span>
+                      <span className="mt-1 text-xs text-muted-foreground">Drag &amp; drop image here<br />or click to browse</span>
+                      <span className="mt-4 inline-flex items-center rounded-md border border-pink-200 bg-white px-4 py-1.5 text-xs font-semibold text-pink-600 shadow-sm hover:bg-pink-50 dark:border-pink-800 dark:bg-background">
+                        Browse Image
+                      </span>
+                    </>
+                  )}
+                </button>
+                {displayImage && !readOnly && (
+                  <Button type="button" variant="secondary" size="icon" disabled={isSaving} aria-label="Remove preference image" className="absolute right-2 top-2 h-7 w-7" onClick={() => { setFile(null); update('image', ''); }}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </Field>
+            <div className="mt-3 space-y-2">
+              <p className="text-center text-[11px] text-muted-foreground">JPG, PNG up to {maxImageMB} MB &middot; 16:9 or 4:3 recommended</p>
+              <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Info className="h-3.5 w-3.5 shrink-0" />Please upload one clear image for this preference.</p>
+            </div>
+          </div>
           <div className="grid content-start gap-4 sm:grid-cols-2">
             <Field name="functionAppliesTo" label="Applies To Function" required><Select disabled={readOnly || isSaving} value={form.functionAppliesTo} onValueChange={value => update('functionAppliesTo', value)}><SelectTrigger id="event-preference-functionAppliesTo" className="h-9 text-xs"><SelectValue placeholder="Select Function" /></SelectTrigger><SelectContent>{functions.map(fn => <SelectItem key={idOf(fn)} value={idOf(fn)}>{fn.name}</SelectItem>)}</SelectContent></Select>{!functions.length && <p className="text-xs text-muted-foreground">Add an event function first.</p>}</Field>
             <Field name="preferenceCategory" label="Preference Category" required>{select('preferenceCategory', categories)}</Field>
@@ -102,7 +182,20 @@ export default function EventVisualPreferenceDialog({ open, onOpenChange, custom
         </fieldset>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </form>
-      <DialogFooter className="shrink-0 flex-row flex-wrap items-center justify-between gap-3 border-t border-border px-6 py-4 sm:justify-between"><p className="flex items-center gap-2 text-[11px] text-muted-foreground"><Info className="h-4 w-4" />This preference will be added to the client requirements and timeline.</p><div className="flex gap-3"><Button variant="outline" disabled={isSaving} onClick={() => onOpenChange(false)}>{readOnly ? 'Close' : 'Cancel'}</Button>{readOnly ? <Button className={actionStyle} onClick={onEdit}>Edit Preference</Button> : <Button type="submit" form="event-visual-preference" disabled={isSaving || !onSubmit} className={actionStyle}>{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{mode === 'edit' ? 'Save Changes' : 'Add Preference'}</Button>}</div></DialogFooter>
+      <DialogFooter className="shrink-0 flex-row flex-wrap items-center justify-between gap-3 border-t border-border px-6 py-4 sm:justify-between">
+        <p className="flex items-center gap-2 text-[11px] text-muted-foreground"><Info className="h-4 w-4" />This preference will be added to the client requirements and timeline.</p>
+        <div className="flex gap-3">
+          <Button variant="outline" disabled={isSaving} onClick={() => onOpenChange(false)}>{readOnly ? 'Close' : 'Cancel'}</Button>
+          {readOnly ? (
+            <Button className={primaryGradient} onClick={onEdit}>Edit Preference</Button>
+          ) : (
+            <Button type="submit" form="event-visual-preference" disabled={isSaving || !onSubmit} className={primaryGradient}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {mode === 'edit' ? 'Save Changes' : 'Add Preference'}
+            </Button>
+          )}
+        </div>
+      </DialogFooter>
     </DialogContent>
   </Dialog>;
 }

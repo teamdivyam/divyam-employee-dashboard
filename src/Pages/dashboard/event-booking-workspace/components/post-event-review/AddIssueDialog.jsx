@@ -65,7 +65,13 @@ const PRIORITIES = [
   },
 ];
 
-const emptyForm = {
+const todayInputValue = () => {
+  const now = new Date();
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 10);
+};
+
+const emptyForm = () => ({
   title: "",
   source: "Client Feedback",
   linkedFeedbackId: "",
@@ -75,10 +81,10 @@ const emptyForm = {
   priority: "High",
   owner: "",
   ownerRole: "",
-  targetDate: "",
+  targetDate: todayInputValue(),
   immediateAction: "",
   status: "Open",
-};
+});
 
 const dateValue = (value) => {
   if (!value) return "";
@@ -103,13 +109,13 @@ const itemName = (item) => {
 
 function Field({ label, required, children, help, className = "" }) {
   return (
-    <div className={`space-y-1 ${className}`}>
-      <Label className="text-[10px] font-medium text-foreground">
+    <div className={`space-y-1.5 ${className}`}>
+      <Label className="text-[11px] font-medium text-foreground">
         {label} {required ? <span className="text-destructive">*</span> : null}
       </Label>
       {children}
       {help ? (
-        <p className="flex items-center gap-1 text-[9px] leading-3 text-muted-foreground">
+        <p className="flex items-center gap-1 text-[10px] leading-4 text-muted-foreground">
           <Info className="h-3 w-3 shrink-0" />
           {help}
         </p>
@@ -118,14 +124,19 @@ function Field({ label, required, children, help, className = "" }) {
   );
 }
 
-function FormSection({ number, title, children }) {
+const sectionToneClass = {
+  blue: "border-blue-200/80 bg-blue-50/80 dark:border-blue-900/70 dark:bg-blue-950/30",
+  amber: "border-amber-200/80 bg-amber-50/80 dark:border-amber-900/70 dark:bg-amber-950/30",
+};
+
+function FormSection({ number, title, tone, children }) {
   return (
-    <section className="overflow-hidden rounded-md border border-primary/15 bg-card">
-      <div className="flex items-center gap-1.5 border-b border-primary/10 bg-primary/[0.06] px-2.5 py-1.5 text-[11px] font-semibold text-foreground">
+    <section className="overflow-hidden rounded-md border border-border bg-card">
+      <div className={`flex items-center gap-1.5 border-b px-3 py-2 text-xs font-semibold text-foreground ${sectionToneClass[tone]}`}>
         <span>{number}.</span>
         <span>{title}</span>
       </div>
-      <div className="p-2">{children}</div>
+      <div className="p-3">{children}</div>
     </section>
   );
 }
@@ -148,7 +159,7 @@ export default function AddIssueDialog({
     setForm(
       initialData
         ? {
-            ...emptyForm,
+            ...emptyForm(),
             ...initialData,
             title:
               initialData.title ||
@@ -165,7 +176,7 @@ export default function AddIssueDialog({
             immediateAction:
               initialData.immediateAction || initialData.actionTaken || "",
           }
-        : emptyForm,
+        : emptyForm(),
     );
   }, [initialData, open]);
 
@@ -220,6 +231,8 @@ export default function AddIssueDialog({
   const update = (key, value) =>
     setForm((current) => ({ ...current, [key]: value }));
 
+  const requiresLinkedFeedback = form.source === "Client Feedback" && feedbacks.length > 0;
+
   const updateOwner = (owner) => {
     const selected = ownerOptions.find((item) => item.name === owner);
     setForm((current) => ({
@@ -233,7 +246,7 @@ export default function AddIssueDialog({
     if (
       !form.title.trim() ||
       !form.source ||
-      (feedbacks.length > 0 && !form.linkedFeedbackId) ||
+      (requiresLinkedFeedback && !form.linkedFeedbackId) ||
       !form.relatedTo ||
       !form.service.trim() ||
       !form.whatHappened.trim() ||
@@ -266,9 +279,9 @@ export default function AddIssueDialog({
       onOpenChange={(nextOpen) => !saving && onOpenChange(nextOpen)}
     >
       <DialogContent
-        className="flex max-h-[94dvh] w-[calc(100vw-20px)] max-w-[760px] flex-col gap-0 overflow-hidden rounded-md border-border bg-background p-0"
+        className="flex max-h-[96dvh] w-[calc(100vw-24px)] max-w-[900px] flex-col gap-0 overflow-hidden rounded-md border-border bg-background p-0"
       >
-        <DialogHeader className="shrink-0 border-b border-border px-3.5 py-1.5 pr-11 text-left">
+        <DialogHeader className="shrink-0 border-b border-violet-200/70 bg-violet-50/80 px-4 py-3 pr-12 text-left dark:border-violet-900/70 dark:bg-violet-950/30">
           <DialogTitle className="text-base font-semibold">
             {isEditing ? "Edit Issue" : "Add Issue"}
           </DialogTitle>
@@ -277,8 +290,8 @@ export default function AddIssueDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2.5">
-          <div className="flex items-center gap-2.5 rounded-md border border-primary/15 bg-primary/[0.04] px-2.5 py-1.5">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+          <div className="flex items-center gap-3 rounded-md border border-blue-200/70 bg-blue-50/70 px-3 py-2.5 dark:border-blue-900/60 dark:bg-blue-950/25">
             <Avatar className="h-8 w-8 shrink-0 rounded-md">
               <AvatarFallback className="rounded-md bg-primary/10 text-xs font-semibold text-primary">
                 {initials(clientName)}
@@ -295,23 +308,27 @@ export default function AddIssueDialog({
             </div>
           </div>
 
-          <fieldset disabled={saving} className="space-y-1.5">
-            <FormSection number="1" title="Issue Details">
-              <div className="grid gap-x-2 gap-y-1.5 sm:grid-cols-2">
+          <fieldset disabled={saving} className="space-y-4">
+            <FormSection number="1" title="Issue Details" tone="blue">
+              <div className="grid gap-x-3 gap-y-3 sm:grid-cols-2">
                 <Field label="Issue Title" required>
-                  <Input className="h-7 text-[10px]" value={form.title} maxLength={150} placeholder="Enter a short title for the issue" onChange={(event) => update("title", event.target.value)} />
+                  <Input className="h-9 text-xs" value={form.title} maxLength={150} placeholder="Enter a short title for the issue" onChange={(event) => update("title", event.target.value)} />
                 </Field>
 
                 <Field label="Issue Source" required>
-                  <Select value={form.source} onValueChange={(value) => update("source", value)}>
-                    <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                  <Select value={form.source} onValueChange={(value) => setForm((current) => ({
+                    ...current,
+                    source: value,
+                    linkedFeedbackId: value === "Client Feedback" ? current.linkedFeedbackId : "",
+                  }))}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>{ISSUE_SOURCES.map((item) => <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>)}</SelectContent>
                   </Select>
                 </Field>
 
-                <Field label="Linked Feedback" required={feedbacks.length > 0} className="sm:col-span-2" help="Link the original entry when this issue comes from client feedback.">
-                  <Select value={form.linkedFeedbackId || undefined} onValueChange={(value) => update("linkedFeedbackId", value)} disabled={!feedbacks.length}>
-                    <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder={feedbacks.length ? "Select the related feedback" : "No feedback available"} /></SelectTrigger>
+                <Field label="Linked Feedback" required={requiresLinkedFeedback} className="sm:col-span-2" help="Link the original entry when this issue comes from client feedback.">
+                  <Select value={form.linkedFeedbackId || undefined} onValueChange={(value) => update("linkedFeedbackId", value)} disabled={!requiresLinkedFeedback}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder={form.source !== "Client Feedback" ? "Available for client feedback" : feedbacks.length ? "Select the related feedback" : "No feedback available"} /></SelectTrigger>
                     <SelectContent>{feedbacks.map((item, index) => {
                       const feedbackId = idOf(item) || `feedback-${index}`;
                       const summary = item.observation || item.feedbackSummary || "Feedback";
@@ -322,33 +339,33 @@ export default function AddIssueDialog({
 
                 <Field label="Related To" required help="Choose the area of the event this issue is related to.">
                   <Select value={form.relatedTo} onValueChange={(value) => setForm((current) => ({ ...current, relatedTo: value, service: "" }))}>
-                    <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>{RELATED_TO_OPTIONS.map((item) => <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>)}</SelectContent>
                   </Select>
                 </Field>
 
                 <Field label={`Select ${form.relatedTo === "Overall Event" ? "Area" : form.relatedTo}`} required>
                   <Select value={form.service || undefined} onValueChange={(value) => update("service", value)}>
-                    <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder={`Select ${form.relatedTo.toLowerCase()}`} /></SelectTrigger>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder={`Select ${form.relatedTo.toLowerCase()}`} /></SelectTrigger>
                     <SelectContent>{relatedItems.map((item) => <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>)}</SelectContent>
                   </Select>
                 </Field>
 
                 <Field label="What Happened" required className="sm:col-span-2">
                   <div className="relative">
-                    <Textarea className="min-h-12 resize-none pb-4 text-[10px]" value={form.whatHappened} maxLength={1000} placeholder="Describe the issue in detail. Be specific and factual." onChange={(event) => update("whatHappened", event.target.value)} />
-                    <span className="absolute bottom-1.5 right-2 text-[9px] text-muted-foreground">{form.whatHappened.length}/1000</span>
+                    <Textarea className="min-h-20 resize-none pb-6 text-xs" value={form.whatHappened} maxLength={1000} placeholder="Describe the issue in detail. Be specific and factual." onChange={(event) => update("whatHappened", event.target.value)} />
+                    <span className="absolute bottom-2 right-2.5 text-[10px] text-muted-foreground">{form.whatHappened.length}/1000</span>
                   </div>
                 </Field>
               </div>
             </FormSection>
 
-            <FormSection number="2" title="Action & Ownership">
-              <div className="grid gap-x-2 gap-y-1.5 md:grid-cols-3">
+            <FormSection number="2" title="Action & Ownership" tone="amber">
+              <div className="grid gap-x-3 gap-y-3 md:grid-cols-3">
                 <Field label="Priority" required>
                   <div className="grid grid-cols-3 gap-1.5">
                     {PRIORITIES.map((item) => (
-                      <button key={item.value} type="button" aria-pressed={form.priority === item.value} onClick={() => update("priority", item.value)} className={`flex h-7 items-center justify-center gap-1 rounded-md border text-[9px] font-semibold transition ${item.className} ${form.priority === item.value ? "ring-2 ring-primary/30" : "opacity-65 hover:opacity-100"}`}>
+                      <button key={item.value} type="button" aria-pressed={form.priority === item.value} onClick={() => update("priority", item.value)} className={`flex h-9 items-center justify-center gap-1.5 rounded-md border text-[10px] font-semibold transition ${item.className} ${form.priority === item.value ? "ring-2 ring-primary/30" : "opacity-65 hover:opacity-100"}`}>
                         <span className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border-2 border-current">
                           <span
                             className={`h-1.5 w-1.5 rounded-full bg-current transition-opacity ${
@@ -366,19 +383,19 @@ export default function AddIssueDialog({
 
                 <Field label="Owner" required>
                   <Select value={form.owner || undefined} onValueChange={updateOwner}>
-                    <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select owner" /></SelectTrigger>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select owner" /></SelectTrigger>
                     <SelectContent>{ownerOptions.map((item) => <SelectItem key={item.name} value={item.name} className="text-xs">{item.name}{item.role ? ` — ${item.role}` : ""}</SelectItem>)}</SelectContent>
                   </Select>
                 </Field>
 
                 <Field label="Target Date" required>
-                  <Input type="date" className="h-7 text-[10px]" value={form.targetDate} onChange={(event) => update("targetDate", event.target.value)} />
+                  <Input type="date" className="h-9 text-xs" value={form.targetDate} onChange={(event) => update("targetDate", event.target.value)} />
                 </Field>
 
                 <Field label="Immediate Action / Next Step (Optional)" className="md:col-span-3">
                   <div className="relative">
-                    <Textarea className="min-h-10 resize-none pb-4 text-[10px]" value={form.immediateAction} maxLength={500} placeholder="Enter the immediate action or next steps to address this issue." onChange={(event) => update("immediateAction", event.target.value)} />
-                    <span className="absolute bottom-1.5 right-2 text-[9px] text-muted-foreground">{form.immediateAction.length}/500</span>
+                    <Textarea className="min-h-16 resize-none pb-6 text-xs" value={form.immediateAction} maxLength={500} placeholder="Enter the immediate action or next steps to address this issue." onChange={(event) => update("immediateAction", event.target.value)} />
+                    <span className="absolute bottom-2 right-2.5 text-[10px] text-muted-foreground">{form.immediateAction.length}/500</span>
                   </div>
                 </Field>
               </div>
@@ -386,7 +403,7 @@ export default function AddIssueDialog({
           </fieldset>
 
           {!isEditing ? (
-            <div className="flex items-start gap-2 rounded-md border border-primary/15 bg-primary/[0.05] px-2.5 py-1.5 text-primary">
+            <div className="flex items-start gap-2 rounded-md border border-blue-200/80 bg-blue-50/80 px-3 py-2.5 text-blue-700 dark:border-blue-900/70 dark:bg-blue-950/30 dark:text-blue-300">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <div>
                 <p className="text-[11px] font-semibold">New issues are created with Open status.</p>
@@ -396,7 +413,7 @@ export default function AddIssueDialog({
           ) : null}
         </div>
 
-        <DialogFooter className="shrink-0 flex-row justify-between gap-2 border-t border-border bg-muted/20 px-3.5 py-1.5 sm:justify-between sm:space-x-0">
+        <DialogFooter className="shrink-0 flex-row justify-between gap-2 border-t border-border bg-muted/20 px-4 py-2.5 sm:justify-between sm:space-x-0">
           <Button type="button" variant="outline" size="sm" className="h-8 min-w-28 text-xs" disabled={saving} onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button type="button" size="sm" variant="custom" className="h-8 min-w-36 gap-1.5 text-xs" disabled={saving} onClick={submit}>
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}

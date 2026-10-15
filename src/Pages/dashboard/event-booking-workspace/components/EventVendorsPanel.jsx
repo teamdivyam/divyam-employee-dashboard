@@ -8,6 +8,7 @@ import {
   ChefHat,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Eye,
   ExternalLink,
   FileText,
@@ -27,6 +28,7 @@ import { Input } from '@components/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './EventTable';
 import { avatarUrl } from '../eventBookingDashboard.utils';
+import EventDeleteMenu from './EventDeleteMenu';
 import EventOperationsNav from './EventOperationsNav';
 
 const PAGE_SIZE = 10;
@@ -66,7 +68,7 @@ const formatTime = (value) => {
 
 const money = (value) => `\u20B9${numberOf(value).toLocaleString('en-IN')}`;
 
-export default function EventVendorsPanel({ booking, onAdd, onEdit }) {
+export default function EventVendorsPanel({ booking, onAdd, onEdit, onDelete }) {
   const assignments = useMemo(() => booking.vendorAssignments || [], [booking.vendorAssignments]);
   const functions = useMemo(() => booking.functions || [], [booking.functions]);
   const functionMap = useMemo(() => new Map(functions.map((item) => [idOf(item), item.name])), [functions]);
@@ -96,10 +98,12 @@ export default function EventVendorsPanel({ booking, onAdd, onEdit }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex w-full items-center justify-between gap-2 overflow-x-auto pb-0.5">
-        <EventOperationsNav active="vendors" />
-        <div className="flex shrink-0 items-center justify-end gap-1.5">
-          <div className="relative w-32 shrink-0"><Search className="pointer-events-none absolute left-2.5 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search vendor..." className="h-9 w-full pl-8 text-[11px]" /></div>
+      <div className="flex w-full min-w-0 items-center justify-between gap-2 overflow-x-auto py-1">
+        <div className="shrink-0">
+          <EventOperationsNav active="vendors" />
+        </div>
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
+          <div className="relative min-w-44 flex-1"><Search className="pointer-events-none absolute left-2.5 top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search vendors..." className="h-9 w-full pl-8 text-xs" /></div>
           <Select value={serviceFilter} onValueChange={setServiceFilter}><SelectTrigger className="h-9 w-20 shrink-0 px-2 text-[10px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Services</SelectItem>{services.map((service) => <SelectItem key={service} value={service}>{service}</SelectItem>)}</SelectContent></Select>
           <Select value={functionFilter} onValueChange={setFunctionFilter}><SelectTrigger className="h-9 w-20 shrink-0 px-2 text-[10px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Functions</SelectItem>{functions.map((item) => <SelectItem key={idOf(item)} value={idOf(item)}>{item.name}</SelectItem>)}</SelectContent></Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="h-9 w-24 shrink-0 px-2 text-[10px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Status</SelectItem>{statuses.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent></Select>
@@ -107,32 +111,42 @@ export default function EventVendorsPanel({ booking, onAdd, onEdit }) {
         </div>
       </div>
 
-      <Card className="crm-card overflow-hidden">
+      <Card className="overflow-hidden border-border shadow-sm">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table className="min-w-[1100px] table-fixed text-xs">
+            <Table className="min-w-[1200px] table-fixed text-xs">
               <colgroup>
-                <col className="w-[16%]" />
                 <col className="w-[13%]" />
-                <col className="w-[8%]" />
-                <col className="w-[11%]" />
-                <col className="w-[13%]" />
-                <col className="w-[8%]" />
                 <col className="w-[14%]" />
-                <col className="w-[7%]" />
+                <col className="w-[11%]" />
+                <col className="w-[10%]" />
+                <col className="w-[12%]" />
+                <col className="w-[10%]" />
+                <col className="w-[12%]" />
+                <col className="w-[8%]" />
                 <col className="w-[10%]" />
               </colgroup>
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead className="h-11 px-3">Vendor</TableHead>
+                  <TableHead className="h-11 px-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-9 shrink-0" aria-hidden="true" />
+                      <span>Vendor</span>
+                    </div>
+                  </TableHead>
                   <TableHead className="h-11 px-3">Service & Scope</TableHead>
                   <TableHead className="h-11 px-3">Applies To</TableHead>
                   <TableHead className="h-11 px-3">Vendor Contact</TableHead>
-                  <TableHead className="h-11 px-3">Reporting Date & Time</TableHead>
-                  <TableHead className="h-11 px-3">Work Status</TableHead>
-                  <TableHead className="h-11 px-3">Payment Summary</TableHead>
-                  <TableHead className="h-11 px-3">Documents</TableHead>
-                  <TableHead className="h-11 px-3 text-right">Action</TableHead>
+                  <TableHead className="h-11 px-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-3.5 shrink-0" aria-hidden="true" />
+                      <span>Reporting Date & Time</span>
+                    </div>
+                  </TableHead>
+                  <TableHead className="h-11 px-2.5 text-center">Work Status</TableHead>
+                  <TableHead className="h-11 px-3 text-center">Payment Summary</TableHead>
+                  <TableHead className="h-11 px-2.5 text-center">Documents</TableHead>
+                  <TableHead className="h-11 px-3 text-center">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -155,22 +169,35 @@ export default function EventVendorsPanel({ booking, onAdd, onEdit }) {
                           <div className="min-w-0"><p className="max-w-48 truncate font-semibold text-foreground">{vendor.companyName || 'Vendor'}</p>{vendor.category ? <p className="mt-0.5 text-[10px] text-muted-foreground">{vendor.category}</p> : null}</div>
                         </div>
                       </TableCell>
-                      <TableCell className="px-3 py-3"><div className="flex items-start gap-2"><Badge variant="outline" className="shrink-0 border-violet-100 bg-violet-50 text-[9px] text-violet-700">{service}</Badge><p className="max-w-48 text-[10px] leading-4 text-muted-foreground">{assignment.scope || assignment.notes || 'Scope not added'}</p></div></TableCell>
-                      <TableCell className="px-3 py-3"><p className="max-w-28 break-words leading-4 text-foreground">{assignedFunctions.length ? assignedFunctions.join(', ') : 'All Functions'}</p></TableCell>
-                      <TableCell className="px-3 py-3"><p className="font-semibold text-foreground">{vendor.contactPerson || '-'}</p><p className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground"><Phone className="h-3 w-3" />{vendor.mobileNumber || '-'}</p></TableCell>
-                      <TableCell className="px-3 py-3"><p className="flex items-center gap-1.5 font-medium text-foreground"><CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />{formatDate(assignment.reportingTime)}</p>{formatTime(assignment.reportingTime) ? <p className="mt-1 pl-5 text-[10px] text-muted-foreground">{formatTime(assignment.reportingTime)}</p> : null}</TableCell>
-                      <TableCell className="px-3 py-3"><Badge variant="outline" className={`rounded px-2 py-0.5 text-[9px] ${badgeTone(assignment.status)}`}>{assignment.status || 'Upcoming'}</Badge></TableCell>
                       <TableCell className="px-3 py-3">
-                        <p className={`text-[10px] font-semibold ${percent === 100 ? 'text-emerald-700' : percent ? 'text-orange-600' : 'text-muted-foreground'}`}>{percent}% Paid</p>
-                        <div className="my-1.5 h-1.5 w-32 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${percent === 100 ? 'bg-emerald-600' : 'bg-orange-500'}`} style={{ width: `${percent}%` }} /></div>
-                        <p className="text-[10px] font-medium text-foreground">{money(paid)} Paid <span className="px-1 text-muted-foreground">•</span> {money(due)} Due</p>
-                        {due > 0 && assignment.nextPaymentDueDate ? <p className="mt-1 text-[9px] text-muted-foreground">Next due: {formatDate(assignment.nextPaymentDueDate)}</p> : null}
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="shrink-0 border-violet-100 bg-violet-50 px-2 py-0.5 text-[11px] font-normal text-violet-700">{service}</Badge>
+                          {assignment.scope || assignment.notes ? (
+                            <span className="min-w-0 truncate text-xs text-muted-foreground" title={assignment.scope || assignment.notes}>{assignment.scope || assignment.notes}</span>
+                          ) : null}
+                        </div>
                       </TableCell>
-                      <TableCell className="px-3 py-3">
+                      <TableCell className="px-3 py-3"><span className="inline-block rounded-md bg-blue-50 px-2.5 py-1 text-xs font-normal text-blue-700">{assignedFunctions.length ? assignedFunctions.join(', ') : 'All Functions'}</span></TableCell>
+                      <TableCell className="px-3 py-3"><p className="font-semibold text-foreground">{vendor.contactPerson || '-'}</p><p className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground"><Phone className="h-3 w-3" />{vendor.mobileNumber || '-'}</p></TableCell>
+                      <TableCell className="px-3 py-3"><div className="space-y-1 text-xs"><div className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 shrink-0 text-blue-600" /><p className="font-medium text-foreground">{formatDate(assignment.reportingTime)}</p></div><div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-3.5 w-3.5 shrink-0 text-blue-600" /><p>{formatTime(assignment.reportingTime) || '-'}</p></div></div></TableCell>
+                      <TableCell className="px-2.5 py-3 text-center"><Badge variant="outline" className={`inline-flex h-7 items-center justify-center rounded-md px-3 text-xs font-normal ${badgeTone(assignment.status)}`}>{assignment.status || 'Upcoming'}</Badge></TableCell>
+                      <TableCell className="px-3 py-3 text-center">
+                        <div className="flex flex-col items-center">
+                          <div className="relative flex items-center justify-center">
+                            <div className="h-1.5 w-28 overflow-hidden rounded-full bg-muted">
+                              <div className={`h-full rounded-full ${percent === 100 ? 'bg-emerald-600' : 'bg-orange-500'}`} style={{ width: `${percent}%` }} />
+                            </div>
+                            <span className={`absolute left-[calc(50%+3.75rem)] whitespace-nowrap text-[10px] font-semibold ${percent === 100 ? 'text-emerald-700' : percent ? 'text-orange-600' : 'text-muted-foreground'}`}>{percent}% Paid</span>
+                          </div>
+                          <p className="mt-1.5 text-[10px] font-medium text-foreground">{money(paid)} Paid <span className="px-1 text-muted-foreground">•</span> {money(due)} Due</p>
+                          {due > 0 && assignment.nextPaymentDueDate ? <p className="mt-0.5 text-[9px] text-muted-foreground">Next due: {formatDate(assignment.nextPaymentDueDate)}</p> : null}
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-2.5 py-3 text-center">
                         {documents.length ? (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild><button type="button" className="inline-flex items-center gap-1.5 whitespace-nowrap font-medium text-blue-600 hover:underline"><FileText className="h-3.5 w-3.5" />{documentCount} {documentCount === 1 ? 'Doc' : 'Docs'}</button></DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-64">
+                            <DropdownMenuContent align="center" className="w-64">
                               {documents.map((document) => (
                                 <DropdownMenuItem key={document._id || `${document.documentType}-${document.fileUrl}`} asChild disabled={!document.fileUrl}>
                                   {document.fileUrl ? <a href={document.fileUrl} target="_blank" rel="noreferrer" className="flex cursor-pointer items-center justify-between gap-3"><span className="min-w-0"><span className="block truncate text-xs font-semibold">{document.documentType || 'Vendor document'}</span>{document.documentNumber ? <span className="block truncate text-[10px] text-muted-foreground">{document.documentNumber}</span> : null}</span><ExternalLink className="h-3.5 w-3.5 shrink-0 text-blue-600" /></a> : <span className="truncate text-xs">{document.documentType || 'Vendor document'}</span>}
@@ -180,11 +207,18 @@ export default function EventVendorsPanel({ booking, onAdd, onEdit }) {
                           </DropdownMenu>
                         ) : <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-muted-foreground"><FileText className="h-3.5 w-3.5" />0 Docs</span>}
                       </TableCell>
-                      <TableCell className="px-2 py-3 text-right"><div className="flex justify-end"><Button variant="outline" size="sm" className="h-8 gap-1 border-blue-300 bg-transparent px-2.5 text-blue-700 hover:bg-blue-50 hover:text-blue-800" onClick={() => onEdit(assignment)}><Eye className="h-4 w-4" />View</Button></div></TableCell>
+                      <TableCell className="px-3 py-3 text-center"><div className="inline-flex items-center justify-center gap-1.5"><Button variant="outline" size="sm" className="h-8 gap-1.5 border-blue-300 bg-transparent px-3 text-xs text-blue-700 hover:bg-blue-50 hover:text-blue-800" onClick={() => onEdit(assignment)}><Eye className="h-4 w-4" />View</Button><EventDeleteMenu className="h-8 w-6 text-muted-foreground hover:text-foreground" label={`${vendor.companyName || 'vendor'} assignment`} onDelete={onDelete ? () => onDelete(assignment) : undefined} /></div></TableCell>
                     </TableRow>
                   );
                 }) : (
-                  <TableRow><TableCell colSpan={9} className="h-40 text-center"><Store className="mx-auto mb-2 h-8 w-8 text-muted-foreground" /><p className="font-semibold text-foreground">No vendors found</p><p className="mt-1 text-[11px] text-muted-foreground">Assign a vendor or adjust the current filters.</p></TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={9} className="h-44 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        <p className="font-semibold text-foreground">No vendors assigned yet</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Use Assign Vendor to create the first entry.</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 )}
               </TableBody>
             </Table>

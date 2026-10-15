@@ -128,7 +128,7 @@ export default function EventBookingLayout() {
     );
 
   return (
-    <div className="crm-page relative h-[calc(100dvh-4rem)] min-w-0 overflow-auto">
+    <div className="crm-page relative h-[calc(100dvh-4rem)] min-w-0 overflow-auto [&_input[placeholder^='Search']::placeholder]:text-xs [&_input[placeholder^='Search']:focus-visible]:border-primary [&_input[type='search']::placeholder]:text-xs [&_input[type='search']:focus-visible]:border-primary">
       <div className="sticky top-0 z-20 space-y-3 bg-background p-3 pb-4 sm:p-4 lg:p-5 lg:pb-4">
         <EventBookingClientHeader
           booking={booking}

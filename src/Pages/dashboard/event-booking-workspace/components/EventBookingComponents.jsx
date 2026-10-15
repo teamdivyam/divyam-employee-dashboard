@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types, react-refresh/only-export-components */
 import { useEffect, useState } from 'react';
 import {
+  ChevronDown,
   Loader2,
   Save,
   UserRound,
@@ -393,12 +394,12 @@ export const bookingStatusLabel = (status) => status === 'Confirmed'
 
 export function StatusBadge({ status }) {
   return (
-    <Badge
-      variant="outline"
-      className={`inline-flex h-7 w-[136px] items-center justify-center text-center rounded-md px-2 text-[11px] font-semibold ${statusClass(status)}`}
+    <div
+      className={`relative inline-flex h-7 w-[138px] items-center justify-center rounded-md border pl-2 pr-5 text-[11px] font-semibold tracking-tight ${statusClass(status)}`}
     >
-      <span className="truncate">{bookingStatusLabel(status)}</span>
-    </Badge>
+      <span className="w-full truncate text-center">{bookingStatusLabel(status)}</span>
+      <ChevronDown aria-hidden="true" className="absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 shrink-0 opacity-70" />
+    </div>
   );
 }
 
