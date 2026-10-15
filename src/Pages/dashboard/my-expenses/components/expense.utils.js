@@ -119,7 +119,22 @@ export function normalizeAnalytics(data = {}) {
 }
 
 export function normalizeExpense(expense = {}) {
-  return { ...expense, _id: expense._id || "", expenseId: expense.expenseId || "", expenseName: expense.expenseName || "", category: expense.category || "", linkedTo: expense.linkedTo || "", expenseFor: expense.expenseFor || "", paymentSource: expense.paymentSource || "", status: expense.status || "Pending Finance Review", expenseAmount: numberOrZero(expense.expenseAmount), amountCover: numberOrZero(expense.amountCover), balanceAmount: numberOrZero(expense.balanceAmount) };
+  const approvedAmount = firstPresent(expense.approvedAmount, expense.amountCover);
+  return {
+    ...expense,
+    _id: expense._id || "",
+    expenseId: expense.expenseId || "",
+    expenseName: expense.expenseName || "",
+    category: expense.category || "",
+    linkedTo: expense.linkedTo || "",
+    expenseFor: expense.expenseFor || "",
+    paymentSource: expense.paymentSource || "",
+    status: expense.status || "Pending Finance Review",
+    expenseAmount: numberOrZero(expense.expenseAmount),
+    approvedAmount: approvedAmount !== undefined ? numberOrZero(approvedAmount) : undefined,
+    amountCover: numberOrZero(expense.amountCover),
+    balanceAmount: numberOrZero(expense.balanceAmount),
+  };
 }
 
 export function normalizeExpenseResponse(data = {}) {
@@ -128,12 +143,12 @@ export function normalizeExpenseResponse(data = {}) {
 }
 
 export function hasApprovedAmount(expense) {
-  return String(expense.status || "").toLowerCase().includes("approved") || expense.amountCover > 0;
+  return String(expense.status || "").toLowerCase().includes("approved") || (expense.approvedAmount !== undefined && expense.approvedAmount !== null && Number(expense.approvedAmount) > 0) || expense.amountCover > 0;
 }
 
 export function getRecommendedAmount(expense) {
   const financeReview = expense.financeReview || expense.financeApproval || {};
-  return firstPresent(financeReview.recommendedAmount, financeReview.approvedAmount, expense.recommendedAmount, hasApprovedAmount(expense) ? expense.amountCover : undefined);
+  return firstPresent(financeReview.recommendedAmount, financeReview.approvedAmount, expense.financeRecommendedAmount, expense.recommendedAmount, hasApprovedAmount(expense) ? firstPresent(expense.approvedAmount, expense.amountCover) : undefined);
 }
 
 export function getAdjustment(expense) {
@@ -220,5 +235,5 @@ export function downloadCsv(filename, headers, rows) {
 }
 
 export function downloadExpenseCsv(expenses, monthPeriod) {
-  downloadCsv(`expense-statement-${monthPeriod}.csv`, ["Claim ID", "Expense Name", "Category", "Linked To", "Expense Date", "Payment Source", "Expense Amount", "Approved Amount", "Status"], expenses.map((expense) => [expense.expenseId, expense.expenseName, expense.category, getLinkedToName(expense.linkedTo), formatDate(expense.expenseDate), expense.paymentSource, expense.expenseAmount, hasApprovedAmount(expense) ? expense.amountCover : "", expense.status]));
+  downloadCsv(`expense-statement-${monthPeriod}.csv`, ["Claim ID", "Expense Name", "Category", "Linked To", "Expense Date", "Payment Source", "Expense Amount", "Approved Amount", "Status"], expenses.map((expense) => [expense.expenseId, expense.expenseName, expense.category, getLinkedToName(expense.linkedTo), formatDate(expense.expenseDate), expense.paymentSource, expense.expenseAmount, hasApprovedAmount(expense) ? firstPresent(expense.approvedAmount, expense.amountCover, "") : "", expense.status]));
 }

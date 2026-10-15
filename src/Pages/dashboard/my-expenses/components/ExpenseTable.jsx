@@ -4,7 +4,7 @@ import { Button } from "@components/components/ui/button";
 import LinkedToDisplay from "./LinkedToDisplay";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@components/components/ui/table";
 import {
-  displayText, formatCurrency, formatDate, formatOptionalCurrency, formatTime,
+  displayText, firstPresent, formatCurrency, formatDate, formatOptionalCurrency, formatTime,
   getActionLabel, getAdvanceId, getErrorMessage,
   getRecommendedAmount, hasApprovedAmount,
 } from "./expense.utils";
@@ -107,7 +107,7 @@ function ExpenseRow({ activeTab, expense, onView, onEdit }) {
         <TableCell className="px-3 py-2 font-medium tabular-nums">
           {isPendingReviewTab
             ? formatOptionalCurrency(getRecommendedAmount(expense))
-            : hasApprovedAmount(expense) ? formatCurrency(expense.amountCover) : "-"}
+            : hasApprovedAmount(expense) ? formatCurrency(firstPresent(expense.approvedAmount, expense.amountCover, 0)) : "-"}
         </TableCell>
       )}
       {!isDraftTab ? (
@@ -119,7 +119,7 @@ function ExpenseRow({ activeTab, expense, onView, onEdit }) {
           variant="outline"
           size="sm"
           className="h-6 whitespace-nowrap px-2 text-[10px] text-primary"
-          onClick={() => actionLabel === "Edit" ? onEdit(expense) : onView(expense)}
+          onClick={() => (actionLabel === "Edit" || actionLabel === "Edit & Resubmit") ? onEdit(expense) : onView(expense)}
         >
           {actionLabel}
         </Button>

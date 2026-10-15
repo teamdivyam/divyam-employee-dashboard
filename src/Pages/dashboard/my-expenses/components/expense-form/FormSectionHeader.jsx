@@ -13,6 +13,10 @@ export default function FormSectionHeader({ number, title, tone, icon: Icon }) {
       header: "bg-[hsl(var(--chart-4)/0.06)] text-[hsl(var(--chart-4))]",
       icon: "bg-[hsl(var(--chart-4)/0.14)] text-[hsl(var(--chart-4))]",
     },
+    orange: {
+      header: "bg-[hsl(var(--chart-3)/0.06)] text-[hsl(var(--chart-3))]",
+      icon: "bg-[hsl(var(--chart-3)/0.14)] text-[hsl(var(--chart-3))]",
+    },
   }[tone];
 
   return (
