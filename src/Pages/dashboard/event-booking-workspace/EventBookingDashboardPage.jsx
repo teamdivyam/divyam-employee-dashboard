@@ -7,7 +7,6 @@ import {
   CalendarCheck2,
   CalendarDays,
   CreditCard,
-  ChevronDown,
   Hourglass,
   Clock3,
   Loader2,
@@ -350,36 +349,8 @@ export default function EventBookingDashboardPage() {
   const firstVisiblePage = Math.min(Math.max(1, pagination.page - 1), Math.max(1, pagination.totalPages - 2));
   const pages = Array.from({ length: Math.min(3, pagination.totalPages) }, (_, index) => firstVisiblePage + index)
     .filter((page) => page <= pagination.totalPages);
-  const todayLabel = `Today, ${new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
-  }).format(now)}`;
   return (
     <div className={`crm-page w-full min-w-0 max-w-full p-3 sm:p-4 lg:p-5 [&_input[placeholder^='Search']::placeholder]:text-xs [&_input[placeholder^='Search']:focus-visible]:border-primary [&_input[type='search']::placeholder]:text-xs [&_input[type='search']:focus-visible]:border-primary ${styles.listPage}`}>
-      <header className="mb-2 flex shrink-0 justify-end bg-background">
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={summaryPeriod} onValueChange={(value) => {
-            setSummaryPeriod(value);
-            dispatch({ type: 'reset' });
-          }}>
-            <SelectTrigger className="h-9 w-48 bg-card text-xs text-foreground"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Time</SelectItem>
-              <SelectItem value="current_fy">Current Financial Year</SelectItem>
-              <SelectItem value="previous_fy">Previous Financial Year</SelectItem>
-              <SelectItem value="last_12_months">Last 12 Months</SelectItem>
-              <SelectItem value="active_bookings">Active Bookings</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="icon" className="h-9 w-9" onClick={refresh} aria-label="Refresh bookings">
-            <RefreshCw className={`h-4 w-4 ${(analyticsQuery.isFetching || bookingsQuery.isFetching) ? 'animate-spin' : ''}`} />
-          </Button>
-          <Button variant="custom" className="h-9 gap-2 px-3 text-xs" onClick={() => openBookingSetup()}>
-            <Plus className="h-4 w-4" />
-            Add Booking
-          </Button>
-        </div>
-      </header>
-
       <section className="w-full min-w-0 max-w-full shrink-0 bg-background" aria-label="Booking overview metrics">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {metricItems.map((item) => (
@@ -393,8 +364,34 @@ export default function EventBookingDashboardPage() {
         value={activeTab}
         onValueChange={setTab}
         className="admin-task-tabs mt-4 w-full min-w-0 max-w-full shrink-0 overflow-hidden bg-background"
-        listClassName="admin-task-tab-list"
+        listClassName="admin-task-tab-list !gap-1 !px-2 [&_.tab-comp-trigger]:!gap-1.5 [&_.tab-comp-trigger]:!px-2 [&_.tab-comp-trigger]:!text-xs"
         ariaLabel="Booking workflow sections"
+        actions={(
+          <>
+            <Select value={summaryPeriod} onValueChange={(value) => {
+              setSummaryPeriod(value);
+              dispatch({ type: 'reset' });
+            }}>
+              <SelectTrigger className="h-9 w-40 bg-card text-xs text-foreground" aria-label="Booking summary period">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Time</SelectItem>
+                <SelectItem value="current_fy">Current Financial Year</SelectItem>
+                <SelectItem value="previous_fy">Previous Financial Year</SelectItem>
+                <SelectItem value="last_12_months">Last 12 Months</SelectItem>
+                <SelectItem value="active_bookings">Active Bookings</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="icon" className="h-9 w-9" onClick={refresh} aria-label="Refresh bookings">
+              <RefreshCw className={`h-4 w-4 ${(analyticsQuery.isFetching || bookingsQuery.isFetching) ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button variant="custom" className="h-9 gap-2 px-3 text-xs" onClick={() => openBookingSetup()}>
+              <Plus className="h-4 w-4" />
+              Add Booking
+            </Button>
+          </>
+        )}
       />
 
       <Card className="crm-card mt-3 flex min-h-96 w-full min-w-0 max-w-full flex-1 flex-col overflow-hidden">
