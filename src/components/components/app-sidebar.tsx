@@ -48,6 +48,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import useCurrentEmployee from "../../hooks/useCurrentEmployee";
 import EmployeeV2Service from "../../services/employee-v2.service";
 import { toast } from "sonner";
+import { Button } from "@components/components/ui/button";
 
 type NavItem = {
   title: string;
