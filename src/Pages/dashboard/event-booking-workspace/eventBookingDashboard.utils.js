@@ -241,33 +241,46 @@ export const getKeyPendingItems = (booking) => {
 };
 
 export const getPaymentMetrics = (booking) => {
-  const summary = booking.paymentSummary || {};
-  const finance = booking.finance || {};
-  const total = numericAmount(summary.totalAmount || finance.bookingValue);
-  const received = Math.max(
-    numericAmount(summary.receivedAmount || finance.amountReceived),
-    numericAmount(summary.advanceAmount),
+  const milestones = (booking.paymentMilestones || [])
+    .filter((milestone) => milestone && milestone.status !== 'Cancelled');
+  const total = milestones.reduce(
+    (sum, milestone) => sum + Math.max(0, numericAmount(milestone.amount)),
+    0,
   );
-  const pending = booking.paymentStatus === 'Full Paid'
-    ? 0
-    : Math.max(0, total - received);
-  const statusPercentage = Number.parseInt(String(booking.paymentStatus || '').match(/\d+/)?.[0], 10);
-  const percentage = booking.paymentStatus === 'Full Paid'
-    ? 100
-    : total > 0
-      ? Math.round((received / total) * 100)
-      : Number.isFinite(statusPercentage) ? statusPercentage : 0;
-  const clampedPercentage = Math.max(0, Math.min(100, percentage));
-  const nextDueDate = summary.nextPaymentDueDate || finance.nextPaymentDueDate;
-  const dueLabel = clampedPercentage === 100
+  const received = milestones.reduce((sum, milestone) => {
+    const milestoneAmount = Math.max(0, numericAmount(milestone.amount));
+    const receivedAmount = Math.max(0, numericAmount(milestone.receivedAmount));
+    return sum + Math.min(milestoneAmount, receivedAmount);
+  }, 0);
+  const pending = Math.max(0, total - received);
+  const clampedPercentage = total > 0
+    ? Math.max(0, Math.min(100, Math.round((received / total) * 100)))
+    : 0;
+  const isComplete = total > 0 && pending === 0;
+  const nextDueDate = milestones
+    .filter((milestone) => (
+      numericAmount(milestone.receivedAmount) < numericAmount(milestone.amount)
+      && milestone.dueDate
+      && !Number.isNaN(new Date(milestone.dueDate).getTime())
+    ))
+    .sort((left, right) => new Date(left.dueDate) - new Date(right.dueDate))[0]?.dueDate;
+  const dueLabel = isComplete
     ? 'All payments cleared'
     : nextDueDate
       ? `Next due: ${shortPaymentDate(nextDueDate)}`
-      : booking.paymentStatus === 'No Payment'
-        ? 'Payment not received'
-        : 'Payment pending';
+      : milestones.length
+        ? 'Milestone payment pending'
+        : 'No payment milestones';
 
-  return { clampedPercentage, dueLabel, pending };
+  return {
+    clampedPercentage,
+    dueLabel,
+    hasMilestones: milestones.length > 0,
+    isComplete,
+    pending,
+    received,
+    total,
+  };
 };
 
 export const closureDetails = (booking) => {
