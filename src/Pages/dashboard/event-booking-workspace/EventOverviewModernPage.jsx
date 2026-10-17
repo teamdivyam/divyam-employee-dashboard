@@ -3,7 +3,12 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { buildOverviewDetails } from './eventOverview.utils';
 import EventOverviewSummary from './components/EventOverviewSummary';
 import { BookingSnapshot, FunctionsOverview, PaymentHistory, PaymentSummary, ReadinessPlanning, ServicesOverview } from './components/EventOverviewPanels';
-import { planningStageStep, planningViewStage, readinessPercentage } from './eventBookingDashboard.utils';
+import {
+  getPaymentMetrics,
+  planningStageStep,
+  planningViewStage,
+  readinessPercentage,
+} from './eventBookingDashboard.utils';
 
 const formatActivityDate = (value) => {
   if (!value) return '-';
@@ -34,13 +39,15 @@ const milestoneFromBooking = (booking) => {
 
 const buildOverview = (booking) => {
   const details = buildOverviewDetails(booking);
+  const payment = getPaymentMetrics(booking);
   return {
     ...details,
+    percentage: payment.clampedPercentage,
     stage: booking.executionReadiness?.isReady ? 'Execution Ready' : 'In Planning',
     stageStep: booking.executionReadiness?.isReady ? 5 : planningStageStep(planningViewStage(booking)),
     nextMilestone: milestoneFromBooking(booking),
     readiness: readinessPercentage(booking),
-    payment: { clampedPercentage: details.percentage, pending: details.pending },
+    payment,
     openTasks: (booking.eventTasks || []).filter((task) => !['Completed', 'Cancelled'].includes(task.status)).length,
   };
 };

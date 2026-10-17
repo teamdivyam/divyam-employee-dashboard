@@ -3,6 +3,7 @@ import {
   ArrowRight,
   CalendarDays,
   CheckCircle2,
+  CircleAlert,
   ClipboardCheck,
   Clock3,
   ExternalLink,
@@ -41,6 +42,8 @@ const successTone =
   "border-0 bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300";
 const pendingTone =
   "border-0 bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300";
+const paymentPendingTone =
+  "border-0 bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-300";
 const readinessIcons = {
   "Client Approvals": {
     icon: UsersRound,
@@ -433,6 +436,8 @@ export function ServicesOverview({ details, onView }) {
   );
 }
 export function PaymentSummary({ details }) {
+  const paymentComplete = details.percentage === 100;
+
   return (
     <OverviewCard title="Payment Summary">
       <div className="grid grid-cols-2 items-center gap-3 sm:grid-cols-4">
@@ -459,9 +464,11 @@ export function PaymentSummary({ details }) {
           </div>
         ))}
         <div
-          className={`flex items-center justify-center gap-1.5 rounded-md p-2 text-xs font-semibold ${details.percentage === 100 ? successTone : pendingTone}`}
+          className={`flex items-center justify-center gap-1.5 rounded-md p-2 text-xs font-semibold ${paymentComplete ? successTone : paymentPendingTone}`}
         >
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          {paymentComplete
+            ? <CheckCircle2 className="h-4 w-4 shrink-0" />
+            : <CircleAlert className="h-4 w-4 shrink-0" />}
           {details.percentage}% Paid
         </div>
       </div>

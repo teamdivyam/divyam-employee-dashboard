@@ -170,31 +170,11 @@ export function FinalPending({ booking }) {
 }
 
 export function PaymentProgress({ booking }) {
-  const { clampedPercentage, pending } = getPaymentMetrics(booking);
-  const summary = booking.paymentSummary || {};
-  const finance = booking.finance || {};
-  const nextDueDate = summary.nextPaymentDueDate || finance.nextPaymentDueDate;
-  const isPastDue = nextDueDate && !Number.isNaN(new Date(nextDueDate).getTime()) && new Date(nextDueDate) < new Date();
-  const isOverdue = pending > 0 && (
-    booking.bookingStatus === 'Completed' ||
-    booking.paymentStatus === 'Overdue' ||
-    summary.isOverdue ||
-    isPastDue
-  );
-
-  const isFullPaid = clampedPercentage === 100 || pending === 0;
-
-  const barTone = isFullPaid
-    ? 'bg-emerald-500'
-    : isOverdue || booking.bookingStatus === 'Completed'
-      ? 'bg-red-500'
-      : 'bg-amber-500';
-
-  const percentTone = isFullPaid
+  const { clampedPercentage, dueLabel, hasMilestones, isComplete, pending } = getPaymentMetrics(booking);
+  const barTone = isComplete ? 'bg-emerald-500' : 'bg-red-500';
+  const percentTone = isComplete
     ? 'text-emerald-600 dark:text-emerald-400'
-    : isOverdue || booking.bookingStatus === 'Completed'
-      ? 'text-red-600 dark:text-red-400'
-      : 'text-amber-500 dark:text-amber-400';
+    : 'text-red-600 dark:text-red-400';
 
   const pendingTone = 'text-slate-900 dark:text-slate-100';
 
@@ -213,7 +193,9 @@ export function PaymentProgress({ booking }) {
         </div>
         <span className={`text-[10px] font-bold shrink-0 ${percentTone}`}>{clampedPercentage}%</span>
       </div>
-      <p className={`truncate text-[10px] font-bold ${pendingTone}`}>{currencyAmount(pending)} Pending</p>
+      <p className={`truncate text-[10px] font-bold ${pendingTone}`} title={dueLabel}>
+        {hasMilestones ? `${currencyAmount(pending)} Pending` : 'No milestones'}
+      </p>
     </div>
   );
 }

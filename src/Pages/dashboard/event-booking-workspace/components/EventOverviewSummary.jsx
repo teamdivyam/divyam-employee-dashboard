@@ -26,6 +26,7 @@ const metricTones = {
     "bg-emerald-100 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300",
   amber:
     "bg-amber-100 text-amber-600 dark:bg-amber-400/10 dark:text-amber-300",
+  red: "bg-red-100 text-red-600 dark:bg-red-400/10 dark:text-red-300",
 };
 
 const metricCardTones = {
@@ -34,6 +35,7 @@ const metricCardTones = {
   orange: "bg-orange-50/40 dark:bg-orange-400/5",
   green: "bg-emerald-50/40 dark:bg-emerald-400/5",
   amber: "bg-amber-50/40 dark:bg-amber-400/5",
+  red: "bg-red-50/40 dark:bg-red-400/5",
 };
 
 export default function EventOverviewSummary({
@@ -80,7 +82,7 @@ export default function EventOverviewSummary({
       value: `${summary.payment.clampedPercentage}% Paid`,
       caption: `${currencyAmount(summary.received)} / ${currencyAmount(summary.total)}`,
       icon: IndianRupee,
-      tone: "green",
+      tone: summary.payment.isComplete ? "green" : "red",
     },
   ];
   return (
