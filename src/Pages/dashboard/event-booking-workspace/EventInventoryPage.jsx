@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Boxes, CalendarDays, Clock, Eye, Loader2, Plus, Search } from 'lucide-react';
 import { useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -20,7 +20,10 @@ import InventoryRequirementDialog from './components/InventoryRequirementDialog'
 import VendorRequirementDialog from './components/VendorRequirementDialog';
 import { getFinalPreferenceCount } from './eventBookingDashboard.utils';
 import CreateEventAllocationPage from '../Inventory/Essentials/components/CreateEventAllocationPage';
-import { AllocationRequirementWorkspace } from '../Inventory/Essentials/components/EventAllocationTab';
+import { AllocationRequirementWorkspace } from '../Inventory/Essentials/components/AllocationRequirementWorkspace';
+
+import EventAllocationRequirementsSection from './components/EventAllocationRequirementsSection';
+import TabComp from '@components/components/tab-comp/TabComp';
 
 const PAGE_SIZE = 10;
 const companyStatuses = ['Pending', 'Reserved', 'Partially Reserved', 'Shortage', 'Dispatched', 'Returned', 'Cancelled'];
@@ -44,9 +47,11 @@ const statusTone = (status) => {
   return 'border-blue-200 bg-blue-50 text-blue-700';
 };
 
-function EventInventoryPanel({ data, onAdd, onView }) {
+function EventInventoryPanel({ eventId, booking, data, onAdd, onView }) {
   const requirements = useMemo(() => (data?.inventory || []).filter((item) => item.status !== 'Cancelled'), [data]);
-  const [source, setSource] = useState('Company');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const source = searchParams.get('tab') === 'vendor' ? 'Vendor' : 'Company';
+  const [companyCount, setCompanyCount] = useState(null);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [status, setStatus] = useState('all');
@@ -70,7 +75,13 @@ function EventInventoryPanel({ data, onAdd, onView }) {
   }), [requirements, source, category, status, search]);
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const rows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const selectSource = (value) => { setSource(value); setStatus('all'); };
+  const selectSource = (value) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === 'vendor') next.set('tab', 'vendor');
+    else next.delete('tab');
+    setSearchParams(next);
+    setStatus('all');
+  };
 
   useEffect(() => setPage(1), [source, search, category, status]);
 
@@ -78,7 +89,7 @@ function EventInventoryPanel({ data, onAdd, onView }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <EventOperationsNav active="inventory" />
-        <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
+        {source === 'Vendor' && <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
           <div className="relative min-w-44 flex-1 sm:max-w-64">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 mt-0.5 text-muted-foreground" />
             <Input
@@ -108,18 +119,22 @@ function EventInventoryPanel({ data, onAdd, onView }) {
               {activeStatuses.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
             </SelectContent>
           </Select>
-        </div>
+        </div>}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-2">
-          <Button type="button" variant={source === 'Company' ? 'custom' : 'outline'} size="sm" onClick={() => selectSource('Company')} className="min-w-32">Company ({summary.company || 0})</Button>
-          <Button type="button" variant={source === 'Vendor' ? 'custom' : 'outline'} size="sm" onClick={() => selectSource('Vendor')} className="min-w-32">Vendor ({summary.vendor || 0})</Button>
-        </div>
+        <TabComp
+          tabs={[{ value: 'company', label: `Company (${companyCount ?? summary.company ?? 0})` }, { value: 'vendor', label: `Vendor (${summary.vendor || 0})` }]}
+          value={source.toLowerCase()} onValueChange={selectSource}
+          variant="buttons" density="compact" display="inline-block"
+          ariaLabel="Inventory source"
+        />
         <Button variant="custom" size="sm" onClick={() => onAdd(source)} className="h-9 gap-1.5 text-xs"><Plus className="h-4 w-4" />Add {source} Requirement</Button>
       </div>
 
-      <Card className="overflow-hidden border-border shadow-sm"><CardContent className="p-0">
+      {source === 'Company' ? (
+        <EventAllocationRequirementsSection key={eventId} eventId={eventId} booking={booking} onCountChange={setCompanyCount} />
+      ) : <Card className="overflow-hidden border-border shadow-sm"><CardContent className="p-0">
         <div className="overflow-x-auto"><Table className="min-w-[1150px] table-fixed text-xs">
           <colgroup>
             {source === 'Vendor' ? (
@@ -205,7 +220,7 @@ function EventInventoryPanel({ data, onAdd, onView }) {
           )}</TableBody>
         </Table></div>
         <div className="flex items-center justify-between border-t px-4 py-3 text-xs text-muted-foreground"><span>Showing {filtered.length ? (page - 1) * PAGE_SIZE + 1 : 0} to {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} items</span><div className="flex items-center gap-2"><Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>‹</Button><span className="grid h-8 min-w-8 place-items-center rounded-md bg-emerald-50 px-2 font-semibold text-emerald-700">{page}</span><Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= pages} onClick={() => setPage((value) => value + 1)}>›</Button></div></div>
-      </CardContent></Card>
+      </CardContent></Card>}
     </div>
   );
 }
@@ -213,6 +228,7 @@ function EventInventoryPanel({ data, onAdd, onView }) {
 export default function EventInventoryPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedRequirement, setSelectedRequirement] = useState(null);
   const [selectedVendorPreference, setSelectedVendorPreference] = useState(null);
@@ -363,7 +379,7 @@ export default function EventInventoryPage() {
 
   return <div className="min-w-0 space-y-3">
     <EventSummaryCards metrics={metrics} />
-    <div id="event-inventory"><EventInventoryPanel data={inventoryData} onAdd={openAdd} onView={openView} /></div>
+    <div id="event-inventory"><EventInventoryPanel eventId={eventId} booking={booking} data={inventoryData} onAdd={openAdd} onView={openView} /></div>
     <InventoryRequirementDialog open={companyRequirementOpen} onOpenChange={(open) => { setCompanyRequirementOpen(open); if (!open) setSelectedRequirement(null); }} requirement={selectedRequirement} functions={functions} employees={employees} vendors={vendors} source="Company" saving={inventoryMutation.isPending} onSave={(payload) => inventoryMutation.mutate(payload)} />
     <Dialog open={showCompanyAllocationForm} onOpenChange={setShowCompanyAllocationForm}>
       <DialogContent className="h-[92vh] max-w-[96vw] overflow-y-auto p-5 sm:max-w-6xl">
@@ -376,6 +392,8 @@ export default function EventInventoryPage() {
           onBack={() => setShowCompanyAllocationForm(false)}
           onCreated={async () => {
             setShowCompanyAllocationForm(false);
+            await queryClient.invalidateQueries({ queryKey: ["inventoryv2-allocations"] });
+            await queryClient.invalidateQueries({ queryKey: ["inventoryv2-allocation-detail"] });
             await Promise.all([inventoryQuery.refetch(), bookingQuery.refetch()]);
           }}
         />
