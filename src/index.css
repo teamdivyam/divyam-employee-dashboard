@@ -1267,3 +1267,27 @@ input[type="number"]::-webkit-outer-spin-button {
     rotate: 360deg;
   }
 }
+
+/* Assigned Events: shared allocation status and category theme. */
+@layer components {
+  .event-allocation-tone-1 { @apply border-blue-200/70 bg-blue-50 text-blue-700; }
+  .dark .event-allocation-tone-1 { @apply border-blue-800/50 bg-blue-950/40 text-blue-300; }
+  .event-allocation-tone-2 { @apply border-emerald-200/70 bg-emerald-50 text-emerald-700; }
+  .dark .event-allocation-tone-2 { @apply border-emerald-800/50 bg-emerald-950/40 text-emerald-300; }
+  .event-allocation-tone-3 { @apply border-amber-200/70 bg-amber-50 text-amber-700; }
+  .dark .event-allocation-tone-3 { @apply border-amber-800/50 bg-amber-950/40 text-amber-300; }
+  .event-allocation-tone-4 { @apply border-rose-200/70 bg-rose-50 text-rose-700; }
+  .dark .event-allocation-tone-4 { @apply border-rose-800/50 bg-rose-950/40 text-rose-300; }
+  .event-allocation-tone-5 { @apply border-purple-200/70 bg-purple-50 text-purple-700; }
+  .dark .event-allocation-tone-5 { @apply border-purple-800/50 bg-purple-950/40 text-purple-300; }
+  .event-allocation-tone-6 { @apply border-sky-200/70 bg-sky-50 text-sky-700; }
+  .dark .event-allocation-tone-6 { @apply border-sky-800/50 bg-sky-950/40 text-sky-300; }
+  .event-allocation-tone-7 { @apply border-indigo-200/70 bg-indigo-50 text-indigo-700; }
+  .dark .event-allocation-tone-7 { @apply border-indigo-800/50 bg-indigo-950/40 text-indigo-300; }
+  .event-allocation-tone-8 { @apply border-teal-200/70 bg-teal-50 text-teal-700; }
+  .dark .event-allocation-tone-8 { @apply border-teal-800/50 bg-teal-950/40 text-teal-300; }
+  .event-allocation-tone-9 { @apply border-orange-200/70 bg-orange-50 text-orange-700; }
+  .dark .event-allocation-tone-9 { @apply border-orange-800/50 bg-orange-950/40 text-orange-300; }
+  .event-allocation-tone-10 { @apply border-pink-200/70 bg-pink-50 text-pink-700; }
+  .dark .event-allocation-tone-10 { @apply border-pink-800/50 bg-pink-950/40 text-pink-300; }
+}

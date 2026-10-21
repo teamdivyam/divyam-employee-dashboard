@@ -1,4 +1,13 @@
-import { useState, useMemo, useEffect } from "react";
+import FulfilmentPlanDisplay from "./FulfilmentPlanDisplay";
+import useAuthSession from "@/hooks/useAuthSession";
+import RequirementPlanEditor from "./RequirementPlanEditor";
+import AllocationDeleteAction from "./AllocationDeleteAction";
+import { usePlanningSources } from "../usePlanningSources";
+import { AllocationPlanningFields } from "./AllocationPlanning";
+import { planningPayload, linePlanningPayload } from "../allocationPlanning";
+import { ItemPreviewImage } from "@components/components/InventoryItemImagePreview";
+import { loadActiveRequirementCatalog } from "../requirementCatalog";
+import { useState, useMemo, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -25,14 +34,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@components/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@components/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@components/components/ui/command";
 import { Textarea } from "@components/components/ui/textarea";
 import {
+  Search,
+  Check,
+  Users,
+  ChevronDown,
   Calendar,
   User,
   MapPin,
   ArrowLeft,
   Plus,
   Trash2,
+  Pencil,
   Boxes,
   Package,
   AlertTriangle,
@@ -45,6 +61,7 @@ import {
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import AdminService from "../../../../../services/event-booking-workspace.service";
+import useEventInventoryService from "../useEventInventoryService";
 import { getBookings } from "../../../event-booking-workspace/components/EventBookingComponents";
 
 // ─── Canonical Locations from Inventory V2 ─────────────────────────────────────
@@ -58,14 +75,14 @@ const SOURCE_LOCATIONS = [
 
 // ─── Color Palette & Helper Functions ──────────────────────────────────────────
 const CATEGORY_PALETTE = [
-  "border-purple-200/70 bg-purple-50 text-purple-700 dark:border-purple-800/50 dark:bg-purple-950/40 dark:text-purple-300",
-  "border-emerald-200/70 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300",
-  "border-sky-200/70 bg-sky-50 text-sky-700 dark:border-sky-800/50 dark:bg-sky-950/40 dark:text-sky-300",
-  "border-amber-200/70 bg-amber-50 text-amber-700 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-300",
-  "border-indigo-200/70 bg-indigo-50 text-indigo-700 dark:border-indigo-800/50 dark:bg-indigo-950/40 dark:text-indigo-300",
-  "border-teal-200/70 bg-teal-50 text-teal-700 dark:border-teal-800/50 dark:bg-teal-950/40 dark:text-teal-300",
-  "border-orange-200/70 bg-orange-50 text-orange-700 dark:border-orange-800/50 dark:bg-orange-950/40 dark:text-orange-300",
-  "border-pink-200/70 bg-pink-50 text-pink-700 dark:border-pink-800/50 dark:bg-pink-950/40 dark:text-pink-300",
+  "event-allocation-tone-5",
+  "event-allocation-tone-2",
+  "event-allocation-tone-6",
+  "event-allocation-tone-3",
+  "event-allocation-tone-7",
+  "event-allocation-tone-8",
+  "event-allocation-tone-9",
+  "event-allocation-tone-10",
 ];
 
 const categoryBadgeColor = (category) => {
@@ -86,11 +103,15 @@ const formatCategoryLabel = (val) => {
     .join(" ");
 };
 
-export default function CreateEventAllocationPage({ onBack, RequirementWorkspace, onRequirementWorkspaceChange, initialEvent = null, onCreated, hideCloseButton = false, hideBackButton = false, reviewAllocation = null, onPrepare, preparePending = false, prepareError = "" }) {
+export default function CreateEventAllocationPage({ onBack, RequirementWorkspace, onRequirementWorkspaceChange, initialEvent = null, onCreated, hideCloseButton = false, hideBackButton = false, reviewAllocation = null, onPrepare, preparePending = false, prepareError = "", onReviewUpdated }) {
+  const AdminV2Service = useEventInventoryService();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const { data: authSession } = useAuthSession();
 
   const isReview = Boolean(reviewAllocation);
+  const [editingPlan, setEditingPlan] = useState(null);
+  const planSources = usePlanningSources(true);
   const pageTitle = isReview ? "Prepare Issue" : "Create Allocation";
 
   // Form State
@@ -101,10 +122,12 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
       ? String(initialEvent.id)
       : searchParams.get("eventId") || ""
   );
-  const [allocationOwner, setAllocationOwner] = useState(reviewAllocation ? reviewAllocation.createdBy?.fullName || "—" : "Saurabh Dwivedi");
+  const [allocationOwner, setAllocationOwner] = useState(reviewAllocation ? reviewAllocation.createdBy?.fullName || "—" : authSession?.name || "Employee");
+  const [planning, setPlanning] = useState(reviewAllocation?.planning || {});
   const [plannedIssueDate, setPlannedIssueDate] = useState(reviewAllocation?.plannedIssueDate ? format(new Date(reviewAllocation.plannedIssueDate), "yyyy-MM-dd") : "");
   const [allocationNote, setAllocationNote] = useState(reviewAllocation?.allocationNote || "");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [eventSelectorOpen, setEventSelectorOpen] = useState(false);
 
   // Sync selectedEventId if initialEvent prop changes
   useEffect(() => {
@@ -124,6 +147,33 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
 
   // Shared requirement workspace
   const [isRequirementWorkspaceOpen, setIsRequirementWorkspaceOpen] = useState(false);
+
+  // Only the unsaved Create > Add Requirement draft is restored in this tab.
+  // Source availability remains server-owned and is reloaded by the workspace.
+  const draftUserId = authSession?.employeeId;
+  const draftKey = !isReview && !searchParams.get("allocationId") && draftUserId && selectedEventId
+    ? `allocation-requirements:${draftUserId}:${selectedEventId}` : null;
+  const restoredDraftKey = useRef(null);
+  const [draftReady, setDraftReady] = useState(null);
+  useEffect(() => {
+    if (!draftKey || restoredDraftKey.current === draftKey) return;
+    restoredDraftKey.current = draftKey;
+    try {
+      const draft = JSON.parse(sessionStorage.getItem(draftKey) || "null");
+      if (draft?.version === 1 && Array.isArray(draft.lines)) {
+        setRequirementLines(draft.lines);
+        setPlanning(draft.planning || {});
+        setPlannedIssueDate(draft.plannedIssueDate || "");
+        setAllocationNote(draft.allocationNote || "");
+      }
+    } catch { sessionStorage.removeItem(draftKey); }
+    setDraftReady(draftKey);
+  }, [draftKey]);
+  useEffect(() => {
+    if (!draftKey || draftReady !== draftKey) return;
+    try { sessionStorage.setItem(draftKey, JSON.stringify({version:1,lines:requirementLines,planning,plannedIssueDate,allocationNote})); }
+    catch { /* The current in-memory draft remains usable if browser storage is unavailable. */ }
+  }, [draftKey, draftReady, requirementLines, planning, plannedIssueDate, allocationNote]);
 
   // ─── Query 1: Real Booked Events ─────────────────────────────────────────────
   const { data: eventsData, isLoading: isLoadingEvents } = useQuery({
@@ -166,7 +216,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
       let page = 1;
       let hasNextPage;
       do {
-        const response = await AdminService.listCompanyInventoryAllocations({ eventId: selectedEventId, page, limit: 100 });
+        const response = await AdminV2Service.listInventoryV2Allocations({ page, limit: 100 });
         const data = response.data?.data;
         if (!Array.isArray(data?.entries) || !data.pagination) throw new Error("Unable to load existing allocation requirements.");
         allocations.push(...data.entries);
@@ -174,18 +224,23 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
         page += 1;
       } while (hasNextPage);
       return allocations.filter(allocation =>
-        String(allocation.event?._id || allocation.event || "") === selectedEventId
-        || (!allocation.event && selectedCrmId && String(allocation.crmCustomerId?._id || allocation.crmCustomerId || "") === selectedCrmId)
+        allocation.status !== "Cancelled" && (
+          String(allocation.event?._id || allocation.event || "") === selectedEventId
+          || (!allocation.event && selectedCrmId && String(allocation.crmCustomerId?._id || allocation.crmCustomerId || "") === selectedCrmId)
+        )
       ).flatMap(allocation => {
         if (!Array.isArray(allocation.items)) throw new Error("Existing allocation requirements are unavailable.");
-        return allocation.items.map(line => {
+        return allocation.items.filter(line => line.status !== "Cancelled").map(line => {
           const itemId = String(line.item?._id || line.item || "");
           if (!line._id || !itemId) throw new Error("An existing requirement is missing its item or line identity.");
           return {
             ...line,
             id: line._id,
             allocationId: allocation._id,
+            expectedUpdatedAt: allocation.updatedAt,
+            allocationPlanning: allocation.planning,
             saved: true,
+            planLocked: Boolean(allocation.verifiedAt || allocation.coverage?.requirementsLocked || allocation.items.some(entry => entry.dispatchedQuantity > 0)),
             itemId,
             sku: line.itemId,
             requiredQty: line.requiredQuantity,
@@ -196,22 +251,40 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
         });
       });
     },
+    staleTime: 0,
+    refetchOnMount: "always",
     retry: 1,
   });
   const savedRequirementLines = useMemo(
     () => !isReview && selectedEvent ? existingRequirements.data || [] : [],
     [selectedEvent, existingRequirements.data, isReview]
   );
-  const requirementsLoading = !isReview && Boolean(selectedEventId) && (isLoadingEvents || existingRequirements.isPending);
+  const requirementsLoading = !isReview && Boolean(selectedEventId) && (isLoadingEvents || existingRequirements.isPending || existingRequirements.isFetching);
   const requirementsUnavailable = !isReview && Boolean(selectedEventId) && (requirementsLoading || existingRequirements.isError);
   const savedItemIds = new Set(savedRequirementLines.map(line => line.itemId));
   const pendingRequirementLines = requirementLines.filter(line => !savedItemIds.has(line.itemId));
 
+  const restoredPlanningId = useRef(null);
+  useEffect(() => {
+    const requested = searchParams.get("allocationId");
+    const saved = savedRequirementLines.find(line => line.allocationId === requested);
+    if (!isReview && saved && restoredPlanningId.current !== requested) {
+      setPlanning(saved.allocationPlanning || {});
+      restoredPlanningId.current = requested;
+    }
+  }, [savedRequirementLines, searchParams, isReview]);
+
   const handleEventChange = (eventId) => {
     setRequirementLines([]);
+    setPlanning({});
+    restoredPlanningId.current = null;
     setCategoryFilter("all");
     setIsRequirementWorkspaceOpen(false);
     setSelectedEventId(eventId);
+    const next = new URLSearchParams(searchParams);
+    next.set("eventId", eventId);
+    next.delete("allocationId");
+    setSearchParams(next, { replace: true });
   };
 
   // Auto-set planned issue date when event is selected
@@ -229,9 +302,11 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
 
   // ─── Query 2: Real Inventory Items ───────────────────────────────────────────
   const { data: inventoryData } = useQuery({
-    queryKey: ["create-allocation-inventory-items"],
+    queryKey: isReview ? ["create-allocation-inventory-items", selectedEventId] : ["allocation-requirement-catalog", selectedEventId, "complete"],
+    staleTime: isReview ? 0 : 60 * 1000,
     queryFn: async () => {
-      const res = await AdminService.getCompanyInventoryItems({ eventId: selectedEventId, limit: 100, status: "active" });
+      if (!isReview) return loadActiveRequirementCatalog(AdminV2Service.getInventoryV2Items);
+      const res = await AdminV2Service.getInventoryV2Items({ limit: 100, status: "active" });
       return res.data;
     },
   });
@@ -344,6 +419,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
           sku: selection.preview?.sku || selection.preview?.itemId,
           requiredQty: Number(selection.requiredQuantity),
           sourceLocation: selection.sourceLocation,
+          planning: selection.planning,
           ...(isReview ? { notes: selection.notes || null, availableQuantity: selection.preview?.availableQuantity ?? selection.preview?.currentQuantity, image: selection.preview?.image, unit: selection.preview?.unit } : {}),
         };
         if (existingIndex === -1) merged.push(line);
@@ -390,7 +466,9 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
   }, [displayedLines]);
 
   // ─── Submit Mutation ─────────────────────────────────────────────────────────
+  const submitting = useRef(false);
   const submitMutation = useMutation({
+    retry: false,
     mutationFn: async () => {
       if (!selectedEventId) {
         throw new Error("Please select an event for this allocation.");
@@ -411,6 +489,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
         ...(isCrm && rawCrmCustomerId ? { crmCustomerId: rawCrmCustomerId } : { event: selectedEventId }),
         plannedIssueDate: plannedIssueDate ? new Date(plannedIssueDate).toISOString() : null,
         allocationNote: allocationNote.trim() || null,
+        ...(planningPayload(planning) ? { planning: planningPayload(planning) } : {}),
         status: "Draft",
         // POST creates a new allocation. Saved lines already belong to their
         // original allocations and must never be submitted again as new rows.
@@ -418,15 +497,20 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
           item: line.itemId,
           sourceLocation: line.sourceLocation || "main_store",
           requiredQuantity: Number(line.requiredQty),
+          ...(line.planning ? { planning: linePlanningPayload(line.planning) } : {}),
         })),
       };
 
-      const res = await AdminService.createCompanyInventoryAllocation({ eventId: selectedEventId, payload });
+      const res = await AdminV2Service.createInventoryV2Allocation(payload);
       return res.data;
     },
+    onSettled: () => { submitting.current = false; },
     onSuccess: (responseData) => {
-      toast.success("Event Allocation created successfully!");
+      if (draftKey) sessionStorage.removeItem(draftKey);
+      toast.success("Event Allocation saved successfully!");
       queryClient.invalidateQueries({ queryKey: ["inventoryv2-allocations"] });
+      queryClient.invalidateQueries({ queryKey: ["event-allocation-events"] });
+      queryClient.invalidateQueries({ queryKey: ["inventoryv2-event-detail"] });
 
       const allocationId =
         responseData?.allocation?._id ||
@@ -460,11 +544,21 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
     },
   });
 
+  const submitAllocation = () => {
+    if (submitting.current) return;
+    submitting.current = true;
+    submitMutation.mutate();
+  };
+
   const submissionPending = isReview ? preparePending : submitMutation.isPending;
 
   if (isRequirementWorkspaceOpen) {
     return <RequirementWorkspace
-      allocation={reviewAllocation || { ...selectedEvent, status: "Draft" }}
+      onSourceAllocationChange={id => setPlanning(current => ({ ...current, designatedSourceAllocation: id }))}
+      enableSourcePlanning
+      persistedSelections={(isReview ? requirementLines : savedRequirementLines).map(line => ({ item: line.itemId, requiredQuantity: line.requiredQty, planning: line.planning, allocationPlanning: line.allocationPlanning || planning, sourceLocation: line.sourceLocation }))}
+      highlightCategoryHeaders={!isReview}
+      allocation={{ ...(reviewAllocation || { ...selectedEvent, status: "Draft" }), planning }}
       booking={selectedEvent}
       initialSelections={isReview ? [] : pendingRequirementLines.map(line => ({
         item: line.itemId,
@@ -472,6 +566,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
         lineId: null,
         requiredQuantity: line.requiredQty,
         sourceLocation: line.sourceLocation,
+        planning: line.planning,
         notes: "",
         preview: inventoryItems.find(item => item._id === line.itemId) || {
           name: line.itemName, itemId: line.sku, category: line.category,
@@ -486,24 +581,33 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
   }
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
+      {editingPlan && <RequirementPlanEditor line={{ ...editingPlan, eventId: selectedEventId, expectedUpdatedAt: editingPlan.expectedUpdatedAt || (isReview ? reviewAllocation.updatedAt : undefined) }} allocationId={editingPlan.allocationId || (isReview && editingPlan._id ? reviewAllocation._id : undefined)} planning={planning} onClose={() => setEditingPlan(null)} onSaved={async result => {
+        if (result.local) { setRequirementLines(current => current.map(line => line.id === editingPlan.id ? { ...line, planning: result.planning, requiredQty: result.requiredQty } : line)); setPlanning(result.allocationPlanning); }
+        else { await queryClient.invalidateQueries({ queryKey: ["inventoryv2-allocations"] }); if (isReview) { setRequirementLines(current => current.map(line => { const updated = line.id === editingPlan.id ? result.items.find(entry => entry._id === line.id) : null; return updated ? { ...line, ...updated, id: updated._id, itemId: String(updated.item?._id || updated.item), sku: updated.itemId, requiredQty: updated.requiredQuantity } : line; })); setPlanning(result.planning || {}); onReviewUpdated?.(result); } }
+        toast.success("Fulfilment plan updated");
+      }} />}
       {/* ── Page Header matching Reference ── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
         <div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-            <span>Inventory & Essentials</span>
-            <span>&gt;</span>
-            <span className="text-foreground font-medium">{pageTitle}</span>
-          </div>
+          {isReview && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <span>Inventory & Essentials</span>
+              <span>&gt;</span>
+              <span className="text-foreground font-medium">{pageTitle}</span>
+            </div>
+          )}
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400">
               <Boxes className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-foreground sm:text-xl">{pageTitle}</h1>
-              <p className="text-xs text-muted-foreground">
-                {isReview ? `Review allocation ${reviewAllocation.allocationCode || ""} and verify requirements before preparing the issue.` : "Create a new inventory allocation for an event and reserve required stock."}
-              </p>
+              <h1 className="text-lg font-medium text-foreground sm:text-sm">{pageTitle}</h1>
+              {isReview && (
+                <p className="text-xs text-muted-foreground">
+                  {`Review allocation ${reviewAllocation.allocationCode || ""} and verify requirements before preparing the issue.`}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -514,7 +618,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
             size="sm"
             onClick={onBack}
             disabled={isReview && preparePending}
-            className="h-8 gap-1.5 text-xs font-medium"
+            className="h-8 gap-1.5 text-xs font-medium text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to Inventory
@@ -532,6 +636,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
         </div>
       </div>
 
+      <div role="region" aria-label="Allocation form content" tabIndex={0} className="relative min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-4">
       {isReview && prepareError && (
         <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           <p className="font-semibold">Unable to prepare issue</p>
@@ -540,28 +645,28 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
       )}
 
       {/* ── Section 1: Event Details ── */}
-      <Card className="border border-border/80 bg-card shadow-xs">
-        <CardContent className="p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-border/60 pb-3">
+      <Card className="overflow-hidden rounded-lg border border-border/80 bg-card shadow-xs">
+        <CardContent className="p-3 space-y-3">
+          <div className="-mx-3 -mt-3 flex flex-wrap items-center justify-between gap-2 border-b border-blue-100 bg-blue-50 px-3 py-2 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300">
             <div className="flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-medium text-white">
                 1
               </span>
-              <h2 className="text-sm font-semibold text-foreground">Event Details</h2>
+              <h2 className="text-xs font-semibold text-inherit">Event Details</h2>
             </div>
-            <span className="text-[11px] text-muted-foreground italic">
+            {isReview && <span className="text-[10px] text-muted-foreground italic">
               Event date, venue and client details are auto-filled from the selected event.
-            </span>
+            </span>}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 items-start gap-3">
             {/* Event Selector */}
-            <div className="space-y-1.5 md:col-span-2">
-              <label className="text-xs font-semibold text-foreground flex items-center gap-1">
+            <div className={`min-w-0 space-y-1.5 md:col-span-2 ${selectedEvent ? "xl:col-span-2" : "xl:col-span-6"}`}>
+              <label htmlFor={isReview ? undefined : "allocation-event-selector"} className="text-xs font-semibold text-foreground flex items-center gap-1">
                 Select Event <span className="text-rose-500">*</span>
               </label>
-              <Select value={selectedEventId} onValueChange={handleEventChange} disabled={isReview || isLoadingEvents}>
-                <SelectTrigger className="h-10 text-xs">
+              {isReview ? (<Select value={selectedEventId} onValueChange={handleEventChange} disabled={isReview || isLoadingEvents}>
+                <SelectTrigger className="h-9 text-xs">
                   <SelectValue placeholder="Search or select a booked event..." />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">
@@ -574,15 +679,46 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
                     );
                   })}
                 </SelectContent>
-              </Select>
+              </Select>) : (
+              <Popover open={eventSelectorOpen} onOpenChange={setEventSelectorOpen}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" role="combobox" id="allocation-event-selector" aria-label="Select Event" aria-expanded={eventSelectorOpen} disabled={isLoadingEvents} className="h-9 w-full min-w-0 justify-between gap-2 px-3 text-xs font-normal text-foreground">
+                    <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate text-left">
+                      {selectedEvent ? `${selectedEvent.eventName || selectedEvent.eventType || "Event"} (${selectedEvent.eventCode || (selectedEvent._id ? `BK-${String(selectedEvent._id).slice(-6).toUpperCase()}` : "No Code")}) — ${selectedEvent.customer?.name || "Client"}` : "Search or select a booked event..."}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+                  <Command filter={(_value, search, keywords) => keywords.join(" ").toLowerCase().includes(search.trim().toLowerCase()) ? 1 : 0}>
+                    <CommandInput aria-label="Search booked events" placeholder="Search events by name or booking ID..." className="h-9 text-xs" />
+                    <CommandList className="max-h-60 overscroll-contain">
+                      <CommandEmpty>No matching events.</CommandEmpty>
+                      <CommandGroup>
+                        {bookedEvents.map((evt) => {
+                          const code = evt.eventCode || (evt._id ? `BK-${String(evt._id).slice(-6).toUpperCase()}` : "No Code");
+                          const label = `${evt.eventName || evt.eventType || "Event"} (${code}) — ${evt.customer?.name || "Client"}`;
+                          return <CommandItem key={evt._id} value={evt._id} keywords={[label, evt.venue || "", evt.city || ""]} onSelect={() => { handleEventChange(evt._id); setEventSelectorOpen(false); }} className="gap-2 text-xs">
+                            <span className="min-w-0 flex-1 break-words">{label}</span>
+                            {selectedEventId === evt._id && <Check className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />}
+                          </CommandItem>;
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              )}
+
             </div>
 
             {/* Selected Event Card Banner */}
             {selectedEvent && (
-              <div className="md:col-span-2 rounded-xl border border-blue-200/80 bg-blue-50/50 p-4 dark:border-blue-900/50 dark:bg-blue-950/20">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="min-w-0 md:col-span-2 xl:col-span-4 rounded-lg border border-blue-100 bg-blue-50/50 p-3 dark:border-blue-900/50 dark:bg-blue-950/20">
+                <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-3">
                   <div className="flex items-center gap-3.5">
-                    <div className="flex h-14 w-16 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white font-bold text-sm overflow-hidden border border-blue-300/50">
+                    <div className="flex h-14 w-16 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white font-medium text-sm overflow-hidden border border-blue-300/50">
                       {selectedEvent.coverImage?.small || selectedEvent.coverImage?.medium ? (
                         <img
                           src={selectedEvent.coverImage?.small || selectedEvent.coverImage?.medium}
@@ -594,7 +730,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
                       )}
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-foreground">
+                      <h3 className="text-sm font-medium text-foreground">
                         {selectedEvent.eventName || selectedEvent.eventType || "Event"}
                       </h3>
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
@@ -603,10 +739,15 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
                           {selectedEvent.eventCode || (selectedEvent._id ? `BK-${String(selectedEvent._id).slice(-6).toUpperCase()}` : "—")}
                         </span>
                       </div>
+                      {selectedEvent.guestCount != null && (
+                        <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <Users className="h-3 w-3 shrink-0" aria-hidden="true" />{selectedEvent.guestCount} Guests
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
                         <User className="h-3.5 w-3.5" />
@@ -642,9 +783,11 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
                 </div>
               </div>
             )}
+          </div>
 
+          <div className={isReview ? "grid grid-cols-1 md:grid-cols-2 items-start gap-3" : "grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_1px_minmax(0,1fr)_minmax(0,1fr)] xl:gap-x-4"}>
             {/* Allocation Owner */}
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <label className="text-xs font-semibold text-foreground flex items-center gap-1">
                 Allocation Owner <span className="text-rose-500">*</span>
               </label>
@@ -653,12 +796,12 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
                 readOnly={isReview}
                 onChange={(e) => setAllocationOwner(e.target.value)}
                 placeholder={isReview ? "—" : "e.g. Saurabh Dwivedi"}
-                className="h-10 text-xs"
+                className="h-9 text-xs"
               />
             </div>
 
             {/* Planned Issue Date */}
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <label className="text-xs font-semibold text-foreground flex items-center gap-1">
                 Planned Issue Date <span className="text-rose-500">*</span>
               </label>
@@ -667,27 +810,33 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
                 value={plannedIssueDate}
                 disabled={isReview && preparePending}
                 onChange={(e) => setPlannedIssueDate(e.target.value)}
-                className="h-10 text-xs"
+                className="h-9 text-xs"
               />
             </div>
+            {!isReview && <>
+              <div aria-hidden="true" className="hidden h-9 w-px self-end bg-border/80 xl:block" />
+              <AllocationPlanningFields value={planning} onChange={setPlanning} allocationId={reviewAllocation?._id || searchParams.get("allocationId") || undefined} eventId={selectedEventId} disabled={submissionPending} hideSource hideHelperText inline />
+            </>}
           </div>
+          {isReview && <><AllocationPlanningFields value={planning} onChange={setPlanning} allocationId={reviewAllocation?._id || searchParams.get("allocationId") || undefined} eventId={selectedEventId} disabled={submissionPending} hideSource />
+          <p className="text-xs text-muted-foreground">Available between {planning.requiredFrom ? format(new Date(`${planning.requiredFrom}T00:00:00`), "dd MMM yyyy") : "—"} and {planning.releaseBy ? format(new Date(`${planning.releaseBy}T00:00:00`), "dd MMM yyyy") : "—"}</p></>}
         </CardContent>
       </Card>
 
       {/* ── Section 2: Requirement Lines ── */}
-      <Card className="border border-border/80 bg-card shadow-xs">
-        <CardContent className="p-5 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/60 pb-3">
+      <Card className="overflow-hidden rounded-lg border border-border/80 bg-card shadow-xs">
+        <CardContent className="p-3 space-y-3">
+          <div className="-mx-3 -mt-3 flex flex-wrap items-center justify-between gap-2 border-b border-blue-100 bg-blue-50 px-3 py-2 text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300">
             <div className="flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-medium text-white">
                 2
               </span>
               <div>
-                <h2 className="text-sm font-semibold text-foreground">Requirement Lines</h2>
+                <h2 className="text-xs font-semibold text-inherit">Requirement Lines</h2>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 self-end sm:self-auto">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground font-medium">Category</span>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -752,25 +901,27 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
               </Button>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-3">
               {Object.entries(groupedLines).map(([category, lines]) => (
-                <div key={category} className="space-y-2">
-                  <div className="flex items-center gap-2 px-1">
-                    <span className="text-xs font-bold text-foreground">
+                <div key={category} className="space-y-0">
+                  <div className={`flex w-full items-center gap-2 rounded-t-md border px-3 py-1.5 ${categoryBadgeColor(category)}`}>
+                    <Package className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="text-xs font-semibold">
                       {formatCategoryLabel(category)}
                     </span>
-                    <span className="text-[10px] rounded-full bg-muted px-2 py-0.5 font-medium text-muted-foreground">
+                    <span className="text-[10px] font-medium opacity-80">
                       {lines.length} {lines.length === 1 ? "item" : "items"}
                     </span>
                   </div>
 
-                  <div className="rounded-xl border border-border/70 overflow-hidden">
-                    <Table className="text-xs">
-                      <TableHeader className="bg-muted/30">
-                        <TableRow className="border-border/70 hover:bg-transparent">
+                  <div className="rounded-b-md border border-t-0 border-border/70 overflow-hidden">
+                    <Table className="text-xs [&_th]:h-8 [&_th:not(:last-child)]:border-r [&_td:not(:last-child)]:border-r [&_th]:border-border/60 [&_td]:border-border/60 [&_td]:py-1.5">
+                      <TableHeader className="bg-muted">
+                        <TableRow className="border-border/70 bg-muted/60 hover:bg-muted/60 [&>th]:border-r [&>th]:border-border/60 [&>th:last-child]:border-r-0">
                           <TableHead className="w-56 px-4 text-xs font-semibold text-foreground">Item</TableHead>
                           <TableHead className="w-36 text-xs font-semibold text-foreground">Category</TableHead>
                           <TableHead className="w-28 text-center text-xs font-semibold text-foreground">Required Qty</TableHead>
+                          <TableHead className="w-44 text-xs font-semibold text-foreground">Fulfilment Plan</TableHead>
                           <TableHead className="w-40 text-xs font-semibold text-foreground">Source Location</TableHead>
                           <TableHead className="w-32 text-center text-xs font-semibold text-foreground">Available to Reserve</TableHead>
                           <TableHead className="w-28 text-center text-xs font-semibold text-foreground">Will Reserve</TableHead>
@@ -781,12 +932,12 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
                       </TableHeader>
                       <TableBody>
                         {lines.map((line) => (
-                          <TableRow key={line.id} className="border-border/70 hover:bg-muted/20 transition-colors">
-                            <TableCell className="px-4 py-3">
+                          <TableRow key={line.id} className="border-border/70 hover:bg-muted/20 transition-colors [&>td]:border-r [&>td]:border-border/60 [&>td:last-child]:border-r-0">
+                            <TableCell className="px-3 py-1.5">
                               <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/80 bg-muted/30">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/80 bg-muted/30">
                                   {line.image ? (
-                                    <img
+                                    <ItemPreviewImage
                                       src={line.image}
                                       alt={line.itemName}
                                       className="h-full w-full object-cover"
@@ -824,6 +975,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
                               />
                             </TableCell>
 
+                            <TableCell className="text-xs"><FulfilmentPlanDisplay plan={line.planning} allocationPlanning={line.allocationPlanning || planning} sources={planSources.data || []} /></TableCell>
                             <TableCell>
                               <Select
                                 value={line.sourceLocation}
@@ -871,42 +1023,34 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
 
                             <TableCell className="text-center">
                               {line.saved && !["Ready", "Partially Ready", "Shortage"].includes(line.status) && (
-                                <Badge variant="outline" className="gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-medium">
+                                <Badge variant="outline" className="gap-1 whitespace-nowrap rounded-full border-border bg-muted px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                                   {line.status || "—"}
                                 </Badge>
                               )}
                               {line.status === "Ready" && (
-                                <Badge variant="outline" className="gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                <Badge variant="outline" className="gap-1 whitespace-nowrap rounded-full border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
                                   Ready
                                 </Badge>
                               )}
                               {line.status === "Partially Ready" && (
-                                <Badge variant="outline" className="gap-1 rounded-full bg-orange-50 px-2.5 py-0.5 text-[10px] font-medium text-orange-700 dark:bg-orange-950/40 dark:text-orange-300">
+                                <Badge variant="outline" className="gap-1 whitespace-nowrap rounded-full border-orange-200 bg-orange-50 px-2.5 py-0.5 text-[10px] font-medium text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/40 dark:text-orange-300">
                                   <span className="h-1.5 w-1.5 rounded-full bg-orange-600" />
                                   Partially Ready
                                 </Badge>
                               )}
                               {line.status === "Shortage" && (
-                                <Badge variant="outline" className="gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-[10px] font-medium text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+                                <Badge variant="outline" className="gap-1 whitespace-nowrap rounded-full border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[10px] font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
                                   <span className="h-1.5 w-1.5 rounded-full bg-rose-600" />
                                   Shortage
                                 </Badge>
                               )}
                             </TableCell>
 
-                            <TableCell className="px-4 text-center">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRemoveLine(line.id)}
-                                disabled={line.saved || (isReview && preparePending)}
-                                className="h-7 w-7 text-muted-foreground hover:text-rose-600"
-                                aria-label="Remove item"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </TableCell>
+                            <TableCell className="px-4 text-center"><div className="flex items-center justify-center gap-1">
+                              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-primary" title="Edit Plan" aria-label={`Edit Plan — ${line.itemName}`} disabled={line.planLocked || submissionPending || Boolean(line.allocationId)} onClick={() => setEditingPlan(line)}><Pencil className="h-3.5 w-3.5" /></Button>
+                              {(line.allocationId || (isReview && line._id)) ? <AllocationDeleteAction iconTrigger allocationId={line.allocationId || reviewAllocation._id} allocationLineId={line.id} disabled={submissionPending} onDeleted={async () => { if (isReview) { const response = await AdminV2Service.getInventoryV2AllocationById(reviewAllocation._id); const next = response.data.data; setRequirementLines(current => current.filter(entry => entry.id !== line.id)); onReviewUpdated?.(next); } }} /> : <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Remove item" disabled={submissionPending} onClick={() => handleRemoveLine(line.id)}><Trash2 className="h-3.5 w-3.5" /></Button>}
+                            </div></TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -920,65 +1064,65 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
       </Card>
 
       {/* ── Section 3: Allocation Summary ── */}
-      <Card className="border border-border/80 bg-card shadow-xs">
-        <CardContent className="p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-border/60 pb-3">
+      <Card className="overflow-hidden rounded-lg border border-border/80 bg-card shadow-xs">
+        <CardContent className="p-3 space-y-3">
+          <div className="-mx-3 -mt-3 flex flex-wrap items-center justify-between gap-2 border-b border-emerald-100 bg-emerald-50 px-3 py-2 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
             <div className="flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-medium text-white">
                 3
               </span>
-              <h2 className="text-sm font-semibold text-foreground">Allocation Summary</h2>
+              <h2 className="text-xs font-semibold text-inherit">Allocation Summary</h2>
             </div>
-            <span className="text-[11px] text-muted-foreground italic">
+            {isReview && <span className="text-[10px] text-muted-foreground italic">
               Summary based on current requirement lines.
-            </span>
+            </span>}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            <div className="rounded-xl border border-border/70 bg-card p-3.5 flex items-center gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-2">
+            <div className="min-w-0 rounded-md border border-blue-100 bg-blue-50/40 px-3 py-2 flex items-center gap-2 dark:border-blue-900/50 dark:bg-blue-950/20">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
                 <Boxes className="h-5 w-5" />
               </div>
               <div>
-                <div className="text-[10px] uppercase font-semibold text-muted-foreground">Requirement Lines</div>
-                <div className="text-xl font-bold tracking-tight text-foreground">{summary.totalLines}</div>
+                <div className="text-[10px] font-medium text-muted-foreground">Requirement Lines</div>
+                <div className="text-sm font-medium tracking-tight text-foreground">{summary.totalLines}</div>
               </div>
             </div>
 
-            <div className="rounded-xl border border-border/70 bg-card p-3.5 flex items-center gap-3">
+            <div className="min-w-0 rounded-md border border-emerald-100 bg-emerald-50/40 px-3 py-2 flex items-center gap-2 dark:border-emerald-900/50 dark:bg-emerald-950/20">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
                 <CheckCircle2 className="h-5 w-5" />
               </div>
               <div>
-                <div className="text-[10px] uppercase font-semibold text-muted-foreground">Ready Lines</div>
-                <div className="text-xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">{summary.readyLines}</div>
+                <div className="text-[10px] font-medium text-muted-foreground">Ready Lines</div>
+                <div className="text-sm font-medium tracking-tight text-emerald-600 dark:text-emerald-400">{summary.readyLines}</div>
               </div>
             </div>
 
-            <div className="rounded-xl border border-border/70 bg-card p-3.5 flex items-center gap-3">
+            <div className="min-w-0 rounded-md border border-orange-100 bg-orange-50/40 px-3 py-2 flex items-center gap-2 dark:border-orange-900/50 dark:bg-orange-950/20">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400">
                 <Clock className="h-5 w-5" />
               </div>
               <div>
-                <div className="text-[10px] uppercase font-semibold text-muted-foreground">Partially Ready</div>
-                <div className="text-xl font-bold tracking-tight text-orange-600 dark:text-orange-400">{summary.partiallyReadyLines}</div>
+                <div className="text-[10px] font-medium text-muted-foreground">Partially Ready</div>
+                <div className="text-sm font-medium tracking-tight text-orange-600 dark:text-orange-400">{summary.partiallyReadyLines}</div>
               </div>
             </div>
 
-            <div className="rounded-xl border border-border/70 bg-card p-3.5 flex items-center gap-3">
+            <div className="min-w-0 rounded-md border border-rose-100 bg-rose-50/40 px-3 py-2 flex items-center gap-2 dark:border-rose-900/50 dark:bg-rose-950/20">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
-                <div className="text-[10px] uppercase font-semibold text-muted-foreground">Shortage Lines</div>
-                <div className="text-xl font-bold tracking-tight text-rose-600 dark:text-rose-400">{summary.shortageLines}</div>
+                <div className="text-[10px] font-medium text-muted-foreground">Shortage Lines</div>
+                <div className="text-sm font-medium tracking-tight text-rose-600 dark:text-rose-400">{summary.shortageLines}</div>
               </div>
             </div>
 
-            <div className="col-span-2 sm:col-span-1 rounded-xl border border-border/70 bg-card p-3.5 flex flex-col justify-center">
+            <div className="min-w-0 sm:col-span-2 xl:col-span-1 rounded-md border border-emerald-100 bg-emerald-50/40 px-3 py-2 flex flex-col justify-center dark:border-emerald-900/50 dark:bg-emerald-950/20">
               <div className="flex items-center justify-between text-[11px] mb-1.5">
                 <span className="font-semibold text-muted-foreground">Allocation Progress</span>
-                <span className="font-bold text-foreground">{summary.progressPercent}%</span>
+                <span className="font-medium text-foreground">{summary.progressPercent}%</span>
               </div>
               <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
                 <div
@@ -992,16 +1136,16 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
       </Card>
 
       {/* ── Section 4: Notes & Settings ── */}
-      <Card className="border border-border/80 bg-card shadow-xs">
-        <CardContent className="p-5 space-y-4">
-          <div className="flex items-center gap-2 border-b border-border/60 pb-3">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+      <Card className="overflow-hidden rounded-lg border border-border/80 bg-card shadow-xs">
+        <CardContent className="p-3 space-y-3">
+          <div className="-mx-3 -mt-3 flex flex-wrap items-center gap-2 border-b border-amber-100 bg-amber-50 px-3 py-2 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-600 text-xs font-medium text-white">
               4
             </span>
-            <h2 className="text-sm font-semibold text-foreground">Notes & Settings</h2>
+            <h2 className="text-xs font-semibold text-inherit">Notes & Settings</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-foreground">
@@ -1015,11 +1159,11 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
                 disabled={isReview && preparePending}
                 onChange={(e) => setAllocationNote(e.target.value)}
                 placeholder="Add any special instructions, notes or remarks for this allocation..."
-                className="text-xs min-h-[90px] resize-none"
+                className="text-xs min-h-[72px] resize-none"
               />
             </div>
 
-            <div className="flex items-start gap-3 rounded-xl border border-blue-200/70 bg-blue-50/50 p-4 dark:border-blue-900/40 dark:bg-blue-950/20 text-xs">
+            <div className="flex items-start gap-2 rounded-md border border-blue-200/70 bg-blue-50/50 p-3 dark:border-blue-900/40 dark:bg-blue-950/20 text-xs">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300">
                 <Info className="h-4 w-4" />
               </div>
@@ -1041,14 +1185,14 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
           size="sm"
           onClick={onBack}
           disabled={submissionPending}
-          className="text-xs h-9 px-4 font-medium"
+          className="text-xs h-9 px-4 font-medium text-foreground"
         >
           Cancel
         </Button>
 
         <Button
           size="sm"
-          onClick={() => isReview ? onPrepare({ lines: requirementLines, plannedIssueDate, allocationNote }) : submitMutation.mutate()}
+          onClick={() => isReview ? onPrepare({ lines: requirementLines, plannedIssueDate, allocationNote, planning }) : submitAllocation()}
           disabled={submissionPending || !selectedEventId || requirementsUnavailable || pendingRequirementLines.length === 0}
           className="h-9 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-6 shadow-xs"
         >
@@ -1064,6 +1208,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
             </>
           )}
         </Button>
+      </div>
       </div>
     </div>
   );
@@ -1081,4 +1226,5 @@ CreateEventAllocationPage.propTypes = {
   onPrepare: PropTypes.func,
   preparePending: PropTypes.bool,
   prepareError: PropTypes.string,
+  onReviewUpdated: PropTypes.func,
 };
