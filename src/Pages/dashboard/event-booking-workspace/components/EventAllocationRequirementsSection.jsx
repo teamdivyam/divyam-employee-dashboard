@@ -1,3 +1,5 @@
+import { canEditAllocationRequirements } from "../../Inventory/Essentials/allocationEditAccess";
+import useAllocationReport from "../../Inventory/Essentials/useAllocationReport";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -192,6 +194,7 @@ const allocationRequirementPayload = (items, editor) => {
 
 export default function EventAllocationRequirementsSection({ eventId, booking, onCountChange }) {
   const AdminV2Service = useEventInventoryService();
+  const allocationReport = useAllocationReport(AdminV2Service, null, booking, [], eventId, `event-${eventId}-allocation.pdf`);
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState({
     search: "",
@@ -332,13 +335,14 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
 
   const canEditRow = (line) => {
     const owner = line.owningAllocation;
-    return AdminV2Service.canUpdateAllocations && owner && owner.status === "Draft" && !owner.items.some((entry) => entry.status === "Reserved");
+    return AdminV2Service.canUpdateAllocations && canEditAllocationRequirements(owner, AdminV2Service.accessRole);
   };
 
   // Edit Allocation mutation
   const saveMutation = useMutation({
     retry: false,
     mutationFn: async () => {
+      if (!AdminV2Service.canUpdateAllocations) throw new Error("You do not have permission to edit allocations.");
       if (!editor) throw new Error("This allocation cannot be edited.");
       const response = await AdminV2Service.getInventoryV2AllocationById(editor.allocationId);
       const current = response.data?.data;
@@ -352,7 +356,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
       }
       if (
         editor.mode !== "metadata" &&
-        (current.status !== "Draft" || current.items.some((line) => line.status === "Reserved"))
+        !canEditAllocationRequirements(current, AdminV2Service.accessRole)
       ) {
         throw new Error("This allocation is committed. Only its date and note can be edited.");
       }
@@ -451,8 +455,8 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
         variant="outline"
         size="sm"
         className="h-7 border-primary/20 bg-background px-3 text-xs font-medium text-primary hover:bg-primary/10 hover:text-primary"
-        title={!AdminV2Service.canUpdateAllocations ? "Saved allocations are managed by the inventory team" : "Edit allocation"}
-        disabled={!canEditRow(line) || line.status !== "Draft"}
+        title={!AdminV2Service.canUpdateAllocations ? "You do not have permission to edit allocations" : canEditRow(line) ? "Edit allocation" : "This allocation is locked for your role"}
+        disabled={!canEditRow(line)}
         onClick={() => openEditor("edit", line)}
       >
         Edit Allocation
@@ -472,22 +476,6 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
     </div>
   );
 
-  const downloadAllocation = () => {
-    const columns = ['Item', 'Item ID', 'Category', 'Source Location', 'Required Qty', 'Reserved Qty', 'Allocation Status'];
-    const escapeCell = (value) => {
-      const text = String(value ?? '');
-      const safe = /^[=+@\-\t\r]/.test(text) ? `'${text}` : text;
-      return `"${safe.replaceAll('"', '""')}"`;
-    };
-    const rows = filteredItems.map(line => [line.itemName, line.itemId, line.category, allocationLabel(line.sourceLocation), line.requiredQuantity, line.reservedQuantity, line.status]);
-    const csv = [columns, ...rows].map(row => row.map(escapeCell).join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `event-${eventId}-allocation.csv`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
 
   const isInitialLoading = allocationsQuery.isLoading || (Boolean(primaryAllocationId) && detailQuery.isLoading);
 
@@ -574,8 +562,9 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
               type="button"
               variant="outline"
               size="sm"
-              onClick={downloadAllocation}
-              disabled={!filteredItems.length}
+              onClick={allocationReport.download}
+              aria-busy={allocationReport.generating}
+              disabled={allocationReport.generating || !eventId}
               className="h-9 gap-1.5 whitespace-nowrap text-xs text-primary"
             >
               <Download className="h-3.5 w-3.5" aria-hidden="true" /> Download Allocation
