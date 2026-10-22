@@ -167,11 +167,13 @@ const EventBookingWorkspaceService = {
     axiosRequest.patch(eventPath(eventId, `/finance/client-payments/milestones/${milestoneId}`), formData),
   deleteEventPaymentMilestone: ({ eventId, milestoneId }) =>
     axiosRequest.delete(eventPath(eventId, `/finance/client-payments/milestones/${milestoneId}`)),
-  recordEventClientPayment: ({ eventId, milestoneId, receipts = [], ...values }) => {
+  deleteEventClientPayment: ({ eventId, paymentId }) =>
+    axiosRequest.delete(eventPath(eventId, `/finance/client-payments/payments/${paymentId}`)),
+  recordEventClientPayment: ({ eventId, receipts = [], ...values }) => {
     const formData = new FormData();
     appendValues(formData, values);
-    Array.from(receipts).forEach((file) => formData.append("receipts", file));
-    return axiosRequest.post(eventPath(eventId, `/finance/client-payments/milestones/${milestoneId}/payments`), formData);
+    Array.from(receipts || []).forEach(file => formData.append("receipts", file));
+    return axiosRequest.post(eventPath(eventId, "/finance/client-payments/payments"), formData, { headers: { "Content-Type": undefined } });
   },
   downloadEventClientPaymentReport: ({ eventId, ...params }) =>
     axiosRequest.get(eventPath(eventId, "/finance/client-payments/report"), { params, responseType: "blob" }),

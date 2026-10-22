@@ -1,3 +1,4 @@
+import { hasOverduePaymentMilestone, paymentMetricsFromBooking } from './eventPaymentSummary.utils.js';
 import { formatDate } from './components/EventBookingComponents';
 
 export const dateParam = (year, month, day) =>
@@ -243,20 +244,7 @@ export const getKeyPendingItems = (booking) => {
 export const getPaymentMetrics = (booking) => {
   const milestones = (booking.paymentMilestones || [])
     .filter((milestone) => milestone && milestone.status !== 'Cancelled');
-  const total = milestones.reduce(
-    (sum, milestone) => sum + Math.max(0, numericAmount(milestone.amount)),
-    0,
-  );
-  const received = milestones.reduce((sum, milestone) => {
-    const milestoneAmount = Math.max(0, numericAmount(milestone.amount));
-    const receivedAmount = Math.max(0, numericAmount(milestone.receivedAmount));
-    return sum + Math.min(milestoneAmount, receivedAmount);
-  }, 0);
-  const pending = Math.max(0, total - received);
-  const clampedPercentage = total > 0
-    ? Math.max(0, Math.min(100, Math.round((received / total) * 100)))
-    : 0;
-  const isComplete = total > 0 && pending === 0;
+  const payment = paymentMetricsFromBooking(booking);
   const nextDueDate = milestones
     .filter((milestone) => (
       numericAmount(milestone.receivedAmount) < numericAmount(milestone.amount)
@@ -264,7 +252,7 @@ export const getPaymentMetrics = (booking) => {
       && !Number.isNaN(new Date(milestone.dueDate).getTime())
     ))
     .sort((left, right) => new Date(left.dueDate) - new Date(right.dueDate))[0]?.dueDate;
-  const dueLabel = isComplete
+  const dueLabel = payment.isComplete
     ? 'All payments cleared'
     : nextDueDate
       ? `Next due: ${shortPaymentDate(nextDueDate)}`
@@ -273,13 +261,10 @@ export const getPaymentMetrics = (booking) => {
         : 'No payment milestones';
 
   return {
-    clampedPercentage,
+    ...payment,
     dueLabel,
     hasMilestones: milestones.length > 0,
-    isComplete,
-    pending,
-    received,
-    total,
+    isOverdue: hasOverduePaymentMilestone(booking),
   };
 };
 

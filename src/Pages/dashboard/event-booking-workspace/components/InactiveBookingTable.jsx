@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import { CalendarDays, Loader2, UsersRound } from 'lucide-react';
+import { CalendarDays, UsersRound } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@components/components/ui/avatar';
 import { Badge } from '@components/components/ui/badge';
@@ -28,13 +28,6 @@ const statusClass = (isOnHold) => isOnHold
   ? 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-400/30 dark:bg-orange-400/10 dark:text-orange-300'
   : 'border-red-200 bg-red-50 text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300';
 
-const settlementTone = (status) => ({
-  Complete: 'text-emerald-600 dark:text-emerald-400',
-  'Refund Pending': 'text-amber-600 dark:text-amber-400',
-  Outstanding: 'text-destructive',
-  Pending: 'text-amber-600 dark:text-amber-400',
-}[status] || 'text-muted-foreground');
-
 export default function InactiveBookingTable({
   bookings,
   openBooking,
@@ -44,9 +37,7 @@ export default function InactiveBookingTable({
   openPayments,
   openBookingSetup,
   openEventOverview,
-  onResume,
   onUpdateStatus,
-  resumingId,
 }) {
   return (
     <div className="event-booking-table-fit w-full min-w-0 max-w-full overflow-x-auto">
@@ -83,7 +74,6 @@ export default function InactiveBookingTable({
             const inactive = inactiveBookingDetails(booking);
             const settlement = settlementDetails(booking);
             const teamCount = booking.assignedTeam?.length || 0;
-            const isResuming = String(resumingId || '') === String(booking._id);
             const clientName = booking.customer?.name || booking.eventName || 'Unknown client';
             const clientNameCharacters = Array.from(clientName);
             const displayedClientName = clientNameCharacters.length > 30 ? `${clientNameCharacters.slice(0, 30).join('')}...` : clientName;
@@ -144,11 +134,11 @@ export default function InactiveBookingTable({
                     <div className="flex items-center gap-2">
                       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-muted">
                         <div
-                          className={`h-full rounded-full ${settlement.clampedPercentage === 100 || settlement.pending === 0 ? 'bg-emerald-500' : settlement.clampedPercentage > 0 ? 'bg-amber-500' : 'bg-slate-200'}`}
+                          className={`h-full rounded-full ${settlement.isOverdue ? 'bg-red-500' : 'bg-emerald-500'}`}
                           style={{ width: `${settlement.clampedPercentage}%` }}
                         />
                       </div>
-                      <span className={`text-[10px] font-bold shrink-0 ${settlement.clampedPercentage === 100 || settlement.pending === 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>
+                      <span className={`text-[10px] font-bold shrink-0 ${settlement.isOverdue ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                         {settlement.clampedPercentage}%
                       </span>
                     </div>
@@ -156,7 +146,7 @@ export default function InactiveBookingTable({
                       {currencyAmount(settlement.pending)} Balance
                     </p>
                     <p className="truncate text-[9px] text-muted-foreground">
-                      {settlement.status === 'Complete' || settlement.pending === 0 ? 'All financials settled' : (settlement.dueLabel || 'Payment not received')}
+                      {settlement.status === 'Refund Pending' ? 'Client refund pending' : settlement.isComplete ? 'All client payments received' : (settlement.dueLabel || 'Payment not received')}
                     </p>
                   </div>
                 </TableCell>

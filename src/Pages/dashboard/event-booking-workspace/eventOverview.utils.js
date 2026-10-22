@@ -1,3 +1,4 @@
+import { isIncludedClientPayment, paymentMetricsFromBooking } from './eventPaymentSummary.utils.js';
 const list = (value) => Array.isArray(value) ? value : [];
 const idOf = (value) => String(value?._id ?? value ?? '');
 const number = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -24,10 +25,10 @@ const progress = (label, items, complete) => {
   return { label, total, pending: total - done, percentage: total ? Math.round(done / total * 100) : null };
 };
 
-export const buildOverviewDetails = (booking) => {
+export const buildOverviewDetails = (booking, payment = paymentMetricsFromBooking(booking)) => {
   const functions = list(booking.functions);
   const services = list(booking.servicesSelected);
-  const payments = list(booking.payments);
+  const payments = list(booking.payments).filter(isIncludedClientPayment);
   const seen = new Set();
   const history = payments.filter((item) => {
     const key = item._id || item.transactionId || item.receiptNumber;
@@ -36,10 +37,6 @@ export const buildOverviewDetails = (booking) => {
     seen.add(String(key));
     return true;
   }).sort((a, b) => new Date(b.transactionDate || b.paymentDate || b.paidOn || b.createdAt || 0) - new Date(a.transactionDate || a.paymentDate || a.paidOn || a.createdAt || 0));
-  const total = number(booking.paymentSummary?.totalAmount ?? booking.finance?.bookingValue);
-  const received = number(booking.paymentSummary?.receivedAmount ?? booking.finance?.amountReceived);
-  const pending = number(booking.paymentSummary?.pendingAmount ?? booking.finance?.amountPending ?? Math.max(0, total - received));
-  const percentage = total > 0 ? Math.max(0, Math.min(100, Math.round(received / total * 100))) : 0;
   const proposalId = idOf(booking.commercialTerms?.acceptedProposalId);
   const proposalVersions = [...list(booking.proposalVersions), ...list(booking.customer?.proposalVersions)]
     .filter((item) => item.fileUrl)
@@ -47,7 +44,7 @@ export const buildOverviewDetails = (booking) => {
       || new Date(b.createdAt || b.sharedAt || 0) - new Date(a.createdAt || a.sharedAt || 0));
   const proposal = proposalVersions.find((item) => proposalId && idOf(item) === proposalId) || proposalVersions[0];
   return {
-    functions, services, history, total, received, pending, percentage, proposal,
+    functions, services, history, total: payment.total, received: payment.received, pending: payment.pending, percentage: payment.percentage, proposal,
     peakGuests: Math.max(number(booking.guestCount), ...functions.map((item) => number(item.guestCount))),
     readinessRows: [
       progress('Client Approvals', list(booking.approvals), (item) => item.status === 'Approved'),
