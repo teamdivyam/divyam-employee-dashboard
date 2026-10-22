@@ -1,3 +1,4 @@
+import EventInventoryScrollTable from './components/EventInventoryScrollTable';
 /* eslint-disable react/prop-types */
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,7 +13,7 @@ import { Card, CardContent } from '@components/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@components/components/ui/dialog';
 import { Input } from '@components/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/EventTable';
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from './components/EventTable';
 import { getEmployees } from './components/EventBookingComponents';
 import EventOperationsNav from './components/EventOperationsNav';
 import EventSummaryCards from './components/EventSummaryCards';
@@ -130,8 +131,8 @@ function EventInventoryPanel({ eventId, booking, data, onAdd, onView }) {
 
       {source === 'Company' ? (
         <EventAllocationRequirementsSection key={eventId} eventId={eventId} booking={booking} onCountChange={setCompanyCount} />
-      ) : <Card className="overflow-hidden border-border shadow-sm"><CardContent className="p-0">
-        <div role="region" aria-label="Vendor inventory items" tabIndex={0} className="max-h-[65vh] overflow-auto overscroll-contain [&>div]:overflow-visible"><Table className="min-w-[1150px] table-fixed text-xs">
+      ) : <Card className="overflow-visible border-border shadow-sm"><CardContent className="p-0">
+        <div role="region" aria-label="Vendor inventory items" tabIndex={0} className="min-w-0 max-w-full"><EventInventoryScrollTable className="min-w-[1150px] table-fixed text-xs">
           <colgroup>
             {source === 'Vendor' ? (
               <>
@@ -158,7 +159,7 @@ function EventInventoryPanel({ eventId, booking, data, onAdd, onView }) {
               </>
             )}
           </colgroup>
-          <TableHeader className="sticky top-0 z-10 !bg-muted [&_th]:!text-xs [&_th]:!font-semibold [&_th]:!text-foreground">
+          <TableHeader className="!bg-muted [&_th]:!text-xs [&_th]:!font-semibold [&_th]:!text-foreground">
             <TableRow className="bg-muted/30 hover:bg-muted/30">
               <TableHead className="h-11 px-3">
                 <div className="flex items-center gap-3">
@@ -214,7 +215,7 @@ function EventInventoryPanel({ eventId, booking, data, onAdd, onView }) {
               </TableCell>
             </TableRow>
           )}</TableBody>
-        </Table></div>
+        </EventInventoryScrollTable></div>
       </CardContent></Card>}
     </div>
   );

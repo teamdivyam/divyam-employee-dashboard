@@ -1,3 +1,4 @@
+import EventInventoryScrollTable from './EventInventoryScrollTable';
 import { allocatedItemsByCategory } from "../../Inventory/Essentials/allocatedItemCategories";
 import { canEditAllocationRequirements } from "../../Inventory/Essentials/allocationEditAccess";
 import useAllocationReport from "../../Inventory/Essentials/useAllocationReport";
@@ -29,7 +30,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@components/components/ui/input";
 import { Label } from "@components/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./EventTable";
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "./EventTable";
 import { Textarea } from "@components/components/ui/textarea";
 
 import { ItemImagePreview, ItemPreviewImage } from "@components/components/InventoryItemImagePreview";
@@ -441,7 +442,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
   };
 
   const renderRowActions = (line) => (
-    <div className="flex items-center justify-center gap-1">
+    <div className="flex flex-nowrap items-center justify-center gap-1 [&>button]:shrink-0">
       <Button
         variant="ghost"
         size="icon"
@@ -490,7 +491,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
   return (
     <div className="space-y-3">
       {/* Allocation Items Table Container */}
-      <Card className="min-w-0 overflow-hidden border-border/80 bg-card shadow-sm">
+      <Card className="min-w-0 overflow-visible border-border/80 bg-card shadow-sm">
         {/* Filter / Search Bar */}
         <div className="flex flex-wrap items-center gap-2.5 border-b border-border/70 p-3">
           <div className="w-full min-w-[200px] sm:w-64 sm:flex-none">
@@ -582,14 +583,17 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
         ) : (
           <>
             {/* Desktop Table View */}
-            <div role="region" aria-label="Allocation items" tabIndex={0} className="hidden lg:block max-h-[65vh] overflow-auto overscroll-contain [&>div]:overflow-visible">
-              <Table className="min-w-[1050px] text-xs">
-                <TableHeader className="sticky top-0 z-10 !bg-muted [&_th]:whitespace-nowrap">
+            <div role="region" aria-label="Allocation items" tabIndex={0} className="hidden min-w-0 max-w-full lg:block">
+              <EventInventoryScrollTable className="min-w-[1540px] table-fixed border-separate border-spacing-0 text-xs [&_thead_th]:border-b [&_tbody_td]:border-b [&_tbody_td]:border-border/70">
+                <colgroup>
+                  {[240, 240, 200, 160, 90, 90, 90, 90, 220, 120].map((width, index) => <col key={index} style={{ width }} />)}
+                </colgroup>
+                <TableHeader className="!bg-muted [&_th]:whitespace-nowrap">
                   <TableRow className="border-border/70 hover:bg-transparent [&>th]:border-r [&>th]:border-border/60 [&>th:last-child]:border-r-0">
-                    <TableHead className="w-56 px-4 text-xs font-semibold text-foreground">Item</TableHead>
+                    <TableHead className="px-4 text-xs font-semibold text-foreground">Item</TableHead>
                     <TableHead className="text-xs font-semibold text-foreground">Category</TableHead>
                     <TableHead className="text-xs font-semibold text-foreground">Fulfilment Plan</TableHead>
-                    <TableHead className="w-40 min-w-[140px] text-center text-xs font-semibold text-foreground">Source Location</TableHead>
+                    <TableHead className="text-center text-xs font-semibold text-foreground">Source Location</TableHead>
                     <TableHead className="text-center text-xs font-semibold text-foreground">Required</TableHead>
                     <TableHead className="text-center text-xs font-semibold text-foreground">Reserved</TableHead>
                     <TableHead className="text-center text-xs font-semibold text-foreground">Available</TableHead>
@@ -627,12 +631,12 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                           <TableCell>
                             <Badge
                               variant="outline"
-                              className={`whitespace-nowrap rounded-md px-2.5 py-0.5 text-[11px] font-medium ${categoryBadgeColor(line.category)}`}
+                              className={`max-w-full whitespace-normal break-words rounded-md px-2.5 py-0.5 text-[11px] font-medium ${categoryBadgeColor(line.category)}`}
                             >
                               {allocationLabel(line.category)}
                             </Badge>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="break-words [&_span]:min-w-0 [&_span]:break-words">
                             <FulfilmentPlanDisplay
                               plan={line.planning}
                               allocationPlanning={line.owningAllocation?.planning}
@@ -679,11 +683,11 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                     );
                   })}
                 </TableBody>
-              </Table>
+              </EventInventoryScrollTable>
             </div>
 
             {/* Mobile / Tablet Cards View */}
-            <div className="divide-y divide-border/70 lg:hidden">
+            <div className="overflow-hidden divide-y divide-border/70 lg:hidden">
               {visibleItems.map((line) => {
                 const allocationDoc = detailQuery.data?.data?.data;
                 const returnLines = allocationDoc?.returnLines || line.owningAllocation?.returnLines || [];
