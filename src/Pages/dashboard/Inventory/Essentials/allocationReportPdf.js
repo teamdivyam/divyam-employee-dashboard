@@ -2,7 +2,7 @@ import { jsPDF } from "jspdf";
 import { assertAllocationReportComplete } from "./allocationReportData.js";
 
 const NAVY = "#101636", MUTED = "#596b88", BORDER = "#dce3e8", GOLD = "#c58a32";
-const LEFT = 8, WIDTH = 194, BOTTOM = 282;
+const LEFT = 8, WIDTH = 194, BOTTOM = 284, CONTENT_TOP = 24;
 const date = value => value && !Number.isNaN(new Date(value).getTime()) ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }).format(new Date(value)) : "—";
 const colors = category => {
   const palettes = [["#fff3e9", "#a44016"], ["#e5f7f2", "#087965"], ["#fff8e3", "#916018"], ["#e9f3ff", "#2466a1"], ["#f7edf8", "#82408e"]];
@@ -43,16 +43,16 @@ export function createAllocationPdf(report, images = new Map()) {
     doc.setDrawColor(GOLD); doc.setLineWidth(0.18);
     doc.line(LEFT + WIDTH - doc.getTextWidth(tagline), 18, LEFT + WIDTH, 18);
   };
-  let y = 31;
+  let y = CONTENT_TOP;
   const period = report.requiredFrom && report.releaseBy ? `${date(report.requiredFrom)} - ${date(report.releaseBy)}` : "—";
-  const fields = [["EVENT NAME", report.eventName, 46], ["EVENT DATE", date(report.eventDate), 29], ["VENUE", report.venue, 40], ["ALLOCATION PERIOD", period, 40], ["ALLOCATION REF", `${report.reference}\nGenerated: ${date(report.generatedAt)}`, 39]];
+  const fields = [["EVENT NAME", report.eventName, 48.5], ["EVENT DATE", date(report.eventDate), 48.5], ["VENUE", report.venue, 48.5], ["ALLOCATION PERIOD", period, 48.5]];
   const cells = fields.map(([label, value, width]) => ({ label, width, lines: wrap(value, width - 5, 8, true) }));
-  const metaHeight = Math.max(19, ...cells.map(cell => 9 + cell.lines.length * 3.3));
+  const metaHeight = Math.max(15, ...cells.map(cell => 7 + cell.lines.length * 3.3));
   if (metaHeight > 100) throw new Error("Event details are too long to print safely.");
   const eventPanel = () => {
     let x = LEFT;
-    for (const cell of cells) { rect(x, y, cell.width, metaHeight, "#f8fafc"); text(cell.label, x + 2.5, y + 5, 6.3); linesAt(cell.lines, x + 2.5, y + 10, 8, true); x += cell.width; }
-    y += metaHeight + 4;
+    for (const cell of cells) { rect(x, y, cell.width, metaHeight, "#f8fafc"); text(cell.label, x + 2.5, y + 4, 6.3); linesAt(cell.lines, x + 2.5, y + 8, 8, true); x += cell.width; }
+    y += metaHeight + 1.5;
   };
   const categories = new Map();
   for (const group of report.groups) for (const row of group.rows) {
@@ -66,16 +66,16 @@ export function createAllocationPdf(report, images = new Map()) {
   let categoryIndex = 0;
   for (const [category, sources] of categories) {
     if (categoryIndex++) doc.addPage();
-    branding(); y = 31; eventPanel();
+    branding(); y = CONTENT_TOP; eventPanel();
     const categoryHeading = continued => {
       const parts = wrap(`CATEGORY: ${category}${continued ? " (Continued)" : ""}`, WIDTH - 6, 9, true);
-      const height = parts.length * 3.3 + 5;
+      const height = parts.length * 3.3 + 3;
       rect(LEFT, y, WIDTH, height, "#f8eedf");
-      linesAt(parts, LEFT + 3, y + 5, 9, true); y += height + 3;
+      linesAt(parts, LEFT + 3, y + 4, 9, true); y += height + 1;
     };
     categoryHeading(false);
-    const continuationTop = 31 + wrap(`CATEGORY: ${category} (Continued)`, WIDTH - 6, 9, true).length * 3.3 + 8;
-    const newPage = () => { doc.addPage(); branding(); y = 31; categoryHeading(true); };
+    const continuationTop = CONTENT_TOP + wrap(`CATEGORY: ${category} (Continued)`, WIDTH - 6, 9, true).length * 3.3 + 4;
+    const newPage = () => { doc.addPage(); branding(); y = CONTENT_TOP; categoryHeading(true); };
     const nameOrder = new Intl.Collator("en", { sensitivity: "accent" });
     const idOrder = new Intl.Collator("en", { sensitivity: "variant" });
     const categoryGroups = [...sources.values()].map(group => ({
@@ -95,9 +95,9 @@ export function createAllocationPdf(report, images = new Map()) {
   const noteLines = notes.flatMap((note, i) => wrap(`${i + 1}. ${note}`, 94, 7));
   const totalsLines = wrap(totalText(totals), 82, 10, true);
   const totalHeading = wrap(`TOTAL DISPATCH — ${category}`, 82, 8, true);
-  const totalValueY = 9 + totalHeading.length * 3.3;
-  const topHeight = Math.max(29, 10 + noteLines.length * 3.3, totalValueY + totalsLines.length * 4);
-  const footerHeight = topHeight + 35;
+  const totalValueY = 8 + totalHeading.length * 3.3;
+  const topHeight = Math.max(24, 8 + noteLines.length * 3.3, totalValueY + totalsLines.length * 4);
+  const footerHeight = topHeight + 30;
   for (const group of categoryGroups) {
     if (!group.rows.length) continue;
     const rendered = { ...group, rows: [] };
@@ -105,35 +105,35 @@ export function createAllocationPdf(report, images = new Map()) {
     const transfer = group.type === "event";
     const widths = transfer ? [8, 46, 17, 23, 17, 12, 22, 19, 15, 15] : [8, 50, 17, 26, 17, 12, 30, 17, 17];
     const headers = ["#", "Item", "Item ID", "Category", quantityLabel, "Unit", ...(transfer ? ["Release Date / Time"] : []), "Remarks", "Dispatched", "Return"];
-    const headerHeight = 11;
+    const headerHeight = Math.max(...headers.map((label, i) => wrap(label, widths[i] - 2, 6.8, true).length)) * 3 + 3;
     const sectionHeader = continued => {
       const title = `DISPATCH FROM: ${group.name}${transfer ? " (Event Transfer)" : ""}${continued ? " (Continued)" : ""}`;
       const titleLines = wrap(title, 115, 9, true);
       const destinationLines = wrap(`Destination: ${report.eventName || "—"}${report.venue ? ` | ${report.venue}` : ""}`, 70, 7);
-      const height = Math.max(10, Math.max(titleLines.length, destinationLines.length) * 3.3 + 5);
+      const height = Math.max(7, Math.max(titleLines.length, destinationLines.length) * 3.3 + 3);
       rect(LEFT, y, WIDTH, height, transfer ? "#f3dfbc" : "#1a3545");
-      linesAt(titleLines, LEFT + 3, y + 5, 9, true, transfer ? NAVY : "#ffffff");
-      linesAt(destinationLines, LEFT + 121, y + 5, 7, false, transfer ? NAVY : "#ffffff");
+      linesAt(titleLines, LEFT + 3, y + 4, 9, true, transfer ? NAVY : "#ffffff");
+      linesAt(destinationLines, LEFT + 121, y + 4, 7, false, transfer ? NAVY : "#ffffff");
       y += height; let xx = LEFT;
       headers.forEach((label, i) => { rect(xx, y, widths[i], headerHeight, "#f0f3f5"); const parts = wrap(label, widths[i] - 2, 6.8, true); parts.forEach((part, j) => text(part, xx + widths[i] / 2, y + 4 + j * 3, 6.8, true, NAVY, "center")); xx += widths[i]; });
       y += headerHeight;
     };
-    const titleHeight = continued => Math.max(10, Math.max(wrap(`DISPATCH FROM: ${group.name}${transfer ? " (Event Transfer)" : ""}${continued ? " (Continued)" : ""}`, 115, 9, true).length, wrap(`Destination: ${report.eventName || "—"}${report.venue ? ` | ${report.venue}` : ""}`, 70, 7).length) * 3.3 + 5);
+    const titleHeight = continued => Math.max(7, Math.max(wrap(`DISPATCH FROM: ${group.name}${transfer ? " (Event Transfer)" : ""}${continued ? " (Continued)" : ""}`, 115, 9, true).length, wrap(`Destination: ${report.eventName || "—"}${report.venue ? ` | ${report.venue}` : ""}`, 70, 7).length) * 3.3 + 3);
     const rows = group.rows.map(row => {
       if (!Number.isFinite(row.quantity) || row.quantity < 0) throw new Error("Source quantity is unavailable. No report was downloaded.");
       const release = row.releaseAt ? String(row.releaseAt) : "—";
       const values = ["", row.name, row.itemId, row.category, String(row.quantity), row.unit, ...(transfer ? [release] : []), row.remarks || "", "", ""];
       const wrapped = values.map((value, i) => value ? wrap(value, widths[i] - (i === 1 ? 24 : 4), 7.5, i === 1) : []);
-      return { ...row, wrapped, height: Math.max(22, ...wrapped.map(parts => parts.length * 3.3 + 4)) };
+      return { ...row, wrapped, height: Math.max(21, ...wrapped.map(parts => parts.length * 3.3 + 4)) };
     });
     const subtotal = new Map();
     const expectedTotal = rows.reduce((acc, entry) => { addTotal(acc, entry); return acc; }, new Map());
-    const totalHeight = Math.max(9, wrap(`Total (${group.name}): ${totalText(expectedTotal)}`, WIDTH - 6, 8, true).length * 3.3 + 4);
-    const firstRowEnd = rows.length === 1 ? totalHeight + (group === categoryGroups.at(-1) ? footerHeight + 3 : 0) : 0;
+    const totalHeight = Math.max(7, wrap(`Total (${group.name}): ${totalText(expectedTotal)}`, WIDTH - 6, 8, true).length * 3.3 + 3);
+    const firstRowEnd = rows.length === 1 ? totalHeight + (group === categoryGroups.at(-1) ? footerHeight + 1.5 : 0) : 0;
     if (y + titleHeight(false) + headerHeight + rows[0].height + firstRowEnd > BOTTOM) newPage();
     sectionHeader(false);
     rows.forEach((row, index) => {
-      const endTotal = index === rows.length - 1 ? totalHeight + (group === categoryGroups.at(-1) ? footerHeight + 3 : 0) : 0;
+      const endTotal = index === rows.length - 1 ? totalHeight + (group === categoryGroups.at(-1) ? footerHeight + 1.5 : 0) : 0;
       if (row.height + titleHeight(true) + headerHeight + endTotal > BOTTOM - continuationTop) throw new Error("An allocation row is too long to print safely without splitting.");
       if (y + row.height + endTotal > BOTTOM) { newPage(); sectionHeader(true); }
       let xx = LEFT;
@@ -160,19 +160,19 @@ export function createAllocationPdf(report, images = new Map()) {
       addTotal(subtotal, row); y += row.height;
     });
     const summary = wrap(`Total (${group.name}): ${totalText(subtotal)}`, WIDTH - 6, 8, true);
-    const height = Math.max(9, summary.length * 3.3 + 4);
-    rect(LEFT, y, WIDTH, height, "#f8eedf"); linesAt(summary, LEFT + 3, y + 5, 8, true); y += height + 3;
+    const height = Math.max(7, summary.length * 3.3 + 3);
+    rect(LEFT, y, WIDTH, height, "#f8eedf"); linesAt(summary, LEFT + 3, y + 4, 8, true); y += height + 1.5;
   }
   if (y + footerHeight > BOTTOM) newPage();
-  rect(LEFT, y, 89, topHeight, "#fcf7ef"); linesAt(totalHeading, LEFT + 3, y + 6, 8, true);
+  rect(LEFT, y, 89, topHeight, "#fcf7ef"); linesAt(totalHeading, LEFT + 3, y + 5, 8, true);
   totalsLines.forEach((part, i) => text(part, LEFT + 3, y + totalValueY + i * 4, 10, true));
-  rect(LEFT + 92, y, 102, topHeight, "#f8fafc"); text("Important Notes:", LEFT + 95, y + 5, 8, true); linesAt(noteLines, LEFT + 95, y + 10, 7, false, MUTED);
-  y += topHeight + 3;
+  rect(LEFT + 92, y, 102, topHeight, "#f8fafc"); text("Important Notes:", LEFT + 95, y + 4, 8, true); linesAt(noteLines, LEFT + 95, y + 8, 7, false, MUTED);
+  y += topHeight + 2;
   ["Prepared By", "Checked By", "Loaded By", "Vehicle / Driver Details"].forEach((title, i) => {
     const xx = LEFT + i * WIDTH / 4, width = WIDTH / 4;
-    rect(xx, y, width, 32); text(title, xx + 3, y + 5, 7.5, true);
-    if (i < 3) { text(["(Inventory)", "(Warehouse)", "(Dispatch Team)"][i], xx + 3, y + 9, 7, false, MUTED); rule(xx + 3, y + 20, width - 6); text("Name & Signature", xx + 3, y + 24, 6.5, false, MUTED); text("Date:", xx + 3, y + 29, 7, false, MUTED); rule(xx + 11, y + 29, width - 15); }
-    else ["Driver Name:", "Vehicle No.:", "Departure Time:", "Signature:"].forEach((label, j) => { text(label, xx + 3, y + 12 + j * 5, 6.5, false, MUTED); rule(xx + 23, y + 12 + j * 5, width - 26); });
+    rect(xx, y, width, 28); text(title, xx + 3, y + 4, 7.5, true);
+    if (i < 3) { text(["(Inventory)", "(Warehouse)", "(Dispatch Team)"][i], xx + 3, y + 8, 7, false, MUTED); rule(xx + 3, y + 17, width - 6); text("Name & Signature", xx + 3, y + 21, 6.5, false, MUTED); text("Date:", xx + 3, y + 26, 7, false, MUTED); rule(xx + 11, y + 26, width - 15); }
+    else ["Driver Name:", "Vehicle No.:", "Departure Time:", "Signature:"].forEach((label, j) => { text(label, xx + 3, y + 10 + j * 5, 6.5, false, MUTED); rule(xx + 23, y + 10 + j * 5, width - 26); });
   });
   categoryEndPages.add(doc.getNumberOfPages());
   }
