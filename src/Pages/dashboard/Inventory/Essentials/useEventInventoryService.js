@@ -1,10 +1,12 @@
+import useAuthSession from "@/hooks/useAuthSession";
+import { hasAllocationEditRole } from "./allocationEditAccess";
 import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import EventService from "@/services/event-booking-workspace.service";
 
 // The employee API scopes every inventory request to an assigned event.
 // Keep the shared allocation UI on that boundary rather than admin-only routes.
-export function createEventInventoryService(eventId) {
+export function createEventInventoryService(eventId, session) {
   const requireEvent = () => {
     if (!eventId) throw new Error("Select an assigned event first.");
     return eventId;
@@ -26,10 +28,12 @@ export function createEventInventoryService(eventId) {
       if (!rows.length) break;
       page += 1;
     }
-    throw new Error("This inventory record is no longer available for the assigned event.");
+    throw Object.assign(new Error("This inventory record is no longer available for the assigned event."), { code: "INVENTORY_RECORD_NOT_FOUND" });
   };
   return {
-    canUpdateAllocations: false,
+    accessRole: session?.accessRole,
+    canUpdateRequirements: hasAllocationEditRole(session),
+    canUpdateAllocations: hasAllocationEditRole(session),
     getAllocationReportSource: allocationId => EventService.getCompanyInventoryAllocationReportSource({ eventId: requireEvent(), allocationId }),
     getInventoryV2Items: listItems,
     listInventoryV2Allocations: listAllocations,
@@ -41,13 +45,13 @@ export function createEventInventoryService(eventId) {
     }),
     createInventoryV2Allocation: (payload) =>
       EventService.createCompanyInventoryAllocation({ eventId: requireEvent(), payload }),
-    updateInventoryV2Allocation: async () => {
-      throw new Error("Updating saved company allocations is not available for employee accounts.");
-    },
+    updateInventoryV2Allocation: (allocationId, payload) =>
+      EventService.updateCompanyInventoryAllocation({ eventId: requireEvent(), allocationId, payload }),
   };
 }
 
 export default function useEventInventoryService() {
   const { eventId } = useParams();
-  return useMemo(() => createEventInventoryService(eventId), [eventId]);
+  const { data: session } = useAuthSession();
+  return useMemo(() => createEventInventoryService(eventId, session), [eventId, session]);
 }

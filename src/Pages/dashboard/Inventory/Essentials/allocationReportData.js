@@ -1,4 +1,35 @@
+import { loadEventAllocationDetail } from "./eventAllocationRows.js";
+
 const idOf = value => String(value?._id || value || "");
+const categoryOf = value => typeof value === "string" && value.trim() ? value : "Uncategorized";
+
+// Reconcile allocation-line + source identity, not just totals or item IDs.
+export function assertAllocationReportComplete(report) {
+  const expected = new Map();
+  const fail = () => { throw new Error("Allocation report is incomplete or contains duplicate/mismatched lines. No report was downloaded."); };
+  for (const row of report.rows || []) {
+    const sources = row.planning
+      ? [["store:main_store", row.planning.mainStoreQuantity], [row.eventSourceKey, row.planning.eventQuantity]]
+      : [[`store:${row.sourceLocation}`, row.required]];
+    for (const [source, quantity] of sources) {
+      if (quantity === 0) continue;
+      const key = JSON.stringify([row.allocationId, row.lineId, source]);
+      if (!source || !Number.isSafeInteger(quantity) || quantity < 1 || expected.has(key)) fail();
+      expected.set(key, { row, quantity });
+    }
+  }
+  if (!expected.size) fail();
+  const seen = new Set();
+  for (const group of report.groups || []) for (const row of group.rows) {
+    const key = JSON.stringify([row.allocationId, row.lineId, group.key]);
+    const entry = expected.get(key);
+    if (!entry || seen.has(key) || row.quantity !== entry.quantity ||
+      ["itemId", "name", "category", "unit", "image", "remarks"].some(field => row[field] !== entry.row[field])) fail();
+    seen.add(key);
+  }
+  if (seen.size !== expected.size) fail();
+}
+
 
 // Read one allocation only. The event screen may combine several documents;
 // its visible rows, filters and pagination are deliberately not export inputs.
@@ -14,7 +45,7 @@ export async function loadAllocationReport(service, allocationId, booking, categ
   const identities = new Set();
   for (const line of lines) {
     const id = idOf(line._id);
-    if (!id || identities.has(id) || !idOf(line.item) || !line.itemName || !line.category ||
+    if (!id || identities.has(id) || !idOf(line.item) || !line.itemName ||
       !Number.isSafeInteger(line.requiredQuantity) || line.requiredQuantity < 1 ||
       !Number.isSafeInteger(line.remainingCommitment) || line.remainingCommitment < 0 || line.remainingCommitment > line.requiredQuantity)
       throw new Error("The complete allocation line data or reservation coverage is unavailable. No report was downloaded.");
@@ -25,7 +56,16 @@ export async function loadAllocationReport(service, allocationId, booking, categ
   await Promise.all(Array.from({ length: Math.min(4, itemIds.length) }, async () => {
     while (cursor < itemIds.length) {
       const id = itemIds[cursor++];
-      const result = await service.getInventoryV2ItemById(id);
+      let result;
+      try { result = await service.getInventoryV2ItemById(id); }
+      catch (error) {
+        if (error?.response?.status !== 404 && error?.code !== "INVENTORY_RECORD_NOT_FOUND") throw error;
+        // A saved line remains printable when its master is no longer available.
+        // Use only the allocation snapshot; never substitute a stock quantity or bypass a denial.
+        const line = lines.find(entry => idOf(entry.item) === id);
+        records.set(id, { _id: id, image: line.image || null });
+        continue;
+      }
       const item = result.data?.data?.item;
       // Item detail exposes reconciled free stock, after ALL reservations.
       // Allocation line availableQuantity is planning stock excluding its own reservation.
@@ -36,10 +76,10 @@ export async function loadAllocationReport(service, allocationId, booking, categ
   }));
   const categoryRank = new Map(categories.map((category, index) => [category.value, index]));
   const firstCategory = new Map();
-  lines.forEach(line => { if (!firstCategory.has(line.category)) firstCategory.set(line.category, firstCategory.size); });
+  lines.forEach(line => { if (!firstCategory.has(categoryOf(line.category))) firstCategory.set(categoryOf(line.category), firstCategory.size); });
   const rows = lines.map((line, index) => {
     const item = records.get(idOf(line.item));
-    return { lineId: idOf(line._id), name: line.itemName, category: line.category, image: item.image || null,
+    return { allocationId: idOf(allocation._id), lineId: idOf(line._id), name: line.itemName, category: categoryOf(line.category), image: item.image || null,
       itemId: line.itemId, unit: line.unit, remarks: line.notes || "", planning: line.planning, sourceLocation: line.sourceLocation,
       required: line.requiredQuantity, reserved: line.remainingCommitment, available: item.availableQuantity,
       sequence: Number.isFinite(item.sequence) && item.sequence > 0 ? item.sequence : Number.MAX_SAFE_INTEGER, index };
@@ -57,6 +97,7 @@ export async function loadAllocationReport(service, allocationId, booking, categ
     if (!source || idOf(source._id) !== sourceId || !source.event || !source.eventName || idOf(source.event) === idOf(allocation.event))
       throw new Error("The linked source event could not be verified. No report was downloaded.");
   }
+  for (const row of rows) row.eventSourceKey = source ? `event:${idOf(source._id)}` : null;
   const groupsById = new Map();
   const stores = { main_store: "MAIN STORE", central_store: "CENTRAL STORE", admin_office: "ADMIN OFFICE", warehouse_a: "WAREHOUSE A", warehouse_b: "WAREHOUSE B" };
   const add = (key, name, type, row, quantity, releaseAt = null) => {
@@ -90,6 +131,7 @@ export async function loadAllocationReport(service, allocationId, booking, categ
     }
   }
   const groups = [...groupsById.values()].sort((a, b) => (a.type === "event") - (b.type === "event"));
+  assertAllocationReportComplete({ rows, groups });
   const linkedBooking = booking && (allocation.event ? idOf(booking._id) === idOf(allocation.event)
     : allocation.crmCustomerId && idOf(booking.crmCustomerId) === idOf(allocation.crmCustomerId)) ? booking : null;
   const ownerId = idOf(allocation.createdBy);
@@ -122,6 +164,10 @@ export async function loadEventAllocationReport(service, eventId, booking, categ
   if (!ids.size) throw new Error("This event has no saved allocations to download.");
   const reports = [];
   for (const id of ids) reports.push(await loadAllocationReport(service, id, booking, categories, eventId));
+  return combineAllocationReports(reports);
+}
+
+function combineAllocationReports(reports) {
   if (reports.length === 1) return reports[0];
   const groups = new Map();
   for (const report of reports) for (const group of report.groups) {
@@ -130,7 +176,25 @@ export async function loadEventAllocationReport(service, eventId, booking, categ
   }
   // Do not invent a shared period when separately saved allocations disagree.
   const same = field => reports.every(report => report[field] === reports[0][field]) ? reports[0][field] : undefined;
-  return { ...reports[0], reference: reports.map(report => report.reference).join(" / "),
+  const combined = { ...reports[0], reference: reports.map(report => report.reference).join(" / "),
     requiredFrom: same("requiredFrom"), releaseBy: same("releaseBy"),
     rows: reports.flatMap(report => report.rows), groups: [...groups.values()].sort((a, b) => (a.type === "event") - (b.type === "event")) };
+  assertAllocationReportComplete(combined);
+  return combined;
+}
+
+// Detail screens display every saved allocation for the event (or legacy CRM identity).
+// Resolve that same scope afresh instead of exporting only the URL's anchor document.
+export async function loadSelectedAllocationReport(service, allocationId, booking, categories = []) {
+  const detail = await loadEventAllocationDetail(service, allocationId);
+  const selected = detail.data?.data;
+  if (!selected || selected.status === "Cancelled" || !detail.eventAllocations?.length)
+    throw new Error("The selected allocation is unavailable. Reopen it and retry.");
+  const reports = [];
+  for (const allocation of detail.eventAllocations) {
+    if (!allocation.items.some(line => line.status !== "Cancelled")) continue;
+    reports.push(await loadAllocationReport(service, idOf(allocation._id), booking, categories, idOf(selected.event) || null));
+  }
+  if (!reports.length) throw new Error("This event has no active item requirements to export.");
+  return { ...combineAllocationReports(reports), downloadReference: selected.allocationCode || idOf(selected._id) };
 }

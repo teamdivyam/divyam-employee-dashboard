@@ -1,3 +1,4 @@
+import { canEditAllocationRequirements } from "../../Inventory/Essentials/allocationEditAccess";
 import useAllocationReport from "../../Inventory/Essentials/useAllocationReport";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
@@ -334,13 +335,14 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
 
   const canEditRow = (line) => {
     const owner = line.owningAllocation;
-    return AdminV2Service.canUpdateAllocations && owner && owner.status === "Draft" && !owner.items.some((entry) => entry.status === "Reserved");
+    return AdminV2Service.canUpdateAllocations && canEditAllocationRequirements(owner, AdminV2Service.accessRole);
   };
 
   // Edit Allocation mutation
   const saveMutation = useMutation({
     retry: false,
     mutationFn: async () => {
+      if (!AdminV2Service.canUpdateAllocations) throw new Error("You do not have permission to edit allocations.");
       if (!editor) throw new Error("This allocation cannot be edited.");
       const response = await AdminV2Service.getInventoryV2AllocationById(editor.allocationId);
       const current = response.data?.data;
@@ -354,7 +356,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
       }
       if (
         editor.mode !== "metadata" &&
-        (current.status !== "Draft" || current.items.some((line) => line.status === "Reserved"))
+        !canEditAllocationRequirements(current, AdminV2Service.accessRole)
       ) {
         throw new Error("This allocation is committed. Only its date and note can be edited.");
       }
@@ -453,8 +455,8 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
         variant="outline"
         size="sm"
         className="h-7 border-primary/20 bg-background px-3 text-xs font-medium text-primary hover:bg-primary/10 hover:text-primary"
-        title={!AdminV2Service.canUpdateAllocations ? "Saved allocations are managed by the inventory team" : "Edit allocation"}
-        disabled={!canEditRow(line) || line.status !== "Draft"}
+        title={!AdminV2Service.canUpdateAllocations ? "You do not have permission to edit allocations" : canEditRow(line) ? "Edit allocation" : "This allocation is locked for your role"}
+        disabled={!canEditRow(line)}
         onClick={() => openEditor("edit", line)}
       >
         Edit Allocation

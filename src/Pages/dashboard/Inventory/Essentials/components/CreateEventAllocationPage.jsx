@@ -1,3 +1,4 @@
+import { canEditAllocationRequirements } from "../allocationEditAccess";
 import FulfilmentPlanDisplay from "./FulfilmentPlanDisplay";
 import useAuthSession from "@/hooks/useAuthSession";
 import RequirementPlanEditor from "./RequirementPlanEditor";
@@ -207,7 +208,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
 
   const selectedCrmId = String(selectedEvent?.crmCustomerId?._id || selectedEvent?.crmCustomerId || selectedEvent?.customer?._id || "");
   const existingRequirements = useQuery({
-    queryKey: ["inventoryv2-allocations", "create-requirements", selectedEventId, selectedCrmId],
+    queryKey: ["inventoryv2-allocations", "create-requirements", selectedEventId, selectedCrmId, AdminV2Service.accessRole],
     enabled: !isReview && Boolean(selectedEvent),
     queryFn: async () => {
       // Reuse the listing's Event/CRM relationships and load every page: taking
@@ -240,7 +241,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
             expectedUpdatedAt: allocation.updatedAt,
             allocationPlanning: allocation.planning,
             saved: true,
-            planLocked: Boolean(allocation.verifiedAt || allocation.coverage?.requirementsLocked || allocation.items.some(entry => entry.dispatchedQuantity > 0)),
+            planLocked: !canEditAllocationRequirements(allocation, AdminV2Service.accessRole),
             itemId,
             sku: line.itemId,
             requiredQty: line.requiredQuantity,
@@ -584,7 +585,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
       {editingPlan && <RequirementPlanEditor line={{ ...editingPlan, eventId: selectedEventId, expectedUpdatedAt: editingPlan.expectedUpdatedAt || (isReview ? reviewAllocation.updatedAt : undefined) }} allocationId={editingPlan.allocationId || (isReview && editingPlan._id ? reviewAllocation._id : undefined)} planning={planning} onClose={() => setEditingPlan(null)} onSaved={async result => {
         if (result.local) { setRequirementLines(current => current.map(line => line.id === editingPlan.id ? { ...line, planning: result.planning, requiredQty: result.requiredQty } : line)); setPlanning(result.allocationPlanning); }
-        else { await queryClient.invalidateQueries({ queryKey: ["inventoryv2-allocations"] }); if (isReview) { setRequirementLines(current => current.map(line => { const updated = line.id === editingPlan.id ? result.items.find(entry => entry._id === line.id) : null; return updated ? { ...line, ...updated, id: updated._id, itemId: String(updated.item?._id || updated.item), sku: updated.itemId, requiredQty: updated.requiredQuantity } : line; })); setPlanning(result.planning || {}); onReviewUpdated?.(result); } }
+        else { await Promise.all([queryClient.invalidateQueries({ queryKey: ["inventoryv2-allocations"] }), queryClient.invalidateQueries({ queryKey: ["event-booking-inventory", selectedEventId] }), queryClient.invalidateQueries({ queryKey: ["event-booking-detail", selectedEventId] })]); if (isReview) { setRequirementLines(current => current.map(line => { const updated = line.id === editingPlan.id ? result.items.find(entry => entry._id === line.id) : null; return updated ? { ...line, ...updated, id: updated._id, itemId: String(updated.item?._id || updated.item), sku: updated.itemId, requiredQty: updated.requiredQuantity } : line; })); setPlanning(result.planning || {}); onReviewUpdated?.(result); } }
         toast.success("Fulfilment plan updated");
       }} />}
       {/* ── Page Header matching Reference ── */}
@@ -1048,7 +1049,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
                             </TableCell>
 
                             <TableCell className="px-4 text-center"><div className="flex items-center justify-center gap-1">
-                              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-primary" title="Edit Plan" aria-label={`Edit Plan — ${line.itemName}`} disabled={line.planLocked || submissionPending || Boolean(line.allocationId)} onClick={() => setEditingPlan(line)}><Pencil className="h-3.5 w-3.5" /></Button>
+                              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-primary" title={!AdminV2Service.canUpdateRequirements ? "You do not have permission to edit requirements" : line.planLocked ? "This allocation is locked for your role" : "Edit Plan"} aria-label={`Edit Plan — ${line.itemName}`} disabled={!AdminV2Service.canUpdateRequirements || line.planLocked || submissionPending} onClick={() => setEditingPlan(line)}><Pencil className="h-3.5 w-3.5" /></Button>
                               {(line.allocationId || (isReview && line._id)) ? <AllocationDeleteAction iconTrigger allocationId={line.allocationId || reviewAllocation._id} allocationLineId={line.id} disabled={submissionPending} onDeleted={async () => { if (isReview) { const response = await AdminV2Service.getInventoryV2AllocationById(reviewAllocation._id); const next = response.data.data; setRequirementLines(current => current.filter(entry => entry.id !== line.id)); onReviewUpdated?.(next); } }} /> : <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Remove item" disabled={submissionPending} onClick={() => handleRemoveLine(line.id)}><Trash2 className="h-3.5 w-3.5" /></Button>}
                             </div></TableCell>
                           </TableRow>

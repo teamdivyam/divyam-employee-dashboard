@@ -114,6 +114,8 @@ const EventBookingWorkspaceService = {
     axiosRequest.get(eventPath(eventId, `/operations/company-inventory/allocations/${allocationId}/report-source`)),
   listCompanyInventoryAllocations: ({ eventId, ...params }) =>
     axiosRequest.get(eventPath(eventId, "/operations/company-inventory/allocations"), { params }),
+  updateCompanyInventoryAllocation: ({ eventId, allocationId, payload }) =>
+    axiosRequest.patch(eventPath(eventId, `/operations/company-inventory/allocations/${encodeURIComponent(allocationId)}`), payload),
   createCompanyInventoryAllocation: ({ eventId, payload }) =>
     axiosRequest.post(eventPath(eventId, "/operations/company-inventory/allocations"), payload),
   getEventLogistics: ({ eventId, ...params }) =>
