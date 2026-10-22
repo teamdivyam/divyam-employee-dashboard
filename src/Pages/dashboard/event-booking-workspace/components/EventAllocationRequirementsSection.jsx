@@ -10,8 +10,6 @@ import {
   Boxes,
   Calendar,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Download,
   Loader2,
   MapPin,
@@ -205,8 +203,6 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
     location: "all",
     readiness: "all",
   });
-  const [itemPage, setItemPage] = useState(1);
-  const [itemPageSize, setItemPageSize] = useState(10);
   const [viewedItemId, setViewedItemId] = useState(null);
   const [previewLineId, setPreviewLineId] = useState(null);
   const [editor, setEditor] = useState(null);
@@ -275,7 +271,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
 
   useEffect(() => {
     setPreviewLineId(null);
-  }, [primaryAllocationId, filters, itemPage, itemPageSize]);
+  }, [primaryAllocationId, filters]);
 
   // Filtering
   const filteredItems = useMemo(() => {
@@ -291,12 +287,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
     });
   }, [items, filters]);
 
-  const totalItemPages = Math.max(1, Math.ceil(filteredItems.length / itemPageSize));
-  const currentItemPage = Math.min(itemPage, totalItemPages);
-  const visibleItems = useMemo(
-    () => filteredItems.slice((currentItemPage - 1) * itemPageSize, currentItemPage * itemPageSize),
-    [filteredItems, currentItemPage, itemPageSize]
-  );
+  const visibleItems = filteredItems;
 
   // Queries for item records (images, minimum stock, tracking)
   const itemIds = useMemo(
@@ -327,12 +318,10 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
 
   const setFilter = (field, value) => {
     setFilters((current) => ({ ...current, [field]: value }));
-    setItemPage(1);
   };
 
   const resetFilters = () => {
     setFilters({ search: "", category: "all", status: "all", location: "all", readiness: "all" });
-    setItemPage(1);
   };
 
   const canEditRow = (line) => {
@@ -593,9 +582,9 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
         ) : (
           <>
             {/* Desktop Table View */}
-            <div className="hidden lg:block overflow-x-auto">
+            <div role="region" aria-label="Allocation items" tabIndex={0} className="hidden lg:block max-h-[65vh] overflow-auto overscroll-contain [&>div]:overflow-visible">
               <Table className="min-w-[1050px] text-xs">
-                <TableHeader className="bg-muted/30">
+                <TableHeader className="sticky top-0 z-10 !bg-muted [&_th]:whitespace-nowrap">
                   <TableRow className="border-border/70 hover:bg-transparent [&>th]:border-r [&>th]:border-border/60 [&>th:last-child]:border-r-0">
                     <TableHead className="w-56 px-4 text-xs font-semibold text-foreground">Item</TableHead>
                     <TableHead className="text-xs font-semibold text-foreground">Category</TableHead>
@@ -775,56 +764,6 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
           </>
         )}
 
-        {/* Pagination / Footer */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 px-4 py-3">
-          <p className="text-xs text-muted-foreground">
-            Showing {filteredItems.length ? (currentItemPage - 1) * itemPageSize + 1 : 0} to{" "}
-            {Math.min(currentItemPage * itemPageSize, filteredItems.length)} of {filteredItems.length} requirement lines
-          </p>
-          <div className="flex items-center gap-2">
-            <Select
-              value={String(itemPageSize)}
-              onValueChange={(value) => {
-                setItemPageSize(Number(value));
-                setItemPage(1);
-              }}
-            >
-              <SelectTrigger aria-label="Requirements per page" className="h-8 w-28 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[10, 25, 50].map((value) => (
-                  <SelectItem key={value} value={String(value)}>
-                    {value} per page
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              aria-label="Previous requirements page"
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              disabled={currentItemPage <= 1}
-              onClick={() => setItemPage(currentItemPage - 1)}
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </Button>
-            <span className="text-xs font-medium text-foreground">
-              {currentItemPage} / {totalItemPages}
-            </span>
-            <Button
-              aria-label="Next requirements page"
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              disabled={currentItemPage >= totalItemPages}
-              onClick={() => setItemPage(currentItemPage + 1)}
-            >
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
       </Card>
 
       {/* Item Detail Dialog */}

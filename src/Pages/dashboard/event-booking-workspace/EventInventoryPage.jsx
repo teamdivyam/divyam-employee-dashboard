@@ -25,7 +25,6 @@ import { AllocationRequirementWorkspace } from '../Inventory/Essentials/componen
 import EventAllocationRequirementsSection from './components/EventAllocationRequirementsSection';
 import TabComp from '@components/components/tab-comp/TabComp';
 
-const PAGE_SIZE = 10;
 const companyStatuses = ['Pending', 'Reserved', 'Partially Reserved', 'Shortage', 'Dispatched', 'Returned', 'Cancelled'];
 const vendorStatuses = ['Pending', 'Confirmed', 'Partial', 'Shortage', 'Delivered', 'Returned', 'Cancelled'];
 const idOf = (value) => String(value?._id || value || '');
@@ -55,7 +54,6 @@ function EventInventoryPanel({ eventId, booking, data, onAdd, onView }) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [status, setStatus] = useState('all');
-  const [page, setPage] = useState(1);
   const categories = data?.filters?.categories || [];
   const summary = useMemo(() => requirements.reduce((counts, item) => {
     const isVendor = String(item.source || '').trim().toLowerCase() === 'vendor';
@@ -73,8 +71,7 @@ function EventInventoryPanel({ eventId, booking, data, onAdd, onView }) {
       && (status === 'all' || item.status === status)
       && (!query || [item.itemName, item.sku, item.category, item.coordinatorName, item.coordinator?.name].some((value) => String(value || '').toLowerCase().includes(query)));
   }), [requirements, source, category, status, search]);
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const rows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const rows = filtered;
   const selectSource = (value) => {
     const next = new URLSearchParams(searchParams);
     if (value === 'vendor') next.set('tab', 'vendor');
@@ -83,7 +80,6 @@ function EventInventoryPanel({ eventId, booking, data, onAdd, onView }) {
     setStatus('all');
   };
 
-  useEffect(() => setPage(1), [source, search, category, status]);
 
   return (
     <div className="space-y-3">
@@ -135,7 +131,7 @@ function EventInventoryPanel({ eventId, booking, data, onAdd, onView }) {
       {source === 'Company' ? (
         <EventAllocationRequirementsSection key={eventId} eventId={eventId} booking={booking} onCountChange={setCompanyCount} />
       ) : <Card className="overflow-hidden border-border shadow-sm"><CardContent className="p-0">
-        <div className="overflow-x-auto"><Table className="min-w-[1150px] table-fixed text-xs">
+        <div role="region" aria-label="Vendor inventory items" tabIndex={0} className="max-h-[65vh] overflow-auto overscroll-contain [&>div]:overflow-visible"><Table className="min-w-[1150px] table-fixed text-xs">
           <colgroup>
             {source === 'Vendor' ? (
               <>
@@ -162,7 +158,7 @@ function EventInventoryPanel({ eventId, booking, data, onAdd, onView }) {
               </>
             )}
           </colgroup>
-          <TableHeader className="[&_th]:!text-xs [&_th]:!font-semibold [&_th]:!text-foreground">
+          <TableHeader className="sticky top-0 z-10 !bg-muted [&_th]:!text-xs [&_th]:!font-semibold [&_th]:!text-foreground">
             <TableRow className="bg-muted/30 hover:bg-muted/30">
               <TableHead className="h-11 px-3">
                 <div className="flex items-center gap-3">
@@ -219,7 +215,6 @@ function EventInventoryPanel({ eventId, booking, data, onAdd, onView }) {
             </TableRow>
           )}</TableBody>
         </Table></div>
-        <div className="flex items-center justify-between border-t px-4 py-3 text-xs text-muted-foreground"><span>Showing {filtered.length ? (page - 1) * PAGE_SIZE + 1 : 0} to {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} items</span><div className="flex items-center gap-2"><Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>‹</Button><span className="grid h-8 min-w-8 place-items-center rounded-md bg-emerald-50 px-2 font-semibold text-emerald-700">{page}</span><Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= pages} onClick={() => setPage((value) => value + 1)}>›</Button></div></div>
       </CardContent></Card>}
     </div>
   );
@@ -245,7 +240,17 @@ export default function EventInventoryPage() {
   }, [searchParams, setSearchParams]);
 
   const { booking, bookingQuery } = useOutletContext();
-  const inventoryQuery = useQuery({ queryKey: ['event-booking-inventory', eventId], queryFn: async () => (await AdminService.getEventInventory({ eventId, limit: 100 })).data, enabled: Boolean(eventId) });
+  const inventoryQuery = useQuery({ queryKey: ['event-booking-inventory', eventId], queryFn: async () => {
+    const first = (await AdminService.getEventInventory({ eventId, page: 1, limit: 100 })).data;
+    const inventory = [...first.inventory];
+    for (let page = 2; page <= first.pagination.totalPages; page += 1) {
+      const next = (await AdminService.getEventInventory({ eventId, page, limit: 100 })).data;
+      if (!Array.isArray(next.inventory) || !next.inventory.length) throw new Error("Complete event inventory is unavailable. Please refresh.");
+      inventory.push(...next.inventory);
+    }
+    if (inventory.length !== first.pagination.totalItems) throw new Error("Event inventory changed. Please refresh.");
+    return { ...first, inventory };
+  }, enabled: Boolean(eventId) });
   const managersQuery = useQuery({ queryKey: ['event-booking-managers'], queryFn: async () => (await AdminService.getEventBookingManagers({ limit: 100 })).data });
   const employees = getEmployees(managersQuery.data);
   const functions = useMemo(() => booking?.functions || [], [booking]);
