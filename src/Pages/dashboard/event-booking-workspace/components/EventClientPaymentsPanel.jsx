@@ -1,3 +1,4 @@
+import { isIncludedClientPayment } from '../eventPaymentSummary.utils.js';
 /* eslint-disable react/prop-types */
 import EventMetricCards from "./EventMetricCards";
 import EventReceiptPreviewDialog from "./EventReceiptPreviewDialog";
@@ -1111,7 +1112,7 @@ export default function EventClientPaymentsPanel({
     return [
       ...new Map(
         candidates
-          .filter((item) => !item.isDeleted && item.amount != null)
+          .filter((item) => isIncludedClientPayment(item) && item.amount != null)
           .map((item) => [idOf(item), item]),
       ).values(),
     ];
@@ -1165,7 +1166,7 @@ export default function EventClientPaymentsPanel({
   )
     ? allMilestoneOptions
     : milestones;
-  const hasOutstanding = paymentMilestones.some(
+  const hasOutstanding = numberOf(summary.pendingAmount) > 0 || paymentMilestones.some(
     (item) => item.status !== "Cancelled" && numberOf(item.balance) > 0,
   );
   const hasUnfilteredMilestones =
@@ -1425,20 +1426,19 @@ export default function EventClientPaymentsPanel({
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem
+                                  disabled={milestone.isStandalonePayment}
                                   onSelect={() => openMilestone(milestone)}
                                 >
                                   <Pencil className="mr-2 h-4 w-4" />
                                   Edit milestone
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                  disabled={
-                                    numberOf(milestone.receivedAmount) > 0
-                                  }
+                                  disabled={deletingMilestone}
                                   onSelect={() => setDeleteMilestone(milestone)}
                                   className="text-destructive focus:text-destructive"
                                 >
                                   <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete milestone
+                                  Delete payment
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -1588,10 +1588,9 @@ export default function EventClientPaymentsPanel({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete payment milestone?</AlertDialogTitle>
+            <AlertDialogTitle>Delete payment?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes “{deleteMilestone?.name}” from the payment schedule.
-              This action cannot be undone.
+              This deletes the selected payment entry. For a milestone, its linked payments are also removed and the event totals are recalculated. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

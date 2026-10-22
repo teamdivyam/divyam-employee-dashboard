@@ -1,3 +1,4 @@
+import { deleteClientPaymentEntry } from './eventClientPaymentActions.utils.js';
 /* eslint-disable react/prop-types */
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1377,6 +1378,8 @@ export default function EventFinancePage() {
       ),
   });
   const refreshClientPayments = () => {
+    queryClient.invalidateQueries({ queryKey: ["event-bookings"] });
+    queryClient.invalidateQueries({ queryKey: ["event-booking-analytics"] });
     clientPaymentsQuery.refetch();
     queryClient.invalidateQueries({ queryKey: ["event-activities", eventId] });
     queryClient.invalidateQueries({
@@ -1414,16 +1417,10 @@ export default function EventFinancePage() {
       ),
   });
   const deleteMilestoneMutation = useMutation({
-    mutationFn: (milestoneId) =>
-      AdminService.deleteEventPaymentMilestone({ eventId, milestoneId }),
-    onSuccess: () => {
-      toast.success("Payment milestone deleted");
-      refreshClientPayments();
-    },
-    onError: (error) =>
-      toast.error(
-        error.response?.data?.message || "Unable to delete payment milestone",
-      ),
+    mutationFn: selected => deleteClientPaymentEntry({ selected, eventId, service: AdminService, refetch: clientPaymentsQuery.refetch }),
+    onSuccess: () => toast.success("Payment deleted"),
+    onError: error => toast.error(error.response?.data?.message || error.message || "Unable to delete payment"),
+    onSettled: () => refreshClientPayments(),
   });
   const recordPaymentMutation = useMutation({
     mutationFn: (payload) =>
@@ -1643,7 +1640,7 @@ export default function EventFinancePage() {
           })
         }
         onDeleteMilestone={(milestone) =>
-          deleteMilestoneMutation.mutateAsync(milestone._id)
+          deleteMilestoneMutation.mutateAsync(milestone)
         }
         onRecordPayment={(payload) =>
           recordPaymentMutation.mutateAsync(payload)
