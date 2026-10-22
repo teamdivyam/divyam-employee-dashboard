@@ -1,3 +1,4 @@
+import useAllocationReport from "../../Inventory/Essentials/useAllocationReport";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -192,6 +193,7 @@ const allocationRequirementPayload = (items, editor) => {
 
 export default function EventAllocationRequirementsSection({ eventId, booking, onCountChange }) {
   const AdminV2Service = useEventInventoryService();
+  const allocationReport = useAllocationReport(AdminV2Service, null, booking, [], eventId, `event-${eventId}-allocation.pdf`);
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState({
     search: "",
@@ -472,22 +474,6 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
     </div>
   );
 
-  const downloadAllocation = () => {
-    const columns = ['Item', 'Item ID', 'Category', 'Source Location', 'Required Qty', 'Reserved Qty', 'Allocation Status'];
-    const escapeCell = (value) => {
-      const text = String(value ?? '');
-      const safe = /^[=+@\-\t\r]/.test(text) ? `'${text}` : text;
-      return `"${safe.replaceAll('"', '""')}"`;
-    };
-    const rows = filteredItems.map(line => [line.itemName, line.itemId, line.category, allocationLabel(line.sourceLocation), line.requiredQuantity, line.reservedQuantity, line.status]);
-    const csv = [columns, ...rows].map(row => row.map(escapeCell).join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `event-${eventId}-allocation.csv`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
 
   const isInitialLoading = allocationsQuery.isLoading || (Boolean(primaryAllocationId) && detailQuery.isLoading);
 
@@ -574,8 +560,9 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
               type="button"
               variant="outline"
               size="sm"
-              onClick={downloadAllocation}
-              disabled={!filteredItems.length}
+              onClick={allocationReport.download}
+              aria-busy={allocationReport.generating}
+              disabled={allocationReport.generating || !eventId}
               className="h-9 gap-1.5 whitespace-nowrap text-xs text-primary"
             >
               <Download className="h-3.5 w-3.5" aria-hidden="true" /> Download Allocation

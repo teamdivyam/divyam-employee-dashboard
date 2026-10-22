@@ -30,6 +30,7 @@ export function createEventInventoryService(eventId) {
   };
   return {
     canUpdateAllocations: false,
+    getAllocationReportSource: allocationId => EventService.getCompanyInventoryAllocationReportSource({ eventId: requireEvent(), allocationId }),
     getInventoryV2Items: listItems,
     listInventoryV2Allocations: listAllocations,
     getInventoryV2AllocationById: async (id) => ({

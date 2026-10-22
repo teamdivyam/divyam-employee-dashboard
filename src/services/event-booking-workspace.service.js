@@ -110,6 +110,8 @@ const EventBookingWorkspaceService = {
     axiosRequest.delete(eventPath(eventId, `/operations/inventory/${requirementId}`)),
   getCompanyInventoryItems: ({ eventId, ...params }) =>
     axiosRequest.get(eventPath(eventId, "/operations/company-inventory/items"), { params }),
+  getCompanyInventoryAllocationReportSource: ({ eventId, allocationId }) =>
+    axiosRequest.get(eventPath(eventId, `/operations/company-inventory/allocations/${allocationId}/report-source`)),
   listCompanyInventoryAllocations: ({ eventId, ...params }) =>
     axiosRequest.get(eventPath(eventId, "/operations/company-inventory/allocations"), { params }),
   createCompanyInventoryAllocation: ({ eventId, payload }) =>
