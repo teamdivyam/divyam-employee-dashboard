@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import useAuthSession from "@/hooks/useAuthSession";
 import { hasAllocationEditRole } from "./allocationEditAccess";
 import { useMemo } from "react";
@@ -6,7 +7,7 @@ import EventService from "@/services/event-booking-workspace.service";
 
 // The employee API scopes every inventory request to an assigned event.
 // Keep the shared allocation UI on that boundary rather than admin-only routes.
-export function createEventInventoryService(eventId, session) {
+export function createEventInventoryService(eventId, session, canEditAssignedEvent = false) {
   const requireEvent = () => {
     if (!eventId) throw new Error("Select an assigned event first.");
     return eventId;
@@ -33,7 +34,7 @@ export function createEventInventoryService(eventId, session) {
   return {
     accessRole: session?.accessRole,
     canUpdateRequirements: hasAllocationEditRole(session),
-    canUpdateAllocations: hasAllocationEditRole(session),
+    canUpdateAllocations: hasAllocationEditRole(session) || (session?.accessRole === "Employee" && canEditAssignedEvent),
     getAllocationReportSource: allocationId => EventService.getCompanyInventoryAllocationReportSource({ eventId: requireEvent(), allocationId }),
     getInventoryV2Items: listItems,
     listInventoryV2Allocations: listAllocations,
@@ -53,5 +54,12 @@ export function createEventInventoryService(eventId, session) {
 export default function useEventInventoryService() {
   const { eventId } = useParams();
   const { data: session } = useAuthSession();
-  return useMemo(() => createEventInventoryService(eventId, session), [eventId, session]);
+  const capability = useQuery({
+    queryKey: ["event-allocation-edit-access", eventId, session?.employeeId],
+    queryFn: async () => (await EventService.getCompanyInventoryAllocationEditAccess({ eventId })).data?.data?.canEditAllocations === true,
+    enabled: Boolean(eventId && session?.accessRole === "Employee"),
+    staleTime: 0,
+    retry: false,
+  });
+  return useMemo(() => createEventInventoryService(eventId, session, capability.data === true && !capability.isError), [eventId, session, capability.data, capability.isError]);
 }

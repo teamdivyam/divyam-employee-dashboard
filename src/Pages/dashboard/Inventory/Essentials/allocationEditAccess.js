@@ -4,7 +4,7 @@ export const hasAllocationEditRole = session =>
 
 // Prepared/reserved requirements remain amendable until verification or dispatch.
 export function canEditAllocationRequirements(allocation, accessRole) {
-  if (accessRole === 'Inventory' && allocation && (allocation.status === 'Confirmed'
+  if (['Inventory', 'Employee'].includes(accessRole) && allocation && (allocation.status === 'Confirmed'
     || allocation.items?.some(line => Number(line.preparedQuantity || 0) > 0
       || Number(line.verifiedQuantity || 0) > 0
       || ['Reserved', 'Dispatched', 'Returned'].includes(line.status)))) return false;

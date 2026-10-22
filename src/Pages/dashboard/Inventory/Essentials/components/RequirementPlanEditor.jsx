@@ -12,15 +12,16 @@ import { FulfilmentFields } from "./AllocationPlanning";
 // The existing planning controls and PATCH serializer own the contract.
 export default function RequirementPlanEditor({ line, allocationId, planning, onClose, onSaved }) {
   const AdminV2Service = useEventInventoryService();
+  const canEdit = allocationId ? AdminV2Service.canUpdateAllocations : AdminV2Service.canUpdateRequirements;
   const [draft, setDraft] = useState(line.planning);
   const [quantity, setQuantity] = useState(line.requiredQty);
   const [period, setPeriod] = useState(line.allocationPlanning || planning || {});
   const form = useRef(null);
   const inFlight = useRef(false);
   const snapshot = useRef(null);
-  const detail = useQuery({ queryKey: ["requirement-plan-edit", allocationId, line.id], staleTime: 0, gcTime: 0, refetchOnWindowFocus: false, refetchOnReconnect: false,
+  const detail = useQuery({ queryKey: ["requirement-plan-edit", allocationId, line.id, canEdit], staleTime: 0, gcTime: 0, refetchOnWindowFocus: false, refetchOnReconnect: false,
     queryFn: async () => {
-      if (!AdminV2Service.canUpdateRequirements) throw new Error("You do not have permission to edit requirements.");
+      if (!canEdit) throw new Error("You do not have permission to edit requirements.");
       const item = (await AdminV2Service.getInventoryV2ItemById(line.itemId)).data.data.item;
       if (!allocationId) return { item };
       const allocation = (await AdminV2Service.getInventoryV2AllocationById(allocationId)).data.data;
@@ -32,7 +33,7 @@ export default function RequirementPlanEditor({ line, allocationId, planning, on
     }, retry: false });
   const save = useMutation({ mutationFn: async () => {
     const next = linePlanningPayload(draft);
-    if (!AdminV2Service.canUpdateRequirements) throw new Error("You do not have permission to edit requirements.");
+    if (!canEdit) throw new Error("You do not have permission to edit requirements.");
     if (!allocationId) return { local: true, planning: next, requiredQty: Number(quantity), allocationPlanning: period };
     const allocation = snapshot.current;
     const payload = { ...allocationVersion(allocation), planning: planningPayload(period), items: allocation.items.filter(entry => entry.status !== "Cancelled").map(entry => ({ ...allocationLinePayload(entry), ...(entry._id === line.id ? { planning: next, requiredQuantity: Number(quantity) } : {}) })) };
