@@ -921,12 +921,12 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
                         <TableRow className="border-border/70 bg-muted/60 hover:bg-muted/60 [&>th]:border-r [&>th]:border-border/60 [&>th:last-child]:border-r-0">
                           <TableHead className="w-56 px-4 text-xs font-semibold text-foreground">Item</TableHead>
                           <TableHead className="w-36 text-xs font-semibold text-foreground">Category</TableHead>
-                          <TableHead className="w-28 text-center text-xs font-semibold text-foreground">Required Qty</TableHead>
+                          <TableHead className="w-28 text-center text-xs font-semibold text-foreground">Required</TableHead>
                           <TableHead className="w-44 text-xs font-semibold text-foreground">Fulfilment Plan</TableHead>
-                          <TableHead className="w-40 text-xs font-semibold text-foreground">Source Location</TableHead>
-                          <TableHead className="w-32 text-center text-xs font-semibold text-foreground">Available to Reserve</TableHead>
-                          <TableHead className="w-28 text-center text-xs font-semibold text-foreground">Will Reserve</TableHead>
-                          <TableHead className="w-28 text-center text-xs font-semibold text-foreground">Net Shortage</TableHead>
+                          <TableHead className="w-48 min-w-[160px] text-center text-xs font-semibold text-foreground">Source Location</TableHead>
+                          <TableHead className="w-32 text-center text-xs font-semibold text-foreground">Available</TableHead>
+                          <TableHead className="w-28 text-center text-xs font-semibold text-foreground">Reserved</TableHead>
+                          <TableHead className="w-28 text-center text-xs font-semibold text-foreground">Shortage</TableHead>
                           <TableHead className="w-32 text-center text-xs font-semibold text-foreground">Status</TableHead>
                           <TableHead className="w-16 px-4 text-center text-xs font-semibold text-foreground">Action</TableHead>
                         </TableRow>
@@ -1049,7 +1049,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
                             </TableCell>
 
                             <TableCell className="px-4 text-center"><div className="flex items-center justify-center gap-1">
-                              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-primary" title={!AdminV2Service.canUpdateRequirements ? "You do not have permission to edit requirements" : line.planLocked ? "This allocation is locked for your role" : "Edit Plan"} aria-label={`Edit Plan — ${line.itemName}`} disabled={!AdminV2Service.canUpdateRequirements || line.planLocked || submissionPending} onClick={() => setEditingPlan(line)}><Pencil className="h-3.5 w-3.5" /></Button>
+                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" title={!((line.allocationId || (isReview && line._id)) ? AdminV2Service.canUpdateAllocations : AdminV2Service.canUpdateRequirements) ? "You do not have permission to edit requirements" : line.planLocked ? "This allocation is locked for your role" : "Edit Plan"} aria-label={`Edit Plan — ${line.itemName}`} disabled={!((line.allocationId || (isReview && line._id)) ? AdminV2Service.canUpdateAllocations : AdminV2Service.canUpdateRequirements) || line.planLocked || submissionPending} onClick={() => setEditingPlan(line)}><Pencil className="h-4 w-4" aria-hidden="true" /></Button>
                               {(line.allocationId || (isReview && line._id)) ? <AllocationDeleteAction iconTrigger allocationId={line.allocationId || reviewAllocation._id} allocationLineId={line.id} disabled={submissionPending} onDeleted={async () => { if (isReview) { const response = await AdminV2Service.getInventoryV2AllocationById(reviewAllocation._id); const next = response.data.data; setRequirementLines(current => current.filter(entry => entry.id !== line.id)); onReviewUpdated?.(next); } }} /> : <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Remove item" disabled={submissionPending} onClick={() => handleRemoveLine(line.id)}><Trash2 className="h-3.5 w-3.5" /></Button>}
                             </div></TableCell>
                           </TableRow>

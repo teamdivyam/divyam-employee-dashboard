@@ -1,3 +1,4 @@
+import { allocatedItemsByCategory } from "../../Inventory/Essentials/allocatedItemCategories";
 import { canEditAllocationRequirements } from "../../Inventory/Essentials/allocationEditAccess";
 import useAllocationReport from "../../Inventory/Essentials/useAllocationReport";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -15,6 +16,7 @@ import {
   Loader2,
   MapPin,
   Package,
+  Pencil,
   RotateCcw,
   Search,
   ShieldCheck,
@@ -258,7 +260,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
   const items = useMemo(() => {
     if (!documents.length) return [];
     try {
-      return allocationDisplayRows(documents);
+      return allocatedItemsByCategory(allocationDisplayRows(documents));
     } catch {
       return [];
     }
@@ -452,14 +454,15 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
   const renderRowActions = (line) => (
     <div className="flex items-center justify-center gap-1">
       <Button
-        variant="outline"
-        size="sm"
-        className="h-7 border-primary/20 bg-background px-3 text-xs font-medium text-primary hover:bg-primary/10 hover:text-primary"
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        aria-label="Edit Allocation"
         title={!AdminV2Service.canUpdateAllocations ? "You do not have permission to edit allocations" : canEditRow(line) ? "Edit allocation" : "This allocation is locked for your role"}
         disabled={!canEditRow(line)}
         onClick={() => openEditor("edit", line)}
       >
-        Edit Allocation
+        <Pencil className="h-4 w-4" aria-hidden="true" />
       </Button>
       <AllocationDeleteAction
         allocationId={line.ownership.allocationId}
@@ -597,15 +600,15 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                     <TableHead className="w-56 px-4 text-xs font-semibold text-foreground">Item</TableHead>
                     <TableHead className="text-xs font-semibold text-foreground">Category</TableHead>
                     <TableHead className="text-xs font-semibold text-foreground">Fulfilment Plan</TableHead>
-                    <TableHead className="text-xs font-semibold text-foreground">Source Location</TableHead>
-                    <TableHead className="text-center text-xs font-semibold text-foreground">Required Qty</TableHead>
-                    <TableHead className="text-center text-xs font-semibold text-foreground">Reserved Qty</TableHead>
-                    <TableHead className="text-center text-xs font-semibold text-foreground">Available Stock</TableHead>
+                    <TableHead className="w-40 min-w-[140px] text-center text-xs font-semibold text-foreground">Source Location</TableHead>
+                    <TableHead className="text-center text-xs font-semibold text-foreground">Required</TableHead>
+                    <TableHead className="text-center text-xs font-semibold text-foreground">Reserved</TableHead>
+                    <TableHead className="text-center text-xs font-semibold text-foreground">Available</TableHead>
                     <TableHead className="text-center text-xs font-semibold text-foreground">
-                      Remaining / Shortage
+                      Shortage
                     </TableHead>
                     <TableHead className="text-center text-xs font-semibold text-foreground">
-                      Allocation Status
+                      Status
                     </TableHead>
                     <TableHead className="px-4 text-center text-xs font-semibold text-foreground">Action</TableHead>
                   </TableRow>

@@ -108,6 +108,8 @@ const EventBookingWorkspaceService = {
     axiosRequest.patch(eventPath(eventId, `/operations/inventory/${requirementId}`), formData),
   deleteEventInventoryRequirement: ({ eventId, requirementId }) =>
     axiosRequest.delete(eventPath(eventId, `/operations/inventory/${requirementId}`)),
+  getCompanyInventoryAllocationEditAccess: ({ eventId }) =>
+    axiosRequest.get(eventPath(eventId, "/operations/company-inventory/allocation-edit-access")),
   getCompanyInventoryItems: ({ eventId, ...params }) =>
     axiosRequest.get(eventPath(eventId, "/operations/company-inventory/items"), { params }),
   getCompanyInventoryAllocationReportSource: ({ eventId, allocationId }) =>
