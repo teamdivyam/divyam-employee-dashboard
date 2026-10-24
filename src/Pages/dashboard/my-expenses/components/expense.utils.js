@@ -160,7 +160,7 @@ export function getAdjustment(expense) {
 
 export function getAdvanceId(advanceExpense) {
   if (typeof advanceExpense === "string") return advanceExpense;
-  return advanceExpense?.advanceExpenseId || advanceExpense?.expenseId || "Office advance";
+  return advanceExpense?.advanceId || advanceExpense?.expenseId || "Office advance";
 }
 
 export function getActionLabel(status) {

@@ -410,7 +410,7 @@ export default function MyExpensesPage() {
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] bg-background text-foreground">
+    <div className="my-expenses-page relative min-h-[calc(100vh-4rem)] bg-background text-foreground">
       <main className="mx-auto max-w-[1700px] space-y-3 p-3 md:p-4">
         <ExpenseMetrics analytics={analytics} loading={analyticsQuery.isLoading} />
         <TabComp

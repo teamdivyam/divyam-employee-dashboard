@@ -14,6 +14,8 @@ export default function LinkedToSelect({ expenseFor, value, displayName, error, 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
+  const [popoverContainer, setPopoverContainer] = useState(undefined);
+  const triggerRef = useRef(null);
   const listRef = useRef(null);
   const moreRef = useRef(null);
 
@@ -53,11 +55,13 @@ export default function LinkedToSelect({ expenseFor, value, displayName, error, 
 
   return (
     <Popover open={open} onOpenChange={(nextOpen) => {
+      if (nextOpen) setPopoverContainer(triggerRef.current?.closest('[role="dialog"]') || undefined);
       setOpen(nextOpen);
       if (!nextOpen) onBlur();
     }}>
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           type="button"
           variant="outline"
           role="combobox"
@@ -72,7 +76,13 @@ export default function LinkedToSelect({ expenseFor, value, displayName, error, 
           <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">
+      <PopoverContent
+        container={popoverContainer}
+        collisionBoundary={popoverContainer}
+        collisionPadding={8}
+        align="start"
+        className="w-[var(--radix-popover-trigger-width)] p-0"
+      >
         <Command shouldFilter={false}>
           <CommandInput
             aria-label={`Search ${expenseFor.toLowerCase()}s`}
@@ -84,7 +94,7 @@ export default function LinkedToSelect({ expenseFor, value, displayName, error, 
             }}
             className="h-9 text-[11px]"
           />
-          <CommandList ref={listRef} className="max-h-60 overscroll-contain" aria-busy={isFetching || searching}>
+          <CommandList ref={listRef} className="expense-lookup-list min-h-0 overscroll-contain" aria-busy={isFetching || searching}>
             {!searching && items.map((item, index) => (
               <CommandItem
                 key={item._id || `${item.name}-${index}`}
@@ -132,11 +142,14 @@ export default function LinkedToSelect({ expenseFor, value, displayName, error, 
 function LookupItem({ item }) {
   const name = item.name || "Unknown";
   const initials = getInitials(name);
+  const colorIndex = Array.from(name.toLowerCase()).reduce(
+    (hash, letter) => (hash * 31 + letter.codePointAt(0)) >>> 0, 0,
+  ) % 3;
   return (
     <span className="flex min-w-0 flex-1 items-center gap-2 text-left">
       <Avatar className="h-7 w-7 shrink-0">
         <AvatarImage src={item.profileImage || undefined} alt={name} className="object-cover" />
-        <AvatarFallback className="bg-muted text-[10px] font-medium text-muted-foreground">
+        <AvatarFallback className={`expense-lookup-avatar expense-lookup-avatar-${colorIndex}`}>
           {initials.length < 2 ? name.slice(0, 2).toUpperCase() : initials.slice(0, 2)}
         </AvatarFallback>
       </Avatar>

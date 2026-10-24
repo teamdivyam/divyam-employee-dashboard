@@ -153,6 +153,7 @@ export default function AddExpenseDialog({
                   error={errors.expenseDate}
                   disabled={isCorrection}
                   onChange={(value) => onFieldChange("expenseDate", value)}
+                  onBlur={() => onFieldBlur("expenseDate")}
                 />
               </CompactField>
               <FormSelectField
@@ -160,7 +161,7 @@ export default function AddExpenseDialog({
                 required
                 value={form.expenseFor}
                 placeholder="Select expense for"
-                options={EXPENSE_FOR_OPTIONS.slice(1)}
+                options={EXPENSE_FOR_OPTIONS.slice(1).filter((option) => option !== "Client")}
                 error={errors.expenseFor}
                 disabled={isCorrection}
                 onValueChange={(value) => {

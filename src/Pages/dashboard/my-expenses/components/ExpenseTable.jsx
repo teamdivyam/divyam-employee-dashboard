@@ -15,7 +15,7 @@ export default function ExpenseTable({ activeTab, expenses, loading, error, onRe
   const columnCount = isDraftTab ? 7 : 8;
 
   return (
-    <Table>
+    <Table className={activeTab === "all-expenses" ? "my-expenses-all-table" : undefined}>
       <TableHeader className="bg-muted/45">
         <TableRow className="hover:bg-muted/45">
           <TableHead className="min-w-[185px] px-3 text-[11px]">Expense Name</TableHead>

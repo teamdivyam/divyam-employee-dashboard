@@ -891,6 +891,62 @@ body {
     @apply mt-0.5 text-[9px] font-medium text-muted-foreground;
   }
 
+  .my-expenses-page thead th {
+    @apply font-semibold text-foreground;
+  }
+
+  .my-expenses-all-table thead th:nth-child(2) {
+    /* Cell padding plus the 28px avatar and 8px gap. */
+    padding-left: 48px;
+  }
+
+  .my-expenses-all-table tr > :last-child {
+    padding-right: 20px;
+  }
+
+  .expense-native-date {
+    @apply bg-background text-[11px] font-normal text-foreground;
+    color-scheme: light;
+  }
+
+  .dark .expense-native-date {
+    color-scheme: dark;
+  }
+
+  .expense-lookup-avatar {
+    @apply text-[10px] font-medium;
+  }
+
+  [cmdk-list].expense-lookup-list {
+    max-height: min(15rem, max(0px, calc(var(--radix-popover-content-available-height, 20rem) - 3rem)));
+    overflow-y: auto;
+    touch-action: pan-y;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .expense-lookup-list::-webkit-scrollbar {
+    display: block;
+    width: 5px;
+  }
+
+  .expense-lookup-list::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: hsl(var(--border));
+  }
+
+  .expense-lookup-avatar.expense-lookup-avatar-0 {
+    @apply bg-blue-100 text-blue-700 dark:bg-blue-400/20 dark:text-blue-300;
+  }
+
+  .expense-lookup-avatar.expense-lookup-avatar-1 {
+    @apply bg-violet-100 text-violet-700 dark:bg-violet-400/20 dark:text-violet-300;
+  }
+
+  .expense-lookup-avatar.expense-lookup-avatar-2 {
+    @apply bg-emerald-100 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-300;
+  }
+
   .expense-advance-progress {
     @apply grid h-28 w-28 shrink-0 place-items-center rounded-full;
     background: conic-gradient(
