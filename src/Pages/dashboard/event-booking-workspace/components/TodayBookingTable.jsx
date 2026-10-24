@@ -26,6 +26,7 @@ import { StatusBadge } from './EventBookingComponents';
 
 export default function TodayBookingTable({
   bookings,
+  businessTimeZone = 'Asia/Kolkata',
   openBooking,
   openBookingEdit,
   openManagerAssignment,
@@ -77,7 +78,7 @@ export default function TodayBookingTable({
         <TableBody>
           {bookings.length ? bookings.map((booking) => {
             const manager = booking.assignedManager;
-            const liveDetails = getLiveDetails(booking);
+            const liveDetails = getLiveDetails(booking, new Date(), businessTimeZone);
             const currentFunction = liveDetails.currentFunction;
             const nextMilestone = getNextMilestone(booking, liveDetails);
             const teamCount = booking.assignedTeam?.length || 0;

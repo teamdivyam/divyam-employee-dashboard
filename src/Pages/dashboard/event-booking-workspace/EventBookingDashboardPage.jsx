@@ -1,3 +1,4 @@
+import useEventBookingUpdates from './useEventBookingUpdates';
 import { useEffect, useMemo, useReducer, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -50,7 +51,6 @@ import {
 } from './eventBookingDashboard.constants';
 import {
   closureDetails,
-  getLiveDetails,
   monthRange,
 } from './eventBookingDashboard.utils';
 
@@ -84,6 +84,7 @@ const mergeUpdatedBooking = (result, updatedBooking) => {
 export default function EventBookingDashboardPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  useEventBookingUpdates();
   const [searchParams, setSearchParams] = useSearchParams();
   const now = new Date();
   const requestedTab = searchParams.get('tab');
@@ -109,6 +110,7 @@ export default function EventBookingDashboardPage() {
     queryKey: ['event-booking-analytics', range, summaryPeriod],
     queryFn: async () => (await AdminService.getEventBookingAnalytics({ ...range, summaryPeriod })).data,
     refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
   const bookingsQuery = useQuery({
     queryKey: ['event-bookings', activeTab, pagination.page, filters, summaryPeriod],
@@ -128,6 +130,7 @@ export default function EventBookingDashboardPage() {
       search: filters.search.trim() || undefined,
     })).data,
     refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
   const customersQuery = useQuery({
     queryKey: ['event-booking-customers'],
@@ -233,9 +236,6 @@ export default function EventBookingDashboardPage() {
   const totalRows = getTotalRows(bookingsQuery.data);
   const totalPages = getTotalPages(bookingsQuery.data);
   const visibleBookings = bookings.filter((booking) => {
-    if (activeTab === 'today' && filters.liveStatus !== 'all') {
-      return getLiveDetails(booking).key === filters.liveStatus;
-    }
     if (activeTab === 'completed' && filters.closureStatus !== 'all') {
       const closure = closureDetails(booking);
       if (filters.closureStatus === 'payment_pending') return closure.paymentPending;
@@ -421,7 +421,7 @@ export default function EventBookingDashboardPage() {
               <div><AlertTriangle className="mx-auto mb-2 h-6 w-6 text-destructive" /><p className="text-sm font-medium">Unable to load bookings</p><Button variant="link" className="h-auto p-0 text-xs" onClick={refresh}>Try again</Button></div>
             </div>
           ) : activeTab === 'today' ? (
-              <TodayBookingTable bookings={visibleBookings} openEventOverview={openEventOverview} {...bookingActionProps} />
+              <TodayBookingTable businessTimeZone={bookingsQuery.data?.timeZone} bookings={visibleBookings} openEventOverview={openEventOverview} {...bookingActionProps} />
             ) : activeTab === 'completed' ? (
               <CompletedBookingTable bookings={visibleBookings} openEventOverview={openEventOverview} {...bookingActionProps} />
             ) : activeTab === 'closed' ? (

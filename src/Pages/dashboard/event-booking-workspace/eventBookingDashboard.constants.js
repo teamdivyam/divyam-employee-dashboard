@@ -4,7 +4,6 @@ export const EMPTY_FILTERS = {
   eventType: 'all',
   city: 'all',
   closureStatus: 'all',
-  liveStatus: 'all',
   managerId: 'all',
   paymentStatus: 'all',
   readinessStatus: 'all',
@@ -18,13 +17,6 @@ export const READINESS_FILTER_OPTIONS = [
   { value: 'marked_ready', label: 'Marked Ready' },
   { value: 'pending_clearance', label: 'Final Clearance Pending' },
   { value: 'complete', label: '100% Complete' },
-];
-export const LIVE_STATUS_OPTIONS = [
-  { value: 'live', label: 'Live Now' },
-  { value: 'starting_soon', label: 'Starting Soon' },
-  { value: 'upcoming', label: 'Upcoming' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'delayed', label: 'Delayed' },
 ];
 export const CLOSURE_STATUS_OPTIONS = [
   { value: 'pending', label: 'Closure Pending' },
