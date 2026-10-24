@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Outlet,
@@ -55,6 +55,27 @@ export default function EventBookingLayout() {
   const basePath = `/dashboard/assigned-events/${eventId}`;
   const section = pathname.slice(basePath.length).split("/")[1];
   const activeTab = Object.hasOwn(destinations, section) ? section : "overview";
+  const isInventory = pathname === `${basePath}/operations/inventory`;
+  const inventoryScrollRef = useCallback((page) => {
+    if (!page || !isInventory) return;
+    const header = page.querySelector('[data-event-locked-header]');
+    const tabs = page.querySelector('[data-event-primary-tabs]');
+    if (!header || !tabs) return;
+    const update = () => {
+      const headerHeight = header.getBoundingClientRect().height;
+      page.style.setProperty('--event-locked-header-height', `${headerHeight}px`);
+      page.style.setProperty('--event-inventory-header-offset', `${headerHeight + tabs.getBoundingClientRect().height}px`);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(header);
+    observer.observe(tabs);
+    return () => {
+      observer.disconnect();
+      page.style.removeProperty('--event-locked-header-height');
+      page.style.removeProperty('--event-inventory-header-offset');
+    };
+  }, [isInventory]);
   const [summaryTarget, setSummaryTarget] = useState(null);
   const [bookingFormOpen, setBookingFormOpen] = useState(false);
   const bookingQuery = useQuery({
@@ -128,8 +149,9 @@ export default function EventBookingLayout() {
     );
 
   return (
-    <div className="crm-page relative h-[calc(100dvh-4rem)] min-w-0 overflow-auto [&_input[placeholder^='Search']::placeholder]:text-xs [&_input[placeholder^='Search']:focus-visible]:border-primary [&_input[type='search']::placeholder]:text-xs [&_input[type='search']:focus-visible]:border-primary">
-      <div className="sticky top-0 z-20 space-y-3 bg-background p-3 pb-4 sm:p-4 lg:p-5 lg:pb-4">
+    <div ref={inventoryScrollRef} data-event-inventory-page={isInventory || undefined} className="crm-page relative h-[calc(100dvh-4rem)] min-w-0 overflow-auto [&_input[placeholder^='Search']::placeholder]:text-xs [&_input[placeholder^='Search']:focus-visible]:border-primary [&_input[type='search']::placeholder]:text-xs [&_input[type='search']:focus-visible]:border-primary">
+      <div className={isInventory ? "contents" : "sticky top-0 z-20 space-y-3 bg-background p-3 pb-4 sm:p-4 lg:p-5 lg:pb-4"}>
+        <div data-event-locked-header={isInventory || undefined} className={isInventory ? "sticky top-0 z-30 bg-background p-3 pb-0 sm:p-4 sm:pb-0 lg:p-5 lg:pb-0" : ""}>
         <EventBookingClientHeader
           booking={booking}
           onAssignTask={() =>
@@ -145,7 +167,9 @@ export default function EventBookingLayout() {
             navigate(basePath + "/finance?tab=payments&action=record-payment")
           }
         />
-        <div ref={setSummaryTarget} className="min-w-0 empty:hidden" />
+        </div>
+        <div ref={setSummaryTarget} className={isInventory ? "min-w-0 mx-3 mt-3 empty:hidden sm:mx-4 lg:mx-5" : "min-w-0 empty:hidden"} />
+        <div data-event-primary-tabs={isInventory || undefined} className={isInventory ? "sticky top-[var(--event-locked-header-height,0px)] z-20 mt-3 mb-4 bg-background px-3 sm:px-4 lg:px-5" : ""}>
         <TabComp
           tabs={tabs}
           value={activeTab}
@@ -154,6 +178,7 @@ export default function EventBookingLayout() {
           density="compact"
           ariaLabel="Event sections"
         />
+        </div>
       </div>
       <div className="min-w-0 px-3 pb-3 sm:px-4 sm:pb-4 lg:px-5 lg:pb-5 [&>.crm-page]:!min-h-0 [&>.crm-page]:!p-0">
         <EventSummaryContext.Provider value={summaryTarget}>
