@@ -11,6 +11,8 @@ import {
   Boxes,
   Calendar,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Download,
   Loader2,
   MapPin,
@@ -49,6 +51,14 @@ import {
 import { linePlanningPayload } from "../../Inventory/Essentials/allocationPlanning";
 
 const ALLOCATION_SOURCE_LOCATIONS = ["main_store", "central_store", "admin_office", "warehouse_a", "warehouse_b"];
+
+const formatRequirementAddedAt = (value) => {
+  if (!value || !Number.isFinite(new Date(value).getTime())) return "Added date unavailable";
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: true,
+  }).format(new Date(value)).replace(/am|pm/g, part => part.toUpperCase());
+};
 
 const allocationLabel = (value) =>
   value
@@ -204,30 +214,48 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
     location: "all",
     readiness: "all",
   });
+  const [collapsedCategories, setCollapsedCategories] = useState(() => new Set());
+  useEffect(() => {
+    setCollapsedCategories(new Set());
+  }, [eventId, filters.search, filters.category, filters.status, filters.location, filters.readiness]);
+  const toggleCategory = (category) => setCollapsedCategories(previous => {
+    const next = new Set(previous);
+    if (next.has(category)) next.delete(category); else next.add(category);
+    return next;
+  });
   const [viewedItemId, setViewedItemId] = useState(null);
   const [previewLineId, setPreviewLineId] = useState(null);
   const [editor, setEditor] = useState(null);
   const saving = useRef(false);
 
-  // 1. Fetch active allocations belonging to this event
+  // Match the saved requirement scope used by Create Allocation, across every page.
+  const crmId = allocationReferenceId(booking?.crmCustomerId || booking?.customer);
   const allocationsQuery = useQuery({
-    queryKey: ["inventoryv2-allocations", "event-allocations-list", eventId],
+    queryKey: ["inventoryv2-allocations", "event-allocations-list", eventId, crmId],
     queryFn: async () => {
-      let entries = [];
-      const res = await AdminV2Service.listInventoryV2Allocations({ event: eventId, limit: 100 });
-      entries = res.data?.data?.entries || [];
-      if (!entries.length && booking) {
-        const crmId = String(booking.crmCustomerId || booking.customer?._id || booking.customer || "");
-        if (crmId) {
-          const allRes = await AdminV2Service.listInventoryV2Allocations({ limit: 100 });
-          entries = (allRes.data?.data?.entries || []).filter(
-            (a) => !a.event && String(a.crmCustomerId?._id || a.crmCustomerId || "") === crmId
-          );
+      const entries = [];
+      let page = 1;
+      let hasNextPage;
+      do {
+        const response = await AdminV2Service.listInventoryV2Allocations({ limit: 100, page });
+        const data = response.data?.data;
+        if (!Array.isArray(data?.entries) || typeof data.pagination?.hasNextPage !== "boolean"
+          || (data.pagination.hasNextPage && !data.entries.length)) {
+          throw new Error("The complete event allocation list is unavailable. Refresh before continuing.");
         }
-      }
-      return entries;
+        entries.push(...data.entries);
+        hasNextPage = data.pagination.hasNextPage;
+        page += 1;
+      } while (hasNextPage);
+      return entries.filter(allocation => allocation.status !== "Cancelled" && (
+        allocationReferenceId(allocation.event) === eventId
+        || (!allocation.event && crmId && allocationReferenceId(allocation.crmCustomerId) === crmId)
+      ));
     },
     enabled: Boolean(eventId),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const activeAllocations = useMemo(
@@ -253,7 +281,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
   });
   const sourceAllocations = sourceAllocationsQuery.data || [];
 
-  const documents = useMemo(() => detailQuery.data?.eventAllocations || [], [detailQuery.data]);
+  const documents = activeAllocations;
   const items = useMemo(() => {
     if (!documents.length) return [];
     try {
@@ -289,6 +317,19 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
   }, [items, filters]);
 
   const visibleItems = filteredItems;
+  const previousRequirements = useRef(null);
+  useEffect(() => {
+    const previous = previousRequirements.current;
+    if (previous?.eventId === eventId) {
+      const visibleKeys = new Set(visibleItems.map(line => line.rowKey));
+      const hiddenAddition = items.some(line => !previous.keys.has(line.rowKey)
+        && (!visibleKeys.has(line.rowKey) || collapsedCategories.has(line.category)));
+      if (hiddenAddition) {
+        toast.info("New requirements are saved but hidden by current filters or collapsed categories. Clear filters or expand the category to view them.");
+      }
+    }
+    previousRequirements.current = { eventId, keys: new Set(items.map(line => line.rowKey)) };
+  }, [eventId, items, visibleItems, collapsedCategories]);
 
   // Queries for item records (images, minimum stock, tracking)
   const itemIds = useMemo(
@@ -322,6 +363,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
   };
 
   const resetFilters = () => {
+    setCollapsedCategories(new Set());
     setFilters({ search: "", category: "all", status: "all", location: "all", readiness: "all" });
   };
 
@@ -433,7 +475,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold text-foreground">{line.itemName || "—"}</p>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            {[line.itemId, line.unit].filter(Boolean).join(" · ") || "—"}
+            {formatRequirementAddedAt(line.createdAt)}
           </p>
           {line.notes && <p className="mt-0.5 max-w-xs truncate text-[11px] text-muted-foreground/80">{line.notes}</p>}
         </div>
@@ -441,12 +483,26 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
     );
   };
 
+  const renderCategoryHeading = (category) => (
+    <div className="flex items-center gap-2 text-xs font-medium">
+      <button type="button" aria-label={`${collapsedCategories.has(category) ? "Expand" : "Collapse"} ${allocationLabel(category)} category`}
+        aria-expanded={!collapsedCategories.has(category)}
+        className="inline-flex shrink-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={(event) => { event.stopPropagation(); toggleCategory(category); }}>
+        {collapsedCategories.has(category) ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+      </button>
+      <Package className="h-3.5 w-3.5" />
+      {allocationLabel(category)}
+      <span className="font-normal">{filteredItems.filter(entry => entry.category === category).length} items</span>
+    </div>
+  );
+
   const renderRowActions = (line) => (
-    <div className="flex flex-nowrap items-center justify-center gap-1 [&>button]:shrink-0">
+    <div className="grid grid-cols-[32px_32px] items-center justify-center gap-1 [&>button]:shrink-0">
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8"
+        className="col-start-1 h-8 w-8"
         aria-label="Edit Allocation"
         title={!AdminV2Service.canUpdateAllocations ? "You do not have permission to edit allocations" : canEditRow(line) ? "Edit allocation" : "This allocation is locked for your role"}
         disabled={!canEditRow(line)}
@@ -454,6 +510,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
       >
         <Pencil className="h-4 w-4" aria-hidden="true" />
       </Button>
+      <div className="col-start-2 justify-self-start">
       <AllocationDeleteAction
         allocationId={line.ownership.allocationId}
         allocationLineId={line.ownership.allocationLineId}
@@ -466,6 +523,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
           ]);
         }}
       />
+      </div>
     </div>
   );
 
@@ -584,16 +642,16 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
           <>
             {/* Desktop Table View */}
             <div role="region" aria-label="Allocation items" tabIndex={0} className="hidden min-w-0 max-w-full lg:block">
-              <EventInventoryScrollTable className="min-w-[1540px] table-fixed border-separate border-spacing-0 text-xs [&_thead_th]:border-b [&_tbody_td]:border-b [&_tbody_td]:border-border/70">
+              <EventInventoryScrollTable className="min-w-[1288px] table-fixed border-separate border-spacing-0 text-xs [&_thead_th]:border-b [&_tbody_td]:border-b [&_tbody_td]:border-border/70">
                 <colgroup>
-                  {[240, 240, 200, 160, 90, 90, 90, 90, 220, 120].map((width, index) => <col key={index} style={{ width }} />)}
+                  {[240, 180, 200, 112, 80, 80, 80, 80, 152, 84].map((width, index) => <col key={index} style={{ width }} />)}
                 </colgroup>
                 <TableHeader className="!bg-muted [&_th]:whitespace-nowrap">
                   <TableRow className="border-border/70 hover:bg-transparent [&>th]:border-r [&>th]:border-border/60 [&>th:last-child]:border-r-0">
                     <TableHead className="px-4 text-xs font-semibold text-foreground">Item</TableHead>
-                    <TableHead className="text-xs font-semibold text-foreground">Category</TableHead>
+                    <TableHead className="text-center text-xs font-semibold text-foreground">Category</TableHead>
                     <TableHead className="text-xs font-semibold text-foreground">Fulfilment Plan</TableHead>
-                    <TableHead className="text-center text-xs font-semibold text-foreground">Source Location</TableHead>
+                    <TableHead className="!px-2 text-center text-xs font-semibold text-foreground">Source Location</TableHead>
                     <TableHead className="text-center text-xs font-semibold text-foreground">Required</TableHead>
                     <TableHead className="text-center text-xs font-semibold text-foreground">Reserved</TableHead>
                     <TableHead className="text-center text-xs font-semibold text-foreground">Available</TableHead>
@@ -603,30 +661,24 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                     <TableHead className="text-center text-xs font-semibold text-foreground">
                       Status
                     </TableHead>
-                    <TableHead className="px-4 text-center text-xs font-semibold text-foreground">Action</TableHead>
+                    <TableHead className="!px-2 text-center text-xs font-semibold text-foreground"><span className="grid grid-cols-[32px_32px] justify-center gap-1"><span>Action</span></span></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {visibleItems.map((line, index) => {
                     const allocationDoc = detailQuery.data?.data?.data;
-                    const returnLines = allocationDoc?.returnLines || line.owningAllocation?.returnLines || [];
+                    const returnLines = line.owningAllocation?.returnLines || allocationDoc?.returnLines || [];
                     const lineStatus = lineItemReadinessStatus(line, returnLines);
                     return (
                       <React.Fragment key={line.rowKey}>
                         {(index === 0 || visibleItems[index - 1].category !== line.category) && (
                           <TableRow className="hover:bg-transparent">
                             <TableCell colSpan={10} className={`px-4 py-1.5 ${categoryBadgeColor(line.category)}`}>
-                              <div className="flex items-center gap-2 text-xs font-medium">
-                                <Package className="h-3.5 w-3.5" />
-                                {allocationLabel(line.category)}
-                                <span className="font-normal">
-                                  {filteredItems.filter((entry) => entry.category === line.category).length} items
-                                </span>
-                              </div>
+                              {renderCategoryHeading(line.category)}
                             </TableCell>
                           </TableRow>
                         )}
-                        <TableRow className="border-border/70 hover:bg-muted/30 transition-colors [&>td]:border-r [&>td]:border-border/60 [&>td:last-child]:border-r-0">
+                        <TableRow hidden={collapsedCategories.has(line.category)} className="border-border/70 hover:bg-muted/30 transition-colors [&>td]:border-r [&>td]:border-border/60 [&>td:last-child]:border-r-0">
                           <TableCell className="px-4 py-3">{renderItemIdentity(line)}</TableCell>
                           <TableCell>
                             <Badge
@@ -643,10 +695,10 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                               sources={sourceAllocations}
                             />
                           </TableCell>
-                          <TableCell>
-                            <span className="inline-flex items-center gap-1 text-muted-foreground text-xs">
+                          <TableCell className="text-center">
+                            <span className="inline-flex max-w-full items-center justify-center gap-1 text-center text-muted-foreground text-xs">
                               <MapPin className="h-3 w-3 shrink-0 text-muted-foreground/80" />
-                              {allocationLabel(line.sourceLocation)}
+                              <span className="min-w-0 break-words">{allocationLabel(line.sourceLocation)}</span>
                             </span>
                           </TableCell>
                           <TableCell className="text-center font-semibold tabular-nums text-foreground">
@@ -665,7 +717,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                           >
                             {line.netShortage ?? 0}
                           </TableCell>
-                          <TableCell className="text-center">
+                          <TableCell className="!px-1 text-center">
                             {line.status === "Reserved" && (line.dispatchedQuantity ?? 0) === 0 && (
                               <div className="mb-1">{renderStatus(line.status)}</div>
                             )}
@@ -677,7 +729,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                               {lineStatus}
                             </Badge>
                           </TableCell>
-                          <TableCell className="px-4 text-center">{renderRowActions(line)}</TableCell>
+                          <TableCell className="!px-2 text-center">{renderRowActions(line)}</TableCell>
                         </TableRow>
                       </React.Fragment>
                     );
@@ -688,12 +740,16 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
 
             {/* Mobile / Tablet Cards View */}
             <div className="overflow-hidden divide-y divide-border/70 lg:hidden">
-              {visibleItems.map((line) => {
+              {visibleItems.map((line, index) => {
                 const allocationDoc = detailQuery.data?.data?.data;
-                const returnLines = allocationDoc?.returnLines || line.owningAllocation?.returnLines || [];
+                const returnLines = line.owningAllocation?.returnLines || allocationDoc?.returnLines || [];
                 const lineStatus = lineItemReadinessStatus(line, returnLines);
                 return (
-                  <article key={line.rowKey} className="space-y-3 p-4">
+                  <React.Fragment key={line.rowKey}>
+                  {(index === 0 || visibleItems[index - 1].category !== line.category) && (
+                    <div className={`px-4 py-1.5 ${categoryBadgeColor(line.category)}`}>{renderCategoryHeading(line.category)}</div>
+                  )}
+                  <article hidden={collapsedCategories.has(line.category)} className="space-y-3 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       {renderItemIdentity(line, "card")}
                       {line.status === "Reserved" && (line.dispatchedQuantity ?? 0) === 0 && renderStatus(line.status)}
@@ -762,6 +818,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                     </dl>
                     {renderRowActions(line)}
                   </article>
+                  </React.Fragment>
                 );
               })}
             </div>

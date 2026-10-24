@@ -6,6 +6,7 @@ import { Table, TableHeader } from './EventTable';
 export default function EventInventoryScrollTable({ children, className }) {
   const headingRef = useRef(null);
   const containerRef = useCallback((container) => {
+    if (container?.closest('[data-event-inventory-page]')) return;
     const eventHeader = container?.closest('.crm-page')?.firstElementChild;
     if (!eventHeader) return;
     const update = () => container.style.setProperty(
