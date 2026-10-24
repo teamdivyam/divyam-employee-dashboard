@@ -52,6 +52,14 @@ import { linePlanningPayload } from "../../Inventory/Essentials/allocationPlanni
 
 const ALLOCATION_SOURCE_LOCATIONS = ["main_store", "central_store", "admin_office", "warehouse_a", "warehouse_b"];
 
+const formatRequirementAddedAt = (value) => {
+  if (!value || !Number.isFinite(new Date(value).getTime())) return "Added date unavailable";
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: true,
+  }).format(new Date(value)).replace(/am|pm/g, part => part.toUpperCase());
+};
+
 const allocationLabel = (value) =>
   value
     ? value
@@ -220,25 +228,34 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
   const [editor, setEditor] = useState(null);
   const saving = useRef(false);
 
-  // 1. Fetch active allocations belonging to this event
+  // Match the saved requirement scope used by Create Allocation, across every page.
+  const crmId = allocationReferenceId(booking?.crmCustomerId || booking?.customer);
   const allocationsQuery = useQuery({
-    queryKey: ["inventoryv2-allocations", "event-allocations-list", eventId],
+    queryKey: ["inventoryv2-allocations", "event-allocations-list", eventId, crmId],
     queryFn: async () => {
-      let entries = [];
-      const res = await AdminV2Service.listInventoryV2Allocations({ event: eventId, limit: 100 });
-      entries = res.data?.data?.entries || [];
-      if (!entries.length && booking) {
-        const crmId = String(booking.crmCustomerId || booking.customer?._id || booking.customer || "");
-        if (crmId) {
-          const allRes = await AdminV2Service.listInventoryV2Allocations({ limit: 100 });
-          entries = (allRes.data?.data?.entries || []).filter(
-            (a) => !a.event && String(a.crmCustomerId?._id || a.crmCustomerId || "") === crmId
-          );
+      const entries = [];
+      let page = 1;
+      let hasNextPage;
+      do {
+        const response = await AdminV2Service.listInventoryV2Allocations({ limit: 100, page });
+        const data = response.data?.data;
+        if (!Array.isArray(data?.entries) || typeof data.pagination?.hasNextPage !== "boolean"
+          || (data.pagination.hasNextPage && !data.entries.length)) {
+          throw new Error("The complete event allocation list is unavailable. Refresh before continuing.");
         }
-      }
-      return entries;
+        entries.push(...data.entries);
+        hasNextPage = data.pagination.hasNextPage;
+        page += 1;
+      } while (hasNextPage);
+      return entries.filter(allocation => allocation.status !== "Cancelled" && (
+        allocationReferenceId(allocation.event) === eventId
+        || (!allocation.event && crmId && allocationReferenceId(allocation.crmCustomerId) === crmId)
+      ));
     },
     enabled: Boolean(eventId),
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const activeAllocations = useMemo(
@@ -264,7 +281,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
   });
   const sourceAllocations = sourceAllocationsQuery.data || [];
 
-  const documents = useMemo(() => detailQuery.data?.eventAllocations || [], [detailQuery.data]);
+  const documents = activeAllocations;
   const items = useMemo(() => {
     if (!documents.length) return [];
     try {
@@ -300,6 +317,19 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
   }, [items, filters]);
 
   const visibleItems = filteredItems;
+  const previousRequirements = useRef(null);
+  useEffect(() => {
+    const previous = previousRequirements.current;
+    if (previous?.eventId === eventId) {
+      const visibleKeys = new Set(visibleItems.map(line => line.rowKey));
+      const hiddenAddition = items.some(line => !previous.keys.has(line.rowKey)
+        && (!visibleKeys.has(line.rowKey) || collapsedCategories.has(line.category)));
+      if (hiddenAddition) {
+        toast.info("New requirements are saved but hidden by current filters or collapsed categories. Clear filters or expand the category to view them.");
+      }
+    }
+    previousRequirements.current = { eventId, keys: new Set(items.map(line => line.rowKey)) };
+  }, [eventId, items, visibleItems, collapsedCategories]);
 
   // Queries for item records (images, minimum stock, tracking)
   const itemIds = useMemo(
@@ -445,7 +475,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold text-foreground">{line.itemName || "—"}</p>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            {[line.itemId, line.unit].filter(Boolean).join(" · ") || "—"}
+            {formatRequirementAddedAt(line.createdAt)}
           </p>
           {line.notes && <p className="mt-0.5 max-w-xs truncate text-[11px] text-muted-foreground/80">{line.notes}</p>}
         </div>
@@ -637,7 +667,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                 <TableBody>
                   {visibleItems.map((line, index) => {
                     const allocationDoc = detailQuery.data?.data?.data;
-                    const returnLines = allocationDoc?.returnLines || line.owningAllocation?.returnLines || [];
+                    const returnLines = line.owningAllocation?.returnLines || allocationDoc?.returnLines || [];
                     const lineStatus = lineItemReadinessStatus(line, returnLines);
                     return (
                       <React.Fragment key={line.rowKey}>
@@ -712,7 +742,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
             <div className="overflow-hidden divide-y divide-border/70 lg:hidden">
               {visibleItems.map((line, index) => {
                 const allocationDoc = detailQuery.data?.data?.data;
-                const returnLines = allocationDoc?.returnLines || line.owningAllocation?.returnLines || [];
+                const returnLines = line.owningAllocation?.returnLines || allocationDoc?.returnLines || [];
                 const lineStatus = lineItemReadinessStatus(line, returnLines);
                 return (
                   <React.Fragment key={line.rowKey}>
