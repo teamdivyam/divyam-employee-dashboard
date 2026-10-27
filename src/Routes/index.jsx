@@ -46,6 +46,7 @@ import DetailAssignedClientPage from "../Pages/dashboard/assigned-clients/Detail
 import DetailVendorCoordinationPage from "../Pages/dashboard/vendor-coordination/DetailVendorCoordinationPage";
 import ScorecardPage from "../Pages/dashboard/knowledge-base-sop/ScorecardPage";
 import DetailPayrollSalaryPage from "../Pages/dashboard/payroll-&-salary/PayrollSalaryPage";
+import MyWorkspacePage from "../Pages/dashboard/my-workspace/MyWorkspacePage";
 
 const NotFoundPage = lazy(() => import("../Pages/dashboard/NotFoundPage"));
 
@@ -128,6 +129,7 @@ const DashBoardRoutes = () => {
             <Route path="scorecard" element={<ScorecardPage />} />
             <Route path="profile" element={<MyProfilePage />} />
             <Route path="payroll-&-salary" element={<DetailPayrollSalaryPage />} />
+            <Route path="my-workspace" element={<MyWorkspacePage />} />
 
             <Route path="/dashboard/logout" element={<Logout />} />
 

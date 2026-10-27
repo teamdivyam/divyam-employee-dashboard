@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ChevronDown,
   ClipboardList,
+  Command,
   FileCheck2,
   FileSpreadsheet,
   Handshake,
@@ -68,6 +69,12 @@ const navMain: NavItem[] = [
     title: "Dashboard",
     url: "/dashboard",
     icon: LayoutDashboard,
+    items: [],
+  },
+  {
+    title: "My Workspace",
+    url: "/dashboard/my-workspace",
+    icon: Command,
     items: [],
   },
   {

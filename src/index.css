@@ -1347,3 +1347,173 @@ input[type="number"]::-webkit-outer-spin-button {
   .event-allocation-tone-10 { @apply border-pink-200/70 bg-pink-50 text-pink-700; }
   .dark .event-allocation-tone-10 { @apply border-pink-800/50 bg-pink-950/40 text-pink-300; }
 }
+
+/* Employee workspace: shared theme tokens keep both color modes consistent. */
+@layer components {
+  .my-workspace { @apply flex min-w-0 flex-col gap-3 text-sm text-foreground; }
+  .workspace-heading { @apply flex items-center justify-between gap-3; }
+  .workspace-heading h1 { @apply flex items-center gap-2 text-base font-medium; }
+  .workspace-heading p, .workspace-muted { @apply text-xs font-normal text-muted-foreground; }
+  .workspace-metrics { @apply grid grid-cols-2 gap-3 xl:grid-cols-4; }
+  .workspace-metric { @apply flex items-center gap-3 rounded-lg border-border p-3 shadow-none; }
+  .workspace-metric p { @apply text-xs text-muted-foreground; }
+  .workspace-metric strong { @apply text-lg font-medium tabular-nums; }
+  .workspace-metric-icon { @apply grid h-10 w-10 shrink-0 place-items-center rounded-full; }
+  .workspace-metric-icon svg { @apply h-5 w-5; }
+  .workspace-tone-0 { color: hsl(var(--chart-2)); background: hsl(var(--chart-2) / .12); }
+  .workspace-tone-1 { color: hsl(var(--chart-3)); background: hsl(var(--chart-3) / .12); }
+  .workspace-tone-2 { color: hsl(var(--chart-4)); background: hsl(var(--chart-4) / .12); }
+  .workspace-tone-3 { @apply bg-primary/10 text-primary; }
+  .workspace-columns { @apply grid min-w-0 gap-3; grid-template-columns: minmax(0, 1fr); }
+  .workspace-panel { @apply min-w-0 rounded-lg border border-border bg-card; }
+  .my-workspace h2, .my-workspace h3 { @apply text-sm font-medium; }
+  .workspace-section-heading { @apply flex items-center justify-between gap-2; }
+  .workspace-section-heading h2 { @apply flex items-center gap-2; }
+  .workspace-inbox { @apply flex min-h-0 flex-col overflow-hidden; }
+  .workspace-inbox-tools { @apply space-y-3 p-3; }
+  .workspace-inbox-list { @apply min-h-0 flex-1 overflow-y-auto; }
+  .workspace-inbox-item { @apply flex w-full items-center gap-2 border-t border-border p-3 text-left hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring; }
+  .workspace-inbox-item.is-selected { @apply bg-primary/10; box-shadow: inset 3px 0 hsl(var(--primary)); }
+  .workspace-inbox-title { @apply flex items-center justify-between gap-1; }
+  .workspace-inbox-title strong { @apply truncate text-xs font-medium; }
+  .workspace-preview { @apply my-1 block truncate text-xs text-muted-foreground; }
+  .workspace-unread { @apply rounded-full bg-primary px-1.5 py-0.5 text-xs text-primary-foreground; }
+  .workspace-chat { @apply flex min-h-0 flex-col overflow-hidden; height: 70dvh; }
+  .workspace-chat-header { @apply flex items-center gap-2 border-b border-border p-3; }
+  .workspace-channel { @apply flex items-center gap-1 text-xs text-muted-foreground; }
+  .workspace-channel svg { @apply h-3 w-3; }
+  .workspace-history { @apply min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-3; }
+  .workspace-message { @apply flex flex-col items-start gap-1; }
+  .workspace-message-own { @apply items-end; }
+  .workspace-bubble { @apply max-w-[92%] space-y-1 rounded-xl rounded-bl-none bg-muted px-3 py-2 text-xs; overflow-wrap: anywhere; }
+  .workspace-bubble p { @apply whitespace-pre-wrap; }
+  .workspace-message-own .workspace-bubble { @apply rounded-bl-xl rounded-br-none; background: hsl(var(--chart-2) / .12); }
+  .workspace-message > p { @apply text-[10px]; }
+  .workspace-composer { @apply shrink-0 space-y-2 border-t border-border p-3; }
+  .workspace-composer textarea { @apply text-xs; }
+  .workspace-context { @apply space-y-3 overflow-y-auto p-3; }
+  .workspace-context section { @apply space-y-2 border-t border-border pt-2; }
+  .workspace-event-card { @apply space-y-3 rounded-md border border-border p-3; background: hsl(var(--chart-4) / .06); }
+  .workspace-event-card > p { @apply flex items-center gap-2 text-xs text-muted-foreground; }
+  .workspace-event-card svg { @apply h-4 w-4 shrink-0; }
+  .workspace-event-facts { @apply grid grid-cols-2 gap-2 border-t border-border pt-2; }
+  .workspace-event-facts span { @apply block text-[10px] text-muted-foreground; }
+  .workspace-event-facts strong { @apply text-xs font-medium; }
+  .workspace-work-row { @apply grid w-full grid-cols-[minmax(0,1fr)_auto] gap-1 rounded-md border border-border p-2 text-left text-xs hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring; }
+  .workspace-work-row span { @apply break-words; }
+  .workspace-work-row small { @apply col-span-2 text-[10px] text-muted-foreground; }
+  .workspace-work-row[aria-pressed=true], .workspace-reminder { @apply bg-primary/5; }
+  .workspace-file-row { @apply flex min-w-0 items-center gap-2 rounded-md border border-border p-2; }
+  .workspace-file-link { @apply h-auto max-w-full justify-start whitespace-normal break-all px-0 text-left text-xs font-normal; }
+  .workspace-file-link svg { @apply h-4 w-4 shrink-0; }
+  .workspace-upload { @apply flex items-center gap-2 text-xs; }
+  .workspace-feedback { @apply space-y-1 rounded-md border border-border bg-muted p-3 text-xs; }
+  .workspace-empty { @apply p-4 text-center text-xs text-muted-foreground; }
+  .workspace-welcome { @apply flex min-h-64 flex-col items-center justify-center gap-3 p-6 text-center text-xs text-muted-foreground; }
+  .workspace-welcome > svg { @apply h-8 w-8; }
+  @media (min-width: 1024px) {
+    .workspace-columns { grid-template-columns: 230px minmax(0, 1fr) 270px; height: max(620px, calc(100dvh - 230px)); }
+    .workspace-chat { height: 100%; }
+  }
+  @media (min-width: 1440px) {
+    .workspace-columns { grid-template-columns: 270px minmax(0, 1fr) 310px; }
+  }
+}
+
+/* Reference layout: compact inbox and spacious conversation, with theme-aware accents. */
+@layer components {
+  .my-workspace {
+    --workspace-success: 160 84% 32%;
+    --workspace-mint: 153 78% 92%;
+    --workspace-violet: 258 90% 63%;
+    @apply gap-4 bg-background p-4;
+  }
+  .dark .my-workspace {
+    --workspace-success: 158 64% 60%;
+    --workspace-mint: 163 45% 15%;
+    --workspace-violet: 258 90% 76%;
+  }
+  .workspace-metrics { @apply grid-cols-2 gap-2; }
+  .workspace-metric { @apply min-h-20 gap-3 rounded-md px-3 py-3; }
+  .workspace-metric p { @apply text-[11px] leading-5; }
+  .workspace-metric strong { @apply text-xl font-medium leading-6; }
+  .workspace-metric-icon { @apply h-11 w-11; }
+  .workspace-provider-status { @apply block text-xs font-medium leading-4 text-muted-foreground; }
+  .workspace-tone-muted { @apply bg-muted text-muted-foreground; }
+  .workspace-whatsapp-icon { @apply relative block h-6 w-6; }
+  .workspace-whatsapp-icon > svg:first-child { @apply h-6 w-6 fill-current; }
+  .workspace-whatsapp-icon > svg:last-child { @apply absolute left-1.5 top-1.5 h-3 w-3 fill-card text-card; }
+  .workspace-columns { @apply gap-3; }
+  .workspace-panel { @apply rounded-md; }
+  .workspace-inbox-tools { @apply space-y-2 px-2 pb-2 pt-2; }
+  .workspace-icon-button { @apply h-6 w-6 text-muted-foreground; }
+  .workspace-icon-button svg { @apply h-3.5 w-3.5; }
+  .workspace-search { @apply relative; }
+  .workspace-search > svg { @apply absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground; }
+  .workspace-search input { @apply h-8 rounded-md bg-muted/20 pl-7 text-xs shadow-none; }
+  .my-workspace .workspace-contact-tabs [role=tablist],
+  .my-workspace .workspace-filter-tabs [role=tablist] { @apply grid h-auto w-full gap-1 rounded-none border-0 bg-transparent p-0; }
+  .my-workspace .workspace-contact-tabs [role=tablist] { @apply grid-cols-4; }
+  .my-workspace .workspace-filter-tabs [role=tablist] { @apply grid-cols-3; }
+  .my-workspace .workspace-contact-tabs [role=tab],
+  .my-workspace .workspace-filter-tabs [role=tab] { @apply m-0 flex h-6 min-w-0 items-center justify-center rounded-sm border-0 bg-muted/70 px-1 py-0 text-[10px] font-normal leading-none text-muted-foreground shadow-none; }
+  .my-workspace .workspace-filter-tabs [role=tab] { @apply border border-border bg-background text-[9px]; }
+  .my-workspace .workspace-contact-tabs [role=tab]::after,
+  .my-workspace .workspace-filter-tabs [role=tab]::after { content: none; }
+  .my-workspace .workspace-contact-tabs [role=tab][data-state=active] {
+    color: hsl(var(--workspace-success)); background: hsl(var(--workspace-mint));
+  }
+  .my-workspace .workspace-filter-tabs [role=tab][data-state=active] {
+    color: hsl(var(--workspace-success)); background: hsl(var(--workspace-mint) / .4); border-color: hsl(var(--workspace-success) / .35);
+  }
+  .workspace-inbox-item { @apply relative min-h-[74px] items-start gap-2 px-2 py-2.5; }
+  .workspace-inbox-item.is-selected { background: hsl(var(--workspace-mint)); box-shadow: inset 2px 0 hsl(var(--workspace-success)); }
+  .workspace-inbox-item > [data-slot=avatar] { @apply h-10 w-10; }
+  .workspace-inbox-title { @apply justify-start gap-1 pr-7; }
+  .workspace-inbox-title strong { @apply text-[11px] leading-4; }
+  .workspace-inbox-time { @apply absolute right-2 top-3 text-[8px] text-muted-foreground; }
+  .workspace-contact-badge { @apply shrink-0 rounded px-1 py-0.5 text-[9px] leading-3; color: hsl(var(--workspace-violet)); background: hsl(var(--workspace-violet) / .17); }
+  .workspace-contact-client { @apply bg-primary/15 text-primary; }
+  .workspace-contact-vendor { color: hsl(var(--chart-3)); background: hsl(var(--chart-3) / .14); }
+  .workspace-preview { @apply my-1 text-[10px] leading-4; }
+  .workspace-channel { @apply text-[10px] leading-4; }
+  .workspace-channel svg { @apply text-primary; }
+  .workspace-unread { @apply absolute bottom-2 right-2 text-[9px]; }
+  .workspace-chat-header { @apply min-h-[58px] px-3 py-2; }
+  .workspace-chat-header h2 { @apply text-sm font-medium; }
+  .workspace-chat-header .workspace-muted { @apply mt-0.5 text-[11px]; }
+  .workspace-conversation-status { @apply inline-flex h-8 min-w-20 items-center justify-center rounded-md border border-border px-3 text-xs text-muted-foreground; }
+  .workspace-conversation-status.is-open { color: hsl(var(--workspace-success)); background: hsl(var(--workspace-mint)); border-color: hsl(var(--workspace-success) / .2); }
+  .workspace-history { @apply space-y-4 px-3 py-3; }
+  .workspace-day-divider { @apply flex justify-center; }
+  .workspace-day-divider time { @apply rounded-full bg-muted px-5 py-1 text-[10px] text-muted-foreground; }
+  .workspace-bubble { @apply rounded-xl rounded-bl-none px-3 py-2 text-xs; }
+  .workspace-message-own .workspace-bubble { background: hsl(var(--workspace-mint)); }
+  .workspace-bubble-content { @apply flex items-end gap-2; }
+  .workspace-bubble-content > p { @apply min-w-0; }
+  .workspace-message-time { @apply flex shrink-0 items-center gap-1 pb-0.5 text-[9px] leading-3 text-muted-foreground; }
+  .workspace-message-time svg { @apply h-3 w-3; }
+  .workspace-message-time .is-read { @apply text-primary; }
+  .workspace-delivery { @apply flex items-center gap-1 text-[9px]; color: hsl(var(--workspace-success)); }
+  .workspace-delivery svg { @apply h-3.5 w-3.5 text-primary; }
+  .workspace-composer { @apply space-y-2 px-3 pb-2 pt-2; }
+  .workspace-composer-heading { @apply flex items-center justify-between border-b border-border; }
+  .workspace-composer-heading h3 { @apply border-b-2 px-3 py-2 text-xs font-medium; color: hsl(var(--workspace-success)); border-color: hsl(var(--workspace-success) / .5); }
+  .workspace-composer-heading > span { @apply text-[10px] text-muted-foreground; }
+  .workspace-composer textarea { @apply min-h-16 rounded-lg border-border bg-muted/20 text-xs shadow-none; }
+  .workspace-composer button[type=submit], .workspace-composer button:not([type]) { @apply h-8 text-xs; }
+  .workspace-context { @apply space-y-4 px-3 py-3; }
+  .workspace-context > h2 { @apply mb-5; }
+  .workspace-context [role=combobox] { @apply min-h-9 bg-muted/30 text-muted-foreground shadow-none; }
+  .workspace-context label { @apply text-[11px] font-medium; }
+  .workspace-link-event { @apply h-auto px-0 py-0 text-[10px] text-muted-foreground; }
+  @media (min-width: 768px) {
+    .workspace-metrics { @apply grid-cols-5; }
+  }
+  @media (min-width: 1024px) {
+    .workspace-columns { grid-template-columns: minmax(215px, .9fr) minmax(0, 2fr) minmax(240px, 1.03fr); height: max(580px, calc(100dvh - 200px)); }
+  }
+  @media (min-width: 1440px) {
+    .workspace-columns { grid-template-columns: minmax(250px, .9fr) minmax(0, 2fr) minmax(280px, 1.03fr); }
+  }
+}
