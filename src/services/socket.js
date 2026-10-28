@@ -3,10 +3,12 @@ import { config } from "../../config";
 
 let socket = null;
 
-export const getSocket = () => {
+export const getSocket = ({ connect = true } = {}) => {
     if (!socket) {
         socket = io(config.BACKEND_URL, { withCredentials: true, autoConnect: false });
     }
-    if (!socket.connected) socket.connect();
+    if (connect && !socket.connected) socket.connect();
     return socket;
 };
+
+export const disconnectSocket = () => socket?.disconnect();

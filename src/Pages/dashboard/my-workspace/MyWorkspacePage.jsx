@@ -17,6 +17,7 @@ import EventSelector from './EventSelector';
 import WorkspaceConversation from './WorkspaceConversation';
 import WorkspaceFiles, { FileLink } from './WorkspaceFiles';
 import WorkspaceWork, { NewFollowUp } from './WorkspaceWork';
+import useCommandRealtime from './useCommandRealtime';
 
 const inboxTime = value => value && !Number.isNaN(new Date(value).getTime()) ? new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '';
 const emptyDraft = { text: '', attachments: [], attempt: null };
@@ -28,12 +29,12 @@ function NewChat({ onClose, onCreated }) {
 function EventContext({ conversationId, eventId, setEvent, session }) {
   const [modal, setModal] = useState(null); const [selected, setSelected] = useState(''); const [linkEvent, setLinkEvent] = useState('');
   const mutation = useCommandMutation();
-  const event = useCommandQuery('/events/' + eventId, {}, !!eventId);
+  const event = useCommandQuery('/events/' + eventId, { ...(conversationId ? { conversationId } : {}) }, !!eventId);
   const eventSummary = useCommandQuery('/events', { search: event.data?.eventName || '', page: 1, limit: 100, ...(conversationId ? { conversationId } : {}) }, !!event.data);
   const manager = eventSummary.data?.items?.find(item => item._id === eventId)?.assignedManager;
   const scope = { eventId, page: 1, limit: 3, tab: 'Active' };
-  const tasks = useCommandQuery('/tasks', scope, !!eventId && canUse(session, 'task:view:self'), true);
-  const followUps = useCommandQuery('/follow-ups', scope, !!eventId, true);
+  const tasks = useCommandQuery('/tasks', scope, !!eventId && canUse(session, 'task:view:self'));
+  const followUps = useCommandQuery('/follow-ups', scope, !!eventId);
   const files = useCommandQuery('/files', { eventId, page: 1, limit: 3 }, !!eventId);
   const open = (kind, id = '') => { setSelected(id); setModal(kind); };
   return <aside className="workspace-context workspace-panel"><h2>Event Details</h2><EventSelector conversationId={conversationId || undefined} value={eventId} selectedEvent={event.data} onChange={setEvent} />
@@ -50,6 +51,10 @@ function EventContext({ conversationId, eventId, setEvent, session }) {
   </aside>;
 }
 export default function MyWorkspacePage() {
+  const auth = useAuthSession();
+  return <WorkspaceSession key={auth.data?.employeeId || 'signed-out'} />;
+}
+function WorkspaceSession() {
   const auth = useAuthSession(); const session = auth.data; const client = useQueryClient();
   const [params, setParams] = useSearchParams(); const [search, setSearch] = useState(''); const [page, setPage] = useState(1); const [newChat, setNewChat] = useState(false); const [cachedPeers, setCachedPeers] = useState({}); const [drafts, setDrafts] = useState({});
   const tab = ['Unread', 'Needs reply'].includes(params.get('tab')) ? params.get('tab') : 'All';
@@ -57,9 +62,10 @@ export default function MyWorkspacePage() {
   const conversationId = /^[a-f\d]{24}$/i.test(params.get('conversation') || '') ? params.get('conversation') : '';
   const requestedEvent = /^[a-f\d]{24}$/i.test(params.get('event') || '') ? params.get('event') : '';
   const allowed = canUse(session, 'notification:view:self'); const debounced = useDebouncedValue(search);
-  const summary = useCommandQuery('/summary', {}, allowed, true);
-  const inbox = useCommandQuery('/conversations', { page, limit: 15, search: debounced, tab, ...(type ? { contactType: type } : {}) }, allowed, true);
-  const detail = useCommandQuery('/conversations/' + conversationId, {}, allowed && !!conversationId, true);
+  const { status: connectionStatus, retry: retryRealtime } = useCommandRealtime(allowed, session?.employeeId);
+  const summary = useCommandQuery('/summary', {}, allowed);
+  const inbox = useCommandQuery('/conversations', { page, limit: 15, search: debounced, tab, ...(type ? { contactType: type } : {}) }, allowed);
+  const detail = useCommandQuery('/conversations/' + conversationId, {}, allowed && !!conversationId);
   const eventId = requestedEvent ? (conversationId ? detail.data?.eventIds?.some(id => idOf(id) === requestedEvent) ? requestedEvent : '' : requestedEvent) : '';
   const update = changes => { const next = new URLSearchParams(params); Object.entries(changes).forEach(([key, value]) => value ? next.set(key, value) : next.delete(key)); setParams(next); };
   const select = id => { const item = inbox.data?.items?.find(c => c._id === id); if (item) setCachedPeers(previous => ({ ...previous, [id]: peerOf(item, session) })); update({ conversation: id, event: '' }); setNewChat(false); };
@@ -86,6 +92,7 @@ export default function MyWorkspacePage() {
   if (!allowed) return <div className="workspace-empty">You do not have permission to access My Workspace.</div>;
   const metrics = [['unreadMessages', 'Unread messages', MessageCircle], ['pendingReplies', 'Pending replies', Clock3], ['activeEvents', 'Active events', CalendarDays], ['followUpsToday', 'Follow-ups today', CheckCircle2]];
   return <div className="my-workspace" aria-label="My Workspace"><h1 className="sr-only">My Workspace</h1>
+    <div className="workspace-section-heading"><span className="workspace-provider-status" role="status">{connectionStatus === 'connected' ? 'Live updates connected' : connectionStatus === 'error' ? 'Live updates unavailable' : 'Live updates reconnecting'}</span>{connectionStatus !== 'connected' && <Button variant="ghost" size="sm" onClick={retryRealtime}>Retry connection</Button>}</div>
     <div className="workspace-metrics"><QueryState query={summary}>{metrics.map(([key, label, Icon], index) => <Card key={key} className="workspace-metric"><span className={'workspace-metric-icon workspace-tone-' + index}><Icon /></span><div><p>{label}</p><strong>{summary.data?.[key] ?? '-'}</strong></div></Card>)}<Card className="workspace-metric"><span className={'workspace-metric-icon ' + (summary.data?.whatsappConfigured ? 'workspace-tone-0' : 'workspace-tone-muted')}><span className="workspace-whatsapp-icon"><MessageCircle /><Phone /></span></span><div><p>WhatsApp</p><span className="workspace-provider-status">{summary.data?.whatsappConfigured ? 'Configured' : 'Not configured'}</span></div></Card></QueryState></div>
     <div className="workspace-columns"><section className="workspace-inbox workspace-panel"><div className="workspace-inbox-tools"><div className="workspace-section-heading"><h2>Shared Inbox</h2><div className="flex items-center"><Button size="icon" variant="ghost" className="workspace-icon-button" aria-label="Refresh workspace" onClick={() => client.invalidateQueries({ queryKey: ['central-command'] })}><RefreshCw /></Button><Button size="icon" variant="ghost" className="workspace-icon-button" aria-label="New conversation" onClick={() => setNewChat(true)}><Plus /></Button></div></div>
       <div className="workspace-search"><Search /><Input aria-label="Search my conversations" placeholder="Search people or messages" value={search} maxLength={100} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div>

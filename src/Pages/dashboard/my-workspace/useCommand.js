@@ -2,13 +2,17 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import Service from '@/services/central-command.service';
 import { errorMessage } from './centralCommand.utils';
+import useAuthSession from '@/hooks/useAuthSession';
 
-export function useCommandQuery(path, params = {}, enabled = true, poll = false) {
-  return useQuery({
-    queryKey: ['central-command', path, params],
+export function useCommandQuery(path, params = {}, enabled = true) {
+  const { data: session } = useAuthSession();
+  const query = useQuery({
+    queryKey: ['central-command', path, params, session?.employeeId],
     queryFn: ({ signal }) => Service.list(path, params, signal),
-    enabled, retry: false, refetchInterval: poll ? query => query.state.error ? false : 15000 : false, refetchIntervalInBackground: false,
+    enabled: enabled && !!session?.employeeId, retry: false,
   });
+  // Never expose previously cached records after HTTP revokes access.
+  return [401, 403, 404].includes(query.error?.response?.status) ? { ...query, data: undefined } : query;
 }
 export function useCommandMutation() {
   const client = useQueryClient();
