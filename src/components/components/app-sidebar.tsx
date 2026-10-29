@@ -165,6 +165,34 @@ const navMain: NavItem[] = [
   },
 ];
 
+const navCategories = [
+  { title: "General", urls: ["/dashboard"] },
+  {
+    title: "My Work",
+    urls: [
+      "/dashboard/my-workspace",
+      "/dashboard/my-tasks",
+      "/dashboard/assigned-events",
+      "/dashboard/assigned-clients",
+      "/dashboard/vendor-coordination",
+    ],
+  },
+  {
+    title: "My Finance",
+    urls: ["/dashboard/payroll-&-salary", "/dashboard/expenses"],
+  },
+  {
+    title: "My Account",
+    urls: [
+      "/dashboard/attendence-&-leave",
+      "/dashboard/scorecard",
+      "/dashboard/reports",
+      "/dashboard/requests-approvals",
+      "/dashboard/profile",
+    ],
+  },
+];
+
 const getInitials = (name?: string) => {
   if (!name) return "EM";
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -298,7 +326,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent className="px-2 pb-2 group-data-[collapsible=icon]:px-1">
-        <NavMain items={navItems} />
+        {navCategories.map((category) => (
+          <NavMain
+            key={category.title}
+            label={category.title}
+            items={category.urls.flatMap((url) => {
+              const item = navItems.find((item) => item.url === url);
+              return item ? [item] : [];
+            })}
+          />
+        ))}
       </SidebarContent>
 
       <div className="mx-3 mb-2 mt-auto h-px bg-white/10 group-data-[collapsible=icon]:hidden" />

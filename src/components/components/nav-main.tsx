@@ -8,6 +8,7 @@ import {
 } from "@components/components/ui/collapsible";
 import {
   SidebarGroup,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -69,11 +70,18 @@ export const isNavItemActive = (pathname: string, item: NavItem) => (
   || Boolean(item.items?.some((subItem) => matchesPath(pathname, subItem.url)))
 );
 
-export function NavMain({ items }: { items: NavItem[] }) {
+export function NavMain({ items, label }: { items: NavItem[]; label?: string }) {
   const location = useLocation();
+
+  if (items.length === 0) return null;
 
   return (
     <SidebarGroup className="px-0">
+      {label && (
+        <SidebarGroupLabel className="sidebar-category-heading group-data-[collapsible=icon]:hidden">
+          {label}
+        </SidebarGroupLabel>
+      )}
       <SidebarMenu className="mt-1 gap-1">
         {items.map((item) => {
           const hasChildren = Boolean(item.items?.length);
