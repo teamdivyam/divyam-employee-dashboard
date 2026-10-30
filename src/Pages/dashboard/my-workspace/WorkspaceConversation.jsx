@@ -2,7 +2,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { CheckCheck, Monitor, Paperclip, Send } from 'lucide-react';
+import { CheckCheck, MessageCircle, Monitor, Paperclip, Phone, Send } from 'lucide-react';
 import { Button } from '@components/components/ui/button';
 import { Textarea } from '@components/components/ui/textarea';
 import Service from '@/services/central-command.service';
@@ -53,6 +53,7 @@ export default function WorkspaceConversation({ conversation, peer, session, eve
   }, [latest]);
   async function send(e) {
     e.preventDefault();
+    if (mutation.isPending || conversation.status === 'Closed') return;
     if (!draft.text.trim() && !draft.attachments.length && !draft.attempt) return;
     const payload = draft.attempt || createSendAttempt({ text: draft.text.trim(), attachments: draft.attachments, internal: false }).body;
     setDraft({ ...draft, attempt: payload });
@@ -70,8 +71,14 @@ export default function WorkspaceConversation({ conversation, peer, session, eve
     try { const blob = await Service.media(conversation._id, messageId, index); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'attachment-' + (index + 1); a.click(); setTimeout(() => URL.revokeObjectURL(url), 60000); } catch (error) { toast.error(errorMessage(error)); }
   }
   const locked = mutation.isPending || !!draft.attempt;
+  function handleMessageKeyDown(e) {
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    if (e.repeat || locked || (!draft.text.trim() && !draft.attachments.length)) return;
+    e.currentTarget.form?.requestSubmit();
+  }
   return <section className="workspace-chat workspace-panel"><header className="workspace-chat-header"><PersonAvatar name={peer.name} image={peer.profileImage} /><div className="min-w-0 flex-1"><h2>{peer.name}</h2><p className="workspace-muted">{peer.designation || peer.accessRole || conversation.contactType}</p></div><span className={"workspace-conversation-status " + (conversation.status === "Open" ? "is-open" : "")}>{conversation.status}</span></header>
-    <div className="workspace-history" ref={history} onScroll={() => { const node = history.current; nearBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 180; if (nearBottom.current) setHasNewMessages(false); }} aria-label="Message history">
+    <div className="workspace-history" ref={history} onScroll={() => { const node = history.current; nearBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 180; if (nearBottom.current) setHasNewMessages(false); }} aria-label="Message history" tabIndex={0}>
       {messages.hasNextPage && <Button variant="outline" size="sm" disabled={messages.isFetching} onClick={() => messages.fetchNextPage()}>Load older messages</Button>}
       <QueryState query={messages} empty={ordered.length === 0}>{ordered.map((message, index) => {
         const own = idOf(message.sender) === session.employeeId;
@@ -83,13 +90,13 @@ export default function WorkspaceConversation({ conversation, peer, session, eve
               {message.attachments?.map(id => <FileLink key={idOf(id)} id={idOf(id)} />)}
               {message.inboundMedia?.map((_, index) => <Button key={index} variant="link" size="sm" onClick={() => media(message._id, index)}>Download incoming attachment {index + 1}</Button>)}
             </div>
-            <div className="workspace-delivery"><Monitor aria-hidden="true" /><span>{message.source === 'WhatsApp' ? 'Received via WhatsApp' : own ? read ? 'Read' : message.dashboard?.status || 'Sent' : 'Dashboard'}</span></div>
+            <div className="workspace-delivery">{!own && <span className="workspace-sender-name">{message.senderName || peer.name}</span>}{message.source !== "WhatsApp" && <><Monitor aria-hidden="true" /><span>{own ? read ? "Read" : message.dashboard?.status || "Sent" : "Dashboard"}</span></>}{(message.source === "WhatsApp" || (own && message.whatsapp?.status && message.whatsapp.status !== "Not applicable")) && <span className="workspace-whatsapp-delivery"><span className="workspace-whatsapp-icon" aria-hidden="true"><MessageCircle /><Phone /></span><span>{own ? message.whatsapp?.status : "WhatsApp"}</span></span>}</div>
           </article>
         </Fragment>;
       })}</QueryState><div ref={latestNode} className="h-1" />
     </div>
-    {hasNewMessages && <Button variant="outline" size="sm" onClick={() => { history.current.scrollTop = history.current.scrollHeight; nearBottom.current = true; setHasNewMessages(false); }}>New messages — jump to latest</Button>}
-    <form onSubmit={send} className="workspace-composer"><div className="workspace-composer-heading"><h3>Message</h3><span>Sends via Dashboard</span></div>{conversation.status === 'Closed' ? <p className="workspace-muted">This conversation is closed.</p> : <><Textarea aria-label="Message" placeholder={'Type a message to ' + peer.name + '...'} rows={3} maxLength={4000} disabled={locked} value={draft.text} onChange={e => setDraft({ ...draft, text: e.target.value })} />{draft.attachments.length > 0 && <p className="workspace-muted">{draft.attachments.length} files attached <Button type="button" variant="ghost" size="sm" disabled={locked} onClick={() => setDraft({ ...draft, attachments: [] })}>Clear</Button></p>}{draft.attempt && !mutation.isPending && <p role="alert" className="text-xs text-destructive">Delivery could not be confirmed. Retry this exact request to avoid creating a duplicate message.</p>}<div className="flex items-center justify-between"><Button type="button" variant="ghost" size="icon" aria-label="Attach event files" disabled={!eventId || locked} onClick={() => setPicking(true)}><Paperclip /></Button><Button size="sm" disabled={mutation.isPending || (!draft.attempt && !draft.text.trim() && !draft.attachments.length)}><Send />{mutation.isPending ? 'Sending...' : draft.attempt ? 'Retry same request' : 'Send'}</Button></div></>}
+    {hasNewMessages && <Button variant="outline" size="sm" onClick={() => { history.current.scrollTop = history.current.scrollHeight; nearBottom.current = true; setHasNewMessages(false); }}>New messages - jump to latest</Button>}
+    <form onSubmit={send} className="workspace-composer"><div className="workspace-composer-heading"><h3>Message</h3><span>Sends via Dashboard</span></div>{conversation.status === 'Closed' ? <p className="workspace-muted">This conversation is closed.</p> : <><Textarea onKeyDown={handleMessageKeyDown} aria-keyshortcuts="Enter" aria-label="Message" placeholder={'Type a message to ' + peer.name + '...'} rows={3} maxLength={4000} disabled={locked} value={draft.text} onChange={e => setDraft({ ...draft, text: e.target.value })} />{draft.attachments.length > 0 && <p className="workspace-muted">{draft.attachments.length} files attached <Button type="button" variant="ghost" size="sm" disabled={locked} onClick={() => setDraft({ ...draft, attachments: [] })}>Clear</Button></p>}{draft.attempt && !mutation.isPending && <p role="alert" className="text-xs text-destructive">Delivery could not be confirmed. Retry this exact request to avoid creating a duplicate message.</p>}<div className="flex items-center justify-between"><Button type="button" variant="ghost" size="icon" aria-label="Attach event files" disabled={!eventId || locked} onClick={() => setPicking(true)}><Paperclip /></Button><Button type="submit" size="sm" disabled={mutation.isPending || (!draft.attempt && !draft.text.trim() && !draft.attachments.length)}><Send />{mutation.isPending ? 'Sending...' : draft.attempt ? 'Retry same request' : 'Send'}</Button></div></>}
     </form>{picking && <WorkspaceFiles eventId={eventId} selected={draft.attachments} onSelect={attachments => setDraft({ ...draft, attachments })} onClose={() => setPicking(false)} />}
   </section>;
 }
