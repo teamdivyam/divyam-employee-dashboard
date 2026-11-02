@@ -3,7 +3,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import SuspenseLoader from "../components/components/SuspenseLoader";
 import useAuthSession from "../hooks/useAuthSession";
 import { useQueryClient } from '@tanstack/react-query';
-import { disconnectSocket } from '../services/socket';
+import { disconnectSocket, startSocketSession } from '../services/socket';
 
 // Route element children are supplied by the router configuration.
 // eslint-disable-next-line react/prop-types
@@ -15,6 +15,7 @@ const ProtectedRoute = ({ children }) => {
 
   useEffect(() => {
     if (!accountId || isError) return;
+    startSocketSession();
     return () => {
       disconnectSocket();
       void client.cancelQueries({ queryKey: ['central-command'] });

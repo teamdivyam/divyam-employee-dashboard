@@ -25,6 +25,7 @@ export function subscribeCentralCommand(socket, refresh, onStatus, onError) {
   const disconnect = () => onStatus('disconnected');
   const error = error => { onStatus('error'); onError(error); };
   socket.on('central-command:changed', schedule);
+  socket.on('presence:changed', schedule);
   socket.on('connect', connect);
   socket.on('disconnect', disconnect);
   socket.on('connect_error', error);
@@ -34,6 +35,7 @@ export function subscribeCentralCommand(socket, refresh, onStatus, onError) {
     disposed = true;
     clearTimeout(timer);
     socket.off('central-command:changed', schedule);
+    socket.off('presence:changed', schedule);
     socket.off('connect', connect);
     socket.off('disconnect', disconnect);
     socket.off('connect_error', error);

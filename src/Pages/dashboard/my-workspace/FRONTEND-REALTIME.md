@@ -103,6 +103,18 @@ The reverse proxy must route `/socket.io/` to the same backend and support HTTP 
 
 ## Acceptance checks
 
+### Dashboard presence
+
+The inbox and detail return `presence` for the displayed employee, including a uniquely matched Employee contact. `null` means no dashboard presence and renders no presence label. Presence describes dashboard connectivity only, not WhatsApp, work activity, or attendance.
+
+`presence:changed` is another identity-free invalidation hint. The workspace debounces it through the same adapter and refetches active queries, including the visible inbox and `GET /conversations/:id/presence` for the selected conversation. Connect/reconnect and window focus also refresh these queries. Disconnects immediately suppress cached presence; only successful HTTP results after reconnection restore it. Null last-seen timestamps are never fabricated.
+
+The authenticated route owns the shared socket lifecycle. Server disconnects and authentication handshake errors use HTTP refresh before an explicit reconnect; failed refresh or a rejected refreshed handshake stops retries. Logout/account changes invalidate pending recovery and disconnect the socket.
+
+The backend publishes offline 10 seconds after the final tab/device disconnect, including heartbeat failures, and rechecks authentication every 30 seconds. Presence and last-seen are process-local and reset on restart. Multiple workers/replicas require shared expiring presence records, distributed connection accounting, and a Socket.IO adapter; no persistent MongoDB online boolean is used.
+
+Check with two authenticated sessions: verify Online/Offline and localized last-seen, null presence for Client/Vendor/unmatched contacts, immediate unavailable status when the viewer loses connectivity, and fresh presence after reconnect/focus. Verify a rejected or revoked session cannot enter a reconnect loop.
+
 1. Log in with two authorized browser sessions and verify both show connected.
 2. Send a message from one; confirm the other updates its active thread, inbox preview and summary without reloading.
 3. Check a background thread updates unread counts; opening/reading it clears badges in other tabs without a refetch loop.

@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import { Tabs, TabsList, TabsTrigger } from "@components/components/ui/tabs";
 import { cn } from "@components/lib/utils";
+import { buttonVariants } from "@components/components/ui/button";
 
 /**
  * Shared dashboard tab navigation.
@@ -22,6 +23,7 @@ export default function TabComp({
   toolbarClassName,
   toolbarRef,
   variant = "default",
+  activeButtonVariant,
   distribution = "equal",
   density = "default",
   display = "block",
@@ -76,6 +78,7 @@ export default function TabComp({
                   "tab-comp-content-trigger",
                 variant === "detail" && isCompact && "tab-comp-compact-trigger",
                 isButtons && isCompact && "h-9 px-4",
+                isButtons && activeButtonVariant && tabValue === value && buttonVariants({ variant: activeButtonVariant }),
                 triggerClassName,
               )}
             >

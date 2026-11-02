@@ -6,16 +6,23 @@ import { CheckCheck, MessageCircle, Monitor, Paperclip, Phone, Send } from 'luci
 import { Button } from '@components/components/ui/button';
 import { Textarea } from '@components/components/ui/textarea';
 import Service from '@/services/central-command.service';
-import { PersonAvatar, QueryState } from './CommandUI';
+import { Modal, PersonAvatar, QueryState } from './CommandUI';
 import { chronologicalMessages, createSendAttempt, errorMessage, idOf } from './centralCommand.utils';
 import { useCommandMutation } from './useCommand';
-import WorkspaceFiles, { FileLink } from './WorkspaceFiles';
+import WorkspaceFiles from './WorkspaceFiles';
+import WorkspaceAttachment from './WorkspaceAttachment';
+import { canEditMessage } from './workspaceMedia.utils';
+import WorkspacePresence from './WorkspacePresence';
 
 const dayKey = value => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value));
 const timeLabel = value => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 const dayLabel = value => dayKey(value) === dayKey(Date.now()) ? 'Today' : new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
 
-export default function WorkspaceConversation({ conversation, peer, session, eventId, draft, setDraft }) {
+export default function WorkspaceConversation({ conversation, presence, presenceAvailable, peer, session, eventId, draft, setDraft }) {
+  const [editing, setEditing] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [, refreshEditEligibility] = useState(0);
+  const editMutation = useCommandMutation();
   const [picking, setPicking] = useState(false);
   const [hasNewMessages, setHasNewMessages] = useState(false);
   const nearBottom = useRef(true);
@@ -25,6 +32,30 @@ export default function WorkspaceConversation({ conversation, peer, session, eve
   const messages = useInfiniteQuery({ queryKey: ['central-command', 'messages', conversation._id, session.employeeId], queryFn: ({ pageParam, signal }) => Service.list(`/conversations/${conversation._id}/messages`, { page: pageParam, limit: 25 }, signal), initialPageParam: 1, getNextPageParam: last => last.page * last.limit < last.total ? last.page + 1 : undefined, retry: false });
   const inaccessible = [401, 403, 404].includes(messages.error?.response?.status);
   const ordered = useMemo(() => inaccessible ? [] : chronologicalMessages(messages.data?.pages), [messages.data, inaccessible]); const latest = ordered.at(-1)?._id;
+  const latestOwn = ordered.filter(message => idOf(message.sender) === session.employeeId && message.source === 'Dashboard').at(-1);
+  const latestOwnId = latestOwn?._id;
+  const editDeadline = new Date(latestOwn?.createdAt).getTime() + 600000;
+  useEffect(() => {
+    const remaining = editDeadline - Date.now();
+    if (!Number.isFinite(remaining) || remaining <= 0) return;
+    const timer = setTimeout(() => refreshEditEligibility(value => value + 1), remaining + 1);
+    return () => clearTimeout(timer);
+  }, [editDeadline]);
+  const editable = message => !messages.isError && canEditMessage(message, latestOwnId, conversation, session.employeeId);
+  async function saveEdit(e) {
+    e.preventDefault();
+    if (editMutation.isPending || !editText.trim() || editText.trim().length > 4000) return;
+    const current = ordered.find(message => message._id === editing);
+    if (!current || !canEditMessage(current, latestOwnId, conversation, session.employeeId)) { toast.error('This message is no longer editable.'); setEditing(null); messages.refetch(); return; }
+    try {
+      await editMutation.mutateAsync(async () => {
+        const updated = await Service.update(`/conversations/${conversation._id}/messages/${editing}`, { text: editText.trim() });
+        client.setQueryData(['central-command', 'messages', conversation._id, session.employeeId], data => data ? { ...data, pages: data.pages.map(page => ({ ...page, items: page.items.map(message => message._id === updated._id ? updated : message) })) } : data);
+        return updated;
+      });
+      setEditing(null); toast.success('Message updated.');
+    } catch (error) { if (error.response?.status === 409) { setEditing(null); messages.refetch(); toast.error('This message is no longer editable. It may have been read or a newer message was sent.'); } }
+  }
   const hasUnread = ordered.some(message => idOf(message.sender) !== session.employeeId && !message.readBy?.some(reader => idOf(reader) === session.employeeId));
   useEffect(() => {
     if (!latest || !latestNode.current || !hasUnread) return;
@@ -53,7 +84,7 @@ export default function WorkspaceConversation({ conversation, peer, session, eve
   }, [latest]);
   async function send(e) {
     e.preventDefault();
-    if (mutation.isPending || conversation.status === 'Closed') return;
+    if (mutation.isPending || picking || editMutation.isPending || conversation.status === 'Closed') return;
     if (!draft.text.trim() && !draft.attachments.length && !draft.attempt) return;
     const payload = draft.attempt || createSendAttempt({ text: draft.text.trim(), attachments: draft.attachments, internal: false }).body;
     setDraft({ ...draft, attempt: payload });
@@ -77,7 +108,7 @@ export default function WorkspaceConversation({ conversation, peer, session, eve
     if (e.repeat || locked || (!draft.text.trim() && !draft.attachments.length)) return;
     e.currentTarget.form?.requestSubmit();
   }
-  return <section className="workspace-chat workspace-panel"><header className="workspace-chat-header"><PersonAvatar name={peer.name} image={peer.profileImage} /><div className="min-w-0 flex-1"><h2>{peer.name}</h2><p className="workspace-muted">{peer.designation || peer.accessRole || conversation.contactType}</p></div><span className={"workspace-conversation-status " + (conversation.status === "Open" ? "is-open" : "")}>{conversation.status}</span></header>
+  return <section className="workspace-chat workspace-panel"><header className="workspace-chat-header"><span className="workspace-presence-avatar"><PersonAvatar name={peer.name} image={peer.profileImage} /><WorkspacePresence presence={presence} available={presenceAvailable} /></span><div className="min-w-0 flex-1"><h2>{peer.name}</h2><p className="workspace-muted">{peer.designation || peer.accessRole || conversation.contactType}</p></div><span className={"workspace-conversation-status " + (conversation.status === "Open" ? "is-open" : "")}>{conversation.status}</span></header>
     <div className="workspace-history" ref={history} onScroll={() => { const node = history.current; nearBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 180; if (nearBottom.current) setHasNewMessages(false); }} aria-label="Message history" tabIndex={0}>
       {messages.hasNextPage && <Button variant="outline" size="sm" disabled={messages.isFetching} onClick={() => messages.fetchNextPage()}>Load older messages</Button>}
       <QueryState query={messages} empty={ordered.length === 0}>{ordered.map((message, index) => {
@@ -87,16 +118,16 @@ export default function WorkspaceConversation({ conversation, peer, session, eve
           {(index === 0 || dayKey(message.createdAt) !== dayKey(ordered[index - 1].createdAt)) && <div className="workspace-day-divider"><time dateTime={message.createdAt}>{dayLabel(message.createdAt)}</time></div>}
           <article className={'workspace-message ' + (own ? 'workspace-message-own' : '')}>
             <div className="workspace-bubble"><div className="workspace-bubble-content"><p>{message.text}</p><span className="workspace-message-time"><time dateTime={message.createdAt}>{timeLabel(message.createdAt)}</time>{own && <CheckCheck className={read ? 'is-read' : ''} aria-label={read ? 'Read' : 'Sent'} />}</span></div>
-              {message.attachments?.map(id => <FileLink key={idOf(id)} id={idOf(id)} />)}
+              {message.attachments?.map(id => <WorkspaceAttachment key={idOf(id)} id={idOf(id)} />)}
               {message.inboundMedia?.map((_, index) => <Button key={index} variant="link" size="sm" onClick={() => media(message._id, index)}>Download incoming attachment {index + 1}</Button>)}
             </div>
-            <div className="workspace-delivery">{!own && <span className="workspace-sender-name">{message.senderName || peer.name}</span>}{message.source !== "WhatsApp" && <><Monitor aria-hidden="true" /><span>{own ? read ? "Read" : message.dashboard?.status || "Sent" : "Dashboard"}</span></>}{(message.source === "WhatsApp" || (own && message.whatsapp?.status && message.whatsapp.status !== "Not applicable")) && <span className="workspace-whatsapp-delivery"><span className="workspace-whatsapp-icon" aria-hidden="true"><MessageCircle /><Phone /></span><span>{own ? message.whatsapp?.status : "WhatsApp"}</span></span>}</div>
+            <div className="workspace-message-edit-actions">{message.editedAt && <small>Edited</small>}{editable(message) && <Button variant="link" size="sm" onClick={() => { setEditing(message._id); setEditText(message.text || ''); }}>Edit</Button>}</div><div className="workspace-delivery">{!own && <span className="workspace-sender-name">{message.senderName || peer.name}</span>}{message.source !== "WhatsApp" && <><Monitor aria-hidden="true" /><span>{own ? read ? "Read" : message.dashboard?.status || "Sent" : "Dashboard"}</span></>}{(message.source === "WhatsApp" || (own && message.whatsapp?.status && message.whatsapp.status !== "Not applicable")) && <span className="workspace-whatsapp-delivery"><span className="workspace-whatsapp-icon" aria-hidden="true"><MessageCircle /><Phone /></span><span>{own ? message.whatsapp?.status : "WhatsApp"}</span></span>}</div>
           </article>
         </Fragment>;
       })}</QueryState><div ref={latestNode} className="h-1" />
     </div>
     {hasNewMessages && <Button variant="outline" size="sm" onClick={() => { history.current.scrollTop = history.current.scrollHeight; nearBottom.current = true; setHasNewMessages(false); }}>New messages - jump to latest</Button>}
-    <form onSubmit={send} className="workspace-composer"><div className="workspace-composer-heading"><h3>Message</h3><span>Sends via Dashboard</span></div>{conversation.status === 'Closed' ? <p className="workspace-muted">This conversation is closed.</p> : <><Textarea onKeyDown={handleMessageKeyDown} aria-keyshortcuts="Enter" aria-label="Message" placeholder={'Type a message to ' + peer.name + '...'} rows={3} maxLength={4000} disabled={locked} value={draft.text} onChange={e => setDraft({ ...draft, text: e.target.value })} />{draft.attachments.length > 0 && <p className="workspace-muted">{draft.attachments.length} files attached <Button type="button" variant="ghost" size="sm" disabled={locked} onClick={() => setDraft({ ...draft, attachments: [] })}>Clear</Button></p>}{draft.attempt && !mutation.isPending && <p role="alert" className="text-xs text-destructive">Delivery could not be confirmed. Retry this exact request to avoid creating a duplicate message.</p>}<div className="flex items-center justify-between"><Button type="button" variant="ghost" size="icon" aria-label="Attach event files" disabled={!eventId || locked} onClick={() => setPicking(true)}><Paperclip /></Button><Button type="submit" size="sm" disabled={mutation.isPending || (!draft.attempt && !draft.text.trim() && !draft.attachments.length)}><Send />{mutation.isPending ? 'Sending...' : draft.attempt ? 'Retry same request' : 'Send'}</Button></div></>}
-    </form>{picking && <WorkspaceFiles eventId={eventId} selected={draft.attachments} onSelect={attachments => setDraft({ ...draft, attachments })} onClose={() => setPicking(false)} />}
+    <form onSubmit={send} className="workspace-composer"><div className="workspace-composer-heading"><h3>Message</h3><span>Sends via Dashboard</span></div>{conversation.status === 'Closed' ? <p className="workspace-muted">This conversation is closed.</p> : <><Textarea onKeyDown={handleMessageKeyDown} aria-keyshortcuts="Enter" aria-label="Message" placeholder={'Type a message to ' + peer.name + '...'} rows={3} maxLength={4000} disabled={locked} value={draft.text} onChange={e => setDraft({ ...draft, text: e.target.value })} />{draft.attachments.length > 0 && <p className="workspace-muted">{draft.attachments.length} files attached <Button type="button" variant="ghost" size="sm" disabled={locked} onClick={() => setDraft({ ...draft, attachments: [] })}>Clear</Button></p>}{draft.attempt && !mutation.isPending && <p role="alert" className="text-xs text-destructive">Delivery could not be confirmed. Retry this exact request to avoid creating a duplicate message.</p>}<div className="flex items-center justify-between"><Button type="button" variant="ghost" size="icon" aria-label="Attach images or PDFs" disabled={locked || (conversation.contactType !== 'Employee' && !eventId)} onClick={() => setPicking(true)}><Paperclip /></Button><Button type="submit" variant="custom" size="sm" disabled={mutation.isPending || (!draft.attempt && !draft.text.trim() && !draft.attachments.length)}><Send />{mutation.isPending ? 'Sending...' : draft.attempt ? 'Retry same request' : 'Send'}</Button></div></>}
+    </form>{editing && <Modal title="Edit message" description="Edit the text or caption of your latest unread message." onClose={() => { if (!editMutation.isPending) setEditing(null); }}><form className="space-y-3" onSubmit={saveEdit}><Textarea aria-label="Edit message text" value={editText} maxLength={4000} disabled={editMutation.isPending} onChange={e => setEditText(e.target.value)} /><div className="flex justify-end gap-2"><Button type="button" variant="outline" disabled={editMutation.isPending} onClick={() => setEditing(null)}>Cancel</Button><Button type="submit" variant="custom" disabled={editMutation.isPending || !editText.trim()}>Save changes</Button></div></form></Modal>}{picking && <WorkspaceFiles {...(conversation.contactType === 'Employee' ? { conversationId: conversation._id } : { eventId })} selected={draft.attachments} onSelect={attachments => setDraft({ ...draft, attachments })} onClose={() => setPicking(false)} />}
   </section>;
 }
