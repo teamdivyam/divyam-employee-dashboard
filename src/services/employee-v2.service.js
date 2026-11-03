@@ -133,11 +133,13 @@ const EmployeeV2Service = {
             headers: { "Content-Type": undefined },
         }),
     updateEmployeeExpense: (expenseId, formData) =>
-        employeeV2Request.patch(
+        employeeV2Request.put(
             `/expense/employee/${encodeURIComponent(expenseId)}`,
             formData,
             { headers: { "Content-Type": undefined } },
         ),
+    deleteEmployeeExpense: (expenseId) =>
+        employeeV2Request.delete(`/expense/employee/${encodeURIComponent(expenseId)}`),
     updateCorrectionExpense: (expenseId, formData) =>
         employeeV2Request.patch(
             `/expense/employee/${encodeURIComponent(expenseId)}/correction`,

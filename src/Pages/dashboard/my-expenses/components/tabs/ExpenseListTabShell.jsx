@@ -13,6 +13,7 @@ export default function ExpenseListTabShell({
   onRetry,
   onView,
   onEdit,
+  onDelete,
   filters,
   onFilterChange,
   page,
@@ -22,7 +23,7 @@ export default function ExpenseListTabShell({
   return (
     <>
       <ExpenseFilters filters={filters} onChange={onFilterChange} />
-      <ExpenseTable activeTab={tabValue} expenses={expenses} loading={loading} error={error} onRetry={onRetry} onView={onView} onEdit={onEdit} />
+      <ExpenseTable activeTab={tabValue} expenses={expenses} loading={loading} error={error} onRetry={onRetry} onView={onView} onEdit={onEdit} onDelete={onDelete} />
       <DataPagination
         state={{ page, totalRows, rowsPerPage: PAGE_SIZE }}
         onPageChange={onPageChange}

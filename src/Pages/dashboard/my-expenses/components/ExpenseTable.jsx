@@ -1,6 +1,12 @@
 /* eslint-disable react/prop-types */
-import { FileText, Loader2 } from "lucide-react";
+import { FileText, Loader2, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@components/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@components/components/ui/dropdown-menu";
 import LinkedToDisplay from "./LinkedToDisplay";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@components/components/ui/table";
 import {
@@ -9,7 +15,7 @@ import {
   getRecommendedAmount, hasApprovedAmount,
 } from "./expense.utils";
 
-export default function ExpenseTable({ activeTab, expenses, loading, error, onRetry, onView, onEdit }) {
+export default function ExpenseTable({ activeTab, expenses, loading, error, onRetry, onView, onEdit, onDelete }) {
   const isDraftTab = activeTab === "drafts";
   const isPendingReviewTab = activeTab === "pending-review";
   const columnCount = isDraftTab ? 7 : 8;
@@ -33,7 +39,7 @@ export default function ExpenseTable({ activeTab, expenses, loading, error, onRe
           {!isDraftTab ? (
             <TableHead className="min-w-[130px] px-3 text-[11px]">Status</TableHead>
           ) : null}
-          <TableHead className="min-w-[105px] px-3 text-right text-[11px]">Action</TableHead>
+          <TableHead className="min-w-[115px] px-3 text-right text-[11px]">Action</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -61,6 +67,7 @@ export default function ExpenseTable({ activeTab, expenses, loading, error, onRe
               expense={expense}
               onView={onView}
               onEdit={onEdit}
+              onDelete={onDelete}
             />
           ))
         ) : (
@@ -76,10 +83,12 @@ export default function ExpenseTable({ activeTab, expenses, loading, error, onRe
   );
 }
 
-function ExpenseRow({ activeTab, expense, onView, onEdit }) {
+function ExpenseRow({ activeTab, expense, onView, onEdit, onDelete }) {
   const actionLabel = getActionLabel(expense.status);
   const isDraftTab = activeTab === "drafts";
   const isPendingReviewTab = activeTab === "pending-review";
+  const isPendingReviewStatus = String(expense?.status || "").trim().toLowerCase() === "pending finance review";
+  const showDropdownMenu = (activeTab === "all-expenses" || activeTab === "pending-review") && isPendingReviewStatus;
 
   return (
     <TableRow className="text-xs">
@@ -114,15 +123,49 @@ function ExpenseRow({ activeTab, expense, onView, onEdit }) {
         <TableCell className="px-3 py-2"><StatusBadge status={expense.status} /></TableCell>
       ) : null}
       <TableCell className="px-3 py-2 text-right">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-6 whitespace-nowrap px-2 text-[10px] text-primary"
-          onClick={() => (actionLabel === "Edit" || actionLabel === "Edit & Resubmit") ? onEdit(expense) : onView(expense)}
-        >
-          {actionLabel}
-        </Button>
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-6 whitespace-nowrap px-2 text-[10px] text-primary"
+            onClick={() => (actionLabel === "Edit" || actionLabel === "Edit & Resubmit") ? onEdit(expense) : onView(expense)}
+          >
+            {actionLabel}
+          </Button>
+
+          {showDropdownMenu && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  aria-label="Expense options"
+                >
+                  <MoreVertical className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-28 py-1 text-xs">
+                <DropdownMenuItem
+                  className="cursor-pointer gap-2 text-[11px]"
+                  onSelect={() => onEdit(expense)}
+                >
+                  <Pencil className="h-3 w-3 text-muted-foreground" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer gap-2 text-[11px] text-destructive focus:text-destructive"
+                  onSelect={() => onDelete?.(expense)}
+                >
+                  <Trash2 className="h-3 w-3 text-destructive" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </TableCell>
     </TableRow>
   );

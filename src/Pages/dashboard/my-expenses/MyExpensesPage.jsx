@@ -2,6 +2,17 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { Loader2, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@components/components/ui/alert-dialog";
 import TabComp from "@components/components/tab-comp";
 import useCurrentEmployee from "@/hooks/useCurrentEmployee";
 import EmployeeV2Service from "@/services/employee-v2.service";
@@ -60,6 +71,7 @@ export default function MyExpensesPage() {
   });
   const [page, setPage] = useState(1);
   const [selectedExpense, setSelectedExpense] = useState(null);
+  const [expenseToDelete, setExpenseToDelete] = useState(null);
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
   const [expenseForm, setExpenseForm] = useState(createEmptyExpenseForm);
@@ -255,6 +267,20 @@ export default function MyExpensesPage() {
     },
   });
 
+  const deleteExpenseMutation = useMutation({
+    mutationFn: (expenseId) => EmployeeV2Service.deleteEmployeeExpense(expenseId),
+    onSuccess: (response) => {
+      toast.success(response.data?.message || "Expense deleted successfully");
+      setExpenseToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["employee-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-office-advance-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-expense-analytics"] });
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Unable to delete expense"));
+    },
+  });
+
   const downloadMutation = useMutation({
     mutationFn: async () => {
       const request = (pagination) => EmployeeV2Service.getEmployeeExpenses({
@@ -375,7 +401,13 @@ export default function MyExpensesPage() {
 
   const openEditExpense = (expense) => {
     const status = String(expense?.status || "").toLowerCase();
-    if (!status.includes("draft") && !status.includes("correction required")) return;
+    if (
+      !status.includes("draft") &&
+      !status.includes("correction required") &&
+      !status.includes("pending finance review")
+    ) {
+      return;
+    }
     setEditingExpense(expense);
     setExpenseForm(createExpenseFormFromExpense(expense));
     setExpenseErrors({});
@@ -402,6 +434,7 @@ export default function MyExpensesPage() {
     onRetry: () => expensesQuery.refetch(),
     onView: setSelectedExpense,
     onEdit: openEditExpense,
+    onDelete: setExpenseToDelete,
     filters,
     onFilterChange: updateFilter,
     page,
@@ -470,6 +503,50 @@ export default function MyExpensesPage() {
         existingAttachments={editingExpense?.attachments || []}
         submitting={createExpenseMutation.isPending || updateExpenseMutation.isPending || updateCorrectionExpenseMutation.isPending}
       />
+      <AlertDialog open={Boolean(expenseToDelete)} onOpenChange={(open) => !open && setExpenseToDelete(null)}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base font-semibold">Delete Expense Claim</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground">
+              Are you sure you want to delete expense claim{" "}
+              <span className="font-semibold text-foreground">
+                {expenseToDelete?.expenseId ? `${expenseToDelete.expenseId} (${expenseToDelete.expenseName})` : expenseToDelete?.expenseName}
+              </span>
+              ? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-2">
+            <AlertDialogCancel
+              disabled={deleteExpenseMutation.isPending}
+              className="h-8 text-xs"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteExpenseMutation.isPending}
+              className="h-8 bg-destructive text-xs text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                if (expenseToDelete) {
+                  deleteExpenseMutation.mutate(expenseToDelete.expenseId || expenseToDelete._id);
+                }
+              }}
+            >
+              {deleteExpenseMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                  Delete
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
