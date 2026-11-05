@@ -1,545 +1,225 @@
-/* eslint-disable react/prop-types */
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams, useSearchParams } from "react-router-dom";
-import { toast } from "sonner";
-import { Button } from "@components/components/ui/button";
-import { Input } from "@components/components/ui/input";
-import { Textarea } from "@components/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/components/ui/select";
 import {
-  AlertCircle,
-  Activity,
-  Building2,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import {
   CalendarDays,
-  Check,
-  Clock3,
-  FileText,
-  FolderOpen,
+  CheckSquare,
+  CheckCircle2,
+  ClipboardCheck,
   Loader2,
-  Mail,
-  MapPin,
-  Phone,
-  Upload,
-  UserRound,
-  UsersRound,
+  Settings2,
+  WalletCards,
 } from "lucide-react";
+import { toast } from "sonner";
+
+import AdminService from "../../../services/event-booking-workspace.service";
 import TabComp from "@components/components/tab-comp";
-import EmployeeService from "@/services/employee.service";
+import { Button } from "@components/components/ui/button";
 import {
-  DetailStat,
-  formatDate,
-  formatDateTime,
-  formatDay,
-  getEventImage,
-  MoreButton,
-  RoleBadge,
-  SectionCard,
-  StatusBadge,
-  TableActionButton,
-} from "./components/AssignedEventUI";
+  getBookingDetail,
+  getEmployees,
+} from "../event-booking-workspace/components/EventBookingComponents";
+import { EventSummaryContext } from "../event-booking-workspace/components/EventSummaryContext";
+import EventBookingClientHeader from "../event-booking-workspace/components/EventBookingClientHeader";
+import AddBookingDialog from "../event-booking-workspace/components/AddBookingDialog";
 
-const workspaceTabs = [
-  { value: "overview", label: "Overview", icon: UserRound },
-  { value: "event-plan", label: "Event Plan", icon: CalendarDays },
-  { value: "operations", label: "Operations", icon: Check },
-  { value: "files", label: "Finance & Files", icon: FolderOpen },
-  { value: "activity", label: "Activity", icon: Activity },
+const tabs = [
+  { value: "overview", label: "Overview", icon: CheckCircle2 },
+  { value: "plan", label: "Event Plan", icon: CalendarDays },
+  { value: "operations", label: "Operations", icon: Settings2 },
+  { value: "finance", label: "Finance & Files", icon: WalletCards },
+  { value: "post-event-review", label: "Post-Event Review", icon: CheckSquare },
+  { value: "activity", label: "Activity", icon: ClipboardCheck },
 ];
-
-const validWorkspaceTabs = new Set(workspaceTabs.map((tab) => tab.value));
+const destinations = {
+  overview: "",
+  plan: "/plan/functions",
+  operations: "/operations",
+  finance: "/finance",
+  "post-event-review": "/post-event-review",
+  activity: "/activity",
+};
 
 export default function DetailAssignedEventPage() {
   const { clientId, eventId } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
   const queryClient = useQueryClient();
-  const [issue, setIssue] = useState({ issueType: "Vendor Issue", description: "" });
-  const [proofTaskId, setProofTaskId] = useState("");
-  const [proofFiles, setProofFiles] = useState([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const basePath = `/dashboard/assigned-events/${eventId}`;
+  const entryPath = clientId
+    ? `/dashboard/assigned-clients/${clientId}/events/${eventId}`
+    : basePath;
+  const section = pathname.slice(entryPath.length).split("/")[1];
+  const requestedTab = searchParams.get("tab");
+  const activeTab = Object.hasOwn(destinations, section) ? section : "overview";
 
-  const eventQuery = useQuery({
-    queryKey: ["assigned-event-detail", eventId],
-    queryFn: async () => {
-      const response = await EmployeeService.getAssignedEventDetail({ eventId });
-      return response.data.event;
-    },
+  // Entry URLs use primary tabs; nested pages retain their own tab values.
+  useEffect(() => {
+    if (!section && requestedTab && requestedTab !== "overview" && Object.hasOwn(destinations, requestedTab)) {
+      navigate({ pathname: basePath + destinations[requestedTab], search: searchParams.toString() }, { replace: true });
+    }
+  }, [section, requestedTab, basePath, navigate, searchParams]);
+
+  const selectSection = (value) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === "overview") next.delete("tab");
+    else next.set("tab", value);
+    navigate({ pathname: basePath + destinations[value], search: next.toString() });
+  };
+  const isInventory = pathname === `${basePath}/operations/inventory`;
+  const inventoryScrollRef = useCallback((page) => {
+    if (!page || !isInventory) return;
+    const header = page.querySelector('[data-event-locked-header]');
+    const tabs = page.querySelector('[data-event-primary-tabs]');
+    if (!header || !tabs) return;
+    const update = () => {
+      const headerHeight = header.getBoundingClientRect().height;
+      page.style.setProperty('--event-locked-header-height', `${headerHeight}px`);
+      page.style.setProperty('--event-inventory-header-offset', `${headerHeight + tabs.getBoundingClientRect().height}px`);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(header);
+    observer.observe(tabs);
+    return () => {
+      observer.disconnect();
+      page.style.removeProperty('--event-locked-header-height');
+      page.style.removeProperty('--event-inventory-header-offset');
+    };
+  }, [isInventory]);
+  const [summaryTarget, setSummaryTarget] = useState(null);
+  const [bookingFormOpen, setBookingFormOpen] = useState(false);
+  const bookingQuery = useQuery({
+    queryKey: ["event-booking-detail", eventId],
+    queryFn: async () =>
+      (await AdminService.getEventBookingDetail({ eventId })).data,
     enabled: Boolean(eventId),
   });
-
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["assigned-event-detail", eventId] });
-
-  const statusMutation = useMutation({
-    mutationFn: ({ taskId, status }) =>
-      EmployeeService.updateAssignedEventTaskStatus({
-        eventId,
-        taskId,
-        status,
-        note: `Updated to ${status}`,
+  const booking = getBookingDetail(bookingQuery.data);
+  const managersQuery = useQuery({
+    queryKey: ["event-booking-managers"],
+    queryFn: async () =>
+      (await AdminService.getEventBookingManagers({ limit: 100 })).data,
+  });
+  const employees = getEmployees(managersQuery.data);
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["event-booking-detail", eventId],
       }),
+      queryClient.invalidateQueries({ queryKey: ["event-bookings"] }),
+      queryClient.invalidateQueries({ queryKey: ["event-booking-analytics"] }),
+    ]);
+  const bookingFormMutation = useMutation({
+    mutationFn: (formData) =>
+      AdminService.updateEventBookingForm({ eventId, formData }),
     onSuccess: (response) => {
-      toast.success(response.data?.message || "Task updated");
-      invalidate();
+      toast.success(response?.data?.message || "Booking updated");
+      setBookingFormOpen(false);
+      refresh();
     },
-    onError: (error) => toast.error(error.response?.data?.message || "Unable to update task"),
+    onError: (error) =>
+      toast.error(error.response?.data?.message || "Unable to update booking"),
   });
 
-  const proofMutation = useMutation({
-    mutationFn: () => {
-      const formData = new FormData();
-      proofFiles.forEach((file) => formData.append("proof", file));
-      formData.append("note", "Uploaded from employee event dashboard");
-      return EmployeeService.uploadAssignedEventTaskProof({ eventId, taskId: proofTaskId, formData });
-    },
-    onSuccess: (response) => {
-      toast.success(response.data?.message || "Proof uploaded");
-      setProofFiles([]);
-      setProofTaskId("");
-      invalidate();
-    },
-    onError: (error) => toast.error(error.response?.data?.message || "Unable to upload proof"),
-  });
+  useEffect(() => {
+    if (searchParams.get("action") === "edit-booking") setBookingFormOpen(true);
+  }, [searchParams]);
 
-  const issueMutation = useMutation({
-    mutationFn: () => EmployeeService.raiseAssignedEventIssue({ eventId, ...issue }),
-    onSuccess: (response) => {
-      toast.success(response.data?.message || "Issue raised");
-      setIssue({ issueType: "Vendor Issue", description: "" });
-      invalidate();
-    },
-    onError: (error) => toast.error(error.response?.data?.message || "Unable to raise issue"),
-  });
-
-  const dutyMutation = useMutation({
-    mutationFn: (action) => EmployeeService.updateAssignedEventDutyAttendance({ eventId, action, notes: "Updated from dashboard" }),
-    onSuccess: (response) => {
-      toast.success(response.data?.message || "Duty attendance updated");
-      invalidate();
-    },
-    onError: (error) => toast.error(error.response?.data?.message || "Unable to update duty attendance"),
-  });
-
-  const event = eventQuery.data;
-  const assignment = event?.myAssignment || {};
-  const actionPermissions = new Set(assignment.actionPermissions || []);
-  const requestedTab = searchParams.get("tab");
-  const activeTab = validWorkspaceTabs.has(requestedTab) ? requestedTab : "overview";
-
-  const handleTabChange = (nextTab) => {
-    const nextParams = new URLSearchParams(searchParams);
-    if (nextTab === "overview") nextParams.delete("tab");
-    else nextParams.set("tab", nextTab);
-    setSearchParams(nextParams, { replace: true });
+  const setBookingDialogOpen = (open) => {
+    setBookingFormOpen(open);
+    if (!open && searchParams.has("action")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("action");
+      setSearchParams(next, { replace: true });
+    }
   };
 
-  if (eventQuery.isLoading) {
+  if (bookingQuery.isLoading)
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-background">
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-5 py-4 text-sm font-semibold text-foreground shadow-sm">
-          <Loader2 className="h-5 w-5 animate-spin text-theme-color" />
-          Loading assigned event
-        </div>
+      <div className="crm-page grid min-h-[70vh] place-items-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
-  }
-
-  if (eventQuery.isError) {
+  if (!booking)
     return (
-      <div className="p-5">
-        <div className="rounded-lg border border-red-200 bg-red-50 p-5 text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300">
-          <div className="flex items-center gap-3 font-semibold">
-            <AlertCircle className="h-5 w-5" />
-            Unable to load assigned event
-          </div>
-          <p className="mt-2 text-sm">{eventQuery.error?.response?.data?.message || "Please try again in a moment."}</p>
-        </div>
+      <div className="crm-page p-5 text-center">
+        <p>
+          {bookingQuery.isError
+            ? "Unable to load event booking"
+            : "Event booking not found"}
+        </p>
+        <Button
+          variant="outline"
+          className="mt-3"
+          onClick={() => bookingQuery.refetch()}
+        >
+          Try again
+        </Button>
       </div>
     );
-  }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground md:p-6">
-      <div className="mx-auto max-w-[1500px] space-y-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-foreground">{event.eventName}</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <Link to="/dashboard" className="hover:text-primary">Home</Link>
-              <span>/</span>
-              <Link
-                to={clientId ? `/dashboard/assigned-clients/${clientId}` : "/dashboard/assigned-events"}
-                className="hover:text-primary"
-              >
-                {clientId ? event.client?.name || "Assigned Client" : "Assigned Events"}
-              </Link>
-              <span>/</span>
-              <span>{event.eventName}</span>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge>{event.bookingStatus}</StatusBadge>
-            {event.eventCode ? (
-              <span className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground">
-                {event.eventCode}
-              </span>
-            ) : null}
-          </div>
-        </div>
-
-        <TabComp
-          tabs={workspaceTabs}
-          value={activeTab}
-          onValueChange={handleTabChange}
-          ariaLabel="Assigned event workspace sections"
-          listClassName="justify-start overflow-x-auto"
+    <div ref={inventoryScrollRef} data-event-inventory-page={isInventory || undefined} className="crm-page relative h-[calc(100dvh-4rem)] min-w-0 overflow-auto [&_input[placeholder^='Search']::placeholder]:text-xs [&_input[placeholder^='Search']:focus-visible]:border-primary [&_input[type='search']::placeholder]:text-xs [&_input[type='search']:focus-visible]:border-primary">
+      <div className={isInventory ? "contents" : "sticky top-0 z-20 space-y-3 bg-background p-3 pb-4 sm:p-4 lg:p-5 lg:pb-4"}>
+        <div data-event-locked-header={isInventory || undefined} className={isInventory ? "sticky top-0 z-30 bg-background p-3 pb-0 sm:p-4 sm:pb-0 lg:p-5 lg:pb-0" : ""}>
+        <EventBookingClientHeader
+          booking={booking}
+          onAssignTask={() =>
+            navigate(basePath + "/operations?action=create-task")
+          }
+          onAllocateItem={() =>
+            navigate(
+              basePath + "/operations/inventory?action=add-company-requirement",
+            )
+          }
+          onDownloadEvent={() => window.print()}
+          onRecordPayment={() =>
+            navigate(basePath + "/finance?tab=payments&action=record-payment")
+          }
         />
-
-        <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
-          <div className="space-y-5">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
-              <DetailStat icon={CalendarDays} label="Event Date" value={formatDate(event.eventDate)} subValue={formatDay(event.eventDate)} />
-              <DetailStat icon={MapPin} label="Venue" value={event.venue} subValue={event.city} tone="green" />
-              <DetailStat icon={Building2} label="City" value={event.city} subValue="Uttar Pradesh" tone="slate" />
-              <DetailStat icon={UsersRound} label="Guest Count" value={`${event.guestCount || 0} pax`} subValue="Approx." tone="violet" />
-              <DetailStat icon={CalendarDays} label="Functions" value={event.noOfFunctions} subValue="Functions" />
-              <DetailStat icon={UserRound} label="My Role" value={assignment.role} subValue={assignment.responsibility} tone="red" />
-              <DetailStat icon={UserRound} label="Reporting Manager" value={event.reportingManager?.name || assignment.reportingManager?.name} subValue="Manager" tone="slate" />
-            </div>
-
-            {activeTab === "overview" ? (
-              <SectionCard title="My Role & Responsibilities" icon={UserRound}>
-              <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-                <div className="space-y-3">
-                  <Info label="My Role" value={<RoleBadge>{assignment.role}</RoleBadge>} />
-                  <Info label="Reporting Manager" value={event.reportingManager?.name || "Not available"} />
-                  <Info label="Team Size" value={`${assignment.teamSize || 0} Members`} />
-                  <Info label="Reporting Time" value={formatDateTime(assignment.reportingTime)} />
-                </div>
-                <div className="border-l border-border pl-6">
-                  <p className="mb-3 text-sm font-semibold text-foreground">Key Responsibilities</p>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {(assignment.responsibilities || []).map((item) => (
-                      <div key={item} className="flex items-start gap-2 text-sm text-foreground">
-                        <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
-                        <span>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              </SectionCard>
-            ) : null}
-
-            {activeTab === "event-plan" ? (
-              <SectionCard title="Functions & Timeline" icon={CalendarDays}>
-              <DataTable
-                headers={["#", "Function", "Date & Day", "Time", "Venue Area", "Guest Count", "My Responsibility", "Status"]}
-                rows={(event.functions || []).map((fn, index) => [
-                  index + 1,
-                  fn.name,
-                   <div key={`date-${fn._id || index}`}><p>{formatDate(fn.date)}</p><p className="text-xs text-muted-foreground">{formatDay(fn.date)}</p></div>,
-                  `${fn.startTime || ""} - ${fn.endTime || ""}`,
-                  fn.area,
-                  `${fn.guestCount || 0} pax`,
-                  fn.myResponsibility,
-                   <StatusBadge key={`status-${fn._id || index}`}>{fn.status}</StatusBadge>,
-                ])}
-              />
-              </SectionCard>
-            ) : null}
-
-            {activeTab === "event-plan" ? (
-              <SectionCard title="Planned Services" icon={Building2}>
-                {event.servicesRequired?.length ? (
-                  <div className="flex flex-wrap gap-2">
-                    {event.servicesRequired.map((service) => (
-                      <RoleBadge key={service}>{service}</RoleBadge>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState message="No services are available for this assignment." />
-                )}
-              </SectionCard>
-            ) : null}
-
-            {activeTab === "operations" ? (
-              <SectionCard title="My Tasks for This Event" icon={Check}>
-              <DataTable
-                headers={["#", "Task", "Due Date", "Priority", "Status", "Proof Required", "Action", ""]}
-                rows={(event.tasks || []).map((task, index) => [
-                  index + 1,
-                  task.taskTitle,
-                  formatDateTime(task.dueDate),
-                  <StatusBadge key={`priority-${task._id}`}>{task.priority}</StatusBadge>,
-                  <StatusBadge key={`status-${task._id}`}>{task.status}</StatusBadge>,
-                  task.proofRequired ? "Yes" : "No",
-                  task.availableActions?.updateStatus ? (
-                    <TableActionButton
-                      key={`action-${task._id}`}
-                      onClick={() => statusMutation.mutate({
-                        taskId: task._id,
-                        status: ["Not Started", "Pending", "Rework"].includes(task.status)
-                          ? "In Progress"
-                          : "Submitted",
-                      })}
-                    >
-                      {["Not Started", "Pending", "Rework"].includes(task.status) ? "Start Task" : "Continue"}
-                    </TableActionButton>
-                  ) : (
-                    <span key={`action-${task._id}`} className="text-xs text-muted-foreground">No action</span>
-                  ),
-                  <MoreButton key={`more-${task._id}`} />,
-                ])}
-              />
-              </SectionCard>
-            ) : null}
-
-            {activeTab === "files" ? (
-              <SectionCard title="Event Brief & Documents" icon={FileText}>
-              {event.documents?.length ? (
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  {event.documents.map((doc, index) => (
-                    <div key={doc._id || index} className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
-                      <FileText className="h-6 w-6 text-red-500" />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-foreground">{doc.name || doc.label || `Document ${index + 1}`}</p>
-                        <p className="text-xs text-muted-foreground">{doc.fileType || "Document"}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-lg border border-dashed border-border bg-background p-8 text-center text-sm text-muted-foreground">
-                  No event documents available.
-                </div>
-              )}
-              </SectionCard>
-            ) : null}
-
-            {activeTab === "files" ? (
-              <SectionCard title="Financial Access" icon={FolderOpen}>
-                <EmptyState message="Financial controls are available only to authorized finance and admin users. Event files shared with you appear above." />
-              </SectionCard>
-            ) : null}
-
-            {activeTab === "operations" ? (
-              <SectionCard title="Inventory / Essentials" icon={FolderOpen}>
-              <DataTable
-                headers={["Item", "Category", "Applies To", "Required", "Reserved", "Shortage", "Status"]}
-                rows={(event.inventory || []).map((item) => [
-                  item.itemName,
-                  item.category,
-                  item.appliesToLabel || "All Functions",
-                  `${item.requiredQuantity || 0} ${item.unitLabel || "pcs"}`,
-                  item.reservedQuantity || 0,
-                  item.shortageQuantity || 0,
-                  <StatusBadge key={`inventory-${item._id}`}>{item.status}</StatusBadge>,
-                ])}
-              />
-              </SectionCard>
-            ) : null}
-
-            {activeTab === "operations" && event.vendors?.length ? (
-              <SectionCard title="Vendor Coordination" icon={Building2}>
-                <DataTable
-                  headers={["Vendor", "Service", "Scope", "Reporting", "Work Status", "Confirmation"]}
-                  rows={event.vendors.map((assignmentItem) => [
-                    assignmentItem.vendor?.companyName || "Vendor",
-                    assignmentItem.service || assignmentItem.category,
-                    assignmentItem.scope || "Not specified",
-                    formatDateTime(assignmentItem.reportingTime),
-                    <StatusBadge key={`work-${assignmentItem._id}`}>{assignmentItem.workStatus}</StatusBadge>,
-                    <StatusBadge key={`confirmation-${assignmentItem._id}`}>{assignmentItem.confirmationStatus}</StatusBadge>,
-                  ])}
-                />
-              </SectionCard>
-            ) : null}
-
-            {activeTab === "activity" ? (
-              <SectionCard title="My Raised Issues" icon={AlertCircle}>
-                <DataTable
-                  headers={["Issue Type", "Description", "Raised On", "Status", "Resolution"]}
-                  rows={(event.issues || []).map((eventIssue) => [
-                    eventIssue.issueType,
-                    eventIssue.description,
-                    formatDateTime(eventIssue.raisedAt),
-                    <StatusBadge key={`issue-${eventIssue._id}`}>{eventIssue.status}</StatusBadge>,
-                    eventIssue.resolutionNote || "Awaiting update",
-                  ])}
-                />
-              </SectionCard>
-            ) : null}
-          </div>
-
-          {activeTab === "overview" || activeTab === "operations" || activeTab === "activity" ? (
-            <aside className="space-y-5">
-            {activeTab === "overview" ? (
-              <img src={getEventImage(event)} alt={event.eventName} className="h-56 w-full rounded-lg object-cover shadow-sm" />
-            ) : null}
-
-            {activeTab === "overview" ? (
-              <SectionCard title="Team & Contacts" icon={UsersRound}>
-              <div className="space-y-4">
-                {(event.teamContacts || []).map((person, index) => {
-                  const employee = person.employee || person;
-                  return (
-                    <div key={person._id || employee._id || index} className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-semibold">
-                        {employee.name?.charAt(0) || "T"}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground">{employee.name || "Team Member"}</p>
-                        <p className="text-xs text-muted-foreground">{person.role || employee.designation || "Event Team"}</p>
-                      </div>
-                      {employee.phoneNo ? <Phone className="h-4 w-4 text-primary" aria-label={employee.phoneNo} /> : null}
-                      {employee.email ? <Mail className="h-4 w-4 text-primary" aria-label={employee.email} /> : null}
-                    </div>
-                  );
-                })}
-                {!event.teamContacts?.length ? <p className="text-sm text-muted-foreground">No team contacts available.</p> : null}
-              </div>
-              </SectionCard>
-            ) : null}
-
-            {activeTab === "overview" ? (
-              <SectionCard title="Duty Attendance" icon={Clock3}>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <Info label="Reporting Time" value={formatDateTime(assignment.reportingTime)} />
-                <Info label="Duty Status" value={<StatusBadge>{assignment.dutyAttendance?.status}</StatusBadge>} />
-                <Info label="Check In" value={formatDateTime(assignment.dutyAttendance?.checkInAt)} />
-                <Info label="Check Out" value={formatDateTime(assignment.dutyAttendance?.checkOutAt)} />
-              </div>
-              </SectionCard>
-            ) : null}
-
-            {activeTab === "activity" && actionPermissions.has("raise_issue") ? (
-              <SectionCard title="Raise Event Issue" icon={AlertCircle}>
-              <div className="space-y-3">
-                <Select value={issue.issueType} onValueChange={(value) => setIssue((current) => ({ ...current, issueType: value }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["Vendor Issue", "Inventory Missing", "Staff Shortage", "Delay", "Client Issue", "Damage / Loss"].map((type) => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Textarea
-                  value={issue.description}
-                  onChange={(eventInput) => setIssue((current) => ({ ...current, description: eventInput.target.value }))}
-                  placeholder="Describe the issue in detail..."
-                  className="min-h-24 resize-none"
-                />
-                <Button className="w-full bg-theme-color" disabled={!issue.description || issueMutation.isPending} onClick={() => issueMutation.mutate()}>
-                  {issueMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Submit Issue
-                </Button>
-              </div>
-              </SectionCard>
-            ) : null}
-
-            {activeTab === "activity" ? (
-              <SectionCard title="Recent Updates" icon={Clock3}>
-              <div className="space-y-3">
-                {(event.recentUpdates || []).map((update, index) => (
-                  <div key={update._id || index} className="flex justify-between gap-3 text-sm">
-                    <span className="text-foreground">{update.message || update.title}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground">{formatDate(update.createdAt)}</span>
-                  </div>
-                ))}
-                {!event.recentUpdates?.length ? <p className="text-sm text-muted-foreground">No recent updates.</p> : null}
-              </div>
-              </SectionCard>
-            ) : null}
-
-            {activeTab === "operations" ? (
-              <SectionCard title="Quick Actions" icon={Check}>
-              <div className="grid grid-cols-2 gap-3">
-                <Button variant="outline">View My Tasks</Button>
-                <Button
-                  variant="outline"
-                  disabled={!actionPermissions.has("upload_proof")}
-                  onClick={() => document.getElementById("proof-upload")?.click()}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload Proof
-                </Button>
-                <Button variant="outline">View Event Brief</Button>
-                <Button variant="outline">Contact Manager</Button>
-                <Button
-                  variant="outline"
-                  disabled={!actionPermissions.has("mark_duty_attendance")}
-                  onClick={() => dutyMutation.mutate("check_in")}
-                >
-                  Check In
-                </Button>
-                <Button
-                  className="bg-emerald-600 text-white hover:bg-emerald-700"
-                  disabled={!actionPermissions.has("mark_duty_complete")}
-                  onClick={() => dutyMutation.mutate("complete")}
-                >
-                  Mark Complete
-                </Button>
-              </div>
-              <div className="mt-4 space-y-3">
-                <Select value={proofTaskId} onValueChange={setProofTaskId}>
-                  <SelectTrigger><SelectValue placeholder="Select task for proof" /></SelectTrigger>
-                  <SelectContent>
-                    {(event.tasks || []).map((task) => <SelectItem key={task._id} value={task._id}>{task.taskTitle}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Input id="proof-upload" type="file" multiple onChange={(inputEvent) => setProofFiles(Array.from(inputEvent.target.files || []))} />
-                <Button className="w-full bg-theme-color" disabled={!proofTaskId || !proofFiles.length || proofMutation.isPending} onClick={() => proofMutation.mutate()}>
-                  {proofMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Upload Selected Proof
-                </Button>
-              </div>
-              </SectionCard>
-            ) : null}
-            </aside>
-          ) : null}
+        </div>
+        <div ref={setSummaryTarget} className={isInventory ? "min-w-0 mx-3 mt-3 empty:hidden sm:mx-4 lg:mx-5" : "min-w-0 empty:hidden"} />
+        <div data-event-primary-tabs={isInventory || undefined} className={isInventory ? "sticky top-[var(--event-locked-header-height,0px)] z-20 mt-3 mb-4 bg-background px-3 sm:px-4 lg:px-5" : ""}>
+        <TabComp
+          tabs={tabs}
+          value={activeTab}
+          onValueChange={selectSection}
+          distribution="content"
+          density="compact"
+          ariaLabel="Event sections"
+        />
         </div>
       </div>
-    </div>
-  );
-}
-
-function Info({ label, value }) {
-  return (
-    <div>
-      <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-      <div className="mt-1 text-sm font-medium text-foreground">{value || "Not available"}</div>
-    </div>
-  );
-}
-
-function EmptyState({ message }) {
-  return (
-    <div className="rounded-lg border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-      {message}
-    </div>
-  );
-}
-
-function DataTable({ headers, rows }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] text-left text-sm">
-        <thead className="border-b border-border text-xs font-semibold text-muted-foreground">
-          <tr>
-            {headers.map((header) => <th key={header} className="px-3 py-3">{header}</th>)}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {rows.length ? rows.map((row, rowIndex) => (
-            <tr key={rowIndex} className="hover:bg-muted/30">
-              {row.map((cell, cellIndex) => <td key={cellIndex} className="px-3 py-3 align-middle text-foreground">{cell}</td>)}
-            </tr>
-          )) : (
-            <tr>
-              <td colSpan={headers.length} className="px-3 py-8 text-center text-muted-foreground">No data available.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+      <div className="min-w-0 px-3 pb-3 sm:px-4 sm:pb-4 lg:px-5 lg:pb-5 [&>.crm-page]:!min-h-0 [&>.crm-page]:!p-0">
+        <EventSummaryContext.Provider value={summaryTarget}>
+          <Outlet
+            context={{
+              booking,
+              bookingQuery,
+              openBookingEdit: () => setBookingFormOpen(true),
+              openBookingSnapshotEdit: () => setBookingFormOpen(true),
+            }}
+          />
+        </EventSummaryContext.Provider>
+      </div>
+      <AddBookingDialog
+        open={bookingFormOpen}
+        onOpenChange={setBookingDialogOpen}
+        booking={booking}
+        customers={booking.customer ? [booking.customer] : []}
+        employees={employees}
+        mode="edit"
+        saving={bookingFormMutation.isPending}
+        onSubmit={(payload) => bookingFormMutation.mutate(payload)}
+      />
     </div>
   );
 }

@@ -33,7 +33,7 @@ import EventRolesResponsibilitiesPage from "../Pages/dashboard/event-booking-wor
 import EventFinancePage from "../Pages/dashboard/event-booking-workspace/EventFinancePage";
 import EventPostEventReviewPage from "../Pages/dashboard/event-booking-workspace/EventPostEventReviewPage";
 import EventActivityPage from "../Pages/dashboard/event-booking-workspace/EventActivityPage";
-import EventBookingLayout from "../Pages/dashboard/event-booking-workspace/EventBookingLayout";
+import DetailAssignedEventPage from "../Pages/dashboard/assigned-events/DetailAssignedEventPage";
 import VendorCoordinationPage from "../Pages/dashboard/vendor-coordination/VendorCoordinationPage";
 import InventoryEssentialsPage from "../Pages/dashboard/inventory-essentials/InventoryEssentialsPage";
 import DocumentsPage from "../Pages/dashboard/documents/DocumentsPage";
@@ -90,7 +90,7 @@ const DashBoardRoutes = () => {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="my-tasks" element={<MyTasksPage />} />
             <Route path="assigned-events" element={<EventBookingDashboardPage />} />
-            <Route path="assigned-events/:eventId" element={<EventBookingLayout />}>
+            <Route path="assigned-events/:eventId" element={<DetailAssignedEventPage />}>
               <Route index element={<EventOverviewPage />} />
               <Route path="plan/functions" element={<EventFunctionsPage />} />
               <Route path="plan/services" element={<EventServicesPage />} />
@@ -116,8 +116,10 @@ const DashBoardRoutes = () => {
             <Route path="assigned-clients/:clientId" element={<DetailAssignedClientPage />} />
             <Route
               path="assigned-clients/:clientId/events/:eventId"
-              element={<EventOverviewPage />}
-            />
+              element={<DetailAssignedEventPage />}
+            >
+              <Route index element={<EventOverviewPage />} />
+            </Route>
             <Route path="vendor-coordination" element={<VendorCoordinationPage />} />
             <Route path="vendor-coordination/:vendorId/:assignmentId" element={<DetailVendorCoordinationPage />} />
             <Route path="inventory-essentials" element={<InventoryEssentialsPage />} />

@@ -19,7 +19,10 @@ const FOOTER_LINKS = [
   { x: SOCIAL_X + 20, url: 'https://www.facebook.com/letsdivyam' },
 ];
 const textValue = (value, fallback = '-') => typeof value === 'string' || typeof value === 'number' ? String(value).trim() || fallback : fallback;
-const amountValue = (value) => value === null || value === undefined || value === '' || !Number.isFinite(Number(value)) ? null : Number(value);
+const amountValue = (value) => {
+  const raw = value?.$numberDecimal ?? value;
+  return raw === null || raw === undefined || raw === '' || !Number.isFinite(Number(raw)) ? null : Number(raw);
+};
 const money = (value) => value === null ? '-' : '\u20b9' + new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(value);
 const dateLabel = (value) => value && !Number.isNaN(new Date(value).getTime()) ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value)) : '-';
 
@@ -39,7 +42,6 @@ export function amountInWords(amount) {
 }
 
 export function receiptModel(receipt, booking = {}, generatedAt = new Date()) {
-  console.log("receipt:", receipt);
   const snapshot = receipt.bookingPaymentSummary;
   const total = amountValue(snapshot?.contractValue ?? booking.paymentSummary?.totalAmount ?? booking.finance?.bookingValue);
   const received = amountValue(snapshot?.totalReceived ?? booking.paymentSummary?.receivedAmount ?? booking.finance?.amountReceived);
