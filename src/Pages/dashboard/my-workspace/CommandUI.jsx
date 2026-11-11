@@ -41,8 +41,8 @@ export function PersonAvatar({ name, image, className = '', fallbackClassName = 
 export function Status({ children }) {
   return <Badge variant="outline" className="whitespace-normal text-[10px]">{children}</Badge>;
 }
-export function Modal({ title, description, children, onClose, wide = false, contentClassName }) {
-  return <Dialog open onOpenChange={open => { if (!open) onClose(); }}><DialogContent className={cn(wide ? 'max-h-[90dvh] w-[calc(100%-1.5rem)] overflow-y-auto text-foreground sm:max-w-5xl' : 'max-h-[90dvh] w-[calc(100%-1.5rem)] overflow-y-auto text-foreground sm:max-w-xl', contentClassName)}><DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>{description || 'My Workspace'}</DialogDescription></DialogHeader>{children}</DialogContent></Dialog>;
+export function Modal({ title, description, children, onClose, wide = false, contentClassName, hideDescription = false }) {
+  return <Dialog open onOpenChange={open => { if (!open) onClose(); }}><DialogContent className={cn(wide ? 'max-h-[90dvh] w-[calc(100%-1.5rem)] overflow-y-auto text-foreground sm:max-w-5xl' : 'max-h-[90dvh] w-[calc(100%-1.5rem)] overflow-y-auto text-foreground sm:max-w-xl', contentClassName)}><DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription className={hideDescription ? 'sr-only' : undefined}>{description || 'My Workspace'}</DialogDescription></DialogHeader>{children}</DialogContent></Dialog>;
 }
 export function Field({ label, error, children }) {
   return <div className="space-y-1"><Label className="text-xs">{label}</Label>{children}{error && <p role="alert" className="text-xs text-destructive">{error.message || error}</p>}</div>;

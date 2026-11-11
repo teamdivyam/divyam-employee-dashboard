@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import useAuthSession from '@/hooks/useAuthSession';
 import useCurrentEmployee from '@/hooks/useCurrentEmployee';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/components/ui/dropdown-menu';
-import { Download, FileText, Upload, Files, Image, HardDrive, MoreVertical, Search } from 'lucide-react';
+import { Download, FileImage, FolderOpen, FileText, Upload, Files, Image, HardDrive, MoreVertical, Search } from 'lucide-react';
 import { Button } from '@components/components/ui/button';
 import { Input } from '@components/components/ui/input';
 import { Checkbox } from '@components/components/ui/checkbox';
@@ -15,6 +15,10 @@ import { useCommandMutation, useCommandQuery } from './useCommand';
 import { CHAT_FILE_TYPES, uploadError } from './workspaceMedia.utils';
 import { Modal, Pager, PersonAvatar, QueryState } from './CommandUI';
 
+function FileEmptyState({ preview = false, filtered = false }) {
+  const Icon = preview ? FileImage : FolderOpen;
+  return <div className="workspace-file-empty"><div className={'workspace-file-empty-art' + (preview ? ' is-preview' : '')} aria-hidden="true"><span /><Icon strokeWidth={1} /><i /><i /><i /></div><p>{preview ? 'Select a file to preview.' : filtered ? 'No matching files found.' : 'No records found.'}</p></div>;
+}
 export function FileLink({ id, name, download = false }) {
   const mutation = useCommandMutation();
   return <Button type="button" variant="link" size="sm" className="workspace-file-link" disabled={mutation.isPending} onClick={() => {
@@ -71,18 +75,18 @@ export default function WorkspaceFiles({ eventId, employeeId, conversationId, on
   const metrics = [['Total Files', Files, totals?.count], ['Images', Image, totals?.images], ['Other Files', FileText, totals?.other], ['Storage', HardDrive, totals ? fileSize(totals.bytes) : undefined]];
   const visibleFiles = query.data?.items?.filter(file => !chat || CHAT_FILE_TYPES.includes(file.contentType)) || [];
   const person = employee.data;
-  return <Modal title={<><span className="workspace-files-heading-icon"><FileText /></span>{onSelect ? 'Attach Files' : 'Shared Files'}</>} description={chat ? 'Images and PDFs shared in this conversation.' : employeeId ? 'Files shared with this employee.' : 'Files shared with this event.'} onClose={onClose} wide contentClassName="workspace-files-dialog">
+  return <Modal title={<><span className="workspace-files-heading-icon"><FileText /></span>{chat ? 'Chat Attachments' : onSelect ? 'Attach Shared Files' : 'Shared Files'}</>} description={chat ? 'Images and PDFs shared in this conversation.' : employeeId ? 'Files shared with this employee.' : 'Files shared with this event.'} onClose={onClose} wide contentClassName="workspace-files-dialog">
     <Button type="button" variant="custom" className="workspace-files-upload-button" disabled={progress !== null || (onSelect && selected.length >= 10)} onClick={() => input.current?.click()}><Upload />Upload</Button>
     <input ref={input} type="file" className="sr-only" tabIndex={-1} aria-label="Upload file" accept={chat ? CHAT_FILE_TYPES.join(',') : undefined} disabled={progress !== null || (onSelect && selected.length >= 10)} onChange={e => { upload(e.target.files?.[0]); e.target.value = ''; }} />
-    <div className="workspace-files-summary"><div className="workspace-files-person"><PersonAvatar name={person?.name || 'You'} image={person?.profileImage} /><div><h3>{person?.name || 'You'}</h3><small>{typeof person?.designation === 'string' ? person.designation : person?.designation?.name || person?.accessRole || 'Employee'}</small></div></div>{metrics.map(([label, Icon, value]) => <div className="workspace-files-metric" key={label}><span className="workspace-files-icon"><Icon /></span><div><small>{label}</small><strong>{value ?? '?'}</strong></div></div>)}</div>
+    <div className="workspace-files-summary"><div className="workspace-files-person"><PersonAvatar name={person?.name || 'You'} image={person?.profileImage} /><div><h3>{person?.name || 'You'}</h3><small>{typeof person?.designation === 'string' ? person.designation : person?.designation?.name || person?.accessRole || 'Employee'}</small></div></div>{metrics.map(([label, Icon, value]) => <div className="workspace-files-metric" key={label}><span className={"workspace-files-icon tone-" + label.toLowerCase().replaceAll(" ", "-")}><Icon /></span><div><small>{label}</small><strong>{value ?? '?'}</strong></div></div>)}</div>
     <div className="workspace-files-info"><span>Max 20 MiB per file</span>{chat && <span>JPEG, PNG, GIF, WebP or PDF</span>}{stats.isError && <Button variant="link" size="sm" onClick={() => stats.refetch()}>Retry file totals</Button>}{progress !== null && <span className="workspace-files-progress" role="status">Uploading {progress}% <progress value={progress} max="100" /><Button variant="ghost" size="sm" onClick={() => controller.current?.abort()}>Cancel upload</Button></span>}</div>
     <div className="workspace-files-columns"><aside className="workspace-files-sidebar" aria-label="Shared file list"><div className="workspace-search"><Search /><Input aria-label="Search documents" placeholder="Search files..." value={search} maxLength={100} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div><h3 className="workspace-files-list-heading">Files ({query.data?.total ?? '?'})</h3>
-      <QueryState query={query} empty={visibleFiles.length === 0}>{visibleFiles.map(file => <div className={'workspace-files-row' + (previewFile?._id === file._id ? ' is-selected' : '')} key={file._id}>
+      <QueryState query={query}>{visibleFiles.length === 0 && <FileEmptyState filtered={!!debounced} />}{visibleFiles.map(file => <div className={'workspace-files-row' + (previewFile?._id === file._id ? ' is-selected' : '')} key={file._id}>
         {onSelect && <Checkbox aria-label={'Attach ' + file.name} checked={selected.includes(file._id)} disabled={progress !== null || (!selected.includes(file._id) && selected.length >= 10)} onCheckedChange={checked => onSelect(checked ? [...selected, file._id] : selected.filter(id => id !== file._id))} />}
         <button className="workspace-files-row-main" aria-pressed={previewFile?._id === file._id} onClick={() => setPreviewFile(file)}><span className="workspace-files-icon"><FileText /></span><span><span className="workspace-files-name">{file.name}</span><small>{fileSize(file.size)}</small></span></button>
         <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={'Options for ' + file.name} className="workspace-files-menu"><MoreVertical /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => setPreviewFile(file)}>Preview and download</DropdownMenuItem></DropdownMenuContent></DropdownMenu>
       </div>)}</QueryState><Pager data={query.data} page={page} setPage={setPage} />
-    </aside><section className="workspace-files-preview" aria-label="File preview">{previewFile ? <SharedFilePreview key={previewFile._id} file={previewFile} accountId={auth.data?.employeeId} /> : <div className="workspace-files-preview-empty">Select a file to preview.</div>}</section></div>
+    </aside><section className="workspace-files-preview" aria-label="File preview">{previewFile ? <SharedFilePreview key={previewFile._id} file={previewFile} accountId={auth.data?.employeeId} /> : <FileEmptyState preview />}</section></div>
     <footer className="workspace-files-footer"><Button variant="outline" onClick={onClose}>{onSelect ? 'Done (' + selected.length + '/10)' : 'Close'}</Button></footer>
   </Modal>;
 }

@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { CalendarDays, Check, CheckCircle2, ClipboardList, Clock3, FileText, List, MessageSquare, MoreVertical, Phone, Plus, Search } from 'lucide-react';
+import { CalendarDays, Check, CheckCircle2, ClipboardList, Clock3, FileText, List, Layers, Pencil, MessageSquare, MoreVertical, Phone, Plus, Search } from 'lucide-react';
 import useCurrentEmployee from '@/hooks/useCurrentEmployee';
 import { Label } from '@components/components/ui/label';
 import WorkspaceTasks from './WorkspaceTasks';
@@ -39,59 +39,59 @@ export function WorkForm({ item, kind, session, onClose, summary = true }) {
   }
   return <div className="space-y-3">{summary && <><Status>{item.status}</Status><p className="workspace-muted">Due {dateLabel(item.dueAt)}</p></>}
     {task ? <>{summary && <p className="whitespace-pre-wrap">{item.instructions || 'No additional instructions.'}</p>}{item.feedback && <div className="workspace-feedback"><h3>Review feedback</h3><p>{item.feedback}</p></div>}{summary && item.referenceFiles?.map(id => <FileLink key={idOf(id)} id={idOf(id)} name="Reference file" />)}</> : <><Field label="Title"><Input aria-label="Reminder title" value={title} disabled={!editable} maxLength={200} onChange={e => setTitle(e.target.value)} /></Field><Field label="Due date and time (IST)"><Input aria-label="Reminder due date (IST)" type="datetime-local" value={due} disabled={!editable} onChange={e => setDue(e.target.value)} /></Field><Choice label="Type" value={type} disabled={!editable} onChange={setType} options={['Call', 'Message'].map(value => ({ value, label: value }))} /></>}
-    <Field label={task ? 'Work update' : 'Note'}><Textarea aria-label={task ? 'Work update' : 'Reminder note'} value={text} maxLength={5000} disabled={!editable || mutation.isPending} onChange={e => setText(e.target.value)} /></Field>
-    {task && <><p className="workspace-muted">{item.proofRequired ? 'Proof is required.' : 'Proof is optional.'} {proofs.length}/10 files</p>{proofs.map(id => <div key={idOf(id)} className="flex items-center gap-2"><FileLink id={idOf(id)} name="Proof file" />{editable && <Button size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => setProofs(proofs.filter(p => p !== id))}>Remove</Button>}</div>)}{editable && <Button variant="outline" disabled={mutation.isPending} onClick={() => setFiles(true)}>Add proof files</Button>}</>}
-    <div className="flex flex-wrap gap-2">{editable && (task ? <><Button variant="outline" disabled={mutation.isPending} onClick={() => save('draft')}>Save draft</Button><Button disabled={mutation.isPending} onClick={() => save('submit')}>Submit for review</Button></> : <Button disabled={mutation.isPending || !title.trim() || !due} onClick={() => save('save')}>Save reminder</Button>)}
+    {task ? <Textarea aria-label="Work update" placeholder="Describe your work update..." value={text} maxLength={5000} disabled={!editable || mutation.isPending} onChange={e => setText(e.target.value)} /> : <Field label="Note"><Textarea aria-label="Reminder note" value={text} maxLength={5000} disabled={!editable || mutation.isPending} onChange={e => setText(e.target.value)} /></Field>}
+    {task && <>{proofs.map(id => <div key={idOf(id)} className="flex items-center gap-2"><FileLink id={idOf(id)} name="Proof file" />{editable && <Button size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => setProofs(proofs.filter(p => p !== id))}>Remove</Button>}</div>)}</>}
+    <div className={task ? "workspace-task-form-actions" : "flex flex-wrap gap-2"}>{editable && (task ? <><Button variant="outline" disabled={mutation.isPending || proofs.length >= 10} onClick={() => setFiles(true)}>Add proof files</Button><div className="workspace-task-save-actions"><Button variant="outline" disabled={mutation.isPending} onClick={() => save('draft')}>Save draft</Button><Button disabled={mutation.isPending} onClick={() => save('submit')}>Submit for review</Button></div></> : <Button disabled={mutation.isPending || !title.trim() || !due} onClick={() => save('save')}>Save reminder</Button>)}
       {!task && item.status !== 'Cancelled' && <>{idOf(item.assignedTo) === session.employeeId && <Button disabled={mutation.isPending} onClick={() => save(item.status === 'Done' ? 'Undo' : 'Done')}>{item.status === 'Done' ? 'Undo' : 'Mark done'}</Button>}{own && <Button variant="outline" disabled={mutation.isPending} onClick={() => save('Cancel')}>Cancel reminder</Button>}</>}
     </div>{files && <WorkspaceFiles {...(idOf(item.employeeId) ? { employeeId: idOf(item.employeeId) } : { eventId: idOf(item.eventId) })} selected={proofs} onSelect={setProofs} onClose={() => setFiles(false)} />}
   </div>;
 }
-export function NewFollowUp({ eventId, employeeId, conversationId, onClose }) {
+export function NewFollowUp({ eventId, employeeId, conversationId, item, onClose }) {
   const employee = useCurrentEmployee();
   const person = employee.data;
   const [selectedEventId, setSelectedEventId] = useState(eventId || '');
-  const [title, setTitle] = useState('');
-  const [due, setDue] = useState('');
-  const [note, setNote] = useState('');
-  const [type, setType] = useState('Call');
+  const [title, setTitle] = useState(item?.title || '');
+  const [due, setDue] = useState(localDateInput(item?.dueAt));
+  const [note, setNote] = useState(item?.note || '');
+  const [type, setType] = useState(item?.type || 'Call');
   const mutation = useCommandMutation();
   const close = () => { if (!mutation.isPending) onClose(); };
   async function create(e) {
     e.preventDefault();
-    if ((!employeeId && !selectedEventId) || !title.trim() || !due || mutation.isPending) return;
+    if ((!item && !employeeId && !selectedEventId) || !title.trim() || !due || mutation.isPending) return;
     try {
-      await mutation.mutateAsync(() => Service.create('/follow-ups', {
+      await mutation.mutateAsync(() => item ? Service.update('/follow-ups/' + item._id, { title: title.trim(), dueAt: datePayload(due), type, note }) : Service.create('/follow-ups', {
         title: title.trim(), dueAt: datePayload(due), type, note,
         ...(employeeId ? { employeeId } : { eventId: selectedEventId }),
         ...(!employeeId && conversationId ? { conversationId } : {}),
       }));
-      toast.success('Follow-up created.');
+      toast.success(item ? 'Changes saved.' : 'Follow-up created.');
       onClose();
     } catch { /* retain draft */ }
   }
-  return <Modal title={<><span className="workspace-follow-up-heading-icon"><Clock3 /></span>New Follow-up</>} description="Create a reminder for the selected employee or event." onClose={close} contentClassName="workspace-follow-up-dialog">
+  return <Modal title={<><span className="workspace-follow-up-heading-icon"><Clock3 /></span>{item ? 'Edit Follow-up' : 'New Follow-up'}</>} description="Follow-up reminder details." hideDescription onClose={close} contentClassName="workspace-follow-up-dialog">
     <form onSubmit={create} className="workspace-follow-up-form">
       <div className="workspace-follow-up-person"><PersonAvatar name={person?.name || 'You'} image={person?.profileImage} /><div><h3>{person?.name || 'You'}</h3><p>{typeof person?.designation === 'string' ? person.designation : person?.designation?.name || person?.accessRole || 'Employee'}</p></div></div>
-      {!employeeId && !eventId && <EventSelector label="Event (required)" conversationId={conversationId || undefined} value={selectedEventId} onChange={setSelectedEventId} />}
-      <div className="workspace-follow-up-field"><Label htmlFor="follow-up-title"><FileText />Follow-up Title *</Label><Input id="follow-up-title" aria-label="Follow-up title" required maxLength={200} value={title} disabled={mutation.isPending} onChange={e => setTitle(e.target.value)} /></div>
-      <div className="workspace-follow-up-field"><Choice label="Responsible person *" value="self" disabled options={[{ value: 'self', label: person?.name || 'You' }]} onChange={() => {}} /></div>
-      <div className="workspace-follow-up-field"><Label htmlFor="follow-up-due"><CalendarDays />Due Date &amp; Time *</Label><Input id="follow-up-due" aria-label="Follow-up due date (IST)" title="India Standard Time (IST)" required type="datetime-local" value={due} disabled={mutation.isPending} onChange={e => setDue(e.target.value)} /></div>
-      <fieldset className="workspace-follow-up-type" disabled={mutation.isPending}><legend>Type</legend><div>{[['Call', Phone], ['Message', MessageSquare]].map(([value, Icon]) => <Button key={value} type="button" variant="outline" aria-pressed={type === value} onClick={() => setType(value)}><Icon />{value}</Button>)}</div></fieldset>
-      <div className="workspace-follow-up-field"><Label htmlFor="follow-up-note"><List />Note (optional)</Label><Textarea id="follow-up-note" aria-label="Follow-up note" maxLength={5000} value={note} disabled={mutation.isPending} onChange={e => setNote(e.target.value)} /></div>
-      <footer className="workspace-follow-up-footer"><Button type="button" variant="outline" disabled={mutation.isPending} onClick={close}>Cancel</Button><Button type="submit" variant="custom" className="workspace-follow-up-create" disabled={mutation.isPending || !title.trim() || !due || (!employeeId && !selectedEventId)}>{mutation.isPending ? 'Creating...' : 'Create follow-up'}</Button></footer>
+      {!item && !employeeId && !eventId && <EventSelector label="Event (required)" conversationId={conversationId || undefined} value={selectedEventId} onChange={setSelectedEventId} />}
+      <div className="workspace-follow-up-field"><Label htmlFor="follow-up-title"><span className="workspace-field-icon"><FileText /></span>Follow-up Title *</Label><Input id="follow-up-title" aria-label="Follow-up title" required maxLength={200} value={title} disabled={mutation.isPending} onChange={e => setTitle(e.target.value)} /></div>
+      <div className="workspace-follow-up-field"><Label htmlFor="follow-up-due"><span className="workspace-field-icon teal"><CalendarDays /></span>Due Date &amp; Time *</Label><Input id="follow-up-due" aria-label="Follow-up due date (IST)" title="India Standard Time (IST)" required type="datetime-local" value={due} disabled={mutation.isPending} onChange={e => setDue(e.target.value)} /></div>
+      <fieldset className="workspace-follow-up-type" disabled={mutation.isPending}><legend><span className="workspace-field-icon orange"><Layers /></span>Type</legend><div>{[['Call', Phone], ['Message', MessageSquare]].map(([value, Icon]) => <Button key={value} type="button" variant="outline" aria-pressed={type === value} onClick={() => setType(value)}><Icon />{value}</Button>)}</div></fieldset>
+      <div className="workspace-follow-up-field"><Label htmlFor="follow-up-note"><span className="workspace-field-icon"><List /></span>Note (optional)</Label><Textarea id="follow-up-note" aria-label="Follow-up note" maxLength={5000} value={note} disabled={mutation.isPending} onChange={e => setNote(e.target.value)} /></div>
+      <footer className="workspace-follow-up-footer"><Button type="button" variant="outline" disabled={mutation.isPending} onClick={close}>Cancel</Button><Button type="submit" variant="custom" className="workspace-follow-up-create" disabled={mutation.isPending || !title.trim() || !due || (!item && !employeeId && !selectedEventId)}><Check />{mutation.isPending ? 'Saving...' : item ? 'Save changes' : 'Create follow-up'}</Button></footer>
     </form>
   </Modal>;
 }
 export default function WorkspaceWork({ kind, eventId, employeeId, session, initialId = '', onClose }) {
   return kind === 'tasks' ? <WorkspaceTasks eventId={eventId} employeeId={employeeId} session={session} initialId={initialId} onClose={onClose} /> : <WorkspaceFollowUps kind={kind} eventId={eventId} employeeId={employeeId} session={session} initialId={initialId} onClose={onClose} />;
 }
-function WorkspaceFollowUps({ kind, eventId, employeeId, session, initialId, onClose }) {
+function WorkspaceFollowUps({ eventId, employeeId, session, initialId, onClose }) {
   const [filter, setFilter] = useState('All');
   const [status, setStatus] = useState('All');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(initialId);
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(false);
   const employee = useCurrentEmployee();
   const person = employee.data;
   const mutation = useCommandMutation();
@@ -119,8 +119,9 @@ function WorkspaceFollowUps({ kind, eventId, employeeId, session, initialId, onC
       </div>)}</QueryState><Pager data={list.data} page={page} setPage={setPage} />
       <details className="workspace-reminders-filters"><summary>More filters</summary><Choice label="Status" value={filter === 'Done' ? 'Done' : status} disabled={filter === 'Done'} onChange={value => { setStatus(value); setPage(1); }} options={['All', 'Pending', 'Done', 'Cancelled'].map(value => ({ value, label: value }))} /></details>
       <p className="workspace-reminders-hint"><Check />Tick a reminder to mark it done.</p>
-    </aside><section className="workspace-reminders-detail" aria-label="Follow-up details">{selected ? <QueryState query={detail}>{detail.data && <WorkForm key={selected} item={detail.data} kind={kind} session={session} onClose={() => setSelected('')} />}</QueryState> : <p className="workspace-reminders-empty">Select a follow-up to view details.</p>}</section></div>
+    </aside><section className="workspace-reminders-detail" aria-label="Follow-up details">{selected ? <QueryState query={detail}>{detail.data && <div className="workspace-follow-up-detail-content"><div className="workspace-follow-up-detail-heading"><h3>{detail.data.title}</h3><Button size="sm" variant="outline" disabled={detail.data.status !== 'Pending' || idOf(detail.data.createdBy) !== session.employeeId} onClick={() => setEditing(true)}><Pencil />Edit</Button></div><div className="flex gap-2"><Status>{detail.data.status}</Status><Status>{detail.data.type}</Status></div><div className="workspace-follow-up-detail-meta"><div><small>Responsible person</small><p>{idOf(detail.data.assignedTo) === session.employeeId ? person?.name || 'You' : 'Assigned colleague'}</p></div><div><small>Due Date &amp; Time</small><p>{dateLabel(detail.data.dueAt)}</p></div></div><section><h4><List />Note</h4><p>{detail.data.note || 'No note provided.'}</p></section>{detail.data.status !== 'Cancelled' && idOf(detail.data.createdBy) === session.employeeId && <Button variant="outline" size="sm" disabled={mutation.isPending} onClick={() => mutation.mutate(() => Service.create('/follow-ups/' + selected + '/actions', { action: 'Cancel' }))}>Cancel reminder</Button>}</div>}</QueryState> : <p className="workspace-reminders-empty">Select a follow-up to view details.</p>}</section></div>
     <footer className="workspace-reminders-footer"><Button variant="outline" onClick={onClose}>Cancel</Button></footer>
+    {editing && detail.data && <NewFollowUp {...context} key={selected} item={detail.data} onClose={() => setEditing(false)} />}
     {adding && <NewFollowUp {...context} onClose={() => setAdding(false)} />}
   </Modal>;
 }
