@@ -392,13 +392,13 @@ export const bookingStatusLabel = (status) => status === 'Confirmed'
   ? 'Booking Confirmed'
   : status || 'Not set';
 
-export function StatusBadge({ status }) {
+export function StatusBadge({ status, showChevron = true }) {
   return (
     <div
-      className={`relative inline-flex h-7 w-[138px] items-center justify-center rounded-md border pl-2 pr-5 text-[11px] font-semibold tracking-tight ${statusClass(status)}`}
+      className={`relative inline-flex h-7 w-[138px] items-center justify-center rounded-md border ${showChevron ? 'pl-2 pr-5' : 'px-2'} text-[11px] font-semibold tracking-tight ${statusClass(status)}`}
     >
       <span className="w-full truncate text-center">{bookingStatusLabel(status)}</span>
-      <ChevronDown aria-hidden="true" className="absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 shrink-0 opacity-70" />
+      {showChevron && <ChevronDown aria-hidden="true" className="absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 shrink-0 opacity-70" />}
     </div>
   );
 }

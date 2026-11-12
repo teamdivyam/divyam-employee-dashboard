@@ -44,7 +44,7 @@ export function EventBookingDashboardFilters({ activeTab, cities, employees, eve
 
   return (
     <FilterDropdownContext.Provider value={{ openFilter, setOpenFilter }}>
-          <div className={`mb-3 grid min-w-0 gap-2 sm:grid-cols-2 ${activeTab === 'today' ? 'xl:grid-cols-[minmax(260px,1.6fr)_180px_200px_150px_180px]' : activeTab === 'closed' ? 'xl:grid-cols-[minmax(260px,1.5fr)_180px_180px_130px_210px]' : 'xl:grid-cols-[minmax(220px,1.5fr)_140px_160px_140px_160px]'}`}>
+          <div className={`booking-dashboard-filters mb-3 grid min-w-0 gap-2 sm:grid-cols-2 ${activeTab === 'today' ? 'xl:grid-cols-[minmax(260px,1.6fr)_180px_200px_150px_180px]' : activeTab === 'closed' ? 'xl:grid-cols-[minmax(260px,1.5fr)_180px_180px_130px_210px]' : 'xl:grid-cols-[minmax(220px,1.5fr)_180px_160px_140px_160px]'}`}>
             <div className="relative min-w-0 sm:col-span-2 xl:col-span-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input className="h-9 pl-9 text-xs" placeholder="Search client name or booking ID..." value={filters.search} onChange={(event) => setFilter('search', event.target.value)} />
@@ -113,7 +113,7 @@ function FilterSelect({ value, onChange, placeholder, options }) {
         setOpenFilter(null);
       }}
     >
-      <SelectTrigger className="h-9 text-xs">
+      <SelectTrigger className="booking-filter-trigger h-9 text-xs" aria-label={placeholder}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>

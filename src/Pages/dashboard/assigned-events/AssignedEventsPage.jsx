@@ -102,7 +102,7 @@ export default function AssignedEventsPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="assigned-event-kpi-grid">
           {metricConfig.map(([key, label, subLabel, Icon, tone]) => (
             <MetricCard
               key={key}

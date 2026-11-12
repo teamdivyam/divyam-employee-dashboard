@@ -1,4 +1,5 @@
-import React from "react";
+import PropTypes from "prop-types";
+import { Card } from "@components/components/ui/card";
 import { Badge } from "@components/components/ui/badge";
 import {
   Building2,
@@ -93,28 +94,25 @@ export function SectionCard({ title, icon: Icon, action, children, className = "
 }
 
 export function MetricCard({ label, value, subLabel, icon: Icon, tone = "blue" }) {
-  const tones = {
-    blue: "bg-blue-50 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300",
-    green: "bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300",
-    orange: "bg-orange-50 text-orange-600 dark:bg-orange-400/10 dark:text-orange-300",
-    violet: "bg-violet-50 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300",
-    red: "bg-red-50 text-red-600 dark:bg-red-400/10 dark:text-red-300",
-  };
   return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <div className="flex items-center gap-4">
-        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${tones[tone] || tones.blue}`}>
-          <Icon className="h-5 w-5" />
-        </span>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-          <p className="mt-1 text-2xl font-bold text-foreground">{value ?? 0}</p>
-          <p className="text-xs text-muted-foreground">{subLabel}</p>
-        </div>
+    <Card className="assigned-event-kpi" data-tone={tone}>
+      <span className="assigned-event-kpi-icon"><Icon aria-hidden="true" /></span>
+      <div className="assigned-event-kpi-copy">
+        <p className="assigned-event-kpi-label">{label}</p>
+        <p className="assigned-event-kpi-value">{value ?? 0}</p>
+        <p className="assigned-event-kpi-caption">{subLabel}</p>
       </div>
-    </div>
+    </Card>
   );
 }
+
+MetricCard.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  subLabel: PropTypes.string,
+  icon: PropTypes.elementType.isRequired,
+  tone: PropTypes.string,
+};
 
 export function DetailStat({ icon: Icon, label, value, subValue, tone = "blue" }) {
   const tones = {
@@ -175,10 +173,10 @@ export function MoreButton() {
 
 export const metricConfig = [
   ["totalAssigned", "Total Assigned", "All Events", CalendarDays, "blue"],
-  ["upcomingEvents", "Upcoming Events", "Next 30 Days", CalendarDays, "green"],
-  ["planningEvents", "In Progress / Planning", "Planning Stage", Flag, "orange"],
-  ["completedEvents", "Completed Events", "This Year", CheckCircle2, "violet"],
-  ["thisWeekEvents", "This Week Events", "7 Days", Clock3, "blue"],
+  ["upcomingEvents", "Upcoming Events", "Next 30 Days", CalendarDays, "yellow"],
+  ["planningEvents", "In Progress / Planning", "Planning Stage", Flag, "green"],
+  ["completedEvents", "Completed Events", "This Year", CheckCircle2, "sand"],
+  ["thisWeekEvents", "This Week Events", "7 Days", Clock3, "violet"],
   ["pendingEventTasks", "Pending Event Tasks", "Across Events", CalendarDays, "red"],
 ];
 

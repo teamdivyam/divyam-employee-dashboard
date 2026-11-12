@@ -14,6 +14,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import useDebouncedValue from '@/hooks/useDebouncedValue';
 import styles from './EventBookingDashboardPage.module.css';
 
 import AdminService from '../../../services/event-booking-workspace.service';
@@ -89,9 +90,11 @@ export default function EventBookingDashboardPage() {
   const requestedTab = searchParams.get('tab');
   const activeTab = VALID_TABS.includes(requestedTab) ? requestedTab : 'all';
   const [summaryPeriod, setSummaryPeriod] = useState('all');
+  const [paymentsHidden, setPaymentsHidden] = useState(true);
   const [month] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
   const [pagination, dispatch] = useReducer(paginationReducer, { page: 1, totalRows: 0, totalPages: 1 });
   const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const debouncedSearch = useDebouncedValue(filters.search.trim());
   const [formOpen, setFormOpen] = useState(false);
   const [setupBooking, setSetupBooking] = useState(null);
   const [statusBooking, setStatusBooking] = useState(null);
@@ -111,7 +114,8 @@ export default function EventBookingDashboardPage() {
     refetchOnMount: 'always',
   });
   const bookingsQuery = useQuery({
-    queryKey: ['event-bookings', activeTab, pagination.page, filters, summaryPeriod],
+    queryKey: ['event-bookings', activeTab, pagination.page, { ...filters, search: debouncedSearch }, summaryPeriod],
+    enabled: filters.search.trim() === debouncedSearch,
     queryFn: async () => (await AdminService.getEventBookings({
       page: pagination.page,
       limit: PAGE_SIZE,
@@ -125,7 +129,7 @@ export default function EventBookingDashboardPage() {
       settlementStatus: filters.settlementStatus === 'all' ? undefined : filters.settlementStatus,
       status: filters.status === 'all' ? undefined : filters.status,
       summaryPeriod,
-      search: filters.search.trim() || undefined,
+      search: debouncedSearch || undefined,
     })).data,
     refetchOnMount: 'always',
   });
@@ -322,19 +326,17 @@ export default function EventBookingDashboardPage() {
 
   const paymentSummary = analytics.paymentSummary || {};
   const activeBookings = cards.activeBookings ?? cards.totalBookings;
-  const { totalBookingValue, totalReceived, totalPending, advanceReceived } = paymentSummary;
+  const { totalBookingValue, totalReceived, totalPending } = paymentSummary;
   const money = (value) => value == null ? '—' : formatCurrency(Math.trunc(Number(value)));
   const percentage = (value) => value == null || totalBookingValue == null
     ? '—' : totalBookingValue > 0 ? Math.round((value / totalBookingValue) * 100) : 0;
-  const otherReceived = totalReceived != null && advanceReceived != null
-    ? Math.max(0, totalReceived - advanceReceived) : null;
   const metricItems = [
     { label: 'Active Bookings', value: activeBookings, icon: CalendarDays, tone: 'blue', tab: 'all', description: 'Currently in execution pipeline' },
     { label: 'Upcoming 30 Days', value: cards.upcoming30Days ?? cards.upcomingEvents, icon: CalendarCheck2, tone: 'green', tab: 'all', description: 'Events starting in next 30 days' },
-    { label: 'Active Booking Value', value: money(totalBookingValue), icon: BadgeIndianRupee, tone: 'violet', description: `Total contract value (${activeBookings ?? '—'} bookings)` },
-    { label: 'Total Received', value: money(totalReceived), icon: CreditCard, tone: 'green', tab: 'all', description: `${percentage(totalReceived)}% of booking value received`, footer: `Advance: ${money(advanceReceived)} | Other: ${money(otherReceived)}` },
-    { label: 'Outstanding Receivable', value: money(totalPending), icon: Hourglass, tone: 'softAmber', tab: 'all', description: `${percentage(totalPending)}% still pending` },
-    { label: 'Payment Due / Overdue', value: '—', icon: AlertTriangle, tone: 'red', description: cards.paymentAttention == null ? 'Due / overdue amount unavailable' : `${cards.paymentAttention} ${cards.paymentAttention === 1 ? 'booking needs' : 'bookings need'} attention`, footer: cards.paymentAttention == null ? undefined : `${cards.paymentAttention} ${cards.paymentAttention === 1 ? 'booking' : 'bookings'}` },
+    { label: 'Active Booking Value', payment: true, value: money(totalBookingValue), icon: BadgeIndianRupee, tone: 'violet', description: `Total contract value (${activeBookings ?? '—'} bookings)` },
+    { label: 'Total Received', payment: true, value: money(totalReceived), icon: CreditCard, tone: 'green', tab: 'all', description: `${percentage(totalReceived)}% of booking value received` },
+    { label: 'Outstanding Receivable', payment: true, value: money(totalPending), icon: Hourglass, tone: 'softAmber', tab: 'all', description: `${percentage(totalPending)}% still pending` },
+    { label: 'Overdue Receivable', payment: true, hideable: true, value: '—', icon: AlertTriangle, tone: 'red', description: cards.paymentAttention == null ? 'Due / overdue amount unavailable' : `${cards.paymentAttention} ${cards.paymentAttention === 1 ? 'booking needs' : 'bookings need'} attention`, footer: cards.paymentAttention == null ? undefined : `${cards.paymentAttention} ${cards.paymentAttention === 1 ? 'booking' : 'bookings'}` },
   ];
   const tabs = [
     { value: 'all', label: 'All Bookings', notificationCount: counts.all },
@@ -354,7 +356,7 @@ export default function EventBookingDashboardPage() {
       <section className="w-full min-w-0 max-w-full shrink-0 bg-background" aria-label="Booking overview metrics">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {metricItems.map((item) => (
-            <EventBookingMetricCard key={item.label} {...item} loading={analyticsQuery.isLoading} onOpen={item.tab ? () => setTab(item.tab) : undefined} />
+            <EventBookingMetricCard key={item.label} {...item} loading={analyticsQuery.isLoading} hidden={!!item.payment && paymentsHidden} onToggleHidden={() => setPaymentsHidden(current => !current)} onOpen={item.tab ? () => setTab(item.tab) : undefined} />
           ))}
         </div>
       </section>

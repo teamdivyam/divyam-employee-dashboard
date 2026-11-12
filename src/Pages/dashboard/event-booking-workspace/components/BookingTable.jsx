@@ -69,7 +69,7 @@ export function BookingActionsMenu({
         <Button
           variant="outline"
           size="icon"
-          className="h-8 w-8 rounded-l-none border-l-0 border-border bg-transparent text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
+          className="booking-actions-trigger h-7 w-7 rounded-l-none border-l-0 border-border bg-transparent text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
           aria-label="More booking actions"
         >
           <ChevronDown className="h-3.5 w-3.5" />
@@ -77,7 +77,7 @@ export function BookingActionsMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={6} className="w-60 rounded-lg p-1.5 shadow-lg">
         <DropdownMenuItem className={itemClass} onSelect={() => openBooking(booking)}>
-          <Eye className="text-slate-600" /> View Booking
+          <Eye className="text-slate-600" /> View
         </DropdownMenuItem>
         <DropdownMenuItem className={itemClass} onSelect={() => openBookingEdit(booking)}>
           <Pencil className="text-blue-600" /> Edit Booking Details
@@ -132,8 +132,6 @@ export default function BookingTable({
   markingReadyId,
   onMarkReady,
   onUpdateStatus,
-  onChangeReadiness,
-  updatingReadiness,
 }) {
   const hasPendingColumn = isPlanningView || isExecutionReadyView;
   const headings = [
@@ -153,18 +151,18 @@ export default function BookingTable({
   ];
 
   return (
-    <div className="event-booking-table-fit w-full min-w-0 max-w-full overflow-x-auto">
+    <div className={`event-booking-table-fit w-full min-w-0 max-w-full overflow-x-auto ${hasPendingColumn ? '' : 'all-bookings-table'}`}>
       <Table className="w-full max-w-full table-fixed text-[11px] [&_thead_th]:!px-2 [&_tbody_td]:!px-2 [&_thead_th:first-child]:!pl-4 [&_tbody_td:first-child]:!pl-4 [&_thead_th:last-child]:!pr-4 [&_tbody_td:last-child]:!pr-4">
         <colgroup>
-          <col style={{ width: hasPendingColumn ? '14.5%' : '15.5%' }} />
-          <col style={{ width: hasPendingColumn ? '12%' : '13.5%' }} />
+          <col style={{ width: hasPendingColumn ? '14.5%' : '16%' }} />
+          <col style={{ width: hasPendingColumn ? '12%' : '14%' }} />
           <col style={{ width: hasPendingColumn ? '12%' : '13%' }} />
-          <col style={{ width: hasPendingColumn ? '8%' : '8.5%' }} />
+          <col style={{ width: hasPendingColumn ? '8%' : '11%' }} />
           <col style={{ width: hasPendingColumn ? '11%' : '12%' }} />
           <col style={{ width: hasPendingColumn ? '11%' : '12%' }} />
           {hasPendingColumn ? <col style={{ width: '12%' }} /> : null}
-          <col style={{ width: hasPendingColumn ? '11.5%' : '15%' }} />
-          <col style={{ width: hasPendingColumn ? '8%' : '10.5%' }} />
+          <col style={{ width: hasPendingColumn ? '11.5%' : '14%' }} />
+          <col style={{ width: hasPendingColumn ? '8%' : '8%' }} />
         </colgroup>
         <TableHeader className="bg-muted/60">
           <TableRow className="h-11 border-b border-border bg-muted/60 hover:bg-muted/60">
@@ -189,7 +187,7 @@ export default function BookingTable({
               : requiresSetup
                 ? 'Continue Setup'
               : booking.bookingStatus === 'Completed'
-                ? 'View Booking'
+                ? 'View'
                 : 'View';
             const handlePrimaryAction = () => {
               if (canMarkReady) {
@@ -224,14 +222,12 @@ export default function BookingTable({
                 </TableCell>
                 <TableCell className="min-w-0 p-2">
                   <div className="flex justify-center">
-                    <StatusBadge status={booking.bookingStatus} />
+                    <StatusBadge status={booking.bookingStatus} showChevron={false} />
                   </div>
                 </TableCell>
                 <TableCell className="min-w-0 p-2">
                   <Readiness
                     booking={booking}
-                    onChange={onChangeReadiness}
-                    disabled={updatingReadiness}
                   />
                 </TableCell>
                 {hasPendingColumn ? <TableCell className="min-w-0 p-2 pl-1.5">{isPlanningView ? <KeyPending booking={booking} /> : <FinalPending booking={booking} />}</TableCell> : null}
@@ -244,7 +240,7 @@ export default function BookingTable({
                 </TableCell>
                 <TableCell className="min-w-0 p-2">
                   {canMarkReady ? (
-                    <div className="flex items-center justify-center">
+                    <div className="booking-row-actions flex items-center justify-center">
                       <Button variant="outline" className="h-7 min-w-[92px] whitespace-nowrap rounded-r-none border-border bg-transparent px-2 text-[10px] font-semibold text-blue-700 hover:bg-muted/50 hover:text-blue-800 disabled:bg-transparent dark:text-blue-300 dark:hover:text-blue-200" disabled={String(markingReadyId || '') === String(booking._id)} onClick={handlePrimaryAction}>
                         {String(markingReadyId || '') === String(booking._id) ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
                         {primaryActionLabel}
@@ -252,7 +248,7 @@ export default function BookingTable({
                       <BookingActionsMenu booking={booking} openBooking={openBooking} openBookingEdit={openBookingEdit} openManagerAssignment={openManagerAssignment} openDocuments={openDocuments} openPayments={openPayments} onUpdateStatus={onUpdateStatus} />
                     </div>
                   ) : (
-                    <div className="flex items-center justify-center">
+                    <div className="booking-row-actions flex items-center justify-center">
                       <Button variant="outline" className={`h-7 ${primaryActionLabel === 'View' ? 'min-w-11 px-2.5' : 'min-w-[92px] px-2'} whitespace-nowrap rounded-r-none border-border bg-transparent text-[10px] font-semibold text-blue-700 hover:bg-muted/50 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200`} onClick={handlePrimaryAction}>{primaryActionLabel}</Button>
                     <BookingActionsMenu booking={booking} openBooking={openBooking} openBookingEdit={openBookingEdit} openManagerAssignment={openManagerAssignment} openDocuments={openDocuments} openPayments={openPayments} onUpdateStatus={onUpdateStatus} />
                     </div>

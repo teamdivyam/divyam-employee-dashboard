@@ -2245,3 +2245,68 @@ input[type="number"]::-webkit-outer-spin-button {
 
 /* Follow-up form header without a visible subtitle. */
 .workspace-follow-up-dialog > div:first-child { min-height: 64px; display: flex; justify-content: center; }
+
+/* Assigned Events KPI cards: compact pastel reference treatment. */
+.assigned-event-kpi-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.assigned-event-kpi { --kpi-bg: 214 100% 94%; --kpi-accent: 219 90% 60%; display: flex; align-items: flex-start; gap: 10px; min-width: 0; min-height: 88px; padding: 12px; border: 0; border-radius: 12px; background: hsl(var(--kpi-bg)); color: hsl(var(--foreground)); box-shadow: none; }
+.assigned-event-kpi[data-tone=yellow] { --kpi-bg: 49 90% 93%; --kpi-accent: 28 80% 44%; }
+.assigned-event-kpi[data-tone=green] { --kpi-bg: 157 76% 92%; --kpi-accent: 163 76% 36%; }
+.assigned-event-kpi[data-tone=sand] { --kpi-bg: 47 67% 96%; --kpi-accent: 28 85% 43%; }
+.assigned-event-kpi[data-tone=violet] { --kpi-bg: 252 100% 97%; --kpi-accent: 263 88% 63%; }
+.assigned-event-kpi[data-tone=red] { --kpi-bg: 355 71% 95%; --kpi-accent: 0 84% 56%; }
+.assigned-event-kpi-icon { display: grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px; background: hsl(var(--kpi-accent) / .16); color: hsl(var(--kpi-accent)); }
+.assigned-event-kpi-icon svg { width: 16px; height: 16px; }
+.assigned-event-kpi-copy { min-width: 0; padding-top: 2px; }
+.assigned-event-kpi-label { font-size: 11px; font-weight: 500; line-height: 16px; }
+.assigned-event-kpi-value { margin-top: 4px; font-size: 16px; font-weight: 500; line-height: 20px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.assigned-event-kpi-caption { margin-top: 2px; font-size: 11px; line-height: 16px; color: hsl(var(--muted-foreground)); }
+.assigned-event-kpi[data-tone=red] .assigned-event-kpi-value { color: hsl(var(--kpi-accent)); }
+.dark .assigned-event-kpi { --kpi-bg: 218 40% 18%; --kpi-accent: 215 92% 75%; }
+.dark .assigned-event-kpi[data-tone=yellow] { --kpi-bg: 45 35% 16%; --kpi-accent: 42 90% 68%; }
+.dark .assigned-event-kpi[data-tone=green] { --kpi-bg: 162 36% 16%; --kpi-accent: 160 70% 65%; }
+.dark .assigned-event-kpi[data-tone=sand] { --kpi-bg: 32 28% 17%; --kpi-accent: 30 85% 70%; }
+.dark .assigned-event-kpi[data-tone=violet] { --kpi-bg: 255 32% 20%; --kpi-accent: 260 90% 78%; }
+.dark .assigned-event-kpi[data-tone=red] { --kpi-bg: 355 35% 19%; --kpi-accent: 0 88% 75%; }
+@media (max-width: 1279px) { .assigned-event-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 639px) { .assigned-event-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 359px) { .assigned-event-kpi-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Booking overview palette matched to the supplied KPI reference. */
+.booking-overview-kpi { position: relative; min-width: 0; min-height: 88px; overflow: hidden; border: 0; border-radius: 12px; box-shadow: none; background: var(--booking-kpi-bg); color: var(--booking-kpi-accent); }
+.booking-overview-kpi .booking-overview-visibility { position: absolute; right: 8px; top: 8px; width: 24px; height: 24px; padding: 4px; color: hsl(var(--muted-foreground)); }
+.booking-overview-visibility svg { width: 14px; height: 14px; }
+.booking-overview-kpi[data-tone=blue] { --booking-kpi-bg: #e3efff; --booking-kpi-accent: #4385f5; }
+.dark .booking-overview-kpi[data-tone=blue] { --booking-kpi-bg: #1b2a40; --booking-kpi-accent: #86b5fa; }
+.booking-overview-kpi[data-tone=amber] { --booking-kpi-bg: #fdf6d6; --booking-kpi-accent: #bc681c; }
+.dark .booking-overview-kpi[data-tone=amber] { --booking-kpi-bg: #37301b; --booking-kpi-accent: #f1c464; }
+.booking-overview-kpi[data-tone=green] { --booking-kpi-bg: #ddfbee; --booking-kpi-accent: #1ba986; }
+.dark .booking-overview-kpi[data-tone=green] { --booking-kpi-bg: #19382f; --booking-kpi-accent: #65d9b5; }
+.booking-overview-kpi[data-tone=softAmber] { --booking-kpi-bg: #fcf9ed; --booking-kpi-accent: #bd651b; }
+.dark .booking-overview-kpi[data-tone=softAmber] { --booking-kpi-bg: #362b20; --booking-kpi-accent: #edb575; }
+.booking-overview-kpi[data-tone=violet] { --booking-kpi-bg: #f0edff; --booking-kpi-accent: #9655f6; }
+.dark .booking-overview-kpi[data-tone=violet] { --booking-kpi-bg: #2c2343; --booking-kpi-accent: #ba98fa; }
+.booking-overview-kpi[data-tone=red] { --booking-kpi-bg: #fce8e9; --booking-kpi-accent: #ef353b; }
+.dark .booking-overview-kpi[data-tone=red] { --booking-kpi-bg: #412329; --booking-kpi-accent: #fa9299; }
+
+/* All Bookings filters and compact reference table. */
+.booking-dashboard-filters .booking-filter-trigger { min-width: 0; gap: 8px; padding-inline: 12px; background: hsl(var(--card)); border-color: hsl(var(--border)); font-size: 12px; font-weight: 400; box-shadow: 0 1px 2px hsl(var(--foreground) / .04); }
+.booking-filter-trigger > span { min-width: 0; text-align: left; }
+.booking-filter-trigger > svg { flex-shrink: 0; }
+.booking-dashboard-filters input { background: hsl(var(--card)); font-size: 12px; }
+.all-bookings-table { --booking-table-header: 210 50% 96%; --booking-table-stripe: 214 35% 98%; border: 1px solid hsl(var(--border)); }
+.all-bookings-table table { min-width: 1100px; }
+.all-bookings-table table thead, .all-bookings-table table thead tr { background: hsl(var(--booking-table-header)); }
+.all-bookings-table table thead th { height: 44px; color: hsl(var(--foreground)); font-size: 11px; font-weight: 500; }
+.all-bookings-table table tbody tr { background: hsl(var(--card)); border-bottom: 1px solid hsl(var(--border)); }
+.all-bookings-table table tbody tr:nth-child(even) { background: hsl(var(--booking-table-stripe)); }
+.all-bookings-table table tbody tr:hover { background: hsl(var(--muted) / .6); }
+.all-bookings-table table tbody td { height: 70px; padding-block: 10px; vertical-align: middle; font-size: 11px; }
+.all-bookings-table .font-semibold, .all-bookings-table .font-bold { font-weight: 500; }
+.booking-row-actions { align-items: stretch; }
+.booking-row-actions > button, .booking-row-actions .booking-actions-trigger { height: 28px; min-height: 28px; margin: 0; font-size: 10px; font-weight: 500; box-shadow: 0 1px 2px hsl(var(--foreground) / .04); }
+.booking-row-actions .booking-actions-trigger { width: 28px; padding: 0; }
+.dark .all-bookings-table { --booking-table-header: 217 25% 18%; --booking-table-stripe: 220 20% 13%; }
+@media (min-width: 1280px) and (max-width: 1439px) {
+  .booking-dashboard-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .booking-dashboard-filters > div:first-child { grid-column: 1 / -1; }
+}
