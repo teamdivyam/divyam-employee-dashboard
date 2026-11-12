@@ -337,12 +337,12 @@ export default function EventBookingDashboardPage() {
     { label: 'Payment Due / Overdue', value: '—', icon: AlertTriangle, tone: 'red', description: cards.paymentAttention == null ? 'Due / overdue amount unavailable' : `${cards.paymentAttention} ${cards.paymentAttention === 1 ? 'booking needs' : 'bookings need'} attention`, footer: cards.paymentAttention == null ? undefined : `${cards.paymentAttention} ${cards.paymentAttention === 1 ? 'booking' : 'bookings'}` },
   ];
   const tabs = [
-    { value: 'all', label: 'All Bookings', notificationCount: counts.all },
-    { value: 'planning', label: 'In Planning', notificationCount: counts.planning },
-    { value: 'execution_ready', label: 'Execution Ready', notificationCount: counts.executionReady },
-    { value: 'today', label: 'Live / Today', notificationCount: counts.today },
-    { value: 'completed', label: 'Completed', notificationCount: counts.completed },
-    { value: 'closed', label: 'On Hold / Cancelled', notificationCount: counts.closed },
+    { value: 'all', label: 'All Bookings', notificationCount: counts.all ?? 0, showZeroCount: true },
+    { value: 'planning', label: 'In Planning', notificationCount: counts.planning ?? 0, showZeroCount: true },
+    { value: 'execution_ready', label: 'Execution Ready', notificationCount: counts.executionReady ?? 0, showZeroCount: true },
+    { value: 'today', label: 'Live / Today', notificationCount: counts.today ?? 0, showZeroCount: true },
+    { value: 'completed', label: 'Completed', notificationCount: counts.completed ?? 0, showZeroCount: true },
+    { value: 'closed', label: 'On Hold / Cancelled', notificationCount: counts.closed ?? 0, showZeroCount: true },
   ];
   const startEntry = totalRows ? (pagination.page - 1) * PAGE_SIZE + 1 : 0;
   const endEntry = Math.min(pagination.page * PAGE_SIZE, totalRows);

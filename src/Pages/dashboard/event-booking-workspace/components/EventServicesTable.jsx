@@ -260,7 +260,7 @@ export default function EventServicesTable({
                           </div>
                         ) : (
                           <span className="flex items-center gap-2 text-muted-foreground">
-                            <UserRound className="h-3.5 w-3.5" />
+                            <Avatar className="h-8 w-8 shrink-0"><AvatarFallback className="bg-muted text-muted-foreground"><UserRound className="h-4 w-4" /></AvatarFallback></Avatar>
                             Not assigned
                           </span>
                         )}

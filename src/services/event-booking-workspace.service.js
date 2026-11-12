@@ -257,7 +257,9 @@ const EventBookingWorkspaceService = {
   getVendors: ({ eventId, ...params }) =>
     axiosRequest.get(eventPath(eventId, "/vendor-options"), { params }),
   addVendorDocument: ({ eventId, vendorId, formData }) =>
-    axiosRequest.patch(eventPath(eventId, `/vendors/${vendorId}/documents`), formData, { params: { action: "add" } }),
+    axiosRequest.patch(eventPath(eventId, `/vendors/${vendorId}/documents`), formData, { params: { action: "add" }, headers: { "Content-Type": undefined } }),
+  getVendorDocumentFile: ({ eventId, vendorId, documentId }) =>
+    axiosRequest.get(eventPath(eventId, `/vendors/${encodeURIComponent(vendorId)}/documents/${encodeURIComponent(documentId)}/file`), { responseType: "blob" }),
 };
 
 export default EventBookingWorkspaceService;

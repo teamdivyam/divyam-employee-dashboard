@@ -7,7 +7,7 @@ import { cn } from "@components/lib/utils";
  *
  * Each tab must contain a `value` and `label`. Optional fields are `icon`,
  * `disabled`, `notificationCount`, `className`, and `iconClassName`. A notification badge is only rendered
- * when `notificationCount` is greater than zero.
+ * when `notificationCount` is greater than zero, or zero with `showZeroCount`.
  * Tab content can be supplied as children (usually with the exported
  * `TabsContent` primitive) or rendered separately from the controlled value.
  */
@@ -55,11 +55,12 @@ export default function TabComp({
           icon: Icon,
           disabled = false,
           notificationCount,
+          showZeroCount = false,
           className: triggerClassName,
           iconClassName,
         }) => {
           const count = Number(notificationCount);
-          const hasNotification = Number.isFinite(count) && count > 0;
+          const hasNotification = Number.isFinite(count) && (count > 0 || (showZeroCount && count === 0));
 
           return (
             <TabsTrigger

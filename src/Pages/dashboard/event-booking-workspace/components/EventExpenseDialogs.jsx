@@ -42,7 +42,7 @@ const settlementForFundingSource = (fundingSource) => {
 const sourceValues = {
   "Paid Personally": "Personal Funds",
   "Office Expense Advance": "Company Advance",
-  "Paid Directly by Company": "Company Payment",
+  "Paid by Company": "Company Payment",
 };
 
 function EmployeeAvatar({ employee }) {
@@ -81,7 +81,7 @@ export function AddExpenseDialog({ open, onOpenChange, options, saving, onSave, 
     if (!open) return;
     setForm({ expenseName: "", expenseDate: format(new Date(), "yyyy-MM-dd"), expenseFor: "Event",
       linkedTo: booking?.eventName || "", category: options.categories?.[0] || "",
-      paymentSource: "Paid Directly by Company", expenseAmount: "", paidTo: "",
+      paymentSource: "Paid by Company", expenseAmount: "", paidTo: "",
       businessPurpose: "", supportingNote: "", attachments: [], expenseBy: "Company", employeeId: "",
       paymentMode: options.paymentModes?.[0] || "UPI", approvalStatus: "Approved", settlementStatus: "Company Paid", billNumber: "",
     });
@@ -96,7 +96,7 @@ export function AddExpenseDialog({ open, onOpenChange, options, saving, onSave, 
       const next = { ...current, [key]: value };
       if (key === "expenseBy") {
         next.employeeId = "";
-        next.paymentSource = "Paid Directly by Company";
+        next.paymentSource = "Paid by Company";
       }
       if (["expenseBy", "paymentSource", "approvalStatus"].includes(key)) {
         next.settlementStatus = next.approvalStatus === "Approved" ? settlementForFundingSource(sourceValues[next.paymentSource]) : "Not Applicable";
@@ -135,7 +135,7 @@ export function AddExpenseDialog({ open, onOpenChange, options, saving, onSave, 
     profile={{ name: booking?.customer?.name || booking?.clientName || "Client", detail: [booking?.customer?.phone, booking?.eventName].filter(Boolean).join(" ? ") || "Client" }}
     form={form} errors={errors} availableAdvance={null} onFieldChange={update} onFieldBlur={() => {}}
     categoryOptions={options.categories || []}
-    paymentSourceOptions={form.expenseBy === "Company" ? ["Paid Directly by Company"] : Object.keys(sourceValues)}
+    paymentSourceOptions={form.expenseBy === "Company" ? ["Paid by Company"] : Object.keys(sourceValues)}
     attachmentTypes={["image/*", "application/pdf"]} attachmentHint="One PDF or image, up to the server upload limit."
     onAddFiles={(files) => {
       const file = files[0];

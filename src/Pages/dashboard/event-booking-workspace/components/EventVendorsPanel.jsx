@@ -10,7 +10,6 @@ import {
   ChevronRight,
   Clock,
   Eye,
-  ExternalLink,
   FileText,
   Flower2,
   Phone,
@@ -23,11 +22,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@components/components/ui/a
 import { Badge } from '@components/components/ui/badge';
 import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/components/ui/dropdown-menu';
 import { Input } from '@components/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './EventTable';
 import { avatarUrl } from '../eventBookingDashboard.utils';
+import { latestDocumentForEvent } from '../eventVendorDocuments.utils';
+import { openVendorDocument } from '../vendorDocumentFile.utils';
 import EventDeleteMenu from './EventDeleteMenu';
 import EventOperationsNav from './EventOperationsNav';
 
@@ -155,12 +155,11 @@ export default function EventVendorsPanel({ booking, onAdd, onEdit, onDelete }) 
                   const service = assignment.service || assignment.category || vendor.category || 'Other';
                   const { icon: VendorIcon, tone } = categoryMeta(service);
                   const assignedFunctions = (assignment.assignedFunctions || []).map((value) => functionMap.get(idOf(value))).filter(Boolean);
-                  const agreed = numberOf(assignment.agreedAmount || assignment.quotationAmount);
-                  const paid = Math.min(numberOf(assignment.paidAmount) || (assignment.paymentStatus === 'Paid' ? agreed : 0), agreed || Number.MAX_SAFE_INTEGER);
-                  const percent = agreed ? Math.min(100, Math.round((paid / agreed) * 100)) : assignment.paymentStatus === 'Paid' ? 100 : 0;
-                  const due = Math.max(0, agreed - paid);
-                  const documents = vendor.documents || [];
-                  const documentCount = documents.length || vendor.documentStatus?.total || 0;
+                  const agreed = numberOf(assignment.agreedAmount ?? assignment.quotationAmount);
+                  const paid = numberOf(assignment.paidAmount);
+                  const percent = agreed ? Math.min(100, Math.round((paid / agreed) * 100)) : 0;
+                  const due = Math.max(0, agreed - paid - numberOf(assignment.settlementAdjustmentTotal));
+                  const document = latestDocumentForEvent(vendor.documents, booking._id);
                   return (
                     <TableRow key={assignment._id}>
                       <TableCell className="px-3 py-3">
@@ -194,18 +193,9 @@ export default function EventVendorsPanel({ booking, onAdd, onEdit, onDelete }) 
                         </div>
                       </TableCell>
                       <TableCell className="px-2.5 py-3 text-center">
-                        {documents.length ? (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild><button type="button" className="inline-flex items-center gap-1.5 whitespace-nowrap font-medium text-blue-600 hover:underline"><FileText className="h-3.5 w-3.5" />{documentCount} {documentCount === 1 ? 'Doc' : 'Docs'}</button></DropdownMenuTrigger>
-                            <DropdownMenuContent align="center" className="w-64">
-                              {documents.map((document) => (
-                                <DropdownMenuItem key={document._id || `${document.documentType}-${document.fileUrl}`} asChild disabled={!document.fileUrl}>
-                                  {document.fileUrl ? <a href={document.fileUrl} target="_blank" rel="noreferrer" className="flex cursor-pointer items-center justify-between gap-3"><span className="min-w-0"><span className="block truncate text-xs font-semibold">{document.documentType || 'Vendor document'}</span>{document.documentNumber ? <span className="block truncate text-[10px] text-muted-foreground">{document.documentNumber}</span> : null}</span><ExternalLink className="h-3.5 w-3.5 shrink-0 text-blue-600" /></a> : <span className="truncate text-xs">{document.documentType || 'Vendor document'}</span>}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        ) : <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-muted-foreground"><FileText className="h-3.5 w-3.5" />0 Docs</span>}
+                        {document ? (
+                          <button type="button" disabled={!document._id} onClick={() => openVendorDocument(booking._id, idOf(vendor), document._id)} className="inline-flex items-center gap-1.5 whitespace-nowrap font-medium text-blue-600 hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"><FileText className="h-3.5 w-3.5" />Doc</button>
+                        ) : <span className="text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell className="px-3 py-3 text-center"><div className="inline-flex items-center justify-center gap-1.5"><Button variant="outline" size="sm" className="h-8 gap-1.5 border-blue-300 bg-transparent px-3 text-xs text-blue-700 hover:bg-blue-50 hover:text-blue-800" onClick={() => onEdit(assignment)}><Eye className="h-4 w-4" />View</Button><EventDeleteMenu className="h-8 w-6 text-muted-foreground hover:text-foreground" label={`${vendor.companyName || 'vendor'} assignment`} onDelete={onDelete ? () => onDelete(assignment) : undefined} /></div></TableCell>
                     </TableRow>

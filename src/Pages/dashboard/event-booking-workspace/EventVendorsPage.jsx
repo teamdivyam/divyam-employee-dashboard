@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import AdminService from '../../../services/event-booking-workspace.service';
+import useCurrentEmployee from '../../../hooks/useCurrentEmployee';
 import { Button } from '@components/components/ui/button';
 import { Card, CardContent } from '@components/components/ui/card';
 import { EditBookingDialog, getBookingDetail, getEmployees } from './components/EventBookingComponents';
@@ -19,6 +20,8 @@ const getVendors = (data) => data?.vendors || data?.vendor || data?.data?.vendor
 
 export default function EventVendorsPage() {
   const { eventId } = useParams();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const canUploadVendorDocument = ['Super Admin', 'Admin', 'Finance'].includes(currentEmployee?.accessRole);
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
@@ -31,7 +34,11 @@ export default function EventVendorsPage() {
   const refresh = () => bookingQuery.refetch();
 
   const saveVendorMutation = useMutation({
-    mutationFn: async ({ assignmentPayload, documentData }) => {
+    mutationFn: async ({ assignmentPayload, documentData, documentOnly }) => {
+      if (documentOnly && selectedAssignment?._id && documentData) {
+        await AdminService.addVendorDocument({ eventId, vendorId: assignmentPayload.vendor, formData: documentData });
+        return { documentOnly: true };
+      }
       const response = selectedAssignment?._id
         ? await AdminService.updateEventVendor({ eventId, vendorAssignmentId: selectedAssignment._id, ...assignmentPayload })
         : await AdminService.addEventVendor({ eventId, ...assignmentPayload });
@@ -45,15 +52,16 @@ export default function EventVendorsPage() {
       }
       return { response, documentError };
     },
-    onSuccess: ({ documentError }) => {
+    onSuccess: ({ documentError, documentOnly }) => {
       if (documentError) toast.warning(documentError.response?.data?.message || 'Assignment saved, but the document could not be uploaded');
+      else if (documentOnly) toast.success('Document uploaded');
       else toast.success(selectedAssignment?._id ? 'Vendor assignment updated' : 'Vendor assigned to event');
       setDialogOpen(false);
       setSelectedAssignment(null);
       vendorsQuery.refetch();
       refresh();
     },
-    onError: (error) => toast.error(error.response?.data?.message || 'Unable to save vendor assignment'),
+    onError: (error, variables) => toast.error(error.response?.data?.message || (variables.documentOnly ? 'Unable to upload document' : 'Unable to save vendor assignment')),
   });
   const updateBookingMutation = useMutation({ mutationFn: (payload) => AdminService.updateEventBooking({ eventId, ...payload }), onSuccess: () => { toast.success('Booking updated'); setEditBookingOpen(false); refresh(); }, onError: (error) => toast.error(error.response?.data?.message || 'Unable to update booking') });
   const readyMutation = useMutation({ mutationFn: () => AdminService.markEventExecutionReady({ eventId }), onSuccess: () => { toast.success('Event marked execution ready'); refresh(); }, onError: (error) => toast.error(error.response?.data?.message || 'Unable to mark event ready') });
@@ -91,7 +99,7 @@ export default function EventVendorsPage() {
       <EventDetailTabs activePrimary="operations" onSelect={selectTab} />
       <div id="event-vendors" className="w-full min-w-0 max-w-full"><EventVendorsPanel booking={booking} onAdd={openCreate} onEdit={openEdit} /></div>
 
-      <EventVendorAssignmentDialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setSelectedAssignment(null); setPreferredVendorId(''); } }} assignment={selectedAssignment} preferredVendorId={preferredVendorId} vendors={vendors} functions={functions} services={services} assignedVendorIds={assignedVendorIds} saving={saveVendorMutation.isPending} onSave={(payload) => saveVendorMutation.mutate(payload)} />
+      <EventVendorAssignmentDialog canUploadVendorDocument={canUploadVendorDocument} eventId={eventId} open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setSelectedAssignment(null); setPreferredVendorId(''); } }} assignment={selectedAssignment} preferredVendorId={preferredVendorId} vendors={vendors} functions={functions} services={services} assignedVendorIds={assignedVendorIds} saving={saveVendorMutation.isPending} onSave={(payload) => saveVendorMutation.mutate(payload)} />
       <EditBookingDialog open={editBookingOpen} onOpenChange={setEditBookingOpen} booking={booking} employees={employees} saving={updateBookingMutation.isPending} onSave={(payload) => updateBookingMutation.mutate(payload)} />
     </div>
   );

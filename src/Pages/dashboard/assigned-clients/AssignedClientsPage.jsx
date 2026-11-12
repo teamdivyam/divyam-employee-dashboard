@@ -567,7 +567,7 @@ export default function ClientCRMPage() {
                             #
                           </TableHead>
                           <TableHead className="w-[14%] text-xs font-semibold text-muted-foreground">
-                            Client Name
+                            <span className="pl-[38px]">Client Name</span>
                           </TableHead>
                           <TableHead className="w-[11%] text-xs font-semibold text-muted-foreground">
                             Mobile Number

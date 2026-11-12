@@ -30,7 +30,7 @@ const isExecutionReady = (booking) => Boolean(
 );
 
 const initialValue = (booking, requestedStatus) => ({
-  bookingStatus: requestedStatus && stageOptionsFor(booking).includes(requestedStatus)
+  bookingStatus: booking?.bookingStatus === 'Completed' ? 'Completed' : requestedStatus && stageOptionsFor(booking).includes(requestedStatus)
     ? requestedStatus
     : isExecutionReady(booking)
       ? executionReadyStage
@@ -75,12 +75,13 @@ export default function EventBookingStatusDialog({
   const setField = (field, nextValue) => setValue((current) => ({ ...current, [field]: nextValue }));
   const reasonRequired = ['On Hold', 'Cancelled'].includes(value.bookingStatus)
     && value.bookingStatus !== booking.bookingStatus;
-  const submitDisabled = saving
+  const submitDisabled = saving || booking.bookingStatus === 'Completed'
     || value.bookingStatus === currentStage
     || (reasonRequired && !value.reason.trim());
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    if (submitDisabled) return;
     if (value.bookingStatus === executionReadyStage) {
       onMarkExecutionReady(booking._id);
       return;
@@ -124,7 +125,7 @@ export default function EventBookingStatusDialog({
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <Label htmlFor="event-booking-status">Event Stage</Label>
-            <Select value={value.bookingStatus} onValueChange={(next) => setField('bookingStatus', next)}>
+            <Select value={value.bookingStatus} disabled={saving || booking.bookingStatus === 'Completed'} onValueChange={(next) => setField('bookingStatus', next)}>
               <SelectTrigger id="event-booking-status"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {stageOptionsFor(booking).map((status) => (

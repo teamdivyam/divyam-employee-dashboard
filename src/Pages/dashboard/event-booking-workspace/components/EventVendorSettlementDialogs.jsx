@@ -195,6 +195,7 @@ export function RecordSettlementDialog({
   });
   const [error, setError] = useState("");
 
+  const selectedId = idOf(selected);
   useEffect(() => {
     if (!open) return;
 
@@ -210,21 +211,33 @@ export function RecordSettlementDialog({
       receipts: [],
     });
     setError("");
-  }, [open, payable, selected]);
+    // Keep payment drafts intact when settlement options refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, selectedId]);
+
+  // Options can arrive after the dialog opens; do not reset an existing draft.
+  useEffect(() => {
+    if (!open || form.assignmentId || !payable.length) return;
+    const initial = payable.find((item) => idOf(item) === selectedId) || payable[0];
+    setForm((state) => state.assignmentId ? state : { ...state, assignmentId: idOf(initial) });
+  }, [open, form.assignmentId, payable, selectedId]);
 
   const current = payable.find((item) => idOf(item) === form.assignmentId);
   const update = (key, value) =>
     setForm((state) => ({ ...state, [key]: value }));
 
-  const chooseFiles = (files) => {
-    const receipts = Array.from(files || []);
+  const chooseFiles = (event) => {
+    const input = event.target;
+    const receipts = Array.from(input.files || []);
 
-    if (receipts.length > 5) {
-      setError("You can attach up to 5 files.");
-      return;
-    }
-    if (receipts.some((file) => file.size > 10 * 1024 * 1024)) {
-      setError("Each file must be 10 MB or smaller.");
+    if (receipts.length > 1 || receipts.some((file) =>
+      !/\.(pdf|jpe?g|png)$/i.test(file.name) ||
+      !["application/pdf", "image/jpeg", "image/png"].includes(file.type) ||
+      file.size > 10 * 1024 * 1024
+    )) {
+      input.value = "";
+      setError("Invalid file removed. Choose one PDF, JPG or PNG file up to 10 MB.");
+      update("receipts", []);
       return;
     }
 
@@ -238,6 +251,11 @@ export function RecordSettlementDialog({
 
     if (!current || amount <= 0 || amount > numberOf(current.outstandingAmount)) {
       setError(`Enter an amount up to ${currency(current?.outstandingAmount)}.`);
+      return;
+    }
+
+    if (form.paymentMode !== "Cash" && !form.reference.trim()) {
+      setError("Transaction reference is required for non-cash payments.");
       return;
     }
 
@@ -351,6 +369,7 @@ export function RecordSettlementDialog({
                 value={form.reference}
                 onChange={(event) => update("reference", event.target.value)}
                 placeholder="UTR / bank reference"
+                required={form.paymentMode !== "Cash"}
               />
             </div>
 
@@ -359,12 +378,11 @@ export function RecordSettlementDialog({
               <Input
                 id="settlement-receipts"
                 type="file"
-                multiple
-                accept="image/*,.pdf,application/pdf"
-                onChange={(event) => chooseFiles(event.target.files)}
+                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                onChange={chooseFiles}
               />
               <p className="text-[11px] text-muted-foreground">
-                Up to 5 files, 10 MB each
+                One PDF, JPG or PNG file, up to 10 MB
                 {form.receipts.length
                   ? ` · ${form.receipts.length} selected`
                   : ""}
