@@ -1,8 +1,7 @@
 /* eslint-disable react/prop-types */
+import EventSummarySlot from './EventSummarySlot';
 import { CalendarDays, ClipboardList, Hourglass, ImageIcon, UsersRound } from 'lucide-react';
 import EventMetricCards from './EventMetricCards';
-import EventSummarySlot from './EventSummarySlot';
-
 const metricTones = {
   violet: 'bg-violet-100 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300',
   blue: 'bg-blue-100 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300',
@@ -14,6 +13,18 @@ const metricTones = {
   rose: 'bg-rose-100 text-rose-600 dark:bg-rose-400/10 dark:text-rose-300',
 };
 
+
+const metricCardTones = {
+  violet: 'event-summary-surface-violet',
+  blue: 'event-summary-surface-blue',
+  cyan: 'event-summary-surface-cyan',
+  purple: 'event-summary-surface-purple',
+  amber: 'event-summary-surface-amber',
+  emerald: 'event-summary-surface-emerald',
+  orange: 'event-summary-surface-orange',
+  rose: 'event-summary-surface-rose',
+};
+
 export default function EventSummaryCards({ metrics = {}, metricItems: suppliedMetricItems, showMetrics = true }) {
   const defaultMetricItems = [
     { label: 'Functions', value: metrics.functions, caption: metrics.functionsCaption || 'Confirmed', icon: CalendarDays, tone: 'violet' },
@@ -23,5 +34,18 @@ export default function EventSummaryCards({ metrics = {}, metricItems: suppliedM
     { label: 'Approvals Pending', value: metrics.approvals, caption: 'Awaiting client', icon: Hourglass, tone: 'amber' },
   ];
   const metricItems = suppliedMetricItems || defaultMetricItems;
-  return <EventSummarySlot>{showMetrics && <EventMetricCards items={metricItems.map((item) => ({ ...item, tone: metricTones[item.tone] || metricTones.blue }))} />}</EventSummarySlot>;
+  return (
+    <EventSummarySlot>
+      {showMetrics && (
+        <EventMetricCards
+          layout={suppliedMetricItems ? 'default' : 'overview'}
+          items={metricItems.map((item) => ({
+            ...item,
+            tone: metricTones[item.tone] || metricTones.blue,
+            cardTone: item.cardTone || metricCardTones[item.tone] || metricCardTones.blue,
+          }))}
+        />
+      )}
+    </EventSummarySlot>
+  );
 }

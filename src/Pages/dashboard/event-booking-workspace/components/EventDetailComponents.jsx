@@ -139,7 +139,7 @@ export function MiniTable({ columns, rows, renderRow, minWidth = 420 }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-[11px]" style={{ minWidth }}>
-        <thead className="text-[10px] font-semibold text-muted-foreground">
+        <thead className="text-[11px] font-semibold text-foreground">
           <tr>{columns.map((column) => <th key={column} className="border-b border-border pb-2">{column}</th>)}</tr>
         </thead>
         <tbody className="divide-y divide-border text-foreground">

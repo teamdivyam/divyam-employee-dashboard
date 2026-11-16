@@ -225,7 +225,7 @@ export default function EventGuestListPanel({
                     <TableRow key={idOf(item)}>
                       <TableCell className="pl-6">
                         <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8 shrink-0">
+                          <Avatar className="h-8 w-8">
                             <AvatarFallback className={functionTones[index % functionTones.length]}>{initials(item.name)}</AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">

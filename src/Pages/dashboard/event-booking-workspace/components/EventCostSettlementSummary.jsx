@@ -22,6 +22,7 @@ export function VendorSummary({ summary = {} }) {
       caption: `${numberOf(summary.totalVendors)} vendors`,
       icon: Coins,
       tone: "text-blue-600 bg-blue-500/10 dark:text-blue-300",
+      cardTone: "event-summary-surface-blue",
     },
     {
       label: "Paid",
@@ -29,6 +30,7 @@ export function VendorSummary({ summary = {} }) {
       caption: `${numberOf(summary.paidPercentage)}%`,
       icon: Banknote,
       tone: "text-emerald-600 bg-emerald-500/10 dark:text-emerald-300",
+      cardTone: "event-summary-surface-emerald",
     },
     {
       label: "Outstanding",
@@ -36,6 +38,7 @@ export function VendorSummary({ summary = {} }) {
       caption: `${numberOf(summary.outstandingPercentage)}%`,
       icon: ReceiptText,
       tone: "text-slate-700 bg-slate-500/10 dark:text-slate-300",
+      cardTone: "event-summary-surface-slate",
     },
     {
       label: "Overdue",
@@ -43,6 +46,7 @@ export function VendorSummary({ summary = {} }) {
       caption: `${numberOf(summary.overduePercentage)}%`,
       icon: CircleAlert,
       tone: "text-red-600 bg-red-500/10 dark:text-red-300",
+      cardTone: "event-summary-surface-rose",
     },
     {
       label: "Settled Vendors",
@@ -50,10 +54,11 @@ export function VendorSummary({ summary = {} }) {
       caption: "Fully settled",
       icon: UsersRound,
       tone: "text-violet-600 bg-violet-500/10 dark:text-violet-300",
+      cardTone: "event-summary-surface-violet",
     },
   ];
 
-  return <EventMetricCards items={cards} />;
+  return <EventMetricCards layout="overview" items={cards} />;
 }
 
 export function ExpenseSummary({ summary = {} }) {
@@ -63,18 +68,21 @@ export function ExpenseSummary({ summary = {} }) {
       value: currency(summary.approvedExpenses),
       icon: Coins,
       tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+      cardTone: "event-summary-surface-emerald",
     },
     {
       label: "Pending Approval",
       value: currency(summary.pendingApproval),
       icon: ReceiptText,
       tone: "bg-amber-500/10 text-amber-600 dark:text-amber-300",
+      cardTone: "event-summary-surface-amber",
     },
     {
       label: "Reimbursement Due",
       value: currency(summary.reimbursementDue),
       icon: UsersRound,
       tone: "bg-rose-500/10 text-rose-600 dark:text-rose-300",
+      cardTone: "event-summary-surface-rose",
       info: true,
     },
     {
@@ -82,10 +90,11 @@ export function ExpenseSummary({ summary = {} }) {
       value: numberOf(summary.missingProof),
       icon: FileText,
       tone: "bg-violet-500/10 text-violet-600 dark:text-violet-300",
+      cardTone: "event-summary-surface-violet",
     },
   ];
 
-  return <EventMetricCards items={cards} />;
+  return <EventMetricCards layout="overview" items={cards} />;
 }
 
 export function LoadingState() {

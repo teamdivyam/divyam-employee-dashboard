@@ -45,7 +45,7 @@ export default function EventBookingClientHeader({ booking, onAssignTask, onAllo
           <Button type="button" variant="outline" className="h-9 gap-2 px-3 text-xs font-medium" onClick={onAssignTask}><ClipboardList size={14} aria-hidden="true" />Assign Task</Button>
           <Button type="button" variant="custom" className="h-9 gap-2 px-3 text-xs font-medium" onClick={onAllocateItem}><PackagePlus size={14} aria-hidden="true" />Allocate Item</Button>
           <Button type="button" variant="outline" className="h-9 gap-2 px-3 text-xs font-medium" onClick={onDownloadEvent}><Download size={14} aria-hidden="true" />Download Event</Button>
-          <Button type="button" variant="custom" className="h-9 gap-2 px-3 text-xs font-medium" onClick={onRecordPayment}><WalletCards size={14} aria-hidden="true" />Record Payment</Button>
+          <Button disabled type="button" variant="custom" className="h-9 gap-2 px-3 text-xs font-medium" onClick={onRecordPayment}><WalletCards size={14} aria-hidden="true" />Record Payment</Button>
         </div>
       </CardContent>
     </Card>

@@ -431,7 +431,7 @@ function RunSheetPanel({ data, functions, onAdd, onView, onVerify, onUpload }) {
   }, [filtered]);
 
   return <div className="space-y-3">
-    <div className="flex w-full min-w-0 items-center justify-between gap-2 overflow-x-auto py-1">
+    <div className="flex w-full min-w-0 items-center justify-between gap-2 overflow-x-auto pb-0.5">
       <div className="shrink-0">
         <EventOperationsNav active="run-sheet" />
       </div>

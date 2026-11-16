@@ -116,7 +116,7 @@ export function ClientPaymentSummary({ summary = {} }) {
       caption: "Incl. GST",
       icon: FileText,
       tone: "bg-blue-500/10 text-blue-600 dark:text-blue-300",
-      cardTone: "bg-blue-50/40 dark:bg-blue-400/5",
+      cardTone: "event-summary-surface-blue",
     },
     {
       label: "Total Received",
@@ -124,7 +124,7 @@ export function ClientPaymentSummary({ summary = {} }) {
       caption: `${numberOf(summary.receivedPercentage)}% of total`,
       icon: CheckCircle2,
       tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
-      cardTone: "bg-emerald-50/40 dark:bg-emerald-400/5",
+      cardTone: "event-summary-surface-emerald",
     },
     {
       label: "Pending Amount",
@@ -132,7 +132,7 @@ export function ClientPaymentSummary({ summary = {} }) {
       caption: `${Math.max(0, 100 - numberOf(summary.receivedPercentage)).toFixed(0)}% of total`,
       icon: Clock3,
       tone: "bg-rose-500/10 text-rose-600 dark:text-rose-300",
-      cardTone: "bg-rose-50/40 dark:bg-rose-400/5",
+      cardTone: "event-summary-surface-rose",
     },
     {
       label: "Overdue Amount",
@@ -142,7 +142,7 @@ export function ClientPaymentSummary({ summary = {} }) {
         : "No overdue",
       icon: CircleAlert,
       tone: "bg-orange-500/10 text-orange-600 dark:text-orange-300",
-      cardTone: "bg-orange-50/40 dark:bg-orange-400/5",
+      cardTone: "event-summary-surface-orange",
     },
     {
       label: "Next Due Date",
@@ -150,11 +150,11 @@ export function ClientPaymentSummary({ summary = {} }) {
       caption: summary.nextDueMilestone || "No payment due",
       icon: CalendarClock,
       tone: "bg-violet-500/10 text-violet-600 dark:text-violet-300",
-      cardTone: "bg-violet-50/40 dark:bg-violet-400/5",
+      cardTone: "event-summary-surface-violet",
     },
   ];
 
-  return <EventMetricCards items={metrics} />;
+  return <EventMetricCards layout="overview" items={metrics} />;
 }
 
 const emptyMilestone = {
@@ -822,7 +822,7 @@ function RecordPaymentDialog({
                   className="rounded-none border-0"
                 />
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[10px] text-muted-foreground">
                 Max allowed: {currency(maximumAmount)}
               </p>
             </div>
@@ -1216,45 +1216,14 @@ export default function EventClientPaymentsPanel({
     <div className="space-y-4">
       <Card>
         <CardContent className="p-0">
-          <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-foreground">
-                Payment Milestones
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Track client payments against the agreed contract schedule.
-              </p>
-            </div>
-            {!readOnly && (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => openMilestone()}
-                  className="gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Milestone
-                </Button>
-                <Button
-                  variant="custom"
-                  onClick={() => openPayment()}
-                  disabled={!hasOutstanding}
-                  className="gap-2"
-                >
-                  <IndianRupee className="h-4 w-4" />
-                  Record Payment
-                </Button>
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col gap-3 border-b border-border p-3 lg:flex-row lg:items-center">
-            <div className="relative min-w-0 flex-1">
+          <div className="event-client-payments-toolbar">
+            <div className="relative min-w-44 flex-1 basis-44">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={filters.search}
                 onChange={(event) => setFilter("search", event.target.value)}
                 placeholder="Search milestone..."
-                className="pl-9"
+                className="h-9 pl-9 text-xs"
                 aria-label="Search payment milestones"
               />
             </div>
@@ -1263,7 +1232,7 @@ export default function EventClientPaymentsPanel({
               onValueChange={(value) => setFilter("status", value)}
             >
               <SelectTrigger
-                className="w-full lg:w-44"
+                className="h-9 w-full text-xs sm:w-36"
                 aria-label="Filter by status"
               >
                 <SelectValue />
@@ -1290,7 +1259,7 @@ export default function EventClientPaymentsPanel({
               onValueChange={(value) => setFilter("milestone", value)}
             >
               <SelectTrigger
-                className="w-full lg:w-52"
+                className="h-9 w-full text-xs sm:w-40"
                 aria-label="Filter by milestone"
               >
                 <SelectValue />
@@ -1308,7 +1277,7 @@ export default function EventClientPaymentsPanel({
               variant="outline"
               onClick={onDownloadReport}
               disabled={downloadingReport}
-              className="gap-2 lg:ml-auto"
+              className="event-client-payments-toolbar-action"
             >
               {downloadingReport ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1317,38 +1286,54 @@ export default function EventClientPaymentsPanel({
               )}
               Download Report
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => openMilestone()}
+              disabled
+              className="event-client-payments-toolbar-action"
+            >
+              <Plus className="h-4 w-4" />
+              Add Milestone
+            </Button>
+            <Button
+              variant="custom"
+              onClick={() => openPayment()}
+              disabled={readOnly || !hasOutstanding}
+              className="event-client-payments-toolbar-action"
+            >
+              <IndianRupee className="h-4 w-4" />
+              Record Payment
+            </Button>
           </div>
           <div className="max-w-full overflow-x-auto">
-            <Table className="min-w-[1050px]">
+            <Table className="min-w-[1260px] table-fixed min-[451px]:min-w-0 min-[451px]:[&_th]:overflow-hidden min-[451px]:[&_th]:text-ellipsis min-[451px]:[&_tbody_td]:overflow-hidden min-[451px]:[&_tbody_td]:text-ellipsis min-[451px]:[&_tbody_td:nth-child(8)]:text-clip [&_thead_th:first-child]:text-left [&_thead_th:first-child]:px-3 [&_thead_th:last-child]:px-3 [&_tbody_td]:px-3 [&_tbody_td:first-child]:pl-3 [&_tbody_td:last-child]:pr-3">
               <TableHeader>
                 <TableRow className="bg-muted/40">
-                  <TableHead className="w-12">#</TableHead>
-                  <TableHead>Milestone</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-right">Received</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Payment</TableHead>
-                  <TableHead>Receipt</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
+                  <TableHead className="w-[15%]">Milestone</TableHead>
+                  <TableHead className="w-[10%] text-center">Due Date</TableHead>
+                  <TableHead className="w-[10%] text-right">Amount</TableHead>
+                  <TableHead className="w-[10%] text-right">Received</TableHead>
+                  <TableHead className="w-[10%] text-right pr-4">Balance</TableHead>
+                  <TableHead className="w-[10%] text-center">Status</TableHead>
+                  <TableHead className="w-[10%] text-left pl-2">Last Payment</TableHead>
+                  <TableHead className="w-[10%] !pl-14 text-left">Receipt</TableHead>
+                  <TableHead className="w-[15%] text-right">
+                    <div className="flex justify-end pr-9">
+                      <span className="w-[72px] shrink-0 text-center">Action</span>
+                    </div>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {milestones.length ? (
-                  milestones.map((milestone, index) => (
+                  milestones.map((milestone) => (
                     <TableRow key={idOf(milestone)}>
-                      <TableCell className="text-xs">
-                        {(pagination.page - 1) * pagination.limit + index + 1}
-                      </TableCell>
-                      <TableCell className="max-w-44 font-semibold text-foreground">
+
+                      <TableCell title={milestone.description || milestone.name} className="break-words text-xs font-normal text-foreground">
                         {milestone.name}
                       </TableCell>
-                      <TableCell className="max-w-56 whitespace-normal text-xs text-muted-foreground">
-                        {milestone.description || "-"}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-xs">
+
+                      <TableCell className="whitespace-nowrap text-center text-xs">
                         {shortDate(milestone.dueDate)}
                       </TableCell>
                       <TableCell className="text-right text-xs font-medium">
@@ -1357,16 +1342,16 @@ export default function EventClientPaymentsPanel({
                       <TableCell className="text-right text-xs font-medium">
                         {currency(milestone.receivedAmount)}
                       </TableCell>
-                      <TableCell className="text-right text-xs font-medium">
+                      <TableCell className="text-right text-xs font-medium pr-4">
                         {currency(milestone.balance)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-center">
                         <PaymentStatusBadge status={milestone.status} />
                       </TableCell>
-                      <TableCell className="whitespace-nowrap text-xs">
+                      <TableCell className="whitespace-nowrap text-left text-xs pl-2">
                         {shortDate(milestone.lastPaymentDate)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="!pl-8 text-left">
                         {milestonePayments(milestone).length ? (
                           <Button
                             variant="ghost"
@@ -1379,12 +1364,12 @@ export default function EventClientPaymentsPanel({
                             {milestonePayments(milestone).length === 1 ? "" : "s"}
                           </Button>
                         ) : (
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground pl-2">
                             -
                           </span>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="">
                         <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="outline"
@@ -1406,7 +1391,7 @@ export default function EventClientPaymentsPanel({
                                 numberOf(milestone.balance) <= 0
                               }
                               onClick={() => openPayment(milestone)}
-                              className="gap-1.5 border-blue-300 bg-transparent text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                              className="h-7 w-[72px] shrink-0 gap-1 px-2 text-[10px] border-blue-300 bg-transparent text-blue-700 hover:bg-blue-50 hover:text-blue-800 [&_svg]:size-3"
                             >
                               <IndianRupee className="h-4 w-4" />
                               Record
@@ -1449,7 +1434,7 @@ export default function EventClientPaymentsPanel({
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={11} className="h-40 text-center">
+                    <TableCell colSpan={9} className="h-40 text-center">
                       <div className="flex flex-col items-center gap-3 text-muted-foreground">
                         <ReceiptText className="h-8 w-8" />
                         <div>
@@ -1463,7 +1448,7 @@ export default function EventClientPaymentsPanel({
                           </p>
                         </div>
                         {!readOnly && (
-                          <Button
+                          <Button disabled
                             variant="outline"
                             size="sm"
                             onClick={() => openMilestone()}

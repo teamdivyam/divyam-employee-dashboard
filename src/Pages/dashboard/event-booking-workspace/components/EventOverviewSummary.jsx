@@ -6,7 +6,7 @@ import {
   Flag,
   ListChecks,
   MessageSquareText,
-  SlidersHorizontal,
+  ClipboardCheck,
   IndianRupee,
 } from "lucide-react";
 import { Card, CardContent } from "@components/components/ui/card";
@@ -18,24 +18,24 @@ import {
 import { currencyAmount } from "../eventBookingDashboard.utils";
 const metricTones = {
   violet:
-    "bg-violet-100 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300",
-  blue: "bg-blue-100 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300",
+    "event-overview-icon-violet",
+  blue: "event-overview-icon-blue",
   orange:
-    "bg-orange-100 text-orange-600 dark:bg-orange-400/10 dark:text-orange-300",
+    "event-overview-icon-orange",
   green:
-    "bg-emerald-100 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-300",
+    "event-overview-icon-emerald",
   amber:
-    "bg-amber-100 text-amber-600 dark:bg-amber-400/10 dark:text-amber-300",
-  red: "bg-red-100 text-red-600 dark:bg-red-400/10 dark:text-red-300",
+    "event-overview-icon-amber",
+  red: "event-overview-icon-red",
 };
 
 const metricCardTones = {
-  violet: "bg-violet-50/40 dark:bg-violet-400/5",
-  blue: "bg-blue-50/40 dark:bg-blue-400/5",
-  orange: "bg-orange-50/40 dark:bg-orange-400/5",
-  green: "bg-emerald-50/40 dark:bg-emerald-400/5",
-  amber: "bg-amber-50/40 dark:bg-amber-400/5",
-  red: "bg-red-50/40 dark:bg-red-400/5",
+  violet: "event-overview-surface-violet",
+  blue: "event-overview-surface-blue",
+  orange: "event-overview-surface-orange",
+  green: "event-overview-surface-emerald",
+  amber: "event-overview-surface-amber",
+  red: "event-overview-surface-red",
 };
 
 export default function EventOverviewSummary({
@@ -67,7 +67,7 @@ export default function EventOverviewSummary({
       label: "Planning Stage",
       value: summary.stage,
       caption: `Stage ${summary.stageStep} of 5`,
-      icon: SlidersHorizontal,
+      icon: ClipboardCheck,
       tone: "blue",
     },
     {
@@ -89,8 +89,8 @@ export default function EventOverviewSummary({
     <EventSummarySlot>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         {cards.map(({ label, value, caption, icon: Icon, tone }) => (
-          <Card key={label} className={`crm-card h-full ${metricCardTones[tone]}`}>
-            <CardContent className="flex h-[104px] items-center gap-3 p-3.5">
+          <Card key={label} className={`crm-card event-overview-kpi h-full ${metricCardTones[tone]}`}>
+            <CardContent className="event-overview-kpi-content">
               {label === "Event Manager" ? (
                 <Avatar className="h-11 w-11 shrink-0">
                   <AvatarImage
@@ -110,15 +110,15 @@ export default function EventOverviewSummary({
                 </span>
               )}
               <div className="flex min-w-0 flex-1 flex-col justify-center">
-                <p className="text-[10px] font-medium leading-none text-muted-foreground">{label}</p>
-                <div className="mt-1.5 flex h-9 items-start">
-                  <p className="line-clamp-2 text-sm font-semibold leading-snug text-foreground" title={String(value)}>
+                <p className="event-overview-kpi-label">{label}</p>
+                <div className="event-overview-kpi-value-row">
+                  <p className="event-overview-kpi-value" title={String(value)}>
                     {value}
                   </p>
                 </div>
                 <div className="mt-1 flex h-4 items-center">
                   {caption ? (
-                    <p className="truncate text-[10px] leading-none text-muted-foreground">
+                    <p className="event-overview-kpi-caption">
                       {caption}
                     </p>
                   ) : (
@@ -129,15 +129,15 @@ export default function EventOverviewSummary({
             </CardContent>
           </Card>
         ))}
-        <Card className={`crm-card h-full ${metricCardTones.violet}`}>
-          <CardContent className="flex h-[104px] items-center gap-3 p-3.5">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-violet-100 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300">
+        <Card className={`crm-card event-overview-kpi h-full ${metricCardTones.violet}`}>
+          <CardContent className="event-overview-kpi-content">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full event-overview-icon-violet">
               <ListChecks className="h-5 w-5" />
             </span>
             <div className="flex min-w-0 flex-1 flex-col justify-center">
-              <p className="text-[10px] font-medium leading-none text-muted-foreground">Open Tasks</p>
-              <div className="mt-1.5 flex h-9 items-start">
-                <p className="text-sm font-semibold leading-snug text-foreground">
+              <p className="event-overview-kpi-label">Open Tasks</p>
+              <div className="event-overview-kpi-value-row">
+                <p className="event-overview-kpi-value">
                   {summary.openTasks}
                 </p>
               </div>
@@ -145,7 +145,7 @@ export default function EventOverviewSummary({
                 <button
                   type="button"
                   onClick={onViewTasks}
-                  className="inline-flex items-center gap-1 text-[10px] font-semibold leading-none text-blue-600 hover:text-blue-700 hover:underline"
+                  className="event-overview-kpi-link"
                 >
                   View Tasks
                   <ChevronRight className="h-3 w-3 shrink-0" />
@@ -154,15 +154,15 @@ export default function EventOverviewSummary({
             </div>
           </CardContent>
         </Card>
-        <Card className={`crm-card h-full ${metricCardTones.amber}`}>
-          <CardContent className="flex h-[104px] items-center gap-3 p-3.5">
+        <Card className={`crm-card event-overview-kpi h-full ${metricCardTones.amber}`}>
+          <CardContent className="event-overview-kpi-content">
             <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${metricTones.amber}`}>
               <MessageSquareText className="h-5 w-5" />
             </span>
             <div className="flex min-w-0 flex-1 flex-col justify-center">
-              <p className="text-[10px] font-medium leading-none text-muted-foreground">Feedback</p>
-              <div className="mt-1.5 flex h-9 items-start">
-                <p className="truncate text-sm font-semibold leading-snug text-foreground">
+              <p className="event-overview-kpi-label">Feedback</p>
+              <div className="event-overview-kpi-value-row">
+                <p className="event-overview-kpi-value">
                   {feedbacks.length} Received
                 </p>
               </div>
@@ -170,7 +170,7 @@ export default function EventOverviewSummary({
                 <button
                   type="button"
                   onClick={onViewFeedback}
-                  className="inline-flex items-center gap-1 text-[10px] font-semibold leading-none text-primary hover:text-primary/80 hover:underline"
+                  className="event-overview-kpi-link"
                 >
                   {averageRating ? `${averageRating.toFixed(1)}/5 Average` : "View Feedback"}
                   <ChevronRight className="h-3 w-3 shrink-0" />

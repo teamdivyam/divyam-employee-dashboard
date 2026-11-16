@@ -352,31 +352,29 @@ export function FunctionsOverview({ details, onView }) {
     >
       <OverviewTable
         headings={[
-          "#",
           "Function",
-          "Date",
-          "Start Time",
-          "End Time",
-          "Est. Guests",
-          "Status",
+          { label: "Date", className: "text-center" },
+          { label: "Start Time", className: "text-center" },
+          { label: "End Time", className: "text-center" },
+          { label: "Est. Guests", className: "text-center" },
+          { label: "Status", className: "text-center" },
         ]}
         rows={sortFunctionsByFromDate(details.functions)}
         empty="No functions added yet."
         renderRow={(item, index) => (
           <TableRow key={item._id || index}>
-            <TableCell>{index + 1}</TableCell>
             <TableCell className="font-semibold">{item.name || "-"}</TableCell>
-            <TableCell className="whitespace-nowrap">
+            <TableCell className="whitespace-nowrap text-center">
               {dateRangeLabel(item.fromDate ?? item.date, item.toDate)}
             </TableCell>
-            <TableCell className="whitespace-nowrap">
+            <TableCell className="whitespace-nowrap text-center">
               {overviewTime(item.startTime)}
             </TableCell>
-            <TableCell className="whitespace-nowrap">
+            <TableCell className="whitespace-nowrap text-center">
               {overviewTime(item.endTime)}
             </TableCell>
-            <TableCell>{item.guestCount ?? "-"}</TableCell>
-            <TableCell>
+            <TableCell className="text-center">{item.guestCount ?? "-"}</TableCell>
+            <TableCell className="text-center">
               <OverviewStatus status={item.status} />
             </TableCell>
           </TableRow>
@@ -394,11 +392,10 @@ export function ServicesOverview({ details, onView }) {
     >
       <OverviewTable
         headings={[
-          "#",
           "Service",
           "Required For (Function)",
-          "Service Date(s)",
-          "Planning Status",
+          { label: "Service Date(s)", className: "text-center" },
+          { label: "Planning Status", className: "text-center" },
         ]}
         rows={details.services}
         empty="No services selected yet."
@@ -417,15 +414,14 @@ export function ServicesOverview({ details, onView }) {
               : overviewDate(dates[0]);
           return (
             <TableRow key={item._id || index}>
-              <TableCell>{index + 1}</TableCell>
               <TableCell className="font-semibold">
                 {item.name || item.service || "-"}
               </TableCell>
               <TableCell>
                 {functions.map((fn) => fn.name).join(", ") || "Not linked"}
               </TableCell>
-              <TableCell>{dateLabel}</TableCell>
-              <TableCell>
+              <TableCell className="text-center">{dateLabel}</TableCell>
+              <TableCell className="text-center">
                 <OverviewStatus status={item.status} />
               </TableCell>
             </TableRow>

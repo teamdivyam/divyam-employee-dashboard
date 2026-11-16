@@ -66,7 +66,7 @@ function SettlementActions({ settlement, onView, onEdit, onRecord, readOnly }) {
       <Button
         size="sm"
         variant="outline"
-        className="gap-1.5 border-blue-300 bg-transparent text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+        className="w-[72px] shrink-0 gap-1.5 border-blue-300 bg-transparent text-blue-700 hover:bg-blue-50 hover:text-blue-800"
         onClick={() => onView(settlement)}
       >
         <Eye className="h-4 w-4" />
@@ -120,49 +120,49 @@ export default function EventVendorSettlementRegister({
     <div className="space-y-3">
       <div className="min-w-0">
           <div className="max-w-full overflow-x-auto">
-            <Table headerVariant="section" className="min-w-[1100px] text-xs">
+            <Table headerVariant="section" className="w-full min-w-[1200px] table-fixed text-xs [&_thead_th]:!px-3 [&_tbody_td]:!px-3 [&_thead_th]:!whitespace-normal [&_tbody_td]:break-words">
               <TableHeader>
                 <TableRow className="bg-muted/40">
-                  <TableHead>Vendor</TableHead>
-                  <TableHead>Service</TableHead>
-                  <TableHead className="text-right text-xs font-medium">Final Cost</TableHead>
-                  <TableHead className="text-right text-xs font-medium">Paid</TableHead>
-                  <TableHead className="text-right text-xs font-medium">Outstanding</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead className="text-right text-xs font-medium">
+                  <TableHead className="!text-left text-xs ">Vendor</TableHead>
+                  <TableHead className="!text-left text-xs ">Service</TableHead>
+                  <TableHead className="!text-right text-xs font-medium">Final Cost</TableHead>
+                  <TableHead className="!text-right text-xs font-medium">Paid</TableHead>
+                  <TableHead className="!text-right text-xs font-medium">Outstanding</TableHead>
+                  <TableHead className="!text-center text-xs ">Due Date</TableHead>
+                  <TableHead className="!text-left text-xs ">
                     Settlement Status
                   </TableHead>
-                  <TableHead className="text-right text-xs font-medium">Action</TableHead>
+                  <TableHead className="!text-right text-xs font-medium">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data?.settlements?.length ? (
                   data.settlements.map((settlement) => (
                     <TableRow key={idOf(settlement)}>
-                      <TableCell className="text-xs font-normal text-foreground">
+                      <TableCell className="!text-left text-xs ">
                         {settlement.vendorName}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="!text-left text-xs ">
                         <Badge
                           className={`border-0 ${serviceClasses[settlement.service] || "bg-muted text-foreground"}`}
                         >
                           {settlement.service}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right text-xs font-medium">
+                      <TableCell className="!text-right text-xs font-medium">
                         {currency(settlement.finalCost)}
                       </TableCell>
-                      <TableCell className="text-right text-xs font-medium">
+                      <TableCell className="!text-right text-xs font-medium">
                         {currency(settlement.paidAmount)}
                       </TableCell>
-                      <TableCell className="text-right text-xs font-medium">
+                      <TableCell className="!text-right text-xs font-medium">
                         {currency(settlement.outstandingAmount)}
                       </TableCell>
-                      <TableCell>{shortDate(settlement.dueDate)}</TableCell>
-                      <TableCell className="text-right text-xs font-medium">
+                      <TableCell className="!text-center text-xs ">{shortDate(settlement.dueDate)}</TableCell>
+                      <TableCell className="!text-left text-xs ">
                         <StatusBadge status={settlement.settlementStatus} />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="!text-right text-xs font-medium">
                         <SettlementActions
                           settlement={settlement}
                           onView={onViewSettlement}

@@ -139,7 +139,7 @@ export function DocumentSummary({ summary = {} }) {
     },
   ];
 
-  return <EventMetricCards items={cards} />;
+  return <EventMetricCards layout="overview" items={cards} />;
 }
 
 function LoadingState() {
@@ -249,7 +249,7 @@ export default function EventDocumentsPanel({
             ))}
           </SelectContent>
         </Select>
-        <Button
+        <Button disabled
           variant="custom"
           size="sm"
           onClick={() => setUploadOpen(true)}
@@ -269,7 +269,7 @@ export default function EventDocumentsPanel({
               <div className="overflow-x-auto">
                 <Table
                   headerVariant="section"
-                  className="min-w-[1120px] table-fixed"
+                  className="min-w-[1120px] table-fixed [&_thead_th:first-child]:!text-left [&_thead_th:first-child]:!pl-4"
                 >
                   <colgroup>
                     {[25, 14, 14, 14, 10, 15, 8].map((width, index) => (
@@ -278,13 +278,28 @@ export default function EventDocumentsPanel({
                   </colgroup>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead className="h-10">Document</TableHead>
-                      <TableHead className="h-10">Category</TableHead>
-                      <TableHead className="h-10">Linked To</TableHead>
-                      <TableHead className="h-10">Visibility</TableHead>
-                      <TableHead className="h-10">Document Date</TableHead>
-                      <TableHead className="h-10">Added By</TableHead>
-                      <TableHead className="h-10">Action</TableHead>
+                      {['Document', 'Category', 'Linked To', 'Visibility', 'Document Date', 'Added By', 'Action'].map((label) => (
+                        <TableHead
+                          key={label}
+                          className={`h-10 ${
+                            label === 'Document'
+                              ? '!text-left !pl-16'
+                              : label === 'Added By'
+                                ? '!text-left !pl-[52px]'
+                                : label === 'Action'
+                                  ? '!px-3 text-right text-xs font-medium'
+                                  : '!text-left'
+                          }`}
+                        >
+                          {label === 'Action' ? (
+                            <div className="flex justify-end">
+                              <span className="w-[72px] shrink-0 text-center">Action</span>
+                            </div>
+                          ) : (
+                            label
+                          )}
+                        </TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -333,7 +348,7 @@ export default function EventDocumentsPanel({
                         <TableRow
                           key={`${document.sourceType || "document"}-${idOf(document) || document.fileUrl}`}
                         >
-                          <TableCell className="py-3">
+                          <TableCell className="py-3 pl-4">
                             <div className="flex min-w-0 items-center gap-3">
                               <DocumentIcon document={document} />
                               <div className="min-w-0">
@@ -360,7 +375,7 @@ export default function EventDocumentsPanel({
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="">
                             <Badge
                               variant="outline"
                               className={
@@ -371,7 +386,7 @@ export default function EventDocumentsPanel({
                               {document.documentType}
                             </Badge>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="">
                             <p className="font-medium">
                               {document.linkedModule || "Event"}
                             </p>
@@ -379,7 +394,7 @@ export default function EventDocumentsPanel({
                               {bookingCode(booking || data?.event || {})}
                             </p>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="">
                             <Badge
                               variant="outline"
                               className={`gap-1 text-[10px] ${visibilityClasses[visibility] || ""}`}
@@ -388,10 +403,10 @@ export default function EventDocumentsPanel({
                               {visibility || "-"}
                             </Badge>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="">
                             {shortDate(document.documentDate)}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="">
                             <div className="flex items-center gap-2">
                               <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-primary/10 text-[10px] font-semibold text-primary">
                                 {initials(document.uploadedByName || "Admin")}
@@ -406,13 +421,13 @@ export default function EventDocumentsPanel({
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="!px-3 text-right">
                             {url ? (
                               <Button
                                 size="sm"
                                 variant="outline"
                                 asChild
-                                className="h-8 px-2 text-primary"
+                                className="h-8 w-[72px] shrink-0 px-2 text-primary"
                               >
                                 <a
                                   href={url}

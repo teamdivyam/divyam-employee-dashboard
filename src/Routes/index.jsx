@@ -14,7 +14,7 @@ import MyProfilePage from "../Pages/dashboard/my-profile/MyProfilePage";
 import MyTasksPage from "../Pages/dashboard/my-tasks/MyTasksPage";
 import AssignedClientsPage from "../Pages/dashboard/assigned-clients/AssignedClientsPage";
 import EventBookingDashboardPage from "../Pages/dashboard/event-booking-workspace/EventBookingDashboardPage";
-import EventOverviewPage from "../Pages/dashboard/event-booking-workspace/EventOverviewModernPage";
+import EventOverviewPage from "../Pages/dashboard/event-booking-workspace/DetailEventBookingPage";
 import EventFunctionsPage from "../Pages/dashboard/event-booking-workspace/EventFunctionsAdminPage";
 import EventServicesPage from "../Pages/dashboard/event-booking-workspace/EventServicesAdminPage";
 import EventGuestsPage from "../Pages/dashboard/event-booking-workspace/EventGuestsPage";

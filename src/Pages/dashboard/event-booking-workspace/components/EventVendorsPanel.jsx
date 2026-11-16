@@ -144,7 +144,7 @@ export default function EventVendorsPanel({ booking, onAdd, onEdit, onDelete }) 
                     </div>
                   </TableHead>
                   <TableHead className="h-11 px-2.5 text-center">Work Status</TableHead>
-                  <TableHead className="h-11 px-3 text-center">Payment Summary</TableHead>
+                  <TableHead className="h-11 px-3 text-left">Payment Summary</TableHead>
                   <TableHead className="h-11 px-2.5 text-center">Documents</TableHead>
                   <TableHead className="h-11 px-3 text-center">Action</TableHead>
                 </TableRow>
@@ -170,24 +170,24 @@ export default function EventVendorsPanel({ booking, onAdd, onEdit, onDelete }) 
                         </div>
                       </TableCell>
                       <TableCell className="px-3 py-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex min-w-0 flex-col items-start gap-1">
                           <Badge variant="outline" className="shrink-0 border-violet-100 bg-violet-50 px-2 py-0.5 text-[11px] font-normal text-violet-700">{service}</Badge>
                           {assignment.scope || assignment.notes ? (
-                            <span className="min-w-0 truncate text-xs text-muted-foreground" title={assignment.scope || assignment.notes}>{assignment.scope || assignment.notes}</span>
+                            <span className="max-w-full truncate text-xs text-muted-foreground" title={assignment.scope || assignment.notes}>{assignment.scope || assignment.notes}</span>
                           ) : null}
                         </div>
                       </TableCell>
                       <TableCell className="px-3 py-3"><span className="inline-block rounded-md bg-blue-50 px-2.5 py-1 text-xs font-normal text-blue-700">{assignedFunctions.length ? assignedFunctions.join(', ') : 'All Functions'}</span></TableCell>
-                      <TableCell className="px-3 py-3"><p className="font-semibold text-foreground">{vendor.contactPerson || '-'}</p><p className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground"><Phone className="h-3 w-3" />{vendor.mobileNumber || '-'}</p></TableCell>
+                      <TableCell className="px-3 py-3"><p className="font-semibold text-foreground">{vendor.contactPerson || '-'}</p><p className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground"><Phone className="h-3 w-3 shrink-0" />{vendor.mobileNumber || '-'}</p></TableCell>
                       <TableCell className="px-3 py-3"><div className="space-y-1 text-xs"><div className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 shrink-0 text-blue-600" /><p className="font-medium text-foreground">{formatDate(assignment.reportingTime)}</p></div><div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-3.5 w-3.5 shrink-0 text-blue-600" /><p>{formatTime(assignment.reportingTime) || '-'}</p></div></div></TableCell>
                       <TableCell className="px-2.5 py-3 text-center"><Badge variant="outline" className={`inline-flex h-7 items-center justify-center rounded-md px-3 text-xs font-normal ${badgeTone(assignment.status)}`}>{assignment.status || 'Upcoming'}</Badge></TableCell>
-                      <TableCell className="px-3 py-3 text-center">
-                        <div className="flex flex-col items-center">
-                          <div className="relative flex items-center justify-center">
-                            <div className="h-1.5 w-28 overflow-hidden rounded-full bg-muted">
+                      <TableCell className="px-3 py-3 text-left">
+                        <div className="flex flex-col items-start">
+                          <div className="flex w-full min-w-0 items-center gap-2">
+                            <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
                               <div className={`h-full rounded-full ${percent === 100 ? 'bg-emerald-600' : 'bg-orange-500'}`} style={{ width: `${percent}%` }} />
                             </div>
-                            <span className={`absolute left-[calc(50%+3.75rem)] whitespace-nowrap text-[10px] font-semibold ${percent === 100 ? 'text-emerald-700' : percent ? 'text-orange-600' : 'text-muted-foreground'}`}>{percent}% Paid</span>
+                            <span className={`shrink-0 whitespace-nowrap text-[10px] font-semibold ${percent === 100 ? 'text-emerald-700' : percent ? 'text-orange-600' : 'text-muted-foreground'}`}>{percent}% Paid</span>
                           </div>
                           <p className="mt-1.5 text-[10px] font-medium text-foreground">{money(paid)} Paid <span className="px-1 text-muted-foreground">•</span> {money(due)} Due</p>
                           {due > 0 && assignment.nextPaymentDueDate ? <p className="mt-0.5 text-[9px] text-muted-foreground">Next due: {formatDate(assignment.nextPaymentDueDate)}</p> : null}

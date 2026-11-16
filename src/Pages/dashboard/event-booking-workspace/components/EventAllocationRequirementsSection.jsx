@@ -789,7 +789,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                       </div>
                       <div>
                         <dt className="text-[10px] text-muted-foreground">Required Qty</dt>
-                        <dd className="mt-0.5 font-medium tabular-nums text-foreground">
+                        <dd className="mt-0.5 font-bold tabular-nums text-foreground">
                           {line.requiredQuantity ?? "—"}
                         </dd>
                       </div>
@@ -937,7 +937,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                         <Boxes className="h-5 w-5" />
                       </div>
                       <div>
-                        <DialogTitle className="text-base font-medium text-foreground">
+                        <DialogTitle className="text-base font-bold text-foreground">
                           {editor.mode === "metadata" ? "Edit Allocation Details" : "Edit Item Allocation"}
                         </DialogTitle>
                         <DialogDescription className="mt-0.5 text-xs text-muted-foreground">
@@ -1039,7 +1039,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                             />
                           </div>
                           <div className="min-w-0 space-y-1">
-                            <h2 className="truncate text-base font-medium text-foreground sm:text-sm">{itemName}</h2>
+                            <h2 className="truncate text-base font-bold text-foreground sm:text-lg">{itemName}</h2>
                             <div className="flex flex-wrap items-center gap-2 text-xs">
                               <span className="font-semibold text-primary">{itemCode}</span>
                               <span className="text-muted-foreground/60">•</span>
@@ -1074,10 +1074,10 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                       <div className="space-y-2">
                         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-blue-100 bg-blue-50 px-2 py-1 dark:border-blue-900/50 dark:bg-blue-950/40">
                           <div className="flex items-center gap-2">
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[11px] font-medium text-white">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold text-white">
                               1
                             </span>
-                            <h3 className="text-xs font-medium uppercase tracking-wider text-blue-700 dark:text-blue-300">
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
                               Current Position (Live Data)
                             </h3>
                           </div>
@@ -1092,7 +1092,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                               <Calendar className="h-4 w-4" />
                             </div>
                             <p className="text-[10px] font-medium text-muted-foreground">Required Quantity</p>
-                            <p className="mt-0.5 text-sm font-medium tracking-tight text-foreground">
+                            <p className="mt-0.5 text-xl font-bold tracking-tight text-foreground">
                               {currentRequired}
                             </p>
                             <p className="text-[10px] text-muted-foreground">{itemUnit}</p>
@@ -1103,7 +1103,7 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                               <ShieldCheck className="h-4 w-4" />
                             </div>
                             <p className="text-[10px] font-medium text-muted-foreground">Reserved Quantity</p>
-                            <p className="mt-0.5 text-sm font-medium tracking-tight text-foreground">
+                            <p className="mt-0.5 text-xl font-bold tracking-tight text-foreground">
                               {currentReserved}
                             </p>
                             <p className="text-[10px] text-muted-foreground">{itemUnit}</p>
@@ -1145,10 +1145,10 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                       {/* Section 2: ALLOCATION DETAILS */}
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 rounded-md border border-emerald-100 bg-emerald-50 px-2 py-1 dark:border-emerald-900/50 dark:bg-emerald-950/40">
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-medium text-white">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-bold text-white">
                             2
                           </span>
-                          <h3 className="text-xs font-medium uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
                             Allocation Details
                           </h3>
                         </div>
@@ -1248,10 +1248,10 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                       {/* Section 3: ALLOCATION PREVIEW */}
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 rounded-md border border-purple-100 bg-purple-50 px-2 py-1 dark:border-purple-900/50 dark:bg-purple-950/40">
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-600 text-[11px] font-medium text-white">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-600 text-[11px] font-bold text-white">
                             3
                           </span>
-                          <h3 className="text-xs font-medium uppercase tracking-wider text-purple-700 dark:text-purple-300">
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300">
                             Allocation Preview
                           </h3>
                         </div>
@@ -1268,12 +1268,12 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
                               <div className="grid grid-cols-3 items-stretch [&>span]:px-2 [&>span]:py-1.5 [&>span:nth-child(2)]:bg-muted/20 [&>span:last-child]:bg-emerald-50/70 dark:[&>span:last-child]:bg-emerald-950/30">
                                 <span className="text-muted-foreground">Required</span>
                                 <span className="text-center font-semibold tabular-nums">{currentRequired}</span>
-                                <span className="text-center font-medium tabular-nums text-foreground">{newRequired}</span>
+                                <span className="text-center font-bold tabular-nums text-foreground">{newRequired}</span>
                               </div>
                               <div className="grid grid-cols-3 items-stretch [&>span]:px-2 [&>span]:py-1.5 [&>span:nth-child(2)]:bg-muted/20 [&>span:last-child]:bg-emerald-50/70 dark:[&>span:last-child]:bg-emerald-950/30">
                                 <span className="text-muted-foreground">Reserved</span>
                                 <span className="text-center font-semibold tabular-nums">{currentReserved}</span>
-                                <span className="text-center font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
+                                <span className="text-center font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
                                   {newReserved}
                                 </span>
                               </div>

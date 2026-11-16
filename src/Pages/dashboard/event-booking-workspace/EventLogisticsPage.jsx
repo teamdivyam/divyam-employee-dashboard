@@ -88,15 +88,15 @@ function LogisticsMovementDialog({ open, onOpenChange, movement, functions, empl
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col gap-0 overflow-hidden rounded-lg p-0">
-        <DialogHeader className="border-b border-purple-100/70 bg-[#f0edfd]/80 px-6 py-4 pr-12 text-left dark:border-purple-900/30 dark:bg-purple-950/20">
-          <DialogTitle className="text-lg font-bold text-foreground">
+        <DialogHeader className="shrink-0 border-b border-purple-100/70 bg-[#f0edfd]/80 px-5 py-3 pr-12 text-left dark:border-purple-900/30 dark:bg-purple-950/20">
+          <DialogTitle className="text-base">
             {movement ? 'Update' : 'Add'} Logistics Movement
           </DialogTitle>
         </DialogHeader>
 
         <form id="event-logistics-form" onSubmit={submit} className="min-h-0 overflow-y-auto px-6 py-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label className="text-xs font-semibold">Movement / Trip</Label>
               <Input value={form.title} onChange={(event) => setValue('title', event.target.value)} placeholder="Stage Setup Dispatch" required className="h-9 text-xs" />
             </div>
@@ -112,39 +112,39 @@ function LogisticsMovementDialog({ open, onOpenChange, movement, functions, empl
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label className="text-xs font-semibold">Origin</Label>
               <Input value={form.origin} onChange={(event) => setValue('origin', event.target.value)} placeholder="Warehouse" required className="h-9 text-xs" />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label className="text-xs font-semibold">Destination</Label>
               <Input value={form.destination} onChange={(event) => setValue('destination', event.target.value)} placeholder="Main Venue" required className="h-9 text-xs" />
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
+            <div className="space-y-1 sm:col-span-2">
               <Label className="text-xs font-semibold">Material summary</Label>
               <Input value={form.materials} onChange={(event) => setValue('materials', event.target.value)} placeholder="Stage panels, truss, ladders" className="h-9 text-xs" />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label className="text-xs font-semibold">Vehicle</Label>
               <Input value={form.vehicleName} onChange={(event) => setValue('vehicleName', event.target.value)} placeholder="Eicher Pickup" className="h-9 text-xs" />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label className="text-xs font-semibold">Registration number</Label>
               <Input value={form.vehicleRegistrationNumber} onChange={(event) => setValue('vehicleRegistrationNumber', event.target.value)} placeholder="UP70 CD5678" className="h-9 text-xs" />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label className="text-xs font-semibold">Driver</Label>
               <Input value={form.driverName} onChange={(event) => setValue('driverName', event.target.value)} className="h-9 text-xs" />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label className="text-xs font-semibold">Driver contact</Label>
               <Input value={form.driverContact} onChange={(event) => setValue('driverContact', event.target.value)} className="h-9 text-xs" />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label className="text-xs font-semibold">Dispatch date & time</Label>
               <Input type="datetime-local" value={form.dispatchAt} onChange={(event) => setValue('dispatchAt', event.target.value)} required className="h-9 text-xs" />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label className="text-xs font-semibold">Return date & time</Label>
               <Input type="datetime-local" value={form.returnAt} onChange={(event) => setValue('returnAt', event.target.value)} className="h-9 text-xs" />
             </div>
@@ -160,7 +160,7 @@ function LogisticsMovementDialog({ open, onOpenChange, movement, functions, empl
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label className="text-xs font-semibold">Status</Label>
               <Select value={form.status} onValueChange={(value) => setValue('status', value)}>
                 <SelectTrigger className="h-9 text-xs">
@@ -171,7 +171,7 @@ function LogisticsMovementDialog({ open, onOpenChange, movement, functions, empl
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
+            <div className="space-y-1 sm:col-span-2">
               <Label className="text-xs font-semibold">Notes</Label>
               <Input value={form.notes} onChange={(event) => setValue('notes', event.target.value)} className="h-9 text-xs" />
             </div>
@@ -223,7 +223,7 @@ function LogisticsPanel({ data, functions, onAdd, onView }) {
   useEffect(() => setPage(1), [search, functionFilter, status]);
 
   return <div className="space-y-3">
-    <div className="flex w-full min-w-0 items-center justify-between gap-2 overflow-x-auto py-1">
+    <div className="flex w-full min-w-0 items-center justify-between gap-2 overflow-x-auto pb-0.5">
       <div className="shrink-0">
         <EventOperationsNav active="logistics" />
       </div>

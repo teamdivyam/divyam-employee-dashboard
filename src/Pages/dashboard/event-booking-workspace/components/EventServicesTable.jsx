@@ -158,16 +158,16 @@ export default function EventServicesTable({
       </div>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
-          <Table className="min-w-[1050px] table-fixed text-xs">
+          <Table className="w-full min-w-[1120px] table-fixed text-xs [&_thead_th]:!px-3 [&_tbody_td]:!px-3 [&_thead_th]:!whitespace-normal [&_thead_th]:leading-snug [&_tbody_td]:break-words">
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="w-[12%] pl-6 text-left">Service</TableHead>
-                <TableHead className="w-[16%] text-left">Applies To (Functions)</TableHead>
-                <TableHead className="w-[14%] text-left">Date</TableHead>
-                <TableHead className="w-[21%] text-left">Final Scope / Key Deliverables</TableHead>
-                <TableHead className="w-[13%] text-left">Service Lead</TableHead>
-                <TableHead className="w-[11%] text-center">Planning Status</TableHead>
-                <TableHead className="w-[13%] pr-6 text-center">Action</TableHead>
+                <TableHead className="text-left"><span className="block pl-12">Service</span></TableHead>
+                <TableHead className="text-left">Applies To (Functions)</TableHead>
+                <TableHead className="text-left">Date</TableHead>
+                <TableHead className="text-left">Final Scope</TableHead>
+                <TableHead className="text-left"><span className="block pl-10">Service Lead</span></TableHead>
+                <TableHead className="text-center">Planning Status</TableHead>
+                <TableHead className="pr-6 text-center">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -243,7 +243,7 @@ export default function EventServicesTable({
                       <TableCell>
                         {lead ? (
                           <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
+                            <Avatar className="h-8 w-8 shrink-0">
                               <AvatarImage src={avatarUrl(lead)} />
                               <AvatarFallback className="bg-blue-50 text-[10px] text-blue-700">
                                 {initials(lead.name)}
@@ -260,7 +260,7 @@ export default function EventServicesTable({
                           </div>
                         ) : (
                           <span className="flex items-center gap-2 text-muted-foreground">
-                            <UserRound className="h-3.5 w-3.5" />
+                            <UserRound className="h-4 w-4" />
                             Not assigned
                           </span>
                         )}

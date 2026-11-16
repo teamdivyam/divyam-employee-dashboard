@@ -48,6 +48,7 @@ const formatDate = (value) => {
 };
 
 export function LearningsToolbar({
+  onAddLearning,
   learnings,
   search,
   onSearchChange,
@@ -57,7 +58,6 @@ export function LearningsToolbar({
   onFunctionChange,
   typeFilter,
   onTypeChange,
-  onAddLearning,
 }) {
   const filterOptions = useMemo(
     () => ({
@@ -87,14 +87,14 @@ export function LearningsToolbar({
         </SelectContent>
       </Select>
       <Select value={functionFilter} onValueChange={onFunctionChange}>
-        <SelectTrigger className="h-8 w-24 text-[11px]"><SelectValue placeholder="Functions" /></SelectTrigger>
+        <SelectTrigger className="h-8 w-32 shrink-0 gap-2 px-2.5 text-[11px]"><SelectValue placeholder="Functions" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Functions</SelectItem>
           {filterOptions.functions.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
         </SelectContent>
       </Select>
       <Select value={typeFilter} onValueChange={onTypeChange}>
-        <SelectTrigger className="h-8 w-20 text-[11px]"><SelectValue placeholder="Types" /></SelectTrigger>
+        <SelectTrigger className="h-8 w-28 shrink-0 gap-2 px-2.5 text-[11px]"><SelectValue placeholder="Types" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Types</SelectItem>
           {filterOptions.types.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
@@ -119,7 +119,6 @@ export default function LearningsPanel({
   relatedFilter = "all",
   functionFilter = "all",
   typeFilter = "all",
-  onAddLearning,
   onEditLearning,
   onDeleteLearning,
 }) {

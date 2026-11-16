@@ -26,12 +26,12 @@ export function VendorSettlementToolbar({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap xl:flex-nowrap xl:justify-end">
-      <div className="relative min-w-0 flex-1 sm:min-w-56 xl:max-w-64">
+      <div className="relative min-w-44 flex-1 basis-44">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={filters.search}
           onChange={(event) => onFilterChange("search", event.target.value)}
-          className="pl-9"
+          className="h-9 pl-9 text-xs"
           placeholder="Search vendor or service..."
           aria-label="Search vendor settlements"
         />
@@ -97,12 +97,12 @@ export function ExpenseToolbar({
 }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap xl:flex-nowrap xl:justify-end">
-      <div className="relative min-w-0 flex-1 sm:min-w-52 xl:max-w-56">
+      <div className="relative min-w-44 flex-1 basis-44">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={filters.search}
           onChange={(event) => onFilterChange("search", event.target.value)}
-          className="pl-9"
+          className="h-9 pl-9 text-xs"
           placeholder="Search expenses..."
           aria-label="Search event expenses"
         />
@@ -129,7 +129,7 @@ export function ExpenseToolbar({
         value={filters.approvalStatus}
         onValueChange={(value) => onFilterChange("approvalStatus", value)}
       >
-        <SelectTrigger className="w-full sm:w-36">
+        <SelectTrigger className="h-9 w-full text-xs sm:w-36">
           <SelectValue placeholder="Approval Status" />
         </SelectTrigger>
         <SelectContent>
@@ -157,7 +157,7 @@ export function ExpenseToolbar({
       </Button>
 
       {!readOnly && (
-        <Button
+        <Button disabled
           variant="custom"
           onClick={onAddExpense}
           className="shrink-0 gap-2 whitespace-nowrap"

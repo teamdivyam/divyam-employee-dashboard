@@ -88,12 +88,12 @@ function EventInventoryPanel({ eventId, booking, data, onAdd, onView }) {
         <EventOperationsNav active="inventory" />
         {source === 'Vendor' && <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
           <div className="relative min-w-44 flex-1 sm:max-w-64">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 mt-0.5 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search inventory item..."
-              className="h-8 pl-9 text-xs placeholder:text-[11px]"
+              className="h-8 pl-9 text-xs"
             />
           </div>
 
@@ -184,7 +184,7 @@ function EventInventoryPanel({ eventId, booking, data, onAdd, onView }) {
               </TableHead>
               <TableHead className="h-11 px-3">Coordinator</TableHead>
               <TableHead className="h-11 px-3 text-center">Inventory Status</TableHead>
-              <TableHead className="h-11 px-3 text-center">Action</TableHead>
+              <TableHead className="text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>{rows.length ? rows.map((item) => {
@@ -196,14 +196,14 @@ function EventInventoryPanel({ eventId, booking, data, onAdd, onView }) {
             const appliesTo = item.appliesTo?.map((entry) => entry.name).join(', ') || item.appliesToLabel || 'All Functions';
             return <TableRow key={item._id}>
               <TableCell className="px-3 py-3"><div className="flex items-center gap-3">{item.itemImage ? <a href={item.itemImage} target="_blank" rel="noopener noreferrer" aria-label={`Open ${item.itemName} image in a new tab`} className="block h-14 w-16 shrink-0 overflow-hidden rounded-lg bg-cyan-50 ring-offset-background transition hover:ring-2 hover:ring-blue-500 hover:ring-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"><img src={item.itemImage} alt={item.itemName} loading="lazy" className="h-full w-full object-cover" /></a> : <span className="grid h-14 w-16 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-700"><Boxes className="h-6 w-6" /></span>}<div className="min-w-0"><p className="font-semibold text-foreground">{item.itemName}</p><p className="text-xs text-muted-foreground">{item.category}{item.sku ? ` · ${item.sku}` : ''}</p></div></div></TableCell>
-              {source === 'Vendor' && <TableCell className="px-3 py-3 text-xs font-medium">{item.vendor?.companyName || 'Not assigned'}</TableCell>}
-              <TableCell className="px-3 py-3"><span className="inline-block rounded-md bg-blue-50 px-2.5 py-1 text-xs font-normal text-blue-700">{appliesTo}</span></TableCell>
+              {source === 'Vendor' && <TableCell className="text-xs font-medium">{item.vendor?.companyName || 'Not assigned'}</TableCell>}
+              <TableCell className="px-3 py-3"><span className="rounded bg-blue-50 px-2 py-1 text-xs text-blue-700">{appliesTo}</span></TableCell>
               <TableCell className="px-3 py-3"><div className="space-y-1"><div className="flex items-center justify-between text-xs"><span className="font-medium text-foreground">{reserved} / {required} {source === 'Vendor' ? 'confirmed' : `${item.unitLabel || 'pcs'} reserved`}</span>{Number(item.shortageQuantity || 0) > 0 && <span className="font-semibold text-red-600">{item.shortageQuantity} {source === 'Vendor' ? 'pending' : 'short'}</span>}</div><div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${percent === 100 ? 'bg-emerald-600' : percent > 0 ? 'bg-orange-500' : 'bg-transparent'}`} style={{ width: `${percent}%` }} /></div></div></TableCell>
-              <TableCell className="px-3 py-3"><div className="space-y-1 text-xs"><div className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 shrink-0 text-blue-600" /><p className="font-medium text-foreground">{dispatch.date}</p></div><div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-3.5 w-3.5 shrink-0 text-blue-600" /><p>{dispatch.time || '-'}</p></div></div></TableCell>
-              <TableCell className="px-3 py-3"><div className="space-y-1 text-xs"><div className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 shrink-0 text-blue-600" /><p className="font-medium text-foreground">{returned.date}</p></div><div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-3.5 w-3.5 shrink-0 text-blue-600" /><p>{returned.time || '-'}</p></div></div></TableCell>
-              <TableCell className="px-3 py-3 text-xs text-foreground font-medium">{item.coordinator?.name || item.coordinatorName || '-'}</TableCell>
+              <TableCell className="px-3 py-3"><div className="space-y-1 text-xs"><div className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5 shrink-0 text-blue-600" /><p className="font-medium text-foreground">{dispatch.date}</p></div><div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-3.5 w-3.5 shrink-0 text-blue-600" /><p>{dispatch.time || '-'}</p></div></div></TableCell>
+              <TableCell className="px-3 py-3"><div className="space-y-1 text-xs"><div className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5 shrink-0 text-blue-600" /><p className="font-medium text-foreground">{returned.date}</p></div><div className="flex items-center gap-1.5 text-muted-foreground"><Clock className="h-3.5 w-3.5 shrink-0 text-blue-600" /><p>{returned.time || '-'}</p></div></div></TableCell>
+              <TableCell className="text-xs">{item.coordinator?.name || item.coordinatorName || '-'}</TableCell>
               <TableCell className="px-3 py-3 text-center"><Badge variant="outline" className={`inline-flex h-7 items-center justify-center rounded-md px-3 text-xs font-normal ${statusTone(item.status)}`}>{item.status}</Badge></TableCell>
-              <TableCell className="px-3 py-3 text-center"><div className="inline-flex items-center justify-center gap-1.5"><Button variant="outline" size="sm" onClick={() => onView(item)} className="h-8 gap-1.5 border-blue-300 bg-transparent px-3 text-xs text-blue-700 hover:bg-blue-50 hover:text-blue-800"><Eye className="h-4 w-4" />View</Button></div></TableCell>
+              <TableCell className="px-3 py-3 text-right"><div className="inline-flex items-center justify-end gap-1.5"><Button variant="outline" size="sm" onClick={() => onView(item)} className="gap-1.5 text-blue-700"><Eye className="h-4 w-4" />View</Button></div></TableCell>
             </TableRow>;
           }) : (
             <TableRow>

@@ -5,13 +5,14 @@ import { currency, numberOf } from '../eventFinance.utils';
 
 export default function QuotationSummary({ quotations = [] }) {
   const summary = { totalQuotedValue: quotations.reduce((sum, row) => sum + numberOf(row.priceSummary?.finalQuotationValue), 0), activeQuotations: quotations.length, quotations: quotations.length, quotationVersions: quotations.reduce((sum, row) => sum + numberOf(row.version), 0) };
-  return <EventMetricCards items={[
+  return <EventMetricCards layout="overview" items={[
     {
       label: 'Total Quoted Value',
       value: currency(summary.totalQuotedValue),
       caption: `Across ${numberOf(summary.activeQuotations)} quotations`,
       icon: FileSpreadsheet,
       tone: 'bg-violet-500/10 text-violet-600 dark:text-violet-300',
+      cardTone: 'event-summary-surface-violet',
       info: 'Total value of quotation records returned by the server.',
     },
     {
@@ -20,6 +21,7 @@ export default function QuotationSummary({ quotations = [] }) {
       caption: 'Acceptance status unavailable',
       icon: CheckCircle2,
       tone: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
+      cardTone: 'event-summary-surface-emerald',
       info: 'Total value of quotations accepted by the client.',
     },
     {
@@ -28,6 +30,7 @@ export default function QuotationSummary({ quotations = [] }) {
       caption: 'Decision status unavailable',
       icon: Clock3,
       tone: 'bg-orange-500/10 text-orange-600 dark:text-orange-300',
+      cardTone: 'event-summary-surface-orange',
       info: 'Value of sent quotations awaiting a client decision.',
     },
     {
@@ -36,6 +39,7 @@ export default function QuotationSummary({ quotations = [] }) {
       caption: `${numberOf(summary.quotations)} quotation(s)`,
       icon: Layers,
       tone: 'bg-blue-500/10 text-blue-600 dark:text-blue-300',
+      cardTone: 'event-summary-surface-blue',
       info: 'Sum of the current version numbers. Previous revisions are not archived by the server.',
     },
   ]} />;

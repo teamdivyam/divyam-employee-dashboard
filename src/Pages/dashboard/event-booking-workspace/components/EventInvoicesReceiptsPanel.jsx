@@ -78,27 +78,31 @@ export function InvoiceSummary({ summary = {} }) {
       value: currency(summary.issuedInvoiceValue),
       icon: FileText,
       tone: "bg-blue-500/10 text-blue-600 dark:text-blue-300",
+      cardTone: "event-summary-surface-blue",
     },
     {
       label: "Total Received",
       value: currency(summary.totalReceived),
       icon: Banknote,
       tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+      cardTone: "event-summary-surface-emerald",
     },
     {
       label: "Outstanding",
       value: currency(summary.outstanding),
       icon: ReceiptText,
       tone: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
+      cardTone: "event-summary-surface-slate",
     },
     {
       label: "Overdue",
       value: currency(summary.overdue),
       icon: CircleAlert,
       tone: "bg-red-500/10 text-red-600 dark:text-red-300",
+      cardTone: "event-summary-surface-rose",
     },
   ];
-  return <EventMetricCards items={cards} />;
+  return <EventMetricCards layout="overview" items={cards} />;
 }
 
 export function ReceiptSummary({ summary = {} }) {
@@ -108,6 +112,7 @@ export function ReceiptSummary({ summary = {} }) {
       value: currency(summary.totalReceipts),
       icon: Banknote,
       tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+      cardTone: "event-summary-surface-emerald",
       valueClass: "text-emerald-700 dark:text-emerald-300",
     },
     {
@@ -115,6 +120,7 @@ export function ReceiptSummary({ summary = {} }) {
       value: numberOf(summary.receiptsIssued),
       icon: FileCheck2,
       tone: "bg-blue-500/10 text-blue-600 dark:text-blue-300",
+      cardTone: "event-summary-surface-blue",
       valueClass: "text-foreground",
     },
     {
@@ -122,6 +128,7 @@ export function ReceiptSummary({ summary = {} }) {
       value: currency(summary.unallocated),
       icon: ReceiptText,
       tone: "bg-orange-500/10 text-orange-600 dark:text-orange-300",
+      cardTone: "event-summary-surface-orange",
       valueClass: "text-orange-600 dark:text-orange-300",
     },
     {
@@ -129,11 +136,12 @@ export function ReceiptSummary({ summary = {} }) {
       value: numberOf(summary.cancelled),
       icon: CircleAlert,
       tone: "bg-red-500/10 text-red-600 dark:text-red-300",
+      cardTone: "event-summary-surface-rose",
       valueClass: "text-destructive",
     },
   ];
 
-  return <EventMetricCards items={cards} />;
+  return <EventMetricCards layout="overview" items={cards} />;
 }
 
 function CreateInvoiceDialog({ open, onOpenChange, options, saving, onSave }) {
@@ -374,7 +382,7 @@ function CreateInvoiceDialog({ open, onOpenChange, options, saving, onSave }) {
           >
             Cancel
           </Button>
-          <Button variant="custom" type="submit" form="create-event-invoice" disabled={saving}>
+          <Button variant="custom" type="submit" form="create-event-invoice" disabled>
             {saving ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -450,7 +458,7 @@ export default function EventInvoicesReceiptsPanel({
           display="inline-block"
           flush
           className="shrink-0"
-          listClassName="[&.tab-comp-detail-list.tab-comp-compact-list]:!h-9 [&_.tab-comp-trigger.tab-comp-detail-trigger.tab-comp-compact-trigger]:!h-9 [&_.tab-comp-trigger[data-state=active]]:!bg-blue-50 dark:[&_.tab-comp-trigger[data-state=active]]:!bg-blue-400/10"
+          listClassName="[&.tab-comp-detail-list.tab-comp-compact-list]:!h-9 [&_.tab-comp-trigger.tab-comp-detail-trigger.tab-comp-compact-trigger]:!h-9"
           ariaLabel="Quotation and invoices views"
         />
   );
@@ -507,7 +515,7 @@ export default function EventInvoicesReceiptsPanel({
               <SelectItem value="this-year">This year</SelectItem>
             </SelectContent>
           </Select>
-          {!readOnly && <Button variant="custom" size="sm" onClick={() => setCreateOpen(true)} className="h-9 gap-2">
+          {!readOnly && <Button disabled variant="custom" size="sm" onClick={() => setCreateOpen(true)} className="h-9 gap-2">
             <Plus className="h-4 w-4" />
             Create Invoice
           </Button>}

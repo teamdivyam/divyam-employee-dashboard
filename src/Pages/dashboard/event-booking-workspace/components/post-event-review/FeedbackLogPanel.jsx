@@ -39,13 +39,13 @@ import { initials } from "../../eventBookingDashboard.utils";
 const PAGE_SIZE = 10;
 
 export function FeedbackLogToolbar({
+  onAddNew,
   search,
   onSearchChange,
   filterSource,
   onSourceChange,
   filterRole,
   onRoleChange,
-  onAddNew,
   onRequestFeedback,
 }) {
   return (
@@ -61,7 +61,7 @@ export function FeedbackLogToolbar({
       </div>
 
       <Select value={filterSource} onValueChange={onSourceChange}>
-        <SelectTrigger className="h-8 w-24 text-[11px]">
+        <SelectTrigger className="h-8 w-28 shrink-0 gap-2 px-2.5 text-[11px]">
           <SelectValue placeholder="All Sources" />
         </SelectTrigger>
         <SelectContent>
@@ -114,7 +114,6 @@ export default function FeedbackLogPanel({
   filterRole = "all",
   onEdit,
   onDelete,
-  onAddNew,
 }) {
   const [page, setPage] = useState(1);
 

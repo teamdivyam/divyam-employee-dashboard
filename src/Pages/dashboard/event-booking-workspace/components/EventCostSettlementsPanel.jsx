@@ -124,7 +124,7 @@ export default function EventCostSettlementsPanel({
           display="inline-block"
           flush
           className="shrink-0"
-          listClassName="[&.tab-comp-detail-list.tab-comp-compact-list]:!h-9 [&_.tab-comp-trigger.tab-comp-detail-trigger.tab-comp-compact-trigger]:!h-9 [&_.tab-comp-trigger[data-state=active]]:!bg-blue-50 dark:[&_.tab-comp-trigger[data-state=active]]:!bg-blue-400/10"
+          listClassName="[&.tab-comp-detail-list.tab-comp-compact-list]:!h-9 [&_.tab-comp-trigger.tab-comp-detail-trigger.tab-comp-compact-trigger]:!h-9"
           ariaLabel="Cost and settlement views"
         />
 

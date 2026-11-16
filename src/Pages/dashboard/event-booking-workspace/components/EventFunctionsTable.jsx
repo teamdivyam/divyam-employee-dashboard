@@ -53,16 +53,16 @@ export default function EventFunctionsTable({ functions, defaultServices, onAdd,
       </div>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
-          <Table className="min-w-[1050px] table-fixed text-xs">
+          <Table className="w-full min-w-[1120px] table-fixed text-xs [&_thead_th]:!px-3 [&_tbody_td]:!px-3 [&_thead_th]:!whitespace-normal [&_thead_th]:leading-snug [&_tbody_td]:break-words">
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="w-[15%] pl-6">Function</TableHead>
-                <TableHead className="w-[17%]">Date &amp; Time</TableHead>
-                <TableHead className="w-[15%]">Venue</TableHead>
-                <TableHead className="w-[8%]">Guests</TableHead>
-                <TableHead className="w-[25%]">Linked Services</TableHead>
-                <TableHead className="w-[10%] text-center">Status</TableHead>
-                <TableHead className="w-[10%] text-center">Action</TableHead>
+                <TableHead className="!pl-6"><span className="block pl-12">Function</span></TableHead>
+                <TableHead className=""><span className="block pl-[22px]">Date &amp; Time</span></TableHead>
+                <TableHead className="">Venue</TableHead>
+                <TableHead className="">Guests</TableHead>
+                <TableHead className="">Linked Services</TableHead>
+                <TableHead className="text-center">Status</TableHead>
+                <TableHead className="text-center">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -72,7 +72,7 @@ export default function EventFunctionsTable({ functions, defaultServices, onAdd,
                 return (
                   <TableRow key={item._id || `${item.name}-${index}`}>
                     <TableCell className="pl-6"><div className="flex items-center gap-3"><span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${iconTones[index % iconTones.length]}`}><Icon className="h-4 w-4" /></span><span className="font-semibold text-foreground">{item.name}</span></div></TableCell>
-                    <TableCell><p className="flex items-center gap-2 font-medium"><CalendarDays className="h-3.5 w-3.5 text-muted-foreground" /><span>{dateRangeLabel(item.fromDate ?? item.date, item.toDate)}</span></p><p className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground"><Clock3 className="h-3.5 w-3.5" />{timeLabel(item.startTime, item.endTime)}</p></TableCell>
+                    <TableCell><p className="grid grid-cols-[14px_minmax(0,1fr)] items-center gap-2 font-medium"><CalendarDays className="h-3.5 w-3.5 text-muted-foreground" /><span>{dateRangeLabel(item.fromDate ?? item.date, item.toDate)}</span></p><p className="mt-1 grid grid-cols-[14px_minmax(0,1fr)] items-center gap-2 text-[11px] text-muted-foreground"><Clock3 className="h-3.5 w-3.5" />{timeLabel(item.startTime, item.endTime)}</p></TableCell>
                     <TableCell><p className="font-medium text-foreground">{item.venue || 'Venue pending'}</p></TableCell>
                     <TableCell><span className="flex items-center gap-2 font-semibold"><UsersRound className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />{item.guestCount || 0}</span></TableCell>
                     <TableCell><div className="flex flex-wrap gap-1.5">{linkedServices.length ? linkedServices.map((service, serviceIndex) => <Badge key={service} variant="outline" className={`rounded px-2 py-0.5 text-[9px] ${serviceTones[serviceIndex % serviceTones.length]}`}>{service}</Badge>) : <span className="text-muted-foreground">No services linked</span>}</div></TableCell>

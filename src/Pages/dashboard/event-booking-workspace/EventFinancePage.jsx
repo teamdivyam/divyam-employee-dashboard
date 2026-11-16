@@ -345,7 +345,7 @@ function CommercialNoteDialog({ open, onOpenChange, saving, onSave }) {
           </Button>
           <Button
             variant="custom"
-            disabled={saving || !note.trim()}
+            disabled
             onClick={() =>
               onSave({
                 note: note.trim(),
@@ -831,7 +831,7 @@ function CommercialPanel({
               </p>
             </div>
             {!readOnly && (
-              <Button
+              <Button disabled
                 size="sm"
                 onClick={onAddChange}
                 className="gap-1.5"
@@ -954,7 +954,7 @@ function CommercialPanel({
               {finance.commercialNotes?.length || 0} Notes
             </Badge>
             {!readOnly && (
-              <Button
+              <Button disabled
                 type="button"
                 variant="outline"
                 size="sm"

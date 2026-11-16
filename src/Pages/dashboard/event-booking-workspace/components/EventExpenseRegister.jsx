@@ -151,7 +151,7 @@ function ExpenseDetailDialog({ expense, onOpenChange }) {
 function ExpenseActions({ expense, onView }) {
   return (
     <div className="flex justify-end gap-1">
-      <Button size="sm" variant="outline" className="gap-1 text-blue-700" onClick={() => onView(expense)}>
+      <Button size="sm" variant="outline" className="gap-1.5 border-blue-300 bg-transparent text-blue-700 hover:bg-blue-50 hover:text-blue-800" onClick={() => onView(expense)}>
         <Eye className="mr-2 h-4 w-4" />
         View
       </Button>
@@ -217,11 +217,11 @@ export default function EventExpenseRegister({
     <div className="space-y-3">
       <div className="min-w-0">
           <div className="max-w-full overflow-x-auto">
-            <Table headerVariant="section" className="min-w-[1050px] text-xs">
+            <Table headerVariant="section" className="w-full min-w-[1100px] table-fixed text-xs [&_thead_th]:!px-3 [&_tbody_td]:!px-3 [&_thead_th]:!whitespace-normal [&_tbody_td]:break-words">
               <TableHeader>
                 <TableRow className="bg-muted/40">
-                  <TableHead>Expense / Category</TableHead>
-                  <TableHead>
+                  <TableHead className="!text-left text-xs ">Expense / Category</TableHead>
+                  <TableHead className="!text-left text-xs ">
                     <SortButton
                       label="Expense Date"
                       sortBy="date"
@@ -229,7 +229,7 @@ export default function EventExpenseRegister({
                       onSort={updateSort}
                     />
                   </TableHead>
-                  <TableHead className="text-right text-xs font-medium">
+                  <TableHead className="!text-right text-xs font-medium">
                     <SortButton
                       label="Amount"
                       sortBy="amount"
@@ -238,18 +238,18 @@ export default function EventExpenseRegister({
                       align="right"
                     />
                   </TableHead>
-                  <TableHead>Paid By / Source</TableHead>
-                  <TableHead>Approval</TableHead>
-                  <TableHead>Settlement</TableHead>
-                  <TableHead>Proof</TableHead>
-                  <TableHead className="text-right text-xs font-medium">Action</TableHead>
+                  <TableHead className="!text-left text-xs ">Paid By / Source</TableHead>
+                  <TableHead className="!text-left text-xs ">Approval</TableHead>
+                  <TableHead className="!text-left text-xs ">Settlement</TableHead>
+                  <TableHead className="!text-center text-xs ">Proof</TableHead>
+                  <TableHead className="!text-right text-xs font-medium">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data?.expenses?.length ? (
                   data.expenses.map((expense) => (
                     <TableRow key={idOf(expense)}>
-                      <TableCell>
+                      <TableCell className="!text-left text-xs ">
                         <p className="text-xs font-normal text-foreground">
                           {expense.expenseTitle}
                         </p>
@@ -257,19 +257,19 @@ export default function EventExpenseRegister({
                           {expense.category}
                         </p>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">
+                      <TableCell className="!text-left text-xs ">
                         {shortDate(expense.date)}
                       </TableCell>
-                      <TableCell className="text-right text-xs font-medium">
+                      <TableCell className="!text-right text-xs font-medium">
                         {currency(expense.amount)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="!text-left text-xs ">
                         <p className="text-xs font-normal text-foreground">{expense.paidByName}</p>
                         <p className="text-[11px] text-muted-foreground">
                           {expense.fundingSource}
                         </p>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="!text-left text-xs ">
                         <Badge
                           variant="outline"
                           className={
@@ -280,7 +280,7 @@ export default function EventExpenseRegister({
                           {expense.approvalStatus}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="!text-left text-xs ">
                         {expense.settlementStatus &&
                         expense.settlementStatus !== "Not Applicable" ? (
                           <Badge
@@ -296,7 +296,7 @@ export default function EventExpenseRegister({
                           <span className="text-muted-foreground">–</span>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="!text-center text-xs ">
                         {expense.billReceipt?.fileUrl ? (
                           <Button size="sm" variant="outline" asChild>
                             <a
@@ -315,7 +315,7 @@ export default function EventExpenseRegister({
                           </span>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="!text-right text-xs font-medium">
                         <ExpenseActions
                           expense={expense}
                           onView={setExpenseDetail}
