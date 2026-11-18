@@ -367,7 +367,7 @@ export function AllocationRequirementWorkspace({
                 )}
               </div>
             </Card>
-            <p className="mt-3 flex items-start gap-2 rounded-lg border border-primary/15 bg-primary/5 p-3 text-[11px] text-muted-foreground shrink-0"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />Requirements are for planning. Adding an item does not reserve or issue physical stock.</p>
+            <p className="mt-3 flex items-start gap-2 rounded-lg border border-primary/15 bg-primary/5 p-3 text-[11px] text-muted-foreground shrink-0"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />Requirements are for planning. For items already allocated, enter only the additional quantity needed. Adding an item does not reserve or issue physical stock.</p>
           </aside>
         </div>
 

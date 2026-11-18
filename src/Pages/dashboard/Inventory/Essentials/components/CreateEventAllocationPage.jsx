@@ -266,8 +266,8 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
   );
   const requirementsLoading = !isReview && Boolean(selectedEventId) && (isLoadingEvents || existingRequirements.isPending || existingRequirements.isFetching);
   const requirementsUnavailable = !isReview && Boolean(selectedEventId) && (requirementsLoading || existingRequirements.isError);
-  const savedItemIds = new Set(savedRequirementLines.map(line => line.itemId));
-  const pendingRequirementLines = requirementLines.filter(line => !savedItemIds.has(line.itemId));
+  // Local draft rows can request more of an item already allocated to this event.
+  const pendingRequirementLines = requirementLines;
 
   const restoredPlanningId = useRef(null);
   useEffect(() => {
@@ -329,8 +329,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
   const enrichedRequirementLines = useMemo(() => {
     const allocatedByItem = new Map();
 
-    const savedItems = new Set(savedRequirementLines.map(line => line.itemId));
-    const pendingLines = requirementLines.filter(line => !savedItems.has(line.itemId)).map((line) => {
+    const pendingLines = requirementLines.map((line) => {
       const item = inventoryItems.find((i) => i._id === line.itemId) || {};
       // Review starts from this allocation's server availability, including other
       // reservations. Reuse the same sequential calculation for edited/new lines.
@@ -405,8 +404,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
   const handleApplyRequirements = (selections) => {
-    const additions = selections.filter(selection => !savedItemIds.has(selection.item)
-      && (!isReview || !requirementLines.some(line => line.itemId === selection.item)));
+    const additions = selections.filter(selection => !isReview || !requirementLines.some(line => line.itemId === selection.item));
     setRequirementLines(current => {
       const merged = [...current];
       for (const selection of additions) {
@@ -565,7 +563,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
     return <RequirementWorkspace
       onSourceAllocationChange={id => setPlanning(current => ({ ...current, designatedSourceAllocation: id }))}
       enableSourcePlanning
-      persistedSelections={(isReview ? requirementLines : savedRequirementLines).map(line => ({ item: line.itemId, requiredQuantity: line.requiredQty, planning: line.planning, allocationPlanning: line.allocationPlanning || planning, sourceLocation: line.sourceLocation }))}
+      persistedSelections={isReview ? requirementLines.map(line => ({ item: line.itemId, requiredQuantity: line.requiredQty, planning: line.planning, allocationPlanning: line.allocationPlanning || planning, sourceLocation: line.sourceLocation })) : []}
       highlightCategoryHeaders={!isReview}
       allocation={{ ...(reviewAllocation || { ...selectedEvent, status: "Draft" }), planning }}
       booking={selectedEvent}

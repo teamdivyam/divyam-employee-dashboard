@@ -17,7 +17,6 @@ import {
   SidebarMenuSubItem,
 } from "@components/components/ui/sidebar";
 import { cn } from "@components/lib/utils";
-// import { eventBookingSidebarTarget } from "../../utils/eventBookingNavigation";
 
 type NavItem = {
   title: string;
@@ -85,7 +84,6 @@ export function NavMain({ items, label }: { items: NavItem[]; label?: string }) 
         {items.map((item) => {
           const hasChildren = Boolean(item.items?.length);
           const isParentActive = isNavItemActive(location.pathname, item);
-          // const navigationTarget = eventBookingSidebarTarget(location.pathname, item.url);
 
           if (hasChildren) {
             return (
@@ -158,7 +156,7 @@ export function NavMain({ items, label }: { items: NavItem[]; label?: string }) 
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton asChild tooltip={item.title} isActive={isParentActive}>
                 <NavLink
-                  // to={navigationTarget}
+                  to={item.url}
                   state={item.navigationState}
                   end={item.url === "/dashboard"}
                   className={linkClass(isParentActive)}
