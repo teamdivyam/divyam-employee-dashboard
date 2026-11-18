@@ -136,11 +136,9 @@ export function continuationAllocation(savedLines, requestedAllocationId) {
     if (!saved) throw new Error("The selected allocation no longer belongs to this event. Refresh before saving.");
     return saved;
   }
-  const allocations = new Map(savedLines.map(line => [line.allocationId, line]));
-  if (allocations.size > 1) {
-    throw new Error("This event has multiple allocations. Open the intended allocation before adding requirements.");
-  }
-  return allocations.values().next().value;
+  // Event-level additions reuse the newest eligible draft, otherwise create a
+  // separate allocation. Committed documents retain their original lines.
+  return savedLines.find(line => line.canContinueAllocation);
 }
 
 export function overallAllocationLifecycleStatus(allocation, dispatchSummary = null, returnSummary = null) {

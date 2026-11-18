@@ -37,7 +37,7 @@ import { Textarea } from "@components/components/ui/textarea";
 
 import { ItemImagePreview, ItemPreviewImage } from "@components/components/InventoryItemImagePreview";
 import FulfilmentPlanDisplay from "../../Inventory/Essentials/components/FulfilmentPlanDisplay";
-import AllocationDeleteAction from "../../Inventory/Essentials/components/AllocationDeleteAction";
+import CompanyInventoryDeleteMenu from "./CompanyInventoryDeleteMenu";
 import {
   eventAllocationDetailKey,
   allocationDisplayRows,
@@ -511,10 +511,10 @@ export default function EventAllocationRequirementsSection({ eventId, booking, o
         <Pencil className="h-4 w-4" aria-hidden="true" />
       </Button>
       <div className="col-start-2 justify-self-start">
-      <AllocationDeleteAction
-        allocationId={line.ownership.allocationId}
-        allocationLineId={line.ownership.allocationLineId}
-        disabled={saveMutation.isPending}
+      <CompanyInventoryDeleteMenu
+        line={line}
+        service={AdminV2Service}
+        disabled={saveMutation.isPending || !canEditRow(line)}
         onDeleted={async () => {
           await Promise.all([
             queryClient.invalidateQueries({ queryKey: ["inventoryv2-allocations"] }),

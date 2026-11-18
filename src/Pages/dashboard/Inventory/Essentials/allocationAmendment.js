@@ -34,6 +34,13 @@ export function appendAllocationRequirements(allocation, additions) {
 
 // Re-read before amending, but never adopt a newer version behind the user's
 // draft. The server performs the final atomic concurrency check on PATCH.
+export function canContinueAllocation(allocation) {
+  return Boolean(allocation && allocation.status === "Draft" && !allocation.verifiedAt
+    && !allocation.coverage?.requirementsLocked && Array.isArray(allocation.items)
+    && !allocation.items.some(line => ["Reserved", "Dispatched", "Returned"].includes(line.status)
+      || line.preparedQuantity > 0 || line.verifiedQuantity > 0 || line.dispatchedQuantity > 0));
+}
+
 export async function saveAllocationContinuation(saved, payload, service) {
   if (!saved) return service.createInventoryV2Allocation(payload);
   const response = await service.getInventoryV2AllocationById(saved.allocationId);
@@ -41,8 +48,7 @@ export async function saveAllocationContinuation(saved, payload, service) {
   if (!current || current._id !== saved.allocationId || current.updatedAt !== saved.expectedUpdatedAt) {
     throw new Error("The allocation has changed. Go back and reopen it before saving.");
   }
-  if (current.status !== "Draft" || current.verifiedAt || current.coverage?.requirementsLocked
-    || current.items.some(line => line.status === "Reserved" || line.preparedQuantity > 0)) {
+  if (!canContinueAllocation(current)) {
     throw new Error("This allocation is committed. Open the existing allocation to review the permitted actions.");
   }
   return service.updateInventoryV2Allocation(current._id, { ...appendAllocationRequirements(current, payload.items), ...(payload.planning ? {planning: payload.planning} : {}) });

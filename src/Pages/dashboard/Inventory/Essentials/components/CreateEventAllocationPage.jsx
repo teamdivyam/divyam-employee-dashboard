@@ -1,5 +1,5 @@
 import { continuationAllocation } from "../eventAllocationRows";
-import { saveAllocationContinuation } from "../allocationAmendment";
+import { canContinueAllocation, saveAllocationContinuation } from "../allocationAmendment";
 import { canEditAllocationRequirements } from "../allocationEditAccess";
 import FulfilmentPlanDisplay from "./FulfilmentPlanDisplay";
 import useAuthSession from "@/hooks/useAuthSession";
@@ -241,6 +241,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
             id: line._id,
             allocationId: allocation._id,
             allocationStatus: allocation.status,
+            canContinueAllocation: canContinueAllocation(allocation),
             expectedUpdatedAt: allocation.updatedAt,
             allocationPlanning: allocation.planning,
             saved: true,
@@ -507,8 +508,7 @@ export default function CreateEventAllocationPage({ onBack, RequirementWorkspace
 
       // The list is newest-first. Event-level additions continue its latest Draft;
       // an explicitly selected allocation always retains priority and its lifecycle checks.
-      const requestedAllocationId = searchParams.get("allocationId")
-        || savedRequirementLines.find(line => line.allocationStatus === "Draft")?.allocationId;
+      const requestedAllocationId = searchParams.get("allocationId");
       const saved = continuationAllocation(savedRequirementLines, requestedAllocationId);
       const res = await saveAllocationContinuation(saved, payload, AdminV2Service);
       return res.data;
