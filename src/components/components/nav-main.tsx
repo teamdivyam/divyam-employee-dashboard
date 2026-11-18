@@ -17,6 +17,7 @@ import {
   SidebarMenuSubItem,
 } from "@components/components/ui/sidebar";
 import { cn } from "@components/lib/utils";
+// import { eventBookingSidebarTarget } from "../../utils/eventBookingNavigation";
 
 type NavItem = {
   title: string;
@@ -73,12 +74,10 @@ export const isNavItemActive = (pathname: string, item: NavItem) => (
 export function NavMain({ items, label }: { items: NavItem[]; label?: string }) {
   const location = useLocation();
 
-  if (items.length === 0) return null;
-
   return (
     <SidebarGroup className="px-0">
       {label && (
-        <SidebarGroupLabel className="sidebar-category-heading group-data-[collapsible=icon]:hidden">
+        <SidebarGroupLabel className="mx-2 h-auto rounded-none border-b border-sidebar-border/40 px-0 pb-1 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden">
           {label}
         </SidebarGroupLabel>
       )}
@@ -86,6 +85,7 @@ export function NavMain({ items, label }: { items: NavItem[]; label?: string }) 
         {items.map((item) => {
           const hasChildren = Boolean(item.items?.length);
           const isParentActive = isNavItemActive(location.pathname, item);
+          // const navigationTarget = eventBookingSidebarTarget(location.pathname, item.url);
 
           if (hasChildren) {
             return (
@@ -158,7 +158,7 @@ export function NavMain({ items, label }: { items: NavItem[]; label?: string }) 
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton asChild tooltip={item.title} isActive={isParentActive}>
                 <NavLink
-                  to={item.url}
+                  // to={navigationTarget}
                   state={item.navigationState}
                   end={item.url === "/dashboard"}
                   className={linkClass(isParentActive)}
